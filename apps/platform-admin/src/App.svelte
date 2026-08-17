@@ -1,19 +1,32 @@
 <script lang="ts">
-import { Cluster } from '@sanvi/ui'
-import type { Component } from 'svelte'
-import { handleLinkClick, routerState } from './lib/router.svelte'
+import { QueryDevtools } from '@sanvi/query'
+import type { RouteDefinition } from '@sanvi/spa-router'
+import { createRouter } from '@sanvi/spa-router'
+import { AppShell, ErrorView, Spinner } from '@sanvi/ui'
 
-const routes: Record<string, () => Promise<{ default: Component }>> = {
-  '/': () => import('./routes/Tenants.svelte'),
-  '/operators': () => import('./routes/Operators.svelte'),
-  '/health': () => import('./routes/Health.svelte'),
-}
-const notFound = () => import('./routes/NotFound.svelte')
+// Reserved for features/plans/audit/themes/privacy — filled in by the phases that own each
+// (03, 04, 05, 07, respectively). Adding a nav item and a route here is that phase's work.
+const routes: RouteDefinition[] = [
+  { path: '', load: () => import('./routes/Tenants.svelte') },
+  { path: 'operators', load: () => import('./routes/Operators.svelte') },
+  { path: 'health', load: () => import('./routes/Health.svelte') },
+]
+
+const router = createRouter({
+  routes,
+  notFound: () => import('./routes/NotFound.svelte'),
+})
 
 const COPY = {
   brand: 'Sanvi Platform Admin',
   skipLink: 'Skip to main content',
   primaryNav: 'Primary',
+  loadingLabel: 'Loading',
+  errorTitle: 'Something went wrong',
+  errorDescription: 'Try reloading the page.',
+  deniedTitle: 'Access denied',
+  deniedDescription: "You don't have permission to view this page.",
+  retry: 'Try again',
 }
 
 const NAV: { href: string; label: string }[] = [
@@ -21,99 +34,33 @@ const NAV: { href: string; label: string }[] = [
   { href: '/operators', label: 'Operators' },
 ]
 
-let CurrentPage: Component | null = $state(null)
-
-$effect(() => {
-  const loader = routes[routerState.pathname] ?? notFound
-  let cancelled = false
-  loader().then((mod) => {
-    if (!cancelled) CurrentPage = mod.default
-  })
-  return () => {
-    cancelled = true
-  }
-})
+function retry(): void {
+  router.navigate(router.pathname)
+}
 </script>
 
-<a href="#main-content" class="app-shell__skip-link">{COPY.skipLink}</a>
-<div class="app-shell">
-  <header class="app-shell__header">
-    <span class="app-shell__brand">{COPY.brand}</span>
-    <nav aria-label={COPY.primaryNav}>
-      <Cluster gap="4" as="ul" class="app-shell__nav">
-        {#each NAV as item (item.href)}
-          <li>
-            <a
-              href={item.href}
-              aria-current={routerState.pathname === item.href ? 'page' : undefined}
-              onclick={(event) => handleLinkClick(event, item.href)}
-            >
-              {item.label}
-            </a>
-          </li>
-        {/each}
-      </Cluster>
-    </nav>
-  </header>
-  <main id="main-content" class="app-shell__main">
-    {#if CurrentPage}
-      {@const Page = CurrentPage}
-      <Page />
-    {/if}
-  </main>
-</div>
-
-<style>
-  .app-shell__skip-link {
-    position: absolute;
-    inset-block-start: -100%;
-    inset-inline-start: var(--sanvi-spacing-2);
-    z-index: var(--sanvi-z-index-modal);
-    padding: var(--sanvi-spacing-2) var(--sanvi-spacing-3);
-    background: var(--sanvi-color-background-primary);
-    color: var(--sanvi-color-text-primary);
-    border-radius: var(--sanvi-radius-md);
-  }
-  .app-shell__skip-link:focus {
-    inset-block-start: var(--sanvi-spacing-2);
-  }
-
-  .app-shell {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .app-shell__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--sanvi-spacing-3) var(--sanvi-spacing-6);
-    border-block-end: var(--sanvi-border-width-thin) solid var(--sanvi-color-border-default);
-    background: var(--sanvi-color-background-secondary);
-  }
-
-  .app-shell__brand {
-    font-weight: var(--sanvi-font-weight-semibold);
-  }
-
-  :global(.app-shell__nav) {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  .app-shell__header :global(a) {
-    color: var(--sanvi-color-text-secondary);
-    text-decoration: none;
-  }
-
-  .app-shell__header :global(a[aria-current='page']) {
-    color: var(--sanvi-color-text-primary);
-    font-weight: var(--sanvi-font-weight-medium);
-  }
-
-  .app-shell__main {
-    flex: 1;
-  }
-</style>
+<AppShell
+  brand={COPY.brand}
+  skipLinkLabel={COPY.skipLink}
+  primaryNavLabel={COPY.primaryNav}
+  nav={NAV}
+  currentPath={router.pathname}
+  onNavigate={router.handleLinkClick}
+>
+  {#if router.error}
+    <ErrorView
+      title={COPY.errorTitle}
+      description={COPY.errorDescription}
+      retryLabel={COPY.retry}
+      onRetry={retry}
+    />
+  {:else if router.guardRejected}
+    <ErrorView title={COPY.deniedTitle} description={COPY.deniedDescription} />
+  {:else if router.component}
+    {@const Page = router.component}
+    <Page />
+  {:else if router.loading}
+    <Spinner label={COPY.loadingLabel} />
+  {/if}
+</AppShell>
+<QueryDevtools />

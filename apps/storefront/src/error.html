@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>%sveltekit.status% — Sanvi</title>
+    <style>
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        background: #ffffff;
+        color: #1a1a1a;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #121212;
+          color: #eaeaea;
+        }
+      }
+      .error {
+        text-align: center;
+        max-width: 28rem;
+        padding: 1.5rem;
+      }
+      .error p {
+        margin: 0.5rem 0 0;
+        opacity: 0.75;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Root-layout errors (e.g. an unresolvable tenant host) skip `+error.svelte`
+      entirely — SvelteKit's own docs: an error in the root `+layout(.server).js`
+      has no parent layout left to render an `+error.svelte` inside, so it falls
+      back to this static template instead (verified: without this file, an
+      unknown-host request rendered SvelteKit's built-in generic fallback, not
+      ours). Static, not Svelte — no design-tokens import here, kept close by hand
+      instead; the message is intentionally generic so an unknown host is never
+      distinguishable from any other root-layout failure.
+    -->
+    <div class="error">
+      <h1>%sveltekit.status%</h1>
+      <p>The page you're looking for isn't here.</p>
+    </div>
+  </body>
+</html>

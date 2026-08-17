@@ -1,0 +1,5 @@
+{
+  "extends": "@sanvi/ts-config/svelte",
+  "include": ["src/**/*.ts", "__tests__/**/*.ts"],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,20 @@
+import type { TypedApiClient } from './typed'
+
+/**
+ * `GET /api/v1/public/tenant-context` — host-based context for the storefront
+ * SSR bootstrap. No auth, no tenant header (the host *is* the tenant hint).
+ * 404 → unknown host; a suspended/provisioning/archived tenant still answers
+ * 200 (the caller renders the maintenance view from `status`).
+ */
+export function getPublicTenantContext(client: TypedApiClient, signal?: AbortSignal) {
+  return client.GET('/api/v1/public/tenant-context', signal ? { signal } : undefined)
+}
+
+/**
+ * `GET /api/v1/tenant/context` — the current tenant's self-description, as
+ * resolved by the backend's tenant-resolution middleware (subdomain, custom
+ * domain, or internal header) for this request.
+ */
+export function getTenantContext(client: TypedApiClient, signal?: AbortSignal) {
+  return client.GET('/api/v1/tenant/context', signal ? { signal } : undefined)
+}

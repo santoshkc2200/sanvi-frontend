@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import vitestJsdomConfig from '@sanvi/test-config/jsdom'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { mergeConfig } from 'vitest/config'
@@ -6,5 +7,15 @@ export default mergeConfig(vitestJsdomConfig, {
   plugins: [svelte({ hot: false })],
   resolve: {
     conditions: ['browser'],
+    // `$env/dynamic/public` is a SvelteKit virtual module Vite can't resolve
+    // without the full `sveltekit()` plugin — aliased to a static stub
+    // instead of pulling that plugin (and its server/browser condition
+    // assumptions) into these tests. `$lib` just needs a plain path alias.
+    alias: {
+      '$env/dynamic/public': fileURLToPath(
+        new URL('./__tests__/mocks/env-dynamic-public.ts', import.meta.url),
+      ),
+      $lib: fileURLToPath(new URL('./src/lib', import.meta.url)),
+    },
   },
 })

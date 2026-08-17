@@ -1,21 +1,19 @@
 <script lang="ts">
+import { getTenantContext } from '@sanvi/tenant'
 import { Container, EmptyState } from '@sanvi/ui'
-import { page } from '$app/state'
+
+const tenant = getTenantContext()
 
 const COPY = {
-  title: 'Sanvi Storefront',
   emptyTitle: 'No storefront content yet',
-  emptyDescription: (locale: string) =>
-    `Tenant resolution lands in phase 01 — this placeholder is currently rendering for locale "${locale}".`,
+  emptyDescription: 'Catalog and page content are wired up starting in a later phase.',
 }
-
-const description = $derived(COPY.emptyDescription(page.data['locale'] ?? 'en'))
 </script>
 
 <svelte:head>
-  <title>{COPY.title}</title>
+  <title>{tenant?.display_name ?? 'Sanvi Storefront'}</title>
 </svelte:head>
 
 <Container size="lg" padding="6">
-  <EmptyState title={COPY.emptyTitle} {description} />
+  <EmptyState title={tenant?.display_name ?? COPY.emptyTitle} description={COPY.emptyDescription} />
 </Container>

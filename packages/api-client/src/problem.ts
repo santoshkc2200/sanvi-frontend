@@ -10,6 +10,10 @@ export interface ProblemDetails {
   status: number
   detail?: string
   instance?: string
+  /** Correlates with OpenObserve; distinct from the `x-request-id` response header. */
+  trace_id?: string
+  /** Machine-readable differentiator for statuses that carry one — e.g. `423` tenant-lock reasons `"suspended" | "provisioning" | "archived"`. */
+  reason?: string
   [extension: string]: unknown
 }
 
@@ -30,6 +34,10 @@ export class ApiError extends Error {
   readonly detail: string | undefined
   readonly instance: string | undefined
   readonly requestId: string | undefined
+  /** `problem.trace_id` — what support wants quoted; distinct from `requestId` (the header). */
+  readonly traceId: string | undefined
+  /** `problem.reason` — e.g. a `423`'s `"suspended" | "provisioning" | "archived"`. */
+  readonly reason: string | undefined
   /** The full problem+json body, for extension members the typed fields don't cover. */
   readonly problem: ProblemDetails | undefined
 
@@ -43,6 +51,8 @@ export class ApiError extends Error {
     this.detail = problem?.detail
     this.instance = problem?.instance
     this.requestId = requestId
+    this.traceId = problem?.trace_id
+    this.reason = problem?.reason
     this.problem = problem
   }
 

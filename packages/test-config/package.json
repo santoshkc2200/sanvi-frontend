@@ -16,12 +16,14 @@
   "devDependencies": {
     "@sanvi/ts-config": "workspace:*",
     "@testing-library/jest-dom": "catalog:",
+    "@types/jest-axe": "catalog:",
     "@types/node": "catalog:",
     "@testing-library/svelte": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "jest-axe": "catalog:",
     "jsdom": "catalog:",
     "typescript": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:"
   },
   "peerDependencies": {

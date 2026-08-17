@@ -1,16 +1,32 @@
+import { TenantHostCache, resolveTenantForHost } from '@sanvi/tenant/server'
 import { buildContentSecurityPolicyForApp } from '@sanvi/csp'
 import type { Handle } from '@sveltejs/kit'
 import { sequence } from '@sveltejs/kit/hooks'
 import { getAppEnv } from '$lib/env'
 
 /**
- * Resolves the tenant from the request's subdomain or custom domain.
- * Phase 01 (Tenancy, Routing & API Client) replaces this with a real
- * lookup; phase 00 only needs `event.locals.tenant` to exist so downstream
- * code (and its types) can depend on the shape now.
+ * Shared across every request on purpose — it caches by host, which is
+ * exactly the "per-host, not per-request" scope that makes it safe to share
+ * across concurrent requests (see `TenantHostCache`'s own doc comment).
  */
-const resolveTenant: Handle = async ({ event, resolve }) => {
-  event.locals.tenant = null
+const tenantHostCache = new TenantHostCache()
+
+/**
+ * Resolves the tenant from the request's `Host` header via
+ * `@sanvi/tenant/server`'s TTL + stale-while-revalidate cache. Unknown host
+ * → `locals.tenant = null`, `locals.tenantResolution = 'unknown-host'`
+ * (the root `+layout.server.ts` turns that into a 404, never an enumeration
+ * signal). A suspended/provisioning/archived tenant still resolves `'ok'` —
+ * the root layout renders the maintenance branch from `tenant.status`.
+ */
+export const resolveTenant: Handle = async ({ event, resolve }) => {
+  const host = event.request.headers.get('host') ?? event.url.host
+  const { apiOrigin } = getAppEnv()
+
+  const resolution = await resolveTenantForHost(tenantHostCache, { apiOrigin, host })
+  event.locals.tenant = resolution.tenant
+  event.locals.tenantResolution = resolution.status
+
   return resolve(event)
 }
 

@@ -24,6 +24,7 @@
     "check:boundaries": "node packages/lint-gates/src/check-boundaries.mjs .",
     "check:budget": "turbo run check:budget",
     "check:all": "pnpm lint && turbo run typecheck test build check:i18n check:tokens check:budget && pnpm check:boundaries",
+    "generate:api": "node scripts/generate-openapi.mjs",
     "clean": "turbo run clean && rimraf node_modules",
     "prepare": "husky"
   },
@@ -37,6 +38,7 @@
     "eslint-plugin-svelte": "catalog:",
     "husky": "^9.1.0",
     "lint-staged": "^15.2.0",
+    "openapi-typescript": "catalog:",
     "rimraf": "catalog:",
     "svelte": "catalog:",
     "svelte-eslint-parser": "catalog:",

@@ -2,10 +2,9 @@ import { axe } from '@sanvi/test-config/axe'
 import { fireEvent, render, screen } from '@testing-library/svelte'
 import { afterEach, describe, expect, it } from 'vitest'
 import App from '../src/App.svelte'
-import { navigate } from '../src/lib/router.svelte'
 
 afterEach(() => {
-  navigate('/')
+  window.history.pushState({}, '', '/')
 })
 
 describe('App shell', () => {
@@ -23,6 +22,13 @@ describe('App shell', () => {
 
     expect(await screen.findByText('Operators')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Operators' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('renders NotFound for an unmatched route', async () => {
+    window.history.pushState({}, '', '/does-not-exist')
+    render(App)
+
+    expect(await screen.findByText('Page not found')).toBeInTheDocument()
   })
 
   it('has no accessibility violations on the default route', async () => {

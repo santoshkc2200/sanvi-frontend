@@ -23,6 +23,8 @@
     "@sanvi/api-client": "workspace:*",
     "@sanvi/csp": "workspace:*",
     "@sanvi/design-tokens": "workspace:*",
+    "@sanvi/query": "workspace:*",
+    "@sanvi/spa-router": "workspace:*",
     "@sanvi/ui": "workspace:*"
   },
   "devDependencies": {

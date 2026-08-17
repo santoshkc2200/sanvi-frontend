@@ -29,4 +29,6 @@ catalog:
   "@testing-library/jest-dom": ^6.6.0
   jsdom: ^25.0.0
   jest-axe: ^9.0.0
+  "@types/jest-axe": ^3.5.9
   rimraf: ^6.0.0
+  openapi-typescript: ^7.5.0

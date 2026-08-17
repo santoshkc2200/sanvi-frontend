@@ -57,6 +57,50 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  api-types-drift:
+    name: OpenAPI types drift (advisory)
+    runs-on: ubuntu-latest
+    # Advisory until cross-repo checkout access to sanvi-backend is actually configured — same
+    # "no target configured yet" convention main.yml uses for undeployed pieces. Requires a
+    # `SANVI_BACKEND_CHECKOUT_TOKEN` secret (a PAT/deploy key with read access to sanvi-backend,
+    # since the default GITHUB_TOKEN can't check out a sibling private repo) and assumes
+    # sanvi-backend lives under the same GitHub org as this repo.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: sanvi-frontend
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/sanvi-backend
+          token: ${{ secrets.SANVI_BACKEND_CHECKOUT_TOKEN }}
+          path: sanvi-backend
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: sanvi-frontend/.node-version
+          cache: pnpm
+          cache-dependency-path: sanvi-frontend/pnpm-lock.yaml
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install
+        working-directory: sanvi-frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Regenerate OpenAPI types from sanvi-backend
+        working-directory: sanvi-frontend
+        env:
+          SANVI_BACKEND_DIR: ../sanvi-backend
+        run: pnpm generate:api
+
+      - name: Fail if the committed types have drifted from the backend contract
+        working-directory: sanvi-frontend
+        run: git diff --exit-code -- packages/api-client/openapi packages/api-client/src/generated
+
   e2e:
     name: Playwright smoke
     runs-on: ubuntu-latest
