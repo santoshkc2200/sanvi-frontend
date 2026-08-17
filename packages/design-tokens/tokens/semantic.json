@@ -1,0 +1,230 @@
+{
+  "$schema": "https://tokens.studio/schema/draft.json",
+  "color": {
+    "$description": "Brand-level and ui-package component tokens — the only source of visual color values in the workspace (docs/architecture-overview.md non-negotiable #2).",
+    "background": {
+      "primary": {
+        "$value": "{primitive.color.gray.0}",
+        "$type": "color",
+        "$description": "App/page background — light",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "secondary": {
+        "$value": "{primitive.color.gray.50}",
+        "$type": "color",
+        "$description": "Raised surface, sidebar, nav — light",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "tertiary": {
+        "$value": "{primitive.color.gray.100}",
+        "$type": "color",
+        "$description": "Cards, panels — light"
+      },
+      "disabled": {
+        "$value": "{primitive.color.gray.100}",
+        "$type": "color",
+        "$description": "Disabled form control fill — light"
+      }
+    },
+    "text": {
+      "primary": {
+        "$value": "{primitive.color.gray.900}",
+        "$type": "color",
+        "$description": "Main text content — light",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "secondary": {
+        "$value": "{primitive.color.gray.600}",
+        "$type": "color",
+        "$description": "Supporting text, labels — light",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "disabled": {
+        "$value": "{primitive.color.gray.400}",
+        "$type": "color",
+        "$description": "Disabled text/control label — light. WCAG exempts disabled content from the 4.5:1 minimum."
+      },
+      "inverse": {
+        "$value": "{primitive.color.gray.0}",
+        "$type": "color",
+        "$description": "Text on a solid `color.solid.*` fill — always white, independent of theme; verified ≥4.5:1 against every solid fill in ui-tokens-contrast.test.mjs."
+      }
+    },
+    "border": {
+      "default": {
+        "$value": "{primitive.color.gray.200}",
+        "$type": "color",
+        "$description": "Default borders — light",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "focus": {
+        "$value": "{primitive.color.blue.600}",
+        "$type": "color",
+        "$description": "Focus ring — light. Clears 3:1 against color.background.primary (WCAG 2.4.11)."
+      },
+      "error": {
+        "$value": "{primitive.color.red.600}",
+        "$type": "color",
+        "$description": "Invalid form control outline — light."
+      }
+    },
+    "primary": {
+      "base": {
+        "$value": "{primitive.color.blue.600}",
+        "$type": "color",
+        "$description": "Primary brand color — light",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "hover": {
+        "$value": "{primitive.color.blue.700}",
+        "$type": "color",
+        "$description": "Primary hover state — light"
+      }
+    },
+    "secondary": {
+      "base": {
+        "$value": "{primitive.color.purple.600}",
+        "$type": "color",
+        "$description": "Secondary brand color — light",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      }
+    },
+    "solid": {
+      "$description": "Interactive solid fills (Button) paired with `color.text.inverse`. Deliberately theme-invariant — a fill dark enough for white text to clear 4.5:1 in light mode is exactly as dark in dark mode, so light.json and dark.json repeat the same values rather than reusing the theme-adaptive `primary`/`secondary` tokens (which are tuned for text/icon-on-background use, not fill-with-white-text — see ui-tokens-contrast.test.mjs).",
+      "primary": {
+        "base": { "$value": "{primitive.color.blue.600}", "$type": "color" },
+        "hover": { "$value": "{primitive.color.blue.700}", "$type": "color" }
+      },
+      "secondary": {
+        "base": { "$value": "{primitive.color.purple.600}", "$type": "color" },
+        "hover": { "$value": "{primitive.color.purple.700}", "$type": "color" }
+      },
+      "danger": {
+        "base": { "$value": "{primitive.color.red.600}", "$type": "color" },
+        "hover": { "$value": "{primitive.color.red.800}", "$type": "color" }
+      },
+      "success": {
+        "$description": "Badge/Alert solid fill only (not interactive, no hover) — green.600 fails 4.5:1 against white text (3.30:1), so this uses green.800 instead of mirroring color.status.success.",
+        "base": { "$value": "{primitive.color.green.800}", "$type": "color" }
+      },
+      "warning": {
+        "$description": "Badge/Alert solid fill only — amber.600 fails 4.5:1 against white text (3.19:1), so this uses amber.800 instead of mirroring color.status.warning.",
+        "base": { "$value": "{primitive.color.amber.800}", "$type": "color" }
+      }
+    },
+    "status": {
+      "success": {
+        "$value": "{primitive.color.green.600}",
+        "$type": "color",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "warning": {
+        "$value": "{primitive.color.amber.600}",
+        "$type": "color",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "error": {
+        "$value": "{primitive.color.red.600}",
+        "$type": "color",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      }
+    },
+    "learn": {
+      "$description": "Course learn-view spine — consumed directly by @sanvi/course-media's layout primitives",
+      "spine": {
+        "$value": "{primitive.color.gray.500}",
+        "$type": "color",
+        "$description": "The spine's neutral tick/rule color, before a lecture is reached — light"
+      },
+      "spine-progress": {
+        "$value": "{primitive.color.blue.600}",
+        "$type": "color",
+        "$description": "The spine's traversed-run color — light"
+      }
+    },
+    "accent": {
+      "$description": "Six-hue course accent set, assigned to a course by a deterministic hash of its primary category ID (see @sanvi/course-media's accentForCategory) — never invented per render",
+      "course": {
+        "1": {
+          "$value": "{primitive.color.blue.600}",
+          "$type": "color"
+        },
+        "2": {
+          "$value": "{primitive.color.purple.600}",
+          "$type": "color"
+        },
+        "3": {
+          "$value": "{primitive.color.green.600}",
+          "$type": "color"
+        },
+        "4": {
+          "$value": "{primitive.color.amber.600}",
+          "$type": "color"
+        },
+        "5": {
+          "$value": "{primitive.color.red.600}",
+          "$type": "color"
+        },
+        "6": {
+          "$value": "{primitive.color.teal.600}",
+          "$type": "color"
+        }
+      }
+    },
+    "state": {
+      "$description": "Quiz answer states (Phase 8) — defined in Phase 1 so the palette is contrast-checked once",
+      "correct": {
+        "$value": "{primitive.color.green.600}",
+        "$type": "color"
+      },
+      "incorrect": {
+        "$value": "{primitive.color.red.600}",
+        "$type": "color"
+      },
+      "pending": {
+        "$value": "{primitive.color.amber.600}",
+        "$type": "color"
+      }
+    }
+  }
+}

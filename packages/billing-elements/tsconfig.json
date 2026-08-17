@@ -1,0 +1,8 @@
+{
+  "extends": "@sanvi/ts-config/svelte",
+  "compilerOptions": {
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*.ts", "src/**/*.svelte"],
+  "exclude": ["node_modules", "__tests__"]
+}

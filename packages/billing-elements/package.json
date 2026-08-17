@@ -1,0 +1,43 @@
+{
+  "name": "@sanvi/billing-elements",
+  "version": "0.1.0",
+  "description": "Svelte and SvelteKit-compatible Stripe Elements forms and money helpers for Sanvi",
+  "private": true,
+  "type": "module",
+  "svelte": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "svelte": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./PaymentMethodForm.svelte": "./src/PaymentMethodForm.svelte",
+    "./CheckoutPaymentForm.svelte": "./src/CheckoutPaymentForm.svelte"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json",
+    "lint": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "@stripe/stripe-js": "^7.0.0",
+    "svelte": "catalog:"
+  },
+  "devDependencies": {
+    "@sanvi/test-config": "workspace:*",
+    "@sanvi/ts-config": "workspace:*",
+    "@stripe/stripe-js": "^7.0.0",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "svelte": "catalog:",
+    "svelte-check": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

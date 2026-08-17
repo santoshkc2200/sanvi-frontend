@@ -1,0 +1,13 @@
+{
+  "extends": "@sanvi/ts-config/base",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noEmit": true
+  },
+  "include": ["dist/ts/**/*.ts"],
+  "exclude": ["node_modules", "dist/**/*.d.ts"]
+}

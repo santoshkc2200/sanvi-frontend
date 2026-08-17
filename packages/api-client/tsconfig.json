@@ -1,0 +1,9 @@
+{
+  "extends": "@sanvi/ts-config/bundler",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["src", "__tests__"],
+  "exclude": ["node_modules"]
+}

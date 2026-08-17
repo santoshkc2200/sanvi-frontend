@@ -1,0 +1,45 @@
+{
+  "name": "@sanvi/design-tokens",
+  "version": "0.1.0",
+  "description": "Single source of truth: DTCG JSON → CSS vars, JS, TS via Style Dictionary",
+  "private": true,
+  "main": "dist/tokens.js",
+  "type": "module",
+  "types": "./dist/ts/index.d.ts",
+  "sideEffects": [
+    "dist/css/*.css"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/ts/index.js",
+      "types": "./dist/ts/index.d.ts"
+    },
+    "./css": "./dist/css/tokens.css",
+    "./json/primitives": "./dist/json/primitives.json",
+    "./json/light": "./dist/json/light.json",
+    "./json/dark": "./dist/json/dark.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "node scripts/build.mjs && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome lint --write . && biome format .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@sanvi/ts-config": "workspace:*",
+    "@sanvi/test-config": "workspace:*",
+    "rimraf": "^6.0.0",
+    "style-dictionary": "^5.4.3",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "@tokens-studio/sd-transforms": "^2.0.3"
+  }
+}

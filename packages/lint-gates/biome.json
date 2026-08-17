@@ -1,0 +1,19 @@
+{
+  "root": false,
+  "extends": "//",
+  "files": {
+    "includes": ["**", "!**/__fixtures__"]
+  },
+  "overrides": [
+    {
+      "includes": ["src/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    }
+  ]
+}

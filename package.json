@@ -1,0 +1,65 @@
+{
+  "name": "sanvi-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sanvi frontend monorepo — SvelteKit storefront/marketing, Svelte admin SPAs, shared packages.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.9.0",
+    "pnpm": ">=10.0.0"
+  },
+  "packageManager": "pnpm@10.32.1",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint && eslint .",
+    "lint:fix": "turbo run lint -- --write && eslint . --fix",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "check:i18n": "turbo run check:i18n",
+    "check:tokens": "turbo run check:tokens",
+    "check:boundaries": "node packages/lint-gates/src/check-boundaries.mjs .",
+    "check:budget": "turbo run check:budget",
+    "check:all": "pnpm lint && turbo run typecheck test build check:i18n check:tokens check:budget && pnpm check:boundaries",
+    "clean": "turbo run clean && rimraf node_modules",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@commitlint/cli": "^19.6.0",
+    "@commitlint/config-conventional": "^19.6.0",
+    "@eslint/js": "catalog:",
+    "@sanvi/lint-gates": "workspace:*",
+    "eslint": "catalog:",
+    "eslint-plugin-svelte": "catalog:",
+    "husky": "^9.1.0",
+    "lint-staged": "^15.2.0",
+    "rimraf": "catalog:",
+    "svelte": "catalog:",
+    "svelte-eslint-parser": "catalog:",
+    "turbo": "^2.3.0",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:"
+  },
+  "lint-staged": {
+    "*.{js,ts,svelte,json,md}": [
+      "biome format --write",
+      "biome lint --write"
+    ]
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "svelte-preprocess"
+    ],
+    "overrides": {
+      "@vitest/expect": "catalog:",
+      "@vitest/spy": "catalog:",
+      "@vitest/utils": "catalog:",
+      "@vitest/snapshot": "catalog:"
+    }
+  }
+}

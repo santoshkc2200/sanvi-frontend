@@ -1,0 +1,7 @@
+{
+  "extends": "@sanvi/ts-config/bundler",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["vite.config.ts", "playwright.config.ts"]
+}

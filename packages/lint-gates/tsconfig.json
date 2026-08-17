@@ -1,0 +1,10 @@
+{
+  "extends": "@sanvi/ts-config/bundler",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true
+  },
+  "include": ["src", "__tests__"],
+  "exclude": ["node_modules", "__fixtures__"]
+}

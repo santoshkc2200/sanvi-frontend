@@ -1,0 +1,140 @@
+name: PR
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  PUBLIC_API_ORIGIN: http://localhost:8080
+  VITE_API_ORIGIN: http://localhost:8080
+
+jobs:
+  ci:
+    name: lint, typecheck, test, build, gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: turbo lint typecheck test build
+        run: pnpm turbo run lint typecheck test build
+
+      - name: check:i18n
+        run: pnpm turbo run check:i18n
+
+      - name: check:tokens
+        run: pnpm turbo run check:tokens
+
+      - name: check:boundaries
+        run: pnpm check:boundaries
+
+      - name: check:budget
+        run: pnpm turbo run check:budget
+
+      - name: Bundle size comment
+        if: always()
+        run: node scripts/bundle-size-report.mjs >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: '**/coverage/**'
+          retention-days: 7
+          if-no-files-found: ignore
+
+  e2e:
+    name: Playwright smoke
+    runs-on: ubuntu-latest
+    needs: ci
+    strategy:
+      matrix:
+        app: [marketing, storefront, admin, platform-admin]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter "@sanvi/${{ matrix.app }}" exec playwright install --with-deps chromium webkit
+
+      - name: Build workspace dependencies
+        run: pnpm turbo run build --filter "@sanvi/${{ matrix.app }}^..."
+
+      - name: e2e
+        run: pnpm --filter "@sanvi/${{ matrix.app }}" test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.app }}
+          path: apps/${{ matrix.app }}/playwright-report/
+          retention-days: 7
+
+  security:
+    name: Security gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: pnpm audit (high+ severity)
+        run: pnpm audit --audit-level=high
+        continue-on-error: true # advisory until phase 00's DoD review tunes the threshold
+
+      - name: OSV Scanner
+        uses: google/osv-scanner-action@v1
+        with:
+          scan-args: |-
+            --lockfile=pnpm-lock.yaml
+            --recursive
+
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: License check
+        run: pnpx license-checker-rseidelsohn --production --excludePrivatePackages --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0"
+
+      - name: SBOM (CycloneDX)
+        run: pnpx @cyclonedx/cyclonedx-npm --output-file sbom.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
+          retention-days: 90

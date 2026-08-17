@@ -1,0 +1,48 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "UTC",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "groupName": "Svelte ecosystem",
+      "matchPackageNames": [
+        "svelte",
+        "@sveltejs/**",
+        "svelte-check",
+        "svelte-eslint-parser",
+        "eslint-plugin-svelte"
+      ]
+    },
+    {
+      "groupName": "Vite ecosystem",
+      "matchPackageNames": ["vite", "@vitejs/**", "vitest", "@vitest/**"]
+    },
+    {
+      "groupName": "Storybook",
+      "matchPackageNames": ["storybook", "@storybook/**"]
+    },
+    {
+      "groupName": "Playwright",
+      "matchPackageNames": ["@playwright/**", "playwright"]
+    },
+    {
+      "groupName": "lint/format tooling",
+      "matchPackageNames": ["@biomejs/biome", "eslint", "@eslint/**", "typescript-eslint"]
+    },
+    {
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  }
+}

@@ -1,0 +1,216 @@
+{
+  "$schema": "https://tokens.studio/schema/draft.json",
+  "color": {
+    "$description": "Dark mode overrides — same trimmed structure as semantic.json",
+    "background": {
+      "primary": {
+        "$value": "{primitive.color.gray.950}",
+        "$type": "color",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "secondary": {
+        "$value": "{primitive.color.gray.900}",
+        "$type": "color",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "tertiary": {
+        "$value": "{primitive.color.gray.800}",
+        "$type": "color"
+      },
+      "disabled": {
+        "$value": "{primitive.color.gray.800}",
+        "$type": "color",
+        "$description": "Disabled form control fill — dark"
+      }
+    },
+    "text": {
+      "primary": {
+        "$value": "{primitive.color.gray.50}",
+        "$type": "color",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "secondary": {
+        "$value": "{primitive.color.gray.400}",
+        "$type": "color",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "disabled": {
+        "$value": "{primitive.color.gray.500}",
+        "$type": "color",
+        "$description": "Disabled text/control label — dark. WCAG exempts disabled content from the 4.5:1 minimum."
+      },
+      "inverse": {
+        "$value": "{primitive.color.gray.0}",
+        "$type": "color",
+        "$description": "Text on a solid `color.solid.*` fill — always white, independent of theme."
+      }
+    },
+    "border": {
+      "default": {
+        "$value": "{primitive.color.gray.700}",
+        "$type": "color",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "focus": {
+        "$value": "{primitive.color.blue.500}",
+        "$type": "color",
+        "$description": "Focus ring — dark. Clears 3:1 against color.background.primary (WCAG 2.4.11)."
+      },
+      "error": {
+        "$value": "{primitive.color.red.500}",
+        "$type": "color",
+        "$description": "Invalid form control outline — dark."
+      }
+    },
+    "primary": {
+      "base": {
+        "$value": "{primitive.color.blue.500}",
+        "$type": "color",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "hover": {
+        "$value": "{primitive.color.blue.400}",
+        "$type": "color"
+      }
+    },
+    "secondary": {
+      "base": {
+        "$value": "{primitive.color.purple.500}",
+        "$type": "color",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      }
+    },
+    "solid": {
+      "$description": "Same values as semantic.json — see that file's description.",
+      "primary": {
+        "base": { "$value": "{primitive.color.blue.600}", "$type": "color" },
+        "hover": { "$value": "{primitive.color.blue.700}", "$type": "color" }
+      },
+      "secondary": {
+        "base": { "$value": "{primitive.color.purple.600}", "$type": "color" },
+        "hover": { "$value": "{primitive.color.purple.700}", "$type": "color" }
+      },
+      "danger": {
+        "base": { "$value": "{primitive.color.red.600}", "$type": "color" },
+        "hover": { "$value": "{primitive.color.red.800}", "$type": "color" }
+      },
+      "success": {
+        "base": { "$value": "{primitive.color.green.800}", "$type": "color" }
+      },
+      "warning": {
+        "base": { "$value": "{primitive.color.amber.800}", "$type": "color" }
+      }
+    },
+    "status": {
+      "success": {
+        "$value": "{primitive.color.green.500}",
+        "$type": "color",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "warning": {
+        "$value": "{primitive.color.amber.500}",
+        "$type": "color",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      },
+      "error": {
+        "$value": "{primitive.color.red.500}",
+        "$type": "color",
+        "$extensions": {
+          "sanvi": {
+            "platforms": ["ios", "android"]
+          }
+        }
+      }
+    },
+    "learn": {
+      "spine": {
+        "$value": "{primitive.color.gray.500}",
+        "$type": "color",
+        "$description": "The spine's neutral tick/rule color, before a lecture is reached — dark"
+      },
+      "spine-progress": {
+        "$value": "{primitive.color.blue.500}",
+        "$type": "color",
+        "$description": "The spine's traversed-run color — dark"
+      }
+    },
+    "accent": {
+      "course": {
+        "1": {
+          "$value": "{primitive.color.blue.500}",
+          "$type": "color"
+        },
+        "2": {
+          "$value": "{primitive.color.purple.500}",
+          "$type": "color"
+        },
+        "3": {
+          "$value": "{primitive.color.green.500}",
+          "$type": "color"
+        },
+        "4": {
+          "$value": "{primitive.color.amber.500}",
+          "$type": "color"
+        },
+        "5": {
+          "$value": "{primitive.color.red.500}",
+          "$type": "color"
+        },
+        "6": {
+          "$value": "{primitive.color.teal.500}",
+          "$type": "color"
+        }
+      }
+    },
+    "state": {
+      "correct": {
+        "$value": "{primitive.color.green.500}",
+        "$type": "color"
+      },
+      "incorrect": {
+        "$value": "{primitive.color.red.500}",
+        "$type": "color"
+      },
+      "pending": {
+        "$value": "{primitive.color.amber.500}",
+        "$type": "color"
+      }
+    }
+  }
+}

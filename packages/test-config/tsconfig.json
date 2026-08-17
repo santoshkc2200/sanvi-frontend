@@ -1,0 +1,10 @@
+{
+  "extends": "@sanvi/ts-config/bundler",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "noEmit": true,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}

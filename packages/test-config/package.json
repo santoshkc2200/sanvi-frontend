@@ -1,0 +1,30 @@
+{
+  "name": "@sanvi/test-config",
+  "version": "0.1.0",
+  "description": "Shared Vitest config (node + jsdom), Testing Library setup, and axe registration",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./base": "./src/base.ts",
+    "./jsdom": "./src/jsdom.ts",
+    "./setup-jsdom": "./src/setup-jsdom.ts",
+    "./axe": "./src/axe.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@sanvi/ts-config": "workspace:*",
+    "@testing-library/jest-dom": "catalog:",
+    "@types/node": "catalog:",
+    "@testing-library/svelte": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "jest-axe": "catalog:",
+    "jsdom": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "vitest": "catalog:"
+  }
+}

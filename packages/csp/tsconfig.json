@@ -1,0 +1,16 @@
+{
+  "extends": "@sanvi/ts-config/base",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    // vite-plugin.ts imports `./index.ts` with an explicit extension — Node
+    // ESM resolution (used when svelte-check/vitest load a consuming app's
+    // vite.config.ts outside of Vite's own bundler) needs it; Bundler-mode
+    // tsc otherwise rejects a `.ts` extension without this flag. Safe here:
+    // this package's `typecheck` script is `tsc --noEmit` only, nothing
+    // actually emits .js from this tsconfig.
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "__tests__"]
+}

@@ -1,0 +1,38 @@
+{
+  "name": "@sanvi/lint-gates",
+  "version": "0.1.0",
+  "description": "Custom lint gates the phase-00 non-negotiables depend on — check:i18n, check:tokens, check:budget.",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "sanvi-check-i18n": "./src/check-i18n.mjs",
+    "sanvi-check-tokens": "./src/check-tokens.mjs",
+    "sanvi-check-budget": "./src/check-budget.mjs",
+    "sanvi-check-boundaries": "./src/check-boundaries.mjs"
+  },
+  "exports": {
+    "./check-i18n": "./src/check-i18n.mjs",
+    "./check-tokens": "./src/check-tokens.mjs",
+    "./check-budget": "./src/check-budget.mjs",
+    "./check-boundaries": "./src/check-boundaries.mjs"
+  },
+  "scripts": {
+    "lint": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@sanvi/test-config": "workspace:*",
+    "@sanvi/ts-config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "eslint-plugin-svelte": "catalog:",
+    "svelte-eslint-parser": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  }
+}

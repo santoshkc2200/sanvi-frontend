@@ -1,0 +1,16 @@
+{
+  "name": "@sanvi/ts-config",
+  "version": "0.1.0",
+  "description": "Shared tsconfig bases for the Sanvi workspace",
+  "private": true,
+  "type": "module",
+  "files": [
+    "base.json",
+    "node.json",
+    "svelte.json",
+    "bundler.json"
+  ],
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

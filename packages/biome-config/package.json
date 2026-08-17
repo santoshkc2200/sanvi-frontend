@@ -1,0 +1,13 @@
+{
+  "name": "@sanvi/biome-config",
+  "version": "0.1.0",
+  "description": "Shared Biome lint/format ruleset for the Sanvi workspace",
+  "private": true,
+  "type": "module",
+  "files": [
+    "biome.json"
+  ],
+  "devDependencies": {
+    "@biomejs/biome": "catalog:"
+  }
+}

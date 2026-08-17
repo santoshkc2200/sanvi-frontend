@@ -1,0 +1,42 @@
+{
+  "name": "@sanvi/storefront",
+  "version": "0.1.0",
+  "description": "Sanvi storefront — SSR SvelteKit, tenant-facing, custom domains, themed.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "PORT=4174 PUBLIC_API_ORIGIN=http://localhost:8080 node build",
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "lint": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check:i18n": "sanvi-check-i18n src",
+    "check:tokens": "sanvi-check-tokens src",
+    "check:budget": "sanvi-check-budget --dir build/client --initial-kb 100 --chunk-kb 50"
+  },
+  "dependencies": {
+    "@sanvi/api-client": "workspace:*",
+    "@sanvi/csp": "workspace:*",
+    "@sanvi/design-tokens": "workspace:*",
+    "@sanvi/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:",
+    "@sanvi/lint-gates": "workspace:*",
+    "@sanvi/test-config": "workspace:*",
+    "@sanvi/ts-config": "workspace:*",
+    "@sveltejs/adapter-node": "catalog:",
+    "@sveltejs/kit": "catalog:",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "svelte": "catalog:",
+    "svelte-check": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

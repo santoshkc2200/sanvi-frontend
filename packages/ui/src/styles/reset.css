@@ -1,0 +1,40 @@
+/**
+ * Minimal reset + base typography for apps consuming @sanvi/ui. Every value
+ * is a token reference — this file is itself subject to `check:tokens`.
+ */
+@import "@sanvi/design-tokens/css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--sanvi-color-background-primary);
+  color: var(--sanvi-color-text-primary);
+  font-family: var(--sanvi-font-family-sans);
+  font-size: var(--sanvi-font-size-md);
+  line-height: var(--sanvi-line-height-normal);
+}
+
+:focus-visible {
+  outline: var(--sanvi-border-width-thick) solid var(--sanvi-color-border-focus);
+  outline-offset: var(--sanvi-border-width-thick);
+}
+
+img,
+picture,
+video {
+  max-width: 100%;
+  display: block;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
