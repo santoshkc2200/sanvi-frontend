@@ -2131,6 +2131,12 @@
             "example": "en",
             "type": ["string", "null"]
           },
+          "memberships": {
+            "items": {
+              "$ref": "#/components/schemas/MembershipSummary"
+            },
+            "type": "array"
+          },
           "status": {
             "$ref": "#/components/schemas/UserStatus"
           },
@@ -2139,7 +2145,7 @@
             "type": "string"
           }
         },
-        "required": ["user_id", "email", "email_verified", "status", "created_at"],
+        "required": ["user_id", "email", "email_verified", "status", "created_at", "memberships"],
         "type": "object"
       },
       "MemberView": {
@@ -2176,6 +2182,48 @@
       "MembershipStatus": {
         "enum": ["active", "suspended"],
         "type": "string"
+      },
+      "MembershipSummary": {
+        "description": "One tenant `GET /api/v1/me` reports the caller as a member of, with the\nroles/permissions they hold there — the single hydration call the\nfrontend's session store and `can()`/`<Can>` are built on (see\n`sanvi-frontend/docs/phase-02-auth-ux`), so it carries everything a tenant\nswitcher and permission-aware render need without a per-tenant follow-up\nrequest.",
+        "properties": {
+          "permissions": {
+            "description": "The union of every permission `role_ids` grants — a UX hint only; the\nbackend enforces every mutation independently of what this list says.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "role_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MembershipStatus"
+          },
+          "tenant_id": {
+            "example": "0190f0d0-0000-7000-8000-000000000002",
+            "type": "string"
+          },
+          "tenant_name": {
+            "example": "Acme Corporation",
+            "type": "string"
+          },
+          "tenant_slug": {
+            "example": "acme",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "tenant_slug",
+          "tenant_name",
+          "role_ids",
+          "permissions",
+          "status"
+        ],
+        "type": "object"
       },
       "Money": {
         "description": "An amount in the currency's minor unit (cents for USD/JPY).",

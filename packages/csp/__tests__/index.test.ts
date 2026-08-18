@@ -34,6 +34,16 @@ describe('buildContentSecurityPolicy', () => {
     expect(csp).toContain("connect-src 'self' https://api.example.com http://localhost:9000")
   })
 
+  it('folds the kratos origin into connect-src only, not img-src/media-src', () => {
+    const csp = buildContentSecurityPolicy({
+      apiOrigin: 'https://api.example.com',
+      kratosOrigin: 'https://auth.example.com',
+    })
+    expect(csp).toContain("connect-src 'self' https://api.example.com https://auth.example.com")
+    expect(csp).not.toMatch(/img-src[^;]*auth\.example\.com/)
+    expect(csp).not.toMatch(/media-src[^;]*auth\.example\.com/)
+  })
+
   it('drops the media origin cleanly when unset', () => {
     const csp = buildContentSecurityPolicy({ apiOrigin: 'https://api.example.com' })
     expect(csp).toContain("img-src 'self' data: blob: https: https://*.stripe.com")

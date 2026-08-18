@@ -143,6 +143,9 @@ importers:
       '@sanvi/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@sanvi/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@sanvi/csp':
         specifier: workspace:*
         version: link:../../packages/csp
@@ -253,6 +256,9 @@ importers:
       '@sanvi/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@sanvi/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@sanvi/csp':
         specifier: workspace:*
         version: link:../../packages/csp
@@ -311,6 +317,9 @@ importers:
       '@sanvi/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@sanvi/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@sanvi/csp':
         specifier: workspace:*
         version: link:../../packages/csp
@@ -375,6 +384,52 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.6.1)(jsdom@25.0.1)(lightningcss@1.33.0)(yaml@2.9.0)
+
+  packages/auth:
+    dependencies:
+      '@sanvi/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+      '@sanvi/spa-router':
+        specifier: workspace:*
+        version: link:../spa-router
+      '@sanvi/ui':
+        specifier: workspace:*
+        version: link:../ui
+    devDependencies:
+      '@sanvi/lint-gates':
+        specifier: workspace:*
+        version: link:../lint-gates
+      '@sanvi/test-config':
+        specifier: workspace:*
+        version: link:../test-config
+      '@sanvi/ts-config':
+        specifier: workspace:*
+        version: link:../ts-config
+      '@sveltejs/vite-plugin-svelte':
+        specifier: 'catalog:'
+        version: 6.2.4(svelte@5.56.9(@typescript-eslint/types@8.67.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0))
+      '@testing-library/svelte':
+        specifier: 'catalog:'
+        version: 5.4.2(svelte@5.56.9(@typescript-eslint/types@8.67.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0))(vitest@3.2.7(@types/node@22.20.1)(jiti@2.6.1)(jsdom@25.0.1)(lightningcss@1.33.0)(yaml@2.9.0))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.1
+      svelte:
+        specifier: 'catalog:'
+        version: 5.56.9(@typescript-eslint/types@8.67.0)
+      svelte-check:
+        specifier: 'catalog:'
+        version: 4.7.6(picomatch@4.0.5)(svelte@5.56.9(@typescript-eslint/types@8.67.0))(typescript@5.9.3)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vite:
+        specifier: 'catalog:'
+        version: 6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0)
       vitest:
         specifier: 'catalog:'
         version: 3.2.7(@types/node@22.20.1)(jiti@2.6.1)(jsdom@25.0.1)(lightningcss@1.33.0)(yaml@2.9.0)

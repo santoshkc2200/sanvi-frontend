@@ -1,10 +1,32 @@
+import type { Session } from '@sanvi/auth'
+import { setSession } from '@sanvi/auth'
 import { axe } from '@sanvi/test-config/axe'
 import { fireEvent, render, screen } from '@testing-library/svelte'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from '../src/App.svelte'
+
+const STEPPED_UP_SESSION: Session = {
+  userId: 'operator-1',
+  email: 'operator@example.com',
+  emailVerified: true,
+  status: 'active',
+  memberships: [],
+  aal: 'aal2',
+  methods: ['password', 'totp'],
+  authenticatedAt: undefined,
+}
+
+// Every route but `login`/`step-up`/`health` requires `aal2` since phase
+// 02 — App.svelte's own routing behavior is what this suite covers, not
+// the guard itself (see `packages/auth/__tests__/guards.test.ts`), so
+// tests that exercise a guarded route are already stepped up.
+beforeEach(() => {
+  setSession(STEPPED_UP_SESSION)
+})
 
 afterEach(() => {
   window.history.pushState({}, '', '/')
+  setSession(null)
 })
 
 describe('App shell', () => {

@@ -1,0 +1,53 @@
+{
+  "name": "@sanvi/auth",
+  "version": "0.1.0",
+  "description": "Authentication & authorization UX — drives Ory Kratos self-service flows from our own UI, the session store (SSR context + SPA rune store), route guards, permission-aware rendering, and account linking.",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "svelte": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./server": {
+      "types": "./src/server.ts",
+      "default": "./src/server.ts"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json",
+    "lint": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check:i18n": "sanvi-check-i18n src",
+    "check:tokens": "sanvi-check-tokens src"
+  },
+  "peerDependencies": {
+    "svelte": "catalog:"
+  },
+  "dependencies": {
+    "@sanvi/api-client": "workspace:*",
+    "@sanvi/spa-router": "workspace:*",
+    "@sanvi/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@sanvi/lint-gates": "workspace:*",
+    "@sanvi/test-config": "workspace:*",
+    "@sanvi/ts-config": "workspace:*",
+    "@testing-library/svelte": "catalog:",
+    "@types/node": "catalog:",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "svelte": "catalog:",
+    "svelte-check": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

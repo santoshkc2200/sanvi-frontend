@@ -6,4 +6,5 @@
 export const env: Record<string, string | undefined> = {
   PUBLIC_API_ORIGIN: 'https://api.example.test',
   PUBLIC_MEDIA_ORIGIN: '',
+  PUBLIC_KRATOS_ORIGIN: 'https://kratos.example.test',
 }

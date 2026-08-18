@@ -2983,6 +2983,7 @@ export interface components {
       email_verified: boolean
       /** @example en */
       locale?: string | null
+      memberships: components['schemas']['MembershipSummary'][]
       status: components['schemas']['UserStatus']
       /** @example 0190f0d0-0000-7000-8000-000000000001 */
       user_id: string
@@ -3000,6 +3001,29 @@ export interface components {
     }
     /** @enum {string} */
     MembershipStatus: 'active' | 'suspended'
+    /**
+     * @description One tenant `GET /api/v1/me` reports the caller as a member of, with the
+     *     roles/permissions they hold there — the single hydration call the
+     *     frontend's session store and `can()`/`<Can>` are built on (see
+     *     `sanvi-frontend/docs/phase-02-auth-ux`), so it carries everything a tenant
+     *     switcher and permission-aware render need without a per-tenant follow-up
+     *     request.
+     */
+    MembershipSummary: {
+      /**
+       * @description The union of every permission `role_ids` grants — a UX hint only; the
+       *     backend enforces every mutation independently of what this list says.
+       */
+      permissions: string[]
+      role_ids: string[]
+      status: components['schemas']['MembershipStatus']
+      /** @example 0190f0d0-0000-7000-8000-000000000002 */
+      tenant_id: string
+      /** @example Acme Corporation */
+      tenant_name: string
+      /** @example acme */
+      tenant_slug: string
+    }
     /** @description An amount in the currency's minor unit (cents for USD/JPY). */
     Money: {
       currency: string

@@ -10,6 +10,15 @@ export interface ContentSecurityPolicyOptions {
    */
   mediaOrigin?: string
   /**
+   * Origin Ory Kratos's public API is reachable at (e.g.
+   * `http://localhost:4433` in dev, `https://auth.sanvi.app` in prod). The
+   * browser calls Kratos directly for self-service flows (phase 02's
+   * `@sanvi/auth`) — no backend proxy — so it needs its own `connect-src`
+   * allowance distinct from `apiOrigin`. Omit for apps that don't render
+   * auth screens (e.g. `marketing`).
+   */
+  kratosOrigin?: string
+  /**
    * Adds `'unsafe-inline'` to `script-src`. Next.js injects inline
    * hydration/bootstrap scripts it doesn't nonce by default, so Next apps
    * need this; static SPA shells that only load scripts by `src` don't.
@@ -47,6 +56,7 @@ export function buildContentSecurityPolicy(options: ContentSecurityPolicyOptions
   const {
     apiOrigin,
     mediaOrigin = '',
+    kratosOrigin = '',
     allowInlineScripts = false,
     allowEval = false,
     delivery = 'header',
@@ -91,6 +101,7 @@ export function buildContentSecurityPolicy(options: ContentSecurityPolicyOptions
       "'self'",
       apiOrigin,
       mediaOrigin,
+      kratosOrigin,
       'https://api.stripe.com',
       'https://*.stripe.com',
       'https://*.link.com',
@@ -108,7 +119,10 @@ export function buildContentSecurityPolicy(options: ContentSecurityPolicyOptions
 /** The four apps in the workspace, matching `docs/architecture-overview.md`. */
 export type SanviApp = 'marketing' | 'storefront' | 'admin' | 'platform-admin'
 
-export type CspAppPresetOptions = Pick<ContentSecurityPolicyOptions, 'apiOrigin' | 'mediaOrigin'>
+export type CspAppPresetOptions = Pick<
+  ContentSecurityPolicyOptions,
+  'apiOrigin' | 'mediaOrigin' | 'kratosOrigin'
+>
 
 /**
  * Per-app defaults for the options `buildContentSecurityPolicy` can't infer:

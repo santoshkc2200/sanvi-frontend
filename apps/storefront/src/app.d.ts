@@ -1,3 +1,4 @@
+import type { Session } from '@sanvi/auth/server'
 import type { TenantContext } from '@sanvi/tenant'
 
 // See https://svelte.dev/docs/kit/types#app.d.ts
@@ -9,6 +10,8 @@ declare global {
       tenantResolution: 'ok' | 'unknown-host'
       /** Resolved from `Accept-Language`/cookie — filled in by phase 06. */
       locale: string
+      /** Resolved from the request's `Cookie` header by `hooks.server.ts`'s `resolveSession`. `null` when signed out. */
+      session: Session | null
     }
     interface Error {
       message: string

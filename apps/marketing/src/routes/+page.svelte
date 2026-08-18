@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Button, Container, Stack } from '@sanvi/ui'
+import { Button, Cluster, Container, Stack } from '@sanvi/ui'
 
 // Concentrated here, not inline in the template, so swapping this object
 // for a `@sanvi/i18n` message lookup in phase 06 touches one place.
@@ -11,7 +11,13 @@ const COPY = {
   heading: 'Sanvi',
   lead: 'The foundations phase is up — this page is a placeholder for the real marketing site.',
   cta: 'Get started',
+  signIn: 'Sign in',
 }
+
+// A relative `/login` link is a placeholder: marketing has no tenant of its
+// own to sign in to (it's the org-level landing page, not a storefront) —
+// this becomes a real cross-app URL once phase 08 (custom domains/tenant
+// subdomain routing) decides that shape.
 </script>
 
 <svelte:head>
@@ -26,6 +32,9 @@ const COPY = {
   <Stack gap="6" align="center">
     <h1>{COPY.heading}</h1>
     <p>{COPY.lead}</p>
-    <Button variant="primary">{COPY.cta}</Button>
+    <Cluster gap="4" justify="center">
+      <Button variant="primary">{COPY.cta}</Button>
+      <a href="/login">{COPY.signIn}</a>
+    </Cluster>
   </Stack>
 </Container>

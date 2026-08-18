@@ -1,11 +1,50 @@
+import type { Session } from '@sanvi/auth'
+import { setSession } from '@sanvi/auth'
 import { createQuery, listCacheEntries } from '@sanvi/query'
 import { axe } from '@sanvi/test-config/axe'
 import { fireEvent, render, screen } from '@testing-library/svelte'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../src/App.svelte'
+
+const SIGNED_IN_SESSION: Session = {
+  userId: 'user-1',
+  email: 'alice@example.com',
+  emailVerified: true,
+  status: 'active',
+  memberships: [
+    {
+      tenant_id: 'dev-acme',
+      tenant_slug: 'acme',
+      tenant_name: 'Acme Corporation',
+      role_ids: ['role-owner'],
+      permissions: ['identity.member.read', 'identity.member.grant', 'identity.member.remove'],
+      status: 'active',
+    },
+    {
+      tenant_id: 'dev-globex',
+      tenant_slug: 'globex',
+      tenant_name: 'Globex Industries',
+      role_ids: ['role-admin'],
+      permissions: ['identity.member.read'],
+      status: 'active',
+    },
+  ],
+  aal: 'aal1',
+  methods: ['password'],
+  authenticatedAt: undefined,
+}
+
+// Every route but `login`/`health` is behind `requireSession` since phase
+// 02 — App.svelte's own routing/tenant-switching behavior is what this
+// suite covers, not the guard itself (see `packages/auth/__tests__/guards.test.ts`
+// for that), so tests that exercise a guarded route sign in first.
+beforeEach(() => {
+  setSession(SIGNED_IN_SESSION)
+})
 
 afterEach(() => {
   window.history.pushState({}, '', '/')
+  setSession(null)
 })
 
 describe('App shell', () => {

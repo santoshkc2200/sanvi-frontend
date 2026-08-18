@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_API_ORIGIN: string
   readonly VITE_MEDIA_ORIGIN?: string
+  readonly VITE_KRATOS_ORIGIN: string
 }
 
 interface ImportMeta {

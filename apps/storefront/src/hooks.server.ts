@@ -1,3 +1,4 @@
+import { resolveSession } from '@sanvi/auth/server'
 import { TenantHostCache, resolveTenantForHost } from '@sanvi/tenant/server'
 import { buildContentSecurityPolicyForApp } from '@sanvi/csp'
 import type { Handle } from '@sveltejs/kit'
@@ -12,6 +13,16 @@ import { getAppEnv } from '$lib/env'
 const tenantHostCache = new TenantHostCache()
 
 /**
+ * `/health` must answer even when the backend it would otherwise call is
+ * down — that's the one thing an orchestrator's liveness probe needs to
+ * know, and it can't if answering the probe itself requires the dependency
+ * being probed for. Every hook that talks to the API checks this first.
+ */
+function isHealthCheck(pathname: string): boolean {
+  return pathname === '/health'
+}
+
+/**
  * Resolves the tenant from the request's `Host` header via
  * `@sanvi/tenant/server`'s TTL + stale-while-revalidate cache. Unknown host
  * → `locals.tenant = null`, `locals.tenantResolution = 'unknown-host'`
@@ -20,6 +31,8 @@ const tenantHostCache = new TenantHostCache()
  * the root layout renders the maintenance branch from `tenant.status`.
  */
 export const resolveTenant: Handle = async ({ event, resolve }) => {
+  if (isHealthCheck(event.url.pathname)) return resolve(event)
+
   const host = event.request.headers.get('host') ?? event.url.host
   const { apiOrigin } = getAppEnv()
 
@@ -43,6 +56,24 @@ const resolveLocale: Handle = async ({ event, resolve }) => {
 }
 
 /**
+ * Resolves the signed-in session from the request's `Cookie` header — a
+ * fresh per-request client (see `@sanvi/auth/server`'s `resolveSession` doc
+ * comment for why this, unlike `tenantHostCache` above, is never shared
+ * across requests). `null` on 401 (signed out); any other failure bubbles
+ * up as a 500 rather than silently rendering as signed-out.
+ */
+const resolveAuth: Handle = async ({ event, resolve }) => {
+  if (isHealthCheck(event.url.pathname)) return resolve(event)
+
+  const { apiOrigin } = getAppEnv()
+  event.locals.session = await resolveSession({
+    apiOrigin,
+    cookieHeader: event.request.headers.get('cookie'),
+  })
+  return resolve(event)
+}
+
+/**
  * Applies the storefront's CSP. Unlike marketing, the storefront is SSR'd
  * per request (tenant/theme/locale vary per request), so this always runs —
  * no adapter-node static-serving bypass to work around. Phase 09 (Tenant
@@ -51,14 +82,14 @@ const resolveLocale: Handle = async ({ event, resolve }) => {
  */
 const applyCsp: Handle = async ({ event, resolve }) => {
   const response = await resolve(event)
-  const { apiOrigin, mediaOrigin } = getAppEnv()
+  const { apiOrigin, mediaOrigin, kratosOrigin } = getAppEnv()
 
   response.headers.set(
     'content-security-policy',
-    buildContentSecurityPolicyForApp('storefront', { apiOrigin, mediaOrigin }),
+    buildContentSecurityPolicyForApp('storefront', { apiOrigin, mediaOrigin, kratosOrigin }),
   )
 
   return response
 }
 
-export const handle: Handle = sequence(resolveTenant, resolveLocale, applyCsp)
+export const handle: Handle = sequence(resolveTenant, resolveLocale, resolveAuth, applyCsp)

@@ -3,6 +3,8 @@ import { env } from '$env/dynamic/public'
 export interface AppEnv {
   apiOrigin: string
   mediaOrigin: string | undefined
+  /** Ory Kratos's public API origin — `@sanvi/auth` calls it directly from the browser. */
+  kratosOrigin: string
 }
 
 let cached: AppEnv | undefined
@@ -19,7 +21,11 @@ export function getAppEnv(): AppEnv {
   if (!apiOrigin) {
     throw new Error('PUBLIC_API_ORIGIN is required but was not set.')
   }
+  const kratosOrigin = env['PUBLIC_KRATOS_ORIGIN']
+  if (!kratosOrigin) {
+    throw new Error('PUBLIC_KRATOS_ORIGIN is required but was not set.')
+  }
 
-  cached = { apiOrigin, mediaOrigin: env['PUBLIC_MEDIA_ORIGIN'] || undefined }
+  cached = { apiOrigin, mediaOrigin: env['PUBLIC_MEDIA_ORIGIN'] || undefined, kratosOrigin }
   return cached
 }

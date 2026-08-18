@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => {
       sanviCspMetaPlugin('admin', {
         apiOrigin: env['VITE_API_ORIGIN'] || 'http://localhost:8080',
         mediaOrigin: env['VITE_MEDIA_ORIGIN'],
+        kratosOrigin: env['VITE_KRATOS_ORIGIN'] || 'http://localhost:4433',
       }),
     ],
     server: {

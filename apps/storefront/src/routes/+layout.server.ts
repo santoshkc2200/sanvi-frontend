@@ -10,5 +10,6 @@ export const load: LayoutServerLoad = ({ locals }) => {
   return {
     tenant: locals.tenant,
     locale: locals.locale,
+    session: locals.session,
   }
 }
