@@ -1,6 +1,6 @@
 <script lang="ts">
-import Container from './layout/Container.svelte'
 import EmptyState from './EmptyState.svelte'
+import Container from './layout/Container.svelte'
 
 interface Props {
   /** Mirrors the backend's `423` `reason` (`sanvi-backend`'s `locked_problem`) and the tenant's own `status` for the storefront's own-tenant branch. */

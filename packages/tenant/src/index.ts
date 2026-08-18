@@ -7,6 +7,7 @@ export {
   hasFeature,
   onTenantSwitch,
   requireActiveMembership,
+  setEntitlements,
   setMemberships,
   switchTenant,
 } from './store.svelte'

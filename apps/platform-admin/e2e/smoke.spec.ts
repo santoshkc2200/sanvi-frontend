@@ -20,9 +20,9 @@ test('serves a Content-Security-Policy meta tag', async ({ page }) => {
   expect(content).toContain("default-src 'self'")
 })
 
-test('client-side navigation to Operators works without a full reload', async ({ page }) => {
+test('client-side navigation to Roles works without a full reload', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('link', { name: 'Operators' }).click()
-  await expect(page.getByText('Operators')).toBeVisible()
-  expect(page.url()).toContain('/operators')
+  await page.getByRole('link', { name: 'Roles' }).click()
+  await expect(page.getByRole('heading', { name: 'Roles & permissions' })).toBeVisible()
+  expect(page.url()).toContain('/roles')
 })

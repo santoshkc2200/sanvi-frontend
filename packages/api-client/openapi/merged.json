@@ -5596,6 +5596,17 @@
     "/api/v1/platform/features/{key}": {
       "delete": {
         "operationId": "deprecate_feature",
+        "parameters": [
+          {
+            "description": "Feature key",
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -5633,6 +5644,17 @@
       },
       "patch": {
         "operationId": "update_feature",
+        "parameters": [
+          {
+            "description": "Feature key",
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -9840,6 +9862,18 @@
     "/api/v1/tenant/roles/{id}": {
       "delete": {
         "operationId": "delete_role",
+        "parameters": [
+          {
+            "description": "Role id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "204": {
             "description": "Role deleted"
@@ -9870,6 +9904,18 @@
       },
       "patch": {
         "operationId": "update_role",
+        "parameters": [
+          {
+            "description": "Role id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {

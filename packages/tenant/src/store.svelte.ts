@@ -57,9 +57,22 @@ export function requireActiveMembership(): TenantMembership {
   return membership
 }
 
-/** Stub — entitlements don't exist until phase 03, so every feature reads as available until then. */
-export function hasFeature(_key: string): boolean {
-  return true
+let entitlements = $state<Record<string, boolean>>({})
+
+/**
+ * Cache written from outside this package — same shape as {@link setMemberships}
+ * — since `@sanvi/tenant` has no reason to depend on `@sanvi/api-client`
+ * directly. The app calls this after `listTenantEntitlements` resolves (and
+ * again on every tenant switch), the same way it already calls
+ * `setMemberships` after hydrating the session.
+ */
+export function setEntitlements(features: { feature: string; enabled: boolean }[]): void {
+  entitlements = Object.fromEntries(features.map((f) => [f.feature, f.enabled]))
+}
+
+/** A feature with no entitlement data yet reads as unavailable, not available — real as of phase 03 (`access.entitlements`), replacing the always-`true` stub earlier phases built against. */
+export function hasFeature(key: string): boolean {
+  return entitlements[key] ?? false
 }
 
 /** Fires after `activeTenantId` and the cookie are updated — wire cache invalidation (e.g. `@sanvi/query`'s `clear()`) here rather than inside this package, which has no reason to depend on the query layer. */

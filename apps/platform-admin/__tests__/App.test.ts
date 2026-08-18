@@ -33,17 +33,17 @@ describe('App shell', () => {
   it('renders the nav and the tenants route by default', async () => {
     render(App)
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument()
-    expect(await screen.findByText('No tenants yet')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Tenants' })).toBeInTheDocument()
   })
 
-  it('navigates to Operators when its nav link is clicked', async () => {
+  it('navigates to Roles when its nav link is clicked', async () => {
     render(App)
-    await screen.findByText('No tenants yet')
+    await screen.findByRole('heading', { name: 'Tenants' })
 
-    await fireEvent.click(screen.getByRole('link', { name: 'Operators' }))
+    await fireEvent.click(screen.getByRole('link', { name: 'Roles' }))
 
-    expect(await screen.findByText('Operators')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Operators' })).toHaveAttribute('aria-current', 'page')
+    expect(await screen.findByRole('heading', { name: 'Roles & permissions' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Roles' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('renders NotFound for an unmatched route', async () => {
@@ -55,7 +55,7 @@ describe('App shell', () => {
 
   it('has no accessibility violations on the default route', async () => {
     const { container } = render(App)
-    await screen.findByText('No tenants yet')
+    await screen.findByRole('heading', { name: 'Tenants' })
     expect(await axe(container)).toHaveNoViolations()
   })
 })

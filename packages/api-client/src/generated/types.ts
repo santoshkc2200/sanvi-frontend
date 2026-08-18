@@ -4718,7 +4718,10 @@ export interface operations {
     parameters: {
       query?: never
       header?: never
-      path?: never
+      path: {
+        /** @description Feature key */
+        key: string
+      }
       cookie?: never
     }
     requestBody?: never
@@ -4756,7 +4759,10 @@ export interface operations {
     parameters: {
       query?: never
       header?: never
-      path?: never
+      path: {
+        /** @description Feature key */
+        key: string
+      }
       cookie?: never
     }
     requestBody: {
@@ -8230,7 +8236,10 @@ export interface operations {
     parameters: {
       query?: never
       header?: never
-      path?: never
+      path: {
+        /** @description Role id */
+        id: string
+      }
       cookie?: never
     }
     requestBody?: never
@@ -8266,7 +8275,10 @@ export interface operations {
     parameters: {
       query?: never
       header?: never
-      path?: never
+      path: {
+        /** @description Role id */
+        id: string
+      }
       cookie?: never
     }
     requestBody: {

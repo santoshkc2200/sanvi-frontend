@@ -18,3 +18,21 @@ export function getPublicTenantContext(client: TypedApiClient, signal?: AbortSig
 export function getTenantContext(client: TypedApiClient, signal?: AbortSignal) {
   return client.GET('/api/v1/tenant/context', signal ? { signal } : undefined)
 }
+
+/** `GET /api/v1/tenant/settings` — the tenant's key/value settings bag. */
+export function getTenantSettings(client: TypedApiClient, signal?: AbortSignal) {
+  return client.GET('/api/v1/tenant/settings', signal ? { signal } : undefined)
+}
+
+/**
+ * `PUT /api/v1/tenant/settings` — upsert one or more settings. Keys must match
+ * `[a-z0-9_.-]{1,64}` (the backend rejects anything else); values are
+ * uninterpreted JSON.
+ */
+export function updateTenantSettings(
+  client: TypedApiClient,
+  settings: Record<string, unknown>,
+  signal?: AbortSignal,
+) {
+  return client.PUT('/api/v1/tenant/settings', { settings }, signal ? { signal } : undefined)
+}

@@ -6,6 +6,7 @@ import {
   hasFeature,
   onTenantSwitch,
   requireActiveMembership,
+  setEntitlements,
   setMemberships,
   switchTenant,
 } from '../src/store.svelte'
@@ -70,7 +71,26 @@ describe('tenant switcher store', () => {
     expect(listener).toHaveBeenCalledTimes(1)
   })
 
-  it('hasFeature stub reads as available until phase 03 wires real entitlements', () => {
-    expect(hasFeature('anything')).toBe(true)
+  it('hasFeature reads as unavailable for a feature with no entitlement data', () => {
+    expect(hasFeature('advertising.google_ads')).toBe(false)
+  })
+
+  it('setEntitlements makes hasFeature reflect the given enabled flags', () => {
+    setEntitlements([
+      { feature: 'advertising.google_ads', enabled: true },
+      { feature: 'domains.custom', enabled: false },
+    ])
+
+    expect(hasFeature('advertising.google_ads')).toBe(true)
+    expect(hasFeature('domains.custom')).toBe(false)
+    expect(hasFeature('unknown.feature')).toBe(false)
+  })
+
+  it('setEntitlements replaces the previous map rather than merging into it', () => {
+    setEntitlements([{ feature: 'a', enabled: true }])
+    setEntitlements([{ feature: 'b', enabled: true }])
+
+    expect(hasFeature('a')).toBe(false)
+    expect(hasFeature('b')).toBe(true)
   })
 })

@@ -1,6 +1,6 @@
 <script lang="ts">
-import Container from './layout/Container.svelte'
 import EmptyState from './EmptyState.svelte'
+import Container from './layout/Container.svelte'
 import SuspendedTenantNotice from './SuspendedTenantNotice.svelte'
 
 interface Props {

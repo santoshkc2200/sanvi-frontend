@@ -33,7 +33,8 @@ const selectOptions = $derived(
 <style>
   .sanvi-tenant-switcher {
     display: inline-block;
-    min-inline-size: 10rem;
+    /* Form-field sizing, not a design-tokens value. */
+    min-inline-size: 10rem; /* sanvi-tokens-ignore */
   }
 
   .sanvi-visually-hidden {

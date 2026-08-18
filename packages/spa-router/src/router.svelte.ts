@@ -7,7 +7,16 @@ export interface RouteDefinition {
   path: string
   /** No-op until phase 02 wires real auth; `undefined` means "always allowed." Return `false` to reject without loading the route. */
   guard?: (params: RouteParams) => boolean | Promise<boolean>
-  load: () => Promise<{ default: Component }>
+  /**
+   * `Component<any>`, not the no-props default `Component<{}>` — a matched
+   * route's params (always `RouteParams`, i.e. strings) are spread onto the
+   * loaded component as props (`<Page {...router.params} />`), so a route
+   * like `tenants/:id` legitimately loads a component that declares a
+   * required `id: string` prop. The app's own template is what actually
+   * connects params to props; this type only needs to not reject that.
+   */
+  // biome-ignore lint/suspicious/noExplicitAny: a route's props shape can't be known generically here — see comment above.
+  load: () => Promise<{ default: Component<any> }>
   children?: RouteDefinition[]
 }
 
@@ -55,6 +64,33 @@ function matchSegments(routeSegments: string[], pathSegments: string[]): RoutePa
 
 function browserPathname(): string {
   return typeof window === 'undefined' ? '/' : window.location.pathname
+}
+
+/**
+ * Programmatic navigation for components that don't hold the `Router`
+ * instance (it's constructed once inside each app's `App.svelte`, not
+ * threaded through every child route) — a table row's "open detail" handler,
+ * for instance. `pushState` alone doesn't fire `popstate`, so every `Router`
+ * listens for it and re-resolves; this is the same two-step `Router#navigate`
+ * does internally, exposed standalone.
+ */
+export function navigate(path: string): void {
+  if (typeof window === 'undefined') return
+  window.history.pushState({}, '', path)
+  window.dispatchEvent(new PopStateEvent('popstate'))
+}
+
+/** `true` for a plain, unmodified left click — the case that should be intercepted and routed in-app rather than left to the browser. */
+function shouldHandleLinkClick(event: MouseEvent): boolean {
+  if (event.defaultPrevented || event.button !== 0) return false
+  return !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+}
+
+/** `onclick` for an `<a href>` that should route in-app — same semantics as `Router#handleLinkClick` (respects modifier keys and non-primary clicks), usable without a `Router` instance. */
+export function handleLinkClick(event: MouseEvent, href: string): void {
+  if (!shouldHandleLinkClick(event)) return
+  event.preventDefault()
+  navigate(href)
 }
 
 /**
@@ -111,6 +147,12 @@ export class Router {
     return this.#guardRejected
   }
 
+  /**
+   * Same two-step as the standalone {@link navigate} (`pushState` then
+   * resync), but resyncs `this` directly instead of round-tripping through a
+   * `popstate` event — this instance doesn't need to wait for its own
+   * listener to fire.
+   */
   navigate(path: string): void {
     if (typeof window === 'undefined') return
     window.history.pushState({}, '', path)
@@ -119,8 +161,7 @@ export class Router {
 
   /** Attach to an `<a>`'s `onclick` to route in-app instead of a full navigation. */
   handleLinkClick = (event: MouseEvent, href: string): void => {
-    if (event.defaultPrevented || event.button !== 0) return
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    if (!shouldHandleLinkClick(event)) return
     event.preventDefault()
     this.navigate(href)
   }

@@ -1,6 +1,6 @@
 import type { Component } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createRouter } from '../src/router.svelte'
+import { createRouter, handleLinkClick, navigate } from '../src/router.svelte'
 
 // Real Svelte components compile to functions, not plain objects — `$state`
 // only deep-proxies objects/arrays/Map/Set, so functions keep their identity
@@ -182,6 +182,47 @@ describe('Router', () => {
     const preventDefault = vi.spyOn(event, 'preventDefault')
 
     router.handleLinkClick(event, '/settings')
+
+    expect(preventDefault).not.toHaveBeenCalled()
+    expect(window.location.pathname).toBe('/')
+  })
+})
+
+describe('standalone navigate/handleLinkClick', () => {
+  it('navigate() pushes history state and resyncs every listening Router via popstate', async () => {
+    const router = createRouter({
+      routes: [{ path: 'tenants/:id', load: async () => ({ default: TenantDetailComponent }) }],
+      notFound: async () => ({ default: NotFoundComponent }),
+    })
+
+    navigate('/tenants/acme')
+
+    expect(window.location.pathname).toBe('/tenants/acme')
+    await vi.waitFor(() => expect(router.component).toBe(TenantDetailComponent))
+    expect(router.params).toEqual({ id: 'acme' })
+  })
+
+  it('handleLinkClick prevents default and calls navigate() for a plain left click', () => {
+    const event = new MouseEvent('click', { button: 0, bubbles: true, cancelable: true })
+    const preventDefault = vi.spyOn(event, 'preventDefault')
+
+    handleLinkClick(event, '/settings')
+
+    expect(preventDefault).toHaveBeenCalled()
+    expect(window.location.pathname).toBe('/settings')
+  })
+
+  it('handleLinkClick lets a modified click fall through to the browser', () => {
+    window.history.pushState({}, '', '/')
+    const event = new MouseEvent('click', {
+      button: 0,
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    const preventDefault = vi.spyOn(event, 'preventDefault')
+
+    handleLinkClick(event, '/settings')
 
     expect(preventDefault).not.toHaveBeenCalled()
     expect(window.location.pathname).toBe('/')

@@ -23,7 +23,7 @@ test('serves a Content-Security-Policy meta tag', async ({ page }) => {
 test('client-side navigation to Settings works without a full reload', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('link', { name: 'Settings' }).click()
-  await expect(page.getByText('Settings')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
   expect(page.url()).toContain('/settings')
 })
 

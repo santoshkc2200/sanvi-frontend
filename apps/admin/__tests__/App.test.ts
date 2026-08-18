@@ -6,6 +6,44 @@ import { fireEvent, render, screen } from '@testing-library/svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../src/App.svelte'
 
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  })
+}
+
+/**
+ * `Dashboard`/`Settings`/`Members`/`Roles`/`Usage` all call real
+ * `@sanvi/api-client` endpoints now (phase 03) — this stubs `fetch` with
+ * minimal, realistic bodies so the app-shell suite stays fast and
+ * deterministic without a live backend. Route-specific behavior belongs in
+ * a future per-route test, not here; this only needs the app to render.
+ */
+function mockFetch(input: RequestInfo | URL): Promise<Response> {
+  const url = typeof input === 'string' ? input : input.toString()
+  if (url.includes('/tenant/context')) {
+    return Promise.resolve(
+      jsonResponse({
+        tenant_id: 'dev-acme',
+        slug: 'acme',
+        display_name: 'Acme Corporation',
+        region: 'us',
+        default_locale: 'en',
+        status: 'active',
+        resolution_source: 'subdomain',
+      }),
+    )
+  }
+  if (url.includes('/tenant/members')) return Promise.resolve(jsonResponse([]))
+  if (url.includes('/tenant/invitations')) return Promise.resolve(jsonResponse([]))
+  if (url.includes('/tenant/entitlements')) return Promise.resolve(jsonResponse([]))
+  if (url.includes('/tenant/settings')) return Promise.resolve(jsonResponse({ settings: {} }))
+  if (url.includes('/tenant/roles')) return Promise.resolve(jsonResponse([]))
+  if (url.includes('/access/permissions')) return Promise.resolve(jsonResponse([]))
+  return Promise.resolve(jsonResponse({ title: 'not mocked', status: 404 }, 404))
+}
+
 const SIGNED_IN_SESSION: Session = {
   userId: 'user-1',
   email: 'alice@example.com',
@@ -40,33 +78,35 @@ const SIGNED_IN_SESSION: Session = {
 // for that), so tests that exercise a guarded route sign in first.
 beforeEach(() => {
   setSession(SIGNED_IN_SESSION)
+  vi.stubGlobal('fetch', vi.fn(mockFetch))
 })
 
 afterEach(() => {
   window.history.pushState({}, '', '/')
   setSession(null)
+  vi.unstubAllGlobals()
 })
 
 describe('App shell', () => {
   it('renders the nav and the dashboard route by default', async () => {
     render(App)
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument()
-    expect(await screen.findByText('No tenant data yet')).toBeInTheDocument()
+    expect(await screen.findByText('Acme Corporation')).toBeInTheDocument()
   })
 
   it('navigates to Settings when its nav link is clicked', async () => {
     render(App)
-    await screen.findByText('No tenant data yet')
+    await screen.findByText('Acme Corporation')
 
     await fireEvent.click(screen.getByRole('link', { name: 'Settings' }))
 
-    expect(await screen.findByText('Settings')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('renders the tenant switcher with the dev membership list', async () => {
     render(App)
-    await screen.findByText('No tenant data yet')
+    await screen.findByText('Acme Corporation')
 
     expect(screen.getByRole('combobox', { name: 'Switch tenant' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Acme Corporation' })).toBeInTheDocument()
@@ -74,7 +114,7 @@ describe('App shell', () => {
 
   it('switching tenants clears the query cache — no stale cross-tenant data can survive the switch', async () => {
     render(App)
-    await screen.findByText('No tenant data yet')
+    await screen.findByText('Acme Corporation')
 
     const query = createQuery('members', async () => ['acme-row'], { tenantId: 'dev-acme' })
     await vi.waitFor(() => expect(query.data).toBeDefined())
@@ -96,7 +136,7 @@ describe('App shell', () => {
 
   it('has no accessibility violations on the default route', async () => {
     const { container } = render(App)
-    await screen.findByText('No tenant data yet')
+    await screen.findByText('Acme Corporation')
     expect(await axe(container)).toHaveNoViolations()
   })
 })

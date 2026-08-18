@@ -6,18 +6,21 @@ import {
   requirePermission,
   requireSession,
 } from '@sanvi/auth'
+import { listTenantEntitlements } from '@sanvi/api-client'
 import { clearCache, QueryDevtools } from '@sanvi/query'
 import type { Router, RouteDefinition } from '@sanvi/spa-router'
 import { createRouter } from '@sanvi/spa-router'
-import { AppShell, ErrorView, Spinner, TenantSwitcher } from '@sanvi/ui'
+import { AppShell, ErrorView, Spinner, TenantSwitcher, ToastViewport } from '@sanvi/ui'
 import {
   getActiveTenantId,
   getMemberships,
   onTenantSwitch,
+  setEntitlements,
   setMemberships,
   switchTenant,
 } from '@sanvi/tenant'
 import type { TenantMembership } from '@sanvi/tenant'
+import { apiClient } from './lib/api'
 
 // `router` is referenced inside the guard closures below before it's
 // assigned — safe because a guard only ever runs once something navigates,
@@ -55,6 +58,16 @@ const routes: RouteDefinition[] = [
     guard: (params) => requirePermission(router, 'identity.member.read')(params),
     load: () => import('./routes/Members.svelte'),
   },
+  {
+    path: 'roles',
+    guard: (params) => requirePermission(router, 'access.role.read')(params),
+    load: () => import('./routes/Roles.svelte'),
+  },
+  {
+    path: 'usage',
+    guard: (params) => requireSession(router)(params),
+    load: () => import('./routes/Usage.svelte'),
+  },
   { path: 'login', load: () => import('./routes/Login.svelte') },
   { path: 'health', load: () => import('./routes/Health.svelte') },
 ]
@@ -90,6 +103,22 @@ function syncMemberships(session: ReturnType<typeof getSession>): void {
 syncMemberships(getSession())
 onSessionChange(syncMemberships)
 
+// Real entitlements, replacing the always-available stub `@sanvi/tenant`
+// shipped with before phase 03. Re-synced on every tenant switch, same as
+// the cache clear above — a feature gate must never read the previous
+// tenant's entitlements while the switcher shows the new one.
+async function syncEntitlements(): Promise<void> {
+  try {
+    const entitlements = await listTenantEntitlements(apiClient)
+    setEntitlements(entitlements.map((e) => ({ feature: e.feature, enabled: e.enabled })))
+  } catch {
+    // No session yet, or the feature-gate route itself is disabled for this
+    // tenant — either way `hasFeature` already reads safe: unavailable.
+  }
+}
+void syncEntitlements()
+onTenantSwitch(() => void syncEntitlements())
+
 const COPY = {
   brand: 'Sanvi Admin',
   skipLink: 'Skip to main content',
@@ -108,6 +137,8 @@ const COPY = {
 const NAV: { href: string; label: string }[] = [
   { href: '/', label: 'Dashboard' },
   { href: '/members', label: 'Members' },
+  { href: '/roles', label: 'Roles' },
+  { href: '/usage', label: 'Usage' },
   { href: '/settings', label: 'Settings' },
   { href: '/settings/security', label: 'Security' },
 ]
@@ -158,9 +189,12 @@ function retry(): void {
     <ErrorView title={COPY.deniedTitle} description={deniedDescription} />
   {:else if router.component}
     {@const Page = router.component}
-    <Page />
+    {#key Page}
+      <Page {...router.params} />
+    {/key}
   {:else if router.loading}
     <Spinner label={COPY.loadingLabel} />
   {/if}
 </AppShell>
+<ToastViewport />
 <QueryDevtools />
