@@ -16,6 +16,22 @@ deferring it to the end of the phase.
 - [ ] Feature flag defined and defaulted **off**; rollback plan written.
 - [ ] Deployed to staging behind the flag. **Merged ≠ done.**
 
+### Phase 11 additions — hardening tasks
+
+A hardening task ships a number, a recorded manual pass, or a published statement rather than a feature,
+so from phase 11 onward these three lines are added to the list above:
+
+- [ ] **Evidence artifact committed** — a benchmark JSON, an audit checklist with a named runner, a
+      published statement, or a review record with a date. **A task with no artifact did not happen.**
+- [ ] Numbers compared against the stored `rc.1` baseline in the same harness, on the pinned device and
+      tooling profiles; a regression is explained or reverted.
+- [ ] Every new user-facing string in `en` and `ja`, and every new state axe-clean — including states
+      that only appear during an outage, a limit, or an archived range.
+
+The flag line is read as "*if* the task ships behaviour": several phase 11 tasks ship tooling or
+evidence, or sit behind a backend-owned flag, and have no flag of their own. Those say so in their
+header rather than inventing one.
+
 Status is recorded only through the sdlc-planner script, never by hand-editing the task file and
 [`backlog.md`](backlog.md) separately:
 

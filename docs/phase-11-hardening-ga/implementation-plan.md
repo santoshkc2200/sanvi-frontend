@@ -4,6 +4,11 @@
 **Depends on:** frontend 00–10
 **Unlocks:** general availability
 
+**Sliced into twelve tasks in [`../tasks/phase-11/README.md`](../tasks/phase-11/README.md)**, which is
+authoritative for order, slicing, and each slice's exit criteria. This plan stays authoritative for
+*what* and *why*. Requirements are numbered `FR-11xx` / `NFR-11xx` in
+[`../requirements.md`](../requirements.md).
+
 ## Goal
 
 Make the frontend fast on the devices and networks our users actually have, usable by people who do

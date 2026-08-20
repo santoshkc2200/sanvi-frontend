@@ -16,8 +16,10 @@ $SDLC new-task 10 "<title>" --requirement FR-1003 --depends TASK-010
 Each task traces to a numbered requirement in [`../requirements.md`](../requirements.md); the *why*
 behind each one lives in that phase's implementation plan
 ([09](../phase-09-tenant-payments/implementation-plan.md) ·
-[10](../phase-10-advertising/implementation-plan.md)) and the slice order in its
-`phase-NN/README.md` ([09](phase-09/README.md) · [10](phase-10/README.md)). Every task must clear
+[10](../phase-10-advertising/implementation-plan.md) ·
+[11](../phase-11-hardening-ga/implementation-plan.md)) and the slice order in its
+`phase-NN/README.md` ([09](phase-09/README.md) · [10](phase-10/README.md) ·
+[11](phase-11/README.md)). Every task must clear
 [`definition-of-done.md`](definition-of-done.md).
 
 Statuses: `todo` · `in-progress` · `blocked` · `done`
@@ -42,3 +44,15 @@ Statuses: `todo` · `in-progress` · `blocked` · `done`
 | TASK-016 | 10 | 10.7 Chart primitives & ROAS dashboard | todo | TASK-012, TASK-015 | |
 | TASK-017 | 10 | 10.8 Budget cap configuration & alert surfaces | todo | TASK-016 | |
 | TASK-018 | 10 | 10.9 A11y, visual, export hardening & e2e consolidation | todo | TASK-013, TASK-015, TASK-017 | |
+| TASK-019 | 11 | 11.0 Field collection, CI budget harness & baseline capture | todo | phase 10 | |
+| TASK-020 | 11 | 11.1 Error tracking, RUM segmentation & user-facing diagnostics | todo | TASK-019 | |
+| TASK-021 | 11 | 11.2 Harness re-run & client call-pattern audit | todo | TASK-020 | |
+| TASK-022 | 11 | 11.3 Bundles, fonts, images, streaming SSR & INP | todo | TASK-020 | |
+| TASK-023 | 11 | 11.4 Error boundaries, outage UX, retry & offline | todo | TASK-021 | |
+| TASK-024 | 11 | 11.5 Auth surface review, CSP tightening & bundle secret gate | todo | TASK-019 | |
+| TASK-025 | 11 | 11.6 Status page, degraded banners & restore-in-progress | todo | TASK-023 | |
+| TASK-026 | 11 | 11.7 429 handling, quota & usage surfaces | todo | TASK-023 | |
+| TASK-027 | 11 | 11.8 Accessibility sweep, manual passes & external audit | todo | TASK-022 | |
+| TASK-028 | 11 | 11.9 Offboarding, retention & archived-range surfaces | todo | TASK-021 | |
+| TASK-029 | 11 | 11.10 Privacy centre re-verification & evidence access | todo | TASK-027, TASK-028 | |
+| TASK-030 | 11 | 11.11 E2E completion, browser matrix, visual baseline & rollout | todo | TASK-024, TASK-025, TASK-026, TASK-027, TASK-029 | |
