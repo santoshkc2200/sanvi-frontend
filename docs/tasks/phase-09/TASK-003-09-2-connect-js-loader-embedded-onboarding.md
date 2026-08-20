@@ -1,0 +1,90 @@
+# TASK-003: 09.2 Connect.js loader & embedded onboarding
+
+**Phase:** 09
+**Status:** todo
+**Requirement(s):** FR-902, NFR-901, NFR-907
+**Depends on:** TASK-002
+**Created:** 2026-08-20
+
+**Sub-phase:** [09.2 — Stripe Connect onboarding](../../../../docs/phase-09-tenant-payments/09.2-connect-onboarding.md)
+**Prerelease:** `v0.10.0-alpha.3` · **Flag:** `payments.stripe_connect`
+
+## Context
+
+A tenant admin clicks *Connect Stripe* and completes Stripe's embedded onboarding without leaving the
+admin console. We render Stripe's component; we never build our own onboarding form, because a custom
+form would force us to collect sensitive PII and build our own remediation flows.
+
+Status shown here is still thin — it becomes truthful in TASK-004 when webhook-driven state arrives.
+
+## What to do
+
+- [ ] **Connect.js loader** — a small wrapper package (`packages/payments-connect`) exposing an
+      initializer that fetches the account session from
+      `POST /api/v1/tenant/payments/connections/{id}/session` and returns the Connect instance.
+      Pinned Connect.js version; loaded **only** on pages that need it, never in the storefront
+      bundle. `billing-elements` stays the Stripe **Elements** package for platform billing — do not
+      conflate the two.
+- [ ] **Pre-connect explainer** — the TASK-002 copy, plus what Stripe will ask for and roughly how
+      long it takes. A tenant who understands the flow finishes it.
+- [ ] **Embedded `account_onboarding`** in `PaymentsSettings.svelte`, mounted after the connection is
+      created, with appearance options mapped from our design tokens where the component API allows.
+      The settings surface uses the **admin** theme, not the tenant storefront theme.
+- [ ] **Resumability** — closing the tab and returning re-fetches a fresh session and re-mounts at the
+      same place; the page never asks a tenant to start over. A session-fetch failure shows a retry,
+      not a blank iframe.
+- [ ] **Loading & failure states** — component load failure (CSP, network, Stripe outage) gets a
+      specific message with a retry and a support path, never a silent empty box.
+
+## Acceptance criteria
+
+- [ ] E2E: connect → the embedded onboarding component renders → close the tab → return → the flow
+      resumes where it was, with no "start over".
+- [ ] Onboarding renders under the **production** CSP from TASK-001, not a relaxed dev policy.
+- [ ] The account session client secret is fetched per render and never written to `localStorage`,
+      `sessionStorage`, a cookie, or the console — asserted by a test.
+- [ ] A forced session-fetch failure renders a retry affordance rather than an empty iframe.
+- [ ] Connect.js appears in the admin bundle only; a bundle assertion proves it is absent from the
+      storefront.
+- [ ] `pnpm check:i18n` passes for every new string, in `en` and `ja`.
+- [ ] `pnpm check:budget` still passes for both apps.
+
+## Verification
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm check:i18n
+pnpm check:tokens
+pnpm check:budget
+pnpm check:boundaries
+pnpm test:e2e --filter admin
+node scripts/bundle-size-report.mjs
+```
+
+## Out of scope
+
+Status, requirements and the verdict banner (TASK-004); `notification_banner` and
+`account_management` components (TASK-004); the `payouts` component (TASK-007).
+
+## Files likely touched
+
+- `packages/payments-connect/**` (new package: loader, session fetch, appearance mapping)
+- `apps/admin/src/routes/PaymentsSettings.svelte`
+- `packages/i18n` catalogs (`en`, `ja`)
+- `pnpm-workspace.yaml`, `turbo.json` if the new package needs registering
+
+## Notes / gotchas
+
+- Pin the Connect.js version and treat upgrades as dependency changes with integration tests — a
+  floating version is a silent breaking change waiting for a Stripe release.
+- Appearance options are mapped from tokens **where the component API allows**; do not fight the
+  component's styling limits with CSS overrides that will break on their next release.
+
+---
+*On completion: satisfy every acceptance criterion, run the verification commands,
+then record status with the sdlc-planner script (never by hand-editing this line
+and the backlog separately):*
+`sdlc.py status TASK-003 done --note "<PR or commit>"`

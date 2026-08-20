@@ -47,7 +47,7 @@
     "typescript-eslint": "catalog:"
   },
   "lint-staged": {
-    "*.{js,ts,svelte,json,md}": [
+    "*.{js,ts,svelte,json}": [
       "biome format --write",
       "biome lint --write"
     ]
