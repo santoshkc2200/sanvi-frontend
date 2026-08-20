@@ -32,6 +32,11 @@ jobs:
       - name: turbo lint typecheck test build
         run: pnpm turbo run lint typecheck test build
 
+      - name: check:no-secret-keys-in-bundle
+        run: |
+          node scripts/check-no-secret-keys-in-bundle.mjs --self-test
+          node scripts/check-no-secret-keys-in-bundle.mjs
+
       - name: check:i18n
         run: pnpm turbo run check:i18n
 

@@ -1812,6 +1812,30 @@ export interface paths {
     patch: operations['update_member_roles']
     trace?: never
   }
+  '/api/v1/tenant/payments/providers': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * `GET /api/v1/tenant/payments/providers`.
+     * @description Gated three ways: the `payments.enabled` phase flag (route absent when
+     *     off), `payments.read` (permission extractor), and the
+     *     `payments.stripe_connect` entitlement (`RequiredFeature` — 403, never
+     *     404, so the frontend can render an upgrade prompt instead of a dead
+     *     end).
+     */
+    get: operations['list_payment_providers']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/tenant/privacy/requests': {
     parameters: {
       query?: never
@@ -3272,6 +3296,31 @@ export interface components {
       | 'targeted_advertising'
       | 'profiling_significant_effects'
       | 'sensitive_pi_use'
+    /**
+     * @description One connectable provider as the settings page renders it. Kept minimal
+     *     in 09.0 (the envelope is the contract); 09.1 fills in the real entries.
+     */
+    ProviderView: {
+      /**
+       * @description Human-readable name for cards and menus.
+       * @example Stripe
+       */
+      display_name: string
+      /**
+       * @description Stable provider identifier (`stripe_connect`).
+       * @example stripe_connect
+       */
+      provider: string
+    }
+    /**
+     * @description `GET /api/v1/tenant/payments/providers` — the catalog envelope. The
+     *     empty array in 09.0 is the contract's shape, not a placeholder for a
+     *     different one.
+     */
+    ProvidersView: {
+      /** @description Connectable providers; empty until the catalog lands (09.1). */
+      providers: components['schemas']['ProviderView'][]
+    }
     ProvisionTenantCommand: {
       /** @example en */
       default_locale?: string
@@ -6054,7 +6103,7 @@ export interface operations {
           'application/json': components['schemas']['ProblemDetail']
         }
       }
-      /** @description Permission denied */
+      /** @description Permission denied or fresh MFA missing */
       403: {
         headers: {
           [name: string]: unknown
@@ -8078,6 +8127,38 @@ export interface operations {
       }
       /** @description Membership not found */
       404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  list_payment_providers: {
+    parameters: {
+      query?: never
+      header?: {
+        /** @description Required on every *mutating* payments endpoint (none exist yet); documented here because the convention is fixed now, before the first one ships */
+        'Idempotency-Key'?: string | null
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Connectable payment providers (empty until the catalog lands in 09.1) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProvidersView']
+        }
+      }
+      /** @description Missing payments.read permission or the payments.stripe_connect entitlement */
+      403: {
         headers: {
           [name: string]: unknown
         }

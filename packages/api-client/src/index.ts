@@ -33,6 +33,7 @@ export {
   updateMemberRoles,
 } from './identity'
 export { createImpersonation, listImpersonations, revokeImpersonation } from './impersonation'
+export { listPaymentProviders } from './payments'
 export {
   activateTenant,
   applySubscriptionOverride,

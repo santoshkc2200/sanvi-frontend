@@ -34,9 +34,9 @@ import { apiClient } from './lib/api'
 // svelte-ignore non_reactive_update
 let router: Router
 
-// Reserved for billing/domains/payments/ads — filled in by the phases that
-// own each (04, 08, 09, 10 respectively). Adding a nav item and a route
-// here is that phase's work.
+// Reserved for billing/domains/ads — filled in by the phases that own each
+// (04, 08, 10 respectively). Adding a nav item and a route here is that
+// phase's work.
 const routes: RouteDefinition[] = [
   {
     path: '',
@@ -67,6 +67,11 @@ const routes: RouteDefinition[] = [
     path: 'usage',
     guard: (params) => requireSession(router)(params),
     load: () => import('./routes/Usage.svelte'),
+  },
+  {
+    path: 'payments',
+    guard: (params) => requirePermission(router, 'payments.read')(params),
+    load: () => import('./routes/PaymentsSettings.svelte'),
   },
   { path: 'login', load: () => import('./routes/Login.svelte') },
   { path: 'health', load: () => import('./routes/Health.svelte') },
@@ -139,6 +144,7 @@ const NAV: { href: string; label: string }[] = [
   { href: '/members', label: 'Members' },
   { href: '/roles', label: 'Roles' },
   { href: '/usage', label: 'Usage' },
+  { href: '/payments', label: 'Payments' },
   { href: '/settings', label: 'Settings' },
   { href: '/settings/security', label: 'Security' },
 ]
