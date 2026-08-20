@@ -6,7 +6,8 @@
 **Depends on:** TASK-002
 **Created:** 2026-08-20
 
-**Sub-phase:** [09.2 — Stripe Connect onboarding](../../../../docs/phase-09-tenant-payments/09.2-connect-onboarding.md)
+**Blocked by (cross-repo):** sanvi-backend TASK-003 (Accounts v2 creation + Account Session endpoint)
+**Slice:** 09.2 — Stripe Connect onboarding
 **Prerelease:** `v0.10.0-alpha.3` · **Flag:** `payments.stripe_connect`
 
 ## Context

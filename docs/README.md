@@ -11,16 +11,23 @@ consoles, and a set of shared packages that hold everything more than one app ne
 - [`requirements.md`](requirements.md) — numbered `FR-*` / `NFR-*` requirements, from phase 09 onward.
   Tasks trace to these IDs.
 - [`tasks/backlog.md`](tasks/backlog.md) — **start here to pick up work.** The status of every task,
-  with the task specs in `tasks/phase-NN/`.
-- The cross-project phase map lives in [`../../docs/roadmap.md`](../../docs/roadmap.md).
+  with the task specs in `tasks/phase-NN/` and that phase's ordering in `tasks/phase-NN/README.md`.
+- [`tasks/definition-of-done.md`](tasks/definition-of-done.md) — the exit bar every task must clear.
+- The cross-project phase map is jointly owned and lives in the backend repo, at
+  `sanvi-backend/docs/shared/roadmap.md` — one canonical copy, next to the API contract. Changes to
+  it are reviewed by both tracks. (With both repos cloned as siblings:
+  [`../../sanvi-backend/docs/shared/roadmap.md`](../../sanvi-backend/docs/shared/roadmap.md).)
 
 ## Working the backlog
 
 From phase 09 the delivery layers are: the roadmap (why the phase exists) → the phase
-implementation plan (what and how) → the cross-track slice docs in `../../docs/phase-NN-*/` (order and
-exit criteria per slice) → [`requirements.md`](requirements.md) (numbered requirements) →
-[`tasks/`](tasks/backlog.md) (one agent-executable spec per slice). Every layer traces to the one
-above it; `sdlc.py check` enforces it mechanically.
+implementation plan (what and how) → [`requirements.md`](requirements.md) (numbered requirements) →
+[`tasks/`](tasks/backlog.md) (one agent-executable spec per slice, ordered by that phase's
+`tasks/phase-NN/README.md`). Every layer traces to the one above it; `sdlc.py check` enforces it
+mechanically.
+
+Cross-track coordination lives in the tasks themselves: a task blocked on `sanvi-backend` work says
+so in a `**Blocked by (cross-repo):**` line. There is no shared schedule document.
 
 ```bash
 SDLC="python3 ~/.claude/skills/sdlc-planner/scripts/sdlc.py"

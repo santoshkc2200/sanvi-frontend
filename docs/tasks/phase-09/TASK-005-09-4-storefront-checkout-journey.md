@@ -6,7 +6,8 @@
 **Depends on:** TASK-004
 **Created:** 2026-08-20
 
-**Sub-phase:** [09.4 — Checkout on the connected account (direct charges)](../../../../docs/phase-09-tenant-payments/09.4-checkout-direct-charges.md)
+**Blocked by (cross-repo):** sanvi-backend TASK-005 (checkout session on the connected account)
+**Slice:** 09.4 — Checkout on the connected account (direct charges)
 **Prerelease:** `v0.10.0-alpha.5` · **Flag:** `payments.checkout`
 
 ## Context

@@ -6,7 +6,8 @@
 **Depends on:** TASK-006, TASK-007
 **Created:** 2026-08-20
 
-**Sub-phase:** [09.7 — Disconnect, hardening & release](../../../../docs/phase-09-tenant-payments/09.7-disconnect-hardening-ga.md)
+**Blocked by (cross-repo):** sanvi-backend TASK-008 (disconnect guards + retention override)
+**Slice:** 09.7 — Disconnect, hardening & release
 **Release:** `v0.10.0` · **Flags:** default on at the end of this task
 
 ## Context
@@ -76,7 +77,7 @@ Anything phase 10 consumes beyond the conversion event id the confirmation page 
 - `apps/admin/src/routes/PaymentsSettings.svelte` (disconnect flow, degraded notice)
 - `apps/storefront/src/routes/checkout/**` (degraded mode)
 - e2e suite (consolidated phase journey), visual snapshot baselines
-- `CHANGELOG.md`, [the shared roadmap](../../../../docs/roadmap.md)
+- `CHANGELOG.md`, [the shared roadmap](../../../../sanvi-backend/docs/shared/roadmap.md)
 
 ## Notes / gotchas
 
