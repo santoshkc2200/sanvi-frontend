@@ -9,8 +9,8 @@ requirement's phase is readable from the ID alone. IDs are permanent: when a req
 edit its text and note the change; when it is dropped, mark it `withdrawn` rather than reusing the
 number.
 
-`python3 ~/.claude/skills/sdlc-planner/scripts/sdlc.py check` verifies that every requirement here is
-covered by at least one task in `tasks/`, and that every task names a requirement.
+Two invariants hold over this file and [`tasks/`](tasks/backlog.md), and are checked in review:
+every requirement here is covered by at least one task, and every task names a requirement.
 
 Backend requirements are numbered separately in `sanvi-backend/docs/requirements.md`. The two sets
 share IDs by coincidence of phase, not by meaning — a frontend task never cites a backend ID.

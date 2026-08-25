@@ -99,7 +99,7 @@ commercial wall rather than an outage (TASK-026).
   not queueable — say so honestly rather than queueing it and hoping.
 
 ---
-*On completion: satisfy every acceptance criterion, run the verification commands,
-then record status with the sdlc-planner script (never by hand-editing this line
-and the backlog separately):*
-`sdlc.py status TASK-023 done --note "<PR or commit>"`
+*On completion: satisfy every acceptance criterion, run the verification commands, then
+record status in the **same commit** in both places — the `**Status:**` line at the top of this
+file and this task's row in [`../backlog.md`](../backlog.md), with the PR or commit as the note.
+The two must never disagree.*

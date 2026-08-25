@@ -1,17 +1,23 @@
 # Backlog — sanvi-frontend
 
-Single source of truth for task status. Generated and updated by the sdlc-planner
-script — don't hand-edit rows or hand-number IDs; the script keeps this table and
-the task files in sync, and `check` flags it when they drift.
+Single source of truth for task status. Maintained by hand, in the same commit as the task file
+it describes.
 
-```bash
-SDLC="python3 ~/.claude/skills/sdlc-planner/scripts/sdlc.py"
+**Recording status.** A status change touches exactly two places, and they must never disagree:
 
-$SDLC check                                     # traceability + status drift (run from this repo root)
-$SDLC status TASK-002 in-progress               # updates the task file AND the row below
-$SDLC status TASK-002 done --note "PR #123"
-$SDLC new-task 10 "<title>" --requirement FR-1003 --depends TASK-010
-```
+1. the `**Status:**` line at the top of `phase-NN/TASK-0NN-….md`, and
+2. that task's row in the table below, with the PR or commit in the **Notes** column.
+
+**Adding a task.** Take the next free `TASK-0NN` — IDs are permanent and never reused — name its
+requirement from [`../requirements.md`](../requirements.md), and add it both here and as a file in
+the phase's `tasks/phase-NN/` directory. Two invariants hold over the set, and a reviewer checks
+them by reading: every requirement is covered by at least one task, and every task names a
+requirement.
+
+**Executing a task.** Tasks are executed with the Superpowers workflow — `superpowers:executing-plans`
+for inline execution, or `superpowers:subagent-driven-development` for a fresh subagent per task with
+review between tasks. The checkboxes inside a task file are the working record of that execution;
+this table is the summary.
 
 Each task traces to a numbered requirement in [`../requirements.md`](../requirements.md); the *why*
 behind each one lives in that phase's implementation plan

@@ -32,12 +32,9 @@ The flag line is read as "*if* the task ships behaviour": several phase 11 tasks
 evidence, or sit behind a backend-owned flag, and have no flag of their own. Those say so in their
 header rather than inventing one.
 
-Status is recorded only through the sdlc-planner script, never by hand-editing the task file and
-[`backlog.md`](backlog.md) separately:
-
-```bash
-python3 ~/.claude/skills/sdlc-planner/scripts/sdlc.py status TASK-00N done --note "<PR or commit>"
-```
+Status is recorded by hand in two places **in the same commit** — the `**Status:**` line at the top
+of the task file, and that task's row in [`backlog.md`](backlog.md), with the PR or commit as the
+note. Updating one without the other is the failure mode this rule exists to prevent.
 
 ## Contract first
 
