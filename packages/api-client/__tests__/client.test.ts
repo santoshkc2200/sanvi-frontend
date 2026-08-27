@@ -312,6 +312,62 @@ describe('GET coalescing', () => {
   })
 })
 
+describe('onUnauthorized', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('fires once for a 401 from the typed path, before the ApiError surfaces', async () => {
+    fetchMock.mockResolvedValueOnce(problemResponse(401, { title: 'Not authenticated' }))
+    const onUnauthorized = vi.fn()
+    const client = createApiClient({ baseUrl: 'https://api.example.com', onUnauthorized })
+
+    await expect(client.get('/v1/me')).rejects.toMatchObject({ status: 401 })
+    expect(onUnauthorized).toHaveBeenCalledOnce()
+  })
+
+  it('fires for a 401 on the raw path too, which resolves instead of throwing', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { id: 'session' } }), {
+        status: 401,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    const onUnauthorized = vi.fn()
+    const client = createApiClient({ baseUrl: 'https://kratos.example.com', onUnauthorized })
+
+    const result = await client.requestRaw('/self-service/settings/flows')
+    expect(result.status).toBe(401)
+    expect(onUnauthorized).toHaveBeenCalledOnce()
+  })
+
+  it('does not fire for a 403 (signed in, not allowed) or other statuses', async () => {
+    fetchMock
+      .mockResolvedValueOnce(problemResponse(403, { title: 'Permission denied' }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }))
+    const onUnauthorized = vi.fn()
+    const client = createApiClient({ baseUrl: 'https://api.example.com', onUnauthorized })
+
+    await expect(client.get('/v1/members')).rejects.toMatchObject({ status: 403 })
+    await client.get('/v1/me')
+    expect(onUnauthorized).not.toHaveBeenCalled()
+  })
+
+  it('is silent when the caller provides no hook', async () => {
+    fetchMock.mockResolvedValueOnce(problemResponse(401, { title: 'Not authenticated' }))
+    const client = createApiClient({ baseUrl: 'https://api.example.com' })
+
+    await expect(client.get('/v1/me')).rejects.toMatchObject({ status: 401 })
+  })
+})
+
 describe('requestRaw', () => {
   let fetchMock: ReturnType<typeof vi.fn>
 

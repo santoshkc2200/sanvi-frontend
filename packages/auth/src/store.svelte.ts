@@ -40,6 +40,65 @@ export async function bootSession(client: TypedApiClient): Promise<Session | nul
 }
 
 /**
+ * Re-hydrates the store from `/me` + `/me/sessions` — the half of the
+ * phase-02 session-state decision ("hydrated on boot, refreshed on focus
+ * and on 401") that keeps the store true as the session changes underneath
+ * an open tab: revoked on another device, stepped up to `aal2`, expired.
+ * The 401 half is the api-client `onUnauthorized` hook the apps wire to
+ * {@link setSession}.
+ */
+export async function refreshSession(client: TypedApiClient): Promise<Session | null> {
+  const next = await hydrateSession(client)
+  setSession(next)
+  return next
+}
+
+export interface SessionAutoRefreshOptions {
+  /** Focus and `visibilitychange` can fire for the same return to the tab — this collapses them. @default 30_000 */
+  minIntervalMs?: number
+}
+
+/**
+ * Refreshes the session whenever the tab regains focus — the moment a
+ * change made elsewhere (revocation on another device, a step-up completed
+ * in another tab) becomes observable. A change made *in* this tab (a 401
+ * from any API call) is caught sooner by the `onUnauthorized` hook instead.
+ * A failed refresh keeps the last-known session: "network hiccup" and
+ * "signed out" are different states, and the next focus retries.
+ *
+ * Returns a disposer; no-op off the browser. Call once at SPA boot, after
+ * `bootSession` (see `apps/admin/src/main.ts`).
+ */
+export function startSessionAutoRefresh(
+  client: TypedApiClient,
+  options: SessionAutoRefreshOptions = {},
+): () => void {
+  const minIntervalMs = options.minIntervalMs ?? 30_000
+  if (typeof window === 'undefined' || typeof document === 'undefined') return () => {}
+
+  let lastStartedAt = 0
+  let inFlight: Promise<Session | null> | undefined
+
+  const refresh = (): void => {
+    if (document.visibilityState !== 'visible') return
+    if (inFlight || Date.now() - lastStartedAt < minIntervalMs) return
+    lastStartedAt = Date.now()
+    inFlight = refreshSession(client)
+      .catch(() => null)
+      .finally(() => {
+        inFlight = undefined
+      })
+  }
+
+  window.addEventListener('focus', refresh)
+  document.addEventListener('visibilitychange', refresh)
+  return () => {
+    window.removeEventListener('focus', refresh)
+    document.removeEventListener('visibilitychange', refresh)
+  }
+}
+
+/**
  * Fires whenever the session changes (boot, login, logout, 401 refresh) —
  * wire cache invalidation (`@sanvi/query`'s `clearCache()`) and tenant-store
  * resets here, in the app, rather than inside this package (same inversion

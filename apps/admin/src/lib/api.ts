@@ -1,5 +1,5 @@
 import { createApiClient, createTypedApiClient } from '@sanvi/api-client'
-import { createKratosClient } from '@sanvi/auth'
+import { createKratosClient, setSession } from '@sanvi/auth'
 import { getActiveTenantId } from '@sanvi/tenant'
 import { getAppEnv } from './env'
 
@@ -9,13 +9,17 @@ import { getAppEnv } from './env'
  * fresh client per request. `getTenantId` is read per-request (not cached
  * here), so a tenant switch takes effect on the very next call.
  * `credentials: 'include'` — phase 02 onward, every call needs the Kratos
- * session cookie sent.
+ * session cookie sent. `onUnauthorized` clears the session store the moment
+ * the backend rejects the cookie, so a session revoked underneath the tab
+ * stops satisfying the route guards on the next navigation instead of
+ * lingering until reload.
  */
 export const apiClient = createTypedApiClient(
   createApiClient({
     baseUrl: getAppEnv().apiOrigin,
     getTenantId: getActiveTenantId,
     credentials: 'include',
+    onUnauthorized: () => setSession(null),
   }),
 )
 

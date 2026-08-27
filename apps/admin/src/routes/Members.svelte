@@ -4,6 +4,7 @@ import {
   inviteMember,
   listInvitations,
   listMembers,
+  listRolesTenant,
   removeMember,
   resendInvitation,
   revokeInvitation,
@@ -24,7 +25,7 @@ import {
 } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
 
-type RoleView = { id: string; key: string; name: string }
+type RoleView = Awaited<ReturnType<typeof listRolesTenant>>[number]
 type MemberRow = Awaited<ReturnType<typeof listMembers>>[number]
 type InvitationRow = Awaited<ReturnType<typeof listInvitations>>[number]
 
@@ -79,11 +80,11 @@ async function loadAll(): Promise<void> {
     const [membersResult, invitationsResult, rolesResult] = await Promise.all([
       listMembers(apiClient),
       listInvitations(apiClient),
-      apiClient.GET('/api/v1/tenant/roles'),
+      listRolesTenant(apiClient),
     ])
     members = membersResult
     invitations = invitationsResult
-    roles = rolesResult as unknown as RoleView[]
+    roles = rolesResult
   } catch {
     error = COPY.genericError
   } finally {

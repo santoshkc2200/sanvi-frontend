@@ -33,9 +33,13 @@ async function loadSettingsFlow(): Promise<void> {
 
 $effect(() => {
   void loadSettingsFlow()
-  listSessions(apiClient).then((result) => {
-    sessions = result
-  })
+  // Best-effort: a failed sessions list (network blip) shouldn't error the
+  // whole page — it just shows fewer rows until the next visit.
+  listSessions(apiClient)
+    .then((result) => {
+      sessions = result
+    })
+    .catch(() => {})
 })
 
 async function handleSubmit(node: UiNode, values: Record<string, string | boolean>): Promise<void> {
@@ -70,6 +74,10 @@ async function handleRevoke(sessionId: string): Promise<void> {
   try {
     await revokeSession(apiClient, sessionId)
     sessions = sessions.filter((session) => session.session_id !== sessionId)
+  } catch {
+    // Revoking the current session 401s by design (the cookie is now dead);
+    // anything else is a transient failure — either way, say so.
+    error = COPY.genericError
   } finally {
     revokingId = undefined
   }

@@ -40,6 +40,16 @@ export interface ApiClientConfig {
    * header over).
    */
   getExtraHeaders?: () => Record<string, string> | undefined
+  /**
+   * Called when a response comes back `401`, on every request path
+   * (`request` and `requestRaw`) — the hook the SPA apps point at
+   * `@sanvi/auth`'s `setSession(null)` so a session that died underneath
+   * the tab (revoked elsewhere, expired) stops satisfying the route guards
+   * on the next navigation instead of lingering until reload. Intentionally
+   * not fired for anything else: a 403 is "signed in, not allowed", not
+   * "signed out".
+   */
+  onUnauthorized?: () => void
 }
 
 export interface RequestOptions {
@@ -148,6 +158,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     retryBaseDelayMs = 250,
     credentials = 'omit',
     getExtraHeaders,
+    onUnauthorized,
   } = config
 
   /** One `fetch` attempt: builds the URL/headers, applies the timeout, and throws {@link NetworkError}/{@link TimeoutError} on a transport failure. No status handling — callers decide what a non-2xx response means. */
@@ -188,13 +199,15 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       : timeoutController.signal
 
     try {
-      return await fetch(url, {
+      const response = await fetch(url, {
         method,
         headers: requestHeaders,
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: combinedSignal,
         credentials, // 'omit' by default; callers that need the session cookie sent pass 'include'
       })
+      if (response.status === 401) onUnauthorized?.()
+      return response
     } catch (error) {
       if (signal?.aborted) throw error // caller-initiated cancellation — never wrapped
       if (timeoutController.signal.aborted) throw new TimeoutError(timeoutMs)

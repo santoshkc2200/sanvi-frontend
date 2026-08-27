@@ -19,13 +19,24 @@ const returnTo = safeReturnTo(params.get('return_to'))
 const flowId = params.get('flow')
 
 async function loadLoginFlow(): Promise<void> {
-  flow = flowId
-    ? await getFlow(kratosClient, 'login', flowId)
-    : await startFlow(kratosClient, 'login', { returnTo })
+  try {
+    flow = flowId
+      ? await getFlow(kratosClient, 'login', flowId)
+      : await startFlow(kratosClient, 'login', { returnTo })
+  } catch {
+    // A `?flow=` id that can't be resumed (expired, already consumed — e.g.
+    // back-navigation after signing in) must not dead-end the page: restart
+    // fresh, per the phase-02 expired-flow policy.
+    flow = await startFlow(kratosClient, 'login', { returnTo })
+  }
 }
 
 $effect(() => {
-  void loadLoginFlow()
+  loadLoginFlow().catch(() => {
+    // The restart failed too (backend down, network) — show it instead of
+    // leaving an unhandled rejection under a forever-spinner.
+    error = COPY.genericError
+  })
 })
 
 async function handleSubmit(node: UiNode, values: Record<string, string | boolean>): Promise<void> {

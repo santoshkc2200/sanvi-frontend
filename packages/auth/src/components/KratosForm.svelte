@@ -85,14 +85,22 @@ function handleSubmit(event: MouseEvent, node: UiNode): void {
 }
 
 function nodeKey(node: UiNode): string {
-  return `${node.group}:${node.attributes.name ?? node.attributes.id ?? node.attributes.href ?? ''}`
+  const attributes = node.attributes
+  // `value` is load-bearing, not cosmetic: every OIDC provider's submit node
+  // shares `name: 'provider'` and is distinguished only by its value, so a
+  // Google + Microsoft flow is two nodes with the same `group:name` — and a
+  // keyed `each` on that alone throws a duplicate-key error at render.
+  return `${node.group}:${attributes.name ?? attributes.id ?? attributes.href ?? attributes.src ?? ''}:${String(
+    attributes.value ?? '',
+  )}`
 }
 </script>
 
 <div class="sanvi-kratos-form">
   {#if flow.ui.messages?.length}
     <Stack gap="2">
-      {#each flow.ui.messages as message (message.id)}
+      <!-- Unkeyed: Kratos can repeat a message id at the container level, and these Alerts carry no state worth diffing. -->
+      {#each flow.ui.messages as message}
         <Alert variant={message.type === 'error' ? 'error' : message.type === 'success' ? 'success' : 'info'}>
           {translateKratosMessage(message)}
         </Alert>

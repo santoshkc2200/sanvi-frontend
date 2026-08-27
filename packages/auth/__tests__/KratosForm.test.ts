@@ -76,6 +76,24 @@ describe('KratosForm', () => {
     expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument()
   })
 
+  it('renders two OIDC providers, whose submit nodes share name `provider` and differ only by value', () => {
+    const flow = loginFlow()
+    flow.ui.nodes.push({
+      type: 'input',
+      group: 'oidc',
+      attributes: { node_type: 'input', name: 'provider', type: 'submit', value: 'microsoft' },
+      messages: [],
+      meta: { label: { id: 5, type: 'info', text: 'Continue with Microsoft' } },
+    })
+
+    render(KratosForm, { props: { flow, onSubmit: vi.fn() } })
+
+    // A keyed-each duplicate-key crash on the shared `provider` name would
+    // blank the whole form here.
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue with Microsoft' })).toBeInTheDocument()
+  })
+
   it('submits the activated node plus the current field values, including hidden defaults', async () => {
     const onSubmit = vi.fn()
     render(KratosForm, { props: { flow: loginFlow(), onSubmit } })

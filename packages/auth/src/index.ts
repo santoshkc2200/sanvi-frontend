@@ -6,7 +6,9 @@ export {
   isSessionHydrated,
   logout,
   onSessionChange,
+  refreshSession,
   setSession,
+  startSessionAutoRefresh,
 } from './store.svelte'
 
 // Session (SSR context)
