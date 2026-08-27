@@ -47,6 +47,11 @@ jobs:
           file: apps/${{ matrix.app }}/Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository }}/${{ matrix.app }}:${{ github.sha }},ghcr.io/${{ github.repository }}/${{ matrix.app }}:latest
+          build-args: |
+            PUBLIC_API_ORIGIN=${{ env.PUBLIC_API_ORIGIN }}
+            PUBLIC_MEDIA_ORIGIN=${{ vars.STAGING_MEDIA_ORIGIN || '' }}
+            PUBLIC_KRATOS_ORIGIN=${{ vars.STAGING_KRATOS_ORIGIN || '' }}
+            PUBLIC_SITE_ORIGIN=${{ vars.STAGING_SITE_ORIGIN || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

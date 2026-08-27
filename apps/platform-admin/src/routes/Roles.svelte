@@ -16,6 +16,7 @@ const COPY = {
   keyHeader: 'Key',
   nameHeader: 'Name',
   permissionsHeader: 'Permissions',
+  typeHeader: 'Type',
   systemBadge: 'System',
   customBadge: 'Custom',
   noRoles: 'No platform roles defined.',
@@ -115,7 +116,7 @@ const groupedRegistry = $derived.by(() => {
               <th scope="col">{COPY.keyHeader}</th>
               <th scope="col">{COPY.nameHeader}</th>
               <th scope="col">{COPY.permissionsHeader}</th>
-              <th scope="col"><span class="sanvi-visually-hidden">Type</span></th>
+              <th scope="col"><span class="sanvi-visually-hidden">{COPY.typeHeader}</span></th>
             </tr>
           </thead>
           <tbody>

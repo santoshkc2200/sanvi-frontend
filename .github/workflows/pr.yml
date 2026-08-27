@@ -163,27 +163,38 @@ jobs:
         run: pnpm audit --audit-level=high
         continue-on-error: true # advisory until phase 00's DoD review tunes the threshold
 
-      - name: OSV Scanner
-        uses: google/osv-scanner-action@v1
-        with:
-          scan-args: |-
-            --lockfile=pnpm-lock.yaml
-            --recursive
-
       - name: Secret scan (gitleaks)
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: License check
-        run: pnpx license-checker-rseidelsohn --production --excludePrivatePackages --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0"
+      # Run per workspace package: at the root `--production` scans an empty
+      # dependency set (the root only has devDependencies) and passes
+      # vacuously — the apps' trees are what ships.
+      - name: License check (every workspace package)
+        run: |
+          set -e
+          for pkg in apps/* packages/*; do
+            [ -f "$pkg/package.json" ] || continue
+            echo "==> $pkg"
+            (cd "$pkg" && pnpm exec license-checker-rseidelsohn --production --excludePrivatePackages --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0")
+          done
 
-      - name: SBOM (CycloneDX)
-        run: pnpx @cyclonedx/cyclonedx-npm --output-file sbom.json
-
-      - name: Upload SBOM
-        uses: actions/upload-artifact@v4
+      # cyclonedx-npm cannot read a pnpm workspace (it drives `npm ls`);
+      # Syft scans the installed filesystem instead, toolchain-agnostic.
+      - name: SBOM (CycloneDX via Syft)
+        uses: anchore/sbom-action@v0
         with:
-          name: sbom
-          path: sbom.json
-          retention-days: 90
+          format: cyclonedx-json
+          artifact-name: sbom.json
+
+  osv:
+    name: OSV dependency scan
+    permissions:
+      actions: read
+      security-events: write
+      contents: read
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.5.0
+    with:
+      scan-args: |-
+        --lockfile=pnpm-lock.yaml

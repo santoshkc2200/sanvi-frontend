@@ -34,7 +34,10 @@ const COPY = {
     <p>{COPY.lead}</p>
     <Cluster gap="4" justify="center">
       <Button variant="primary">{COPY.cta}</Button>
-      <a href="/login">{COPY.signIn}</a>
+      <!-- rel="external" keeps the prerender crawler (and the SvelteKit
+           client router) off this placeholder until phase 08 replaces it
+           with the real cross-app URL. -->
+      <a href="/login" rel="external">{COPY.signIn}</a>
     </Cluster>
   </Stack>
 </Container>

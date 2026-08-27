@@ -7,4 +7,10 @@ export default mergeConfig(vitestJsdomConfig, {
   resolve: {
     conditions: ['browser'],
   },
+  test: {
+    // Marketing has no unit tests yet (its shell is covered by build +
+    // Playwright e2e) — without this, `vitest run` exits 1 on "no test
+    // files" and breaks `turbo test` for the whole workspace.
+    passWithNoTests: true,
+  },
 })

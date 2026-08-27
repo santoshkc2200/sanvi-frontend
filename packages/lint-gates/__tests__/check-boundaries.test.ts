@@ -7,7 +7,7 @@ const FIXTURES = fileURLToPath(new URL('../__fixtures__/', import.meta.url))
 describe('check:boundaries gate', () => {
   it('fails on its violation fixture — a lint nobody has seen fail is a lint nobody trusts', () => {
     const violations = checkWorkspace(`${FIXTURES}boundaries-violation`)
-    expect(violations.length).toBe(3)
+    expect(violations.length).toBe(5)
   })
 
   it('catches ui importing api-client', () => {
@@ -25,6 +25,16 @@ describe('check:boundaries gate', () => {
   it('catches a deep import into another package src', () => {
     const violations = checkWorkspace(`${FIXTURES}boundaries-violation`)
     expect(violations.some((v) => v.specifier === '@sanvi/ui/src/Button.svelte')).toBe(true)
+  })
+
+  it('catches a dynamic deep import into another package src', () => {
+    const violations = checkWorkspace(`${FIXTURES}boundaries-violation`)
+    expect(violations.some((v) => v.specifier === '@sanvi/ui/src/index.ts')).toBe(true)
+  })
+
+  it('catches a package importing an app — dependencies never point upward', () => {
+    const violations = checkWorkspace(`${FIXTURES}boundaries-violation`)
+    expect(violations.some((v) => v.specifier === '@sanvi/marketing')).toBe(true)
   })
 
   it('passes on its clean fixture', () => {

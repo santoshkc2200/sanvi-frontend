@@ -16,7 +16,7 @@
  */
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve, sep } from 'node:path'
-import { walkFiles } from './walk-files.mjs'
+import { isMainEntryPoint, walkFiles } from './walk-files.mjs'
 
 const IMPORT_PATTERN =
   /(?:import|export)(?:[^'";]*?from)?\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g
@@ -124,6 +124,19 @@ export function checkWorkspace(root) {
         continue
       }
 
+      // Rule: dependencies never point upward — a package importing an app
+      // inverts the `apps → packages` direction.
+      if (ownerKind === 'packages' && workspace.apps.has(specifier)) {
+        violations.push({
+          file,
+          specifier,
+          reason: `package "${ownerDir}" imports app "${workspace.apps.get(
+            specifier,
+          )}" — dependencies never point upward into apps`,
+        })
+        continue
+      }
+
       // Relative imports that escape the current package/app root entirely
       // (crossing into a *different* apps/* or packages/* tree via `../..`).
       if (specifier.startsWith('.')) {
@@ -164,6 +177,6 @@ async function main() {
   process.exit(1)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainEntryPoint(import.meta.url)) {
   await main()
 }

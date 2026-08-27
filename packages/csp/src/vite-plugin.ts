@@ -21,6 +21,13 @@ export function sanviCspMetaPlugin(app: SanviApp, options: CspAppPresetOptions):
     transformIndexHtml(html) {
       const csp = buildContentSecurityPolicyForApp(app, options)
       const meta = `<meta http-equiv="Content-Security-Policy" content="${csp.replace(/"/g, '&quot;')}">`
+      if (!html.includes('</head>')) {
+        // A silent no-op here ships the app with no CSP at all while the
+        // build stays green — fail the build instead.
+        throw new Error(
+          `sanvi-csp-meta: no </head> found in index.html — cannot inject the CSP meta tag`,
+        )
+      }
       return html.replace('</head>', `  ${meta}\n  </head>`)
     },
   }

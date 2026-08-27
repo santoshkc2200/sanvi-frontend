@@ -12,6 +12,15 @@ COPY . .
 RUN turbo prune @sanvi/storefront --docker
 
 FROM base AS build
+# SSR reads these at container start, but any prerendered route (error page,
+# fallbacks) runs at build time and needs them here too. Passed via
+# --build-arg from CI.
+ARG PUBLIC_API_ORIGIN
+ARG PUBLIC_MEDIA_ORIGIN
+ARG PUBLIC_KRATOS_ORIGIN
+ENV PUBLIC_API_ORIGIN=$PUBLIC_API_ORIGIN \
+    PUBLIC_MEDIA_ORIGIN=$PUBLIC_MEDIA_ORIGIN \
+    PUBLIC_KRATOS_ORIGIN=$PUBLIC_KRATOS_ORIGIN
 COPY --from=pruned /repo/out/json/ .
 RUN pnpm install --frozen-lockfile
 COPY --from=pruned /repo/out/full/ .

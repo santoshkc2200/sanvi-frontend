@@ -28,4 +28,8 @@ describe('sanviCspMetaPlugin', () => {
     expect(metaTag?.[1]).toContain('https://api.example.com')
     expect((result.match(/<meta http-equiv="Content-Security-Policy"/g) ?? []).length).toBe(1)
   })
+
+  it('throws when there is no </head> to inject into — never silently skips the CSP', () => {
+    expect(() => transform('<html><body></body></html>')).toThrow(/no <\/head> found/)
+  })
 })

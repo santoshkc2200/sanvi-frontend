@@ -12,6 +12,15 @@ COPY . .
 RUN turbo prune @sanvi/marketing --docker
 
 FROM base AS build
+# Prerendering runs the SvelteKit handle chain (and its env validation) at
+# build time, so the PUBLIC_* vars must be present here — runtime ENV alone
+# comes too late for the prerendered pages. Passed via --build-arg from CI.
+ARG PUBLIC_API_ORIGIN
+ARG PUBLIC_MEDIA_ORIGIN
+ARG PUBLIC_SITE_ORIGIN
+ENV PUBLIC_API_ORIGIN=$PUBLIC_API_ORIGIN \
+    PUBLIC_MEDIA_ORIGIN=$PUBLIC_MEDIA_ORIGIN \
+    PUBLIC_SITE_ORIGIN=$PUBLIC_SITE_ORIGIN
 COPY --from=pruned /repo/out/json/ .
 RUN pnpm install --frozen-lockfile
 COPY --from=pruned /repo/out/full/ .

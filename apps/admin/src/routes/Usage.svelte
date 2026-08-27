@@ -108,7 +108,7 @@ const booleanFeatures = $derived(
 
   .sanvi-usage__quota-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(var(--sanvi-spacing-48), 1fr));
     gap: var(--sanvi-spacing-3);
   }
 

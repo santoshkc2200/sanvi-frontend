@@ -135,6 +135,13 @@ describe('createApiClient', () => {
     await expect(client.delete('/v1/courses/1')).resolves.toBeUndefined()
   })
 
+  it('returns undefined for an empty-body 200 instead of throwing a raw SyntaxError', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 200 }))
+    const client = createApiClient({ baseUrl: 'https://api.example.com' })
+
+    await expect(client.post('/v1/courses/1/publish')).resolves.toBeUndefined()
+  })
+
   it('maps a problem+json error response to a typed ApiError and does not retry a 4xx', async () => {
     fetchMock.mockResolvedValueOnce(problemResponse(422))
     const client = createApiClient({ baseUrl: 'https://api.example.com', retries: 2 })

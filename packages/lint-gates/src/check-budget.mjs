@@ -22,7 +22,7 @@
 import { readFileSync } from 'node:fs'
 import { join, sep } from 'node:path'
 import { gzipSync } from 'node:zlib'
-import { isDirectory, walkFiles } from './walk-files.mjs'
+import { isDirectory, isMainEntryPoint, walkFiles } from './walk-files.mjs'
 
 function gzipSizeKb(filePath) {
   const content = readFileSync(filePath)
@@ -150,6 +150,6 @@ async function main() {
   if (!result.ok && !result.skipped) process.exit(1)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainEntryPoint(import.meta.url)) {
   await main()
 }

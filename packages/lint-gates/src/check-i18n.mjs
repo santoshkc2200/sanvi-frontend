@@ -25,7 +25,7 @@
  */
 import { readFileSync } from 'node:fs'
 import { extname } from 'node:path'
-import { walkFiles } from './walk-files.mjs'
+import { isMainEntryPoint, walkFiles } from './walk-files.mjs'
 
 const USER_FACING_ATTRS = [
   'aria-label',
@@ -141,6 +141,8 @@ export function checkFile(filePath, source) {
 
     // A mustache expression — brace-depth-aware, not scanned for content
     // (JS expressions are out of this gate's scope; see module docstring).
+    // An ignore marker is spent on the next tag or text run, never carried
+    // through an expression to suppress something further along.
     if (ch === '{') {
       let depth = 1
       let j = i + 1
@@ -150,6 +152,7 @@ export function checkFile(filePath, source) {
         j += 1
       }
       advance(j)
+      pendingIgnore = false
       continue
     }
 
@@ -206,6 +209,6 @@ async function main() {
   process.exit(1)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainEntryPoint(import.meta.url)) {
   await main()
 }

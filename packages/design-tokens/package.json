@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Single source of truth: DTCG JSON → CSS vars, JS, TS via Style Dictionary",
   "private": true,
-  "main": "dist/tokens.js",
+  "main": "./dist/ts/index.js",
   "type": "module",
   "types": "./dist/ts/index.d.ts",
   "sideEffects": [
@@ -41,5 +41,14 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@tokens-studio/sd-transforms": "^2.0.3"
+  },
+  "turbo": {
+    "tasks": {
+      "typecheck": {
+        "dependsOn": [
+          "build"
+        ]
+      }
+    }
   }
 }

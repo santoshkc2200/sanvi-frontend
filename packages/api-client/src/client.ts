@@ -193,8 +193,17 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
           throw apiError
         }
 
+        // A 2xx with no JSON body (204, empty 200, non-JSON content type)
+        // resolves to undefined — a bare `response.json()` would reject with
+        // a raw SyntaxError that escapes the ApiError/NetworkError typing.
         if (response.status === 204) return undefined as T
-        return (await response.json()) as T
+        const contentType = response.headers.get('content-type') ?? ''
+        if (!contentType.includes('json')) return undefined as T
+        try {
+          return (await response.json()) as T
+        } catch {
+          return undefined as T
+        }
       } catch (error) {
         if (error instanceof ApiError) throw error
         if (error instanceof TimeoutError || error instanceof NetworkError) {

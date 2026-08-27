@@ -66,12 +66,18 @@ export async function postBuild() {
   console.log('✓ dist/css/tokens.css generated')
 
   // ─── TS barrel index ────────────
-
+  // Style Dictionary emits `dist/ts/<theme>.ts`; `tsc` (which produces the
+  // `.js`/`.d.ts` pairs) runs *after* this script in the `build` task, so
+  // the module list must be built from the `.ts` sources — filtering on
+  // `.js` here finds nothing on a clean dist and skips the barrel entirely.
   const modules = ['primitives', 'light', 'dark'].filter((name) =>
-    exists(path.join(TS_DIR, `${name}.js`)),
+    exists(path.join(TS_DIR, `${name}.ts`)),
   )
 
-  if (modules.length === 0) process.exit(0)
+  if (modules.length === 0) {
+    console.warn('⚠️ No dist/ts/*.ts theme sources found — skipping TS barrel generation.')
+    return
+  }
 
   const indexContent = [
     '/** Auto-generated. Do not edit. */',
@@ -88,7 +94,7 @@ export async function postBuild() {
   ].join('\n')
 
   write(path.join(TS_DIR, 'index.ts'), indexContent)
-  console.log('✓ dist/ts/index.d.ts generated')
+  console.log('✓ dist/ts/index.ts generated')
 
   console.log('\n✅ Post-build complete.\n')
 }

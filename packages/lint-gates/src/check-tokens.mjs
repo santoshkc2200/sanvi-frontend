@@ -20,7 +20,7 @@
  */
 import { readFileSync } from 'node:fs'
 import { extname } from 'node:path'
-import { walkFiles } from './walk-files.mjs'
+import { isMainEntryPoint, walkFiles } from './walk-files.mjs'
 
 const IGNORE_MARKER = 'sanvi-tokens-ignore'
 
@@ -49,11 +49,11 @@ function findStyleBlocks(source) {
 
 function findInlineStyleAttrs(source) {
   const blocks = []
-  const pattern = /\bstyle\s*=\s*"([^"]*)"/g
+  const pattern = /\bstyle\s*=\s*(["'])(.*?)\1/g
   let match = pattern.exec(source)
   while (match !== null) {
-    const bodyStart = match.index + match[0].indexOf(match[1])
-    blocks.push({ body: match[1], startIndex: bodyStart })
+    const bodyStart = match.index + match[0].indexOf(match[2])
+    blocks.push({ body: match[2], startIndex: bodyStart })
     match = pattern.exec(source)
   }
   return blocks
@@ -167,6 +167,6 @@ async function main() {
   process.exit(1)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainEntryPoint(import.meta.url)) {
   await main()
 }

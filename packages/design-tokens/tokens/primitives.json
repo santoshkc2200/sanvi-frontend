@@ -98,7 +98,9 @@
         "$extensions": { "sanvi": { "platforms": ["ios", "android"] } }
       },
       "20": { "$value": "5rem", "$type": "spacing" },
-      "24": { "$value": "6rem", "$type": "spacing" }
+      "24": { "$value": "6rem", "$type": "spacing" },
+      "32": { "$value": "8rem", "$type": "spacing" },
+      "48": { "$value": "12rem", "$type": "spacing" }
     },
     "radius": {
       "$description": "Border-radius scale for the ui package — never a raw px/rem radius in a component.",

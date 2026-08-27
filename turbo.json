@@ -2,7 +2,16 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "globalDependencies": ["biome.json", ".env"],
-  "globalEnv": ["NODE_ENV", "PUBLIC_API_ORIGIN", "PUBLIC_MEDIA_ORIGIN"],
+  "globalEnv": [
+    "NODE_ENV",
+    "PUBLIC_API_ORIGIN",
+    "PUBLIC_MEDIA_ORIGIN",
+    "PUBLIC_KRATOS_ORIGIN",
+    "PUBLIC_SITE_ORIGIN",
+    "VITE_API_ORIGIN",
+    "VITE_MEDIA_ORIGIN",
+    "VITE_KRATOS_ORIGIN"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

@@ -9,3 +9,9 @@ node_modules
 **/test-results
 .git
 .turbo
+# Local credentials must never enter the build context (or layer cache).
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example

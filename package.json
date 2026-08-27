@@ -39,6 +39,7 @@
     "eslint": "catalog:",
     "eslint-plugin-svelte": "catalog:",
     "husky": "^9.1.0",
+    "license-checker-rseidelsohn": "^5.0.1",
     "lint-staged": "^15.2.0",
     "openapi-typescript": "catalog:",
     "rimraf": "catalog:",

@@ -159,7 +159,7 @@ const checklist: ChecklistItem[] = $derived([
 
   .sanvi-dashboard__stats {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(var(--sanvi-spacing-48), 1fr));
     gap: var(--sanvi-spacing-3);
   }
 

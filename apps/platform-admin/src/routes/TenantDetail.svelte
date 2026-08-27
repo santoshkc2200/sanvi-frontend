@@ -87,6 +87,7 @@ const COPY = {
   colSource: 'Source',
   colStatus: 'Status',
   colLimit: 'Limit',
+  colActions: 'Actions',
   grant: 'Grant',
   editOverride: 'Edit override',
   revoke: 'Revoke',
@@ -530,7 +531,7 @@ async function confirmArchive(): Promise<void> {
                 <th scope="col">{COPY.colSource}</th>
                 <th scope="col">{COPY.colStatus}</th>
                 <th scope="col">{COPY.colLimit}</th>
-                <th scope="col"><span class="sanvi-visually-hidden">Actions</span></th>
+                <th scope="col"><span class="sanvi-visually-hidden">{COPY.colActions}</span></th>
               </tr>
             </thead>
             <tbody>
