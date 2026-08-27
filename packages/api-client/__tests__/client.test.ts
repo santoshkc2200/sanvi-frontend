@@ -195,6 +195,43 @@ describe('createApiClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
+  it('sends accept-language when the client has a locale provider, and not otherwise', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}))
+    const localized = createApiClient({
+      baseUrl: 'https://api.example.com',
+      locale: () => 'ja-JP',
+    })
+    const plain = createApiClient({ baseUrl: 'https://api.example.com' })
+
+    await localized.get('/v1/courses')
+    expect(fetchCall()[1].headers['accept-language']).toBe('ja-JP')
+
+    await plain.get('/v1/courses')
+    expect(fetchCall(1)[1].headers['accept-language']).toBeUndefined()
+  })
+
+  it('passes idempotencyKey through as the Idempotency-Key header', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: '1' }))
+    const client = createApiClient({ baseUrl: 'https://api.example.com' })
+
+    await client.post('/v1/courses', {}, { idempotencyKey: 'course-create-42' })
+
+    expect(fetchCall()[1].headers['idempotency-key']).toBe('course-create-42')
+  })
+
+  it('never retries a non-idempotent POST/PATCH, even on a retryable status', async () => {
+    fetchMock.mockResolvedValue(problemResponse(503))
+    const client = createApiClient({
+      baseUrl: 'https://api.example.com',
+      retries: 3,
+      retryBaseDelayMs: 1,
+    })
+
+    await expect(client.post('/v1/courses', {})).rejects.toMatchObject({ status: 503 })
+    await expect(client.patch('/v1/courses/1', {})).rejects.toMatchObject({ status: 503 })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
   it('falls back to a synthesized problem when the error body is not problem+json', async () => {
     fetchMock.mockResolvedValueOnce(
       new Response('<html>Bad Gateway</html>', {
@@ -209,6 +246,69 @@ describe('createApiClient', () => {
       status: 502,
       title: 'Bad Gateway',
     })
+  })
+})
+
+describe('GET coalescing', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('shares one fetch between concurrent identical GETs, then refetches once settled', async () => {
+    fetchMock.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      return jsonResponse({ ok: true })
+    })
+    const client = createApiClient({ baseUrl: 'https://api.example.com' })
+
+    const [first, second] = await Promise.all([
+      client.get('/v1/courses'),
+      client.get('/v1/courses'),
+    ])
+    expect(first).toEqual({ ok: true })
+    expect(second).toBe(first)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    await client.get('/v1/courses')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not coalesce distinct queries or calls that carry per-call headers/signals', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ ok: true }))
+    const client = createApiClient({ baseUrl: 'https://api.example.com' })
+
+    await Promise.all([
+      client.get('/v1/courses', { query: { page: 1 } }),
+      client.get('/v1/courses', { query: { page: 2 } }),
+      client.get('/v1/courses', { headers: { 'x-scope': 'one-off' } }),
+      client.get('/v1/courses', { signal: new AbortController().signal }),
+    ])
+
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('coalesces even on failure — one retry loop serves all sharers', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fetch failed'))
+    const client = createApiClient({
+      baseUrl: 'https://api.example.com',
+      retries: 1,
+      retryBaseDelayMs: 1,
+    })
+
+    const [a, b] = await Promise.allSettled([client.get('/v1/courses'), client.get('/v1/courses')])
+
+    expect(a.status).toBe('rejected')
+    expect(b.status).toBe('rejected')
+    expect((b as PromiseRejectedResult).reason).toBeInstanceOf(NetworkError)
+    // One shared attempt loop (initial + 1 retry), not one per caller.
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })
 

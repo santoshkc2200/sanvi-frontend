@@ -7,9 +7,16 @@ export interface ApiClientConfig {
   getAuthToken?: () => string | undefined | Promise<string | undefined>
   /** Returns the active tenant id for the multi-tenant header (wired to real resolution in phase 01). */
   getTenantId?: () => string | undefined
+  /** Returns the current locale, sent as `Accept-Language` — the slot phases 06 wires to real resolution. */
+  locale?: () => string
   /** @default 10_000 */
   timeoutMs?: number
-  /** Retries on network errors and retryable status codes (429, 5xx). @default 2 */
+  /**
+   * Retries on network errors and retryable status codes (429, 5xx), for
+   * idempotent methods only — a POST that timed out may have been processed,
+   * and blind retrying would double-submit it. Non-idempotent methods
+   * (POST, PATCH) never retry. @default 2
+   */
   retries?: number
   /** @default 250 — doubles each attempt, capped at 4s, plus jitter. */
   retryBaseDelayMs?: number
@@ -41,6 +48,13 @@ export interface RequestOptions {
   body?: unknown
   query?: Record<string, string | number | boolean | undefined>
   headers?: Record<string, string>
+  /**
+   * Sent as the `Idempotency-Key` header. For mutations against endpoints
+   * that declare an idempotency key (per their OpenAPI operation): the key
+   * makes a retried/supertimed-out mutation safe — the backend answers the
+   * original result instead of processing twice.
+   */
+  idempotencyKey?: string
   signal?: AbortSignal
   /** Overrides the client-level default for this call. */
   timeoutMs?: number
@@ -104,9 +118,20 @@ function retryDelay(attempt: number, baseDelayMs: number): number {
 }
 
 /**
+ * Methods a blind retry can never double-apply. A POST/PATCH that timed
+ * out mid-flight may have been processed by the backend; resending it
+ * would create/patch twice. Endpoints that want safe mutation retries opt
+ * in via `idempotencyKey` instead (the backend then answers the original
+ * result). HEAD/OPTIONS included for completeness even though this
+ * client's helpers don't emit them.
+ */
+const IDEMPOTENT_METHODS = new Set(['GET', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'])
+
+/**
  * The one place `fetch` is called in the whole workspace (`no-restricted-globals`
  * lint gate enforces this everywhere else) — auth header, tenant header,
- * request id, timeout, retry, and problem+json → {@link ApiError} mapping
+ * request id, timeout, retry, single-flight GET coalescing, and
+ * problem+json → {@link ApiError} mapping
  * all live here so every app gets them for free.
  *
  * The generated OpenAPI client (phase 01) wraps `request` with typed
@@ -117,6 +142,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     baseUrl,
     getAuthToken,
     getTenantId,
+    locale,
     timeoutMs: defaultTimeoutMs = 10_000,
     retries: defaultRetries = 2,
     retryBaseDelayMs = 250,
@@ -132,6 +158,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       query,
       headers = {},
       signal,
+      idempotencyKey,
       timeoutMs = defaultTimeoutMs,
     } = options
 
@@ -149,6 +176,10 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     if (body !== undefined) requestHeaders['content-type'] = 'application/json'
     if (token) requestHeaders['authorization'] = `Bearer ${token}`
     if (tenantId) requestHeaders['x-tenant-id'] = tenantId
+    if (idempotencyKey) requestHeaders['idempotency-key'] = idempotencyKey
+
+    const localeHeader = locale?.()
+    if (localeHeader) requestHeaders['accept-language'] = localeHeader
 
     const timeoutController = new AbortController()
     const timeout = setTimeout(() => timeoutController.abort(), timeoutMs)
@@ -173,8 +204,10 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     }
   }
 
-  async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    const { retries = defaultRetries } = options
+  async function requestWithRetries<T>(path: string, options: RequestOptions): Promise<T> {
+    const method = options.method ?? 'GET'
+    // Non-idempotent methods never retry, whatever the caller asked for.
+    const retries = IDEMPOTENT_METHODS.has(method) ? (options.retries ?? defaultRetries) : 0
 
     let lastError: unknown
 
@@ -216,6 +249,34 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     }
 
     throw lastError
+  }
+
+  /**
+   * Single-flight coalescing of identical in-flight GETs: concurrent callers
+   * asking for the same URL share one request instead of stampeding the
+   * backend. All sharers receive the same parsed object — treat it as
+   * read-only. Skipped when the call carries its own `signal` or per-call
+   * headers, since those give it semantics the shared result can't honour;
+   * entries are removed as soon as the request settles, so a later call
+   * refetches rather than caching here (caching is `@sanvi/query`'s job).
+   */
+  const inFlightGets = new Map<string, Promise<unknown>>()
+
+  function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+    const method = options.method ?? 'GET'
+    const canShare =
+      method === 'GET' && options.signal === undefined && options.headers === undefined
+    if (!canShare) return requestWithRetries<T>(path, options)
+
+    const key = buildUrl(baseUrl, path, options.query)
+    const pending = inFlightGets.get(key)
+    if (pending) return pending as Promise<T>
+
+    const promise = requestWithRetries<T>(path, options).finally(() => {
+      if (inFlightGets.get(key) === promise) inFlightGets.delete(key)
+    })
+    inFlightGets.set(key, promise)
+    return promise
   }
 
   async function requestRaw<T>(
