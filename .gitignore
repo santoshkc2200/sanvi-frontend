@@ -27,3 +27,9 @@ pnpm-debug.log*
 
 .vercel/
 .output/
+
+# playwright-orchestrator / agent tool artifacts
+.playwright-cli/
+.playwright/
+.zcode/
+/MEMORY.md
