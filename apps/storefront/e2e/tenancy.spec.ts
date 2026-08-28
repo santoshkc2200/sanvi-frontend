@@ -15,7 +15,7 @@ test.describe('tenant resolution', () => {
     const response = await page.goto(`http://acme.localhost:${PORT}/`)
     expect(response?.ok()).toBe(true)
     await expect(page).toHaveTitle('Acme Corporation')
-    await expect(page.getByText('Acme Corporation')).toBeVisible()
+    await expect(page.getByText('Acme Corporation', { exact: true })).toBeVisible()
   })
 
   test('an unknown host 404s with no host/tenant enumeration in the page', async ({ page }) => {
