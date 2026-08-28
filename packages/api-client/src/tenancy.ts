@@ -36,3 +36,11 @@ export function updateTenantSettings(
 ) {
   return client.PUT('/api/v1/tenant/settings', { settings }, signal ? { signal } : undefined)
 }
+
+/** `GET /api/v1/public/slug-availability` — check if a tenant slug is available. */
+export function checkSlugAvailability(client: TypedApiClient, slug: string, signal?: AbortSignal) {
+  return client.GET('/api/v1/public/slug-availability', {
+    params: { query: { slug } },
+    ...(signal ? { signal } : {}),
+  })
+}

@@ -2,6 +2,7 @@
 import {
   activateTenant,
   ApiError,
+  applySubscriptionOverride,
   archiveTenant,
   getTenant,
   getTenantAdminView,
@@ -11,6 +12,7 @@ import {
   listFeatures,
   resumeTenant,
   revokeEntitlementOverride,
+  revokeSubscriptionOverride,
   suspendTenant,
 } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
@@ -22,6 +24,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  Cluster,
   DangerousAction,
   DetailShell,
   type DetailShellTab,
@@ -45,6 +48,7 @@ let { id }: Props = $props()
 
 type TenantView = components['schemas']['TenantView']
 type TenantAdminView = components['schemas']['TenantAdminView']
+type Subscription = components['schemas']['SubscriptionView']
 type FeatureView = components['schemas']['FeatureView']
 type OverrideView = components['schemas']['OverrideView']
 type EntitlementSource = components['schemas']['EntitlementSourceView']
@@ -67,7 +71,20 @@ const COPY = {
   tabAudit: 'Audit',
   tabDanger: 'Danger zone',
   tabSubscription: 'Subscription',
-  tabSubscriptionReason: 'Ships in phase 04',
+  noSubscription: 'No active subscription for this tenant.',
+  subPeriod: 'Current period',
+  subOverrideTitle: 'Apply subscription override',
+  subOverrideDesc: 'Pin this tenant to a specific plan outside Stripe billing.',
+  subOverridePlanKey: 'Plan key',
+  subOverridePlanPlaceholder: 'starter, professional, enterprise',
+  subOverrideReason: 'Reason',
+  subOverrideReasonPlaceholder: 'e.g. Enterprise pilot agreement',
+  applyOverride: 'Apply override',
+  revokeOverride: 'Revoke override',
+  subOverrideApplied: 'Subscription override applied.',
+  subOverrideRevoked: 'Subscription override revoked.',
+  subOverrideError: 'Could not apply subscription override.',
+  subRevokeError: 'Could not revoke subscription override.',
   tabDomains: 'Domains',
   tabDomainsReason: 'Ships in phase 08',
   metaTitle: 'Details',
@@ -208,29 +225,52 @@ $effect(() => {
     auditEntries = []
     auditCursor = undefined
     auditHasMore = false
+    subscriptionLoaded = false
+    subscription = undefined
     activeTab = 'overview'
   }
   void loadTenant()
+})
+
+let subscription = $state<Subscription | null | undefined>(undefined)
+let subscriptionLoading = $state(false)
+let subscriptionLoaded = $state(false)
+
+async function loadSubscription(): Promise<void> {
+  subscriptionLoading = true
+  try {
+    const res = await apiClient.GET('/api/v1/tenant/billing/subscription', {
+      headers: { 'x-tenant-id': id },
+    })
+    subscription = res ?? null
+    subscriptionLoaded = true
+  } catch {
+    subscription = null
+    subscriptionLoaded = true
+  } finally {
+    subscriptionLoading = false
+  }
+}
+
+$effect(() => {
+  if (activeTab === 'subscription' && !subscriptionLoaded && !subscriptionLoading) {
+    void loadSubscription()
+  }
 })
 
 // This screen is a single route (`tenants/:id`), not itself sub-routed —
 // the tab strip is in-page local state, not real navigation, so
 // `DetailShell`'s `onNavigate` just switches `activeTab` instead of pushing
 // history.
-type TabId = 'overview' | 'entitlements' | 'audit' | 'danger'
+type TabId = 'overview' | 'entitlements' | 'audit' | 'danger' | 'subscription'
 let activeTab = $state<TabId>('overview')
 
 const TABS: DetailShellTab[] = [
   { href: 'overview', label: COPY.tabOverview },
   { href: 'entitlements', label: COPY.tabEntitlements },
+  { href: 'subscription', label: COPY.tabSubscription },
   { href: 'audit', label: COPY.tabAudit },
   { href: 'danger', label: COPY.tabDanger },
-  {
-    href: 'subscription',
-    label: COPY.tabSubscription,
-    disabled: true,
-    disabledReason: COPY.tabSubscriptionReason,
-  },
   {
     href: 'domains',
     label: COPY.tabDomains,
@@ -522,6 +562,53 @@ async function confirmSuspend(reason: string): Promise<void> {
 async function confirmArchive(): Promise<void> {
   await runLifecycle(() => archiveTenant(apiClient, id), COPY.archived, COPY.archiveError)
 }
+
+let overrideDialogOpen = $state(false)
+let overridePlanKey = $state('professional')
+let overrideReason = $state('')
+let overrideSubmitting = $state(false)
+let overrideError = $state<string | undefined>(undefined)
+
+let revokeSubDialogOpen = $state(false)
+let revokeSubSubmitting = $state(false)
+
+const hasOverride = $derived(subscription?.source === 'override')
+
+async function handleApplySubscriptionOverride(): Promise<void> {
+  if (!overridePlanKey.trim() || !overrideReason.trim()) {
+    overrideError = 'Please specify both plan key and reason.'
+    return
+  }
+  overrideSubmitting = true
+  overrideError = undefined
+  try {
+    await applySubscriptionOverride(apiClient, id, {
+      plan_key: overridePlanKey.trim(),
+      reason: overrideReason.trim(),
+    })
+    overrideDialogOpen = false
+    showToast({ title: COPY.subOverrideApplied, variant: 'success' })
+    await Promise.all([loadTenant(), loadSubscription()])
+  } catch {
+    overrideError = COPY.subOverrideError
+  } finally {
+    overrideSubmitting = false
+  }
+}
+
+async function handleRevokeSubscriptionOverride(): Promise<void> {
+  revokeSubSubmitting = true
+  try {
+    await revokeSubscriptionOverride(apiClient, id)
+    revokeSubDialogOpen = false
+    showToast({ title: COPY.subOverrideRevoked, variant: 'success' })
+    await Promise.all([loadTenant(), loadSubscription()])
+  } catch {
+    showToast({ title: COPY.subRevokeError, variant: 'error' })
+  } finally {
+    revokeSubSubmitting = false
+  }
+}
 </script>
 
 {#snippet statusBadge()}
@@ -632,6 +719,54 @@ async function confirmArchive(): Promise<void> {
             </tbody>
           </table>
         {/if}
+      {:else if activeTab === 'subscription'}
+        <Stack gap="6">
+          <div class="sanvi-tenant-detail__sub-card">
+            <Stack gap="4">
+              <div class="sanvi-tenant-detail__sub-header">
+                <h3>{COPY.tabSubscription}</h3>
+              </div>
+
+              {#if subscriptionLoading}
+                <Spinner label={COPY.loading} />
+              {:else if subscription}
+                <Stack gap="2">
+                  <p>
+                    <strong>{COPY.overviewStatus}:</strong>
+                    <Badge variant={subscription.source === 'override' ? 'warning' : 'success'}>
+                      {subscription.plan_name ?? subscription.plan_key} ({subscription.source})
+                    </Badge>
+                  </p>
+                  {#if subscription.current_period?.start && subscription.current_period?.end}
+                    <p>
+                      <strong>{COPY.subPeriod}:</strong>
+                      <time datetime={subscription.current_period.start}>{subscription.current_period.start.slice(0, 10)}</time>
+                      –
+                      <time datetime={subscription.current_period.end}>{subscription.current_period.end.slice(0, 10)}</time>
+                    </p>
+                  {/if}
+                </Stack>
+              {:else}
+                <p class="sanvi-tenant-detail__muted">{COPY.noSubscription}</p>
+              {/if}
+
+              <p class="sanvi-tenant-detail__muted">{COPY.subOverrideDesc}</p>
+
+              <Cluster gap="3">
+                <Button variant="primary" onclick={() => { overrideDialogOpen = true }}>
+                  {COPY.applyOverride}
+                </Button>
+                <Button
+                  variant="danger"
+                  disabled={!hasOverride}
+                  onclick={() => { revokeSubDialogOpen = true }}
+                >
+                  {COPY.revokeOverride}
+                </Button>
+              </Cluster>
+            </Stack>
+          </div>
+        </Stack>
       {:else if activeTab === 'audit'}
         {#if auditError}
           <ErrorView title={auditError} retryLabel={COPY.retry} onRetry={() => loadAudit(false)} />
@@ -772,7 +907,89 @@ async function confirmArchive(): Promise<void> {
   {/snippet}
 </Dialog>
 
+<Dialog bind:open={overrideDialogOpen} titleText={COPY.subOverrideTitle}>
+  {#snippet children()}
+    <Stack gap="4">
+      <p>{COPY.subOverrideDesc}</p>
+      {#if overrideError}
+        <Alert variant="error">{overrideError}</Alert>
+      {/if}
+      <Field label={COPY.subOverridePlanKey} required>
+        {#snippet children(controlProps)}
+          <Input
+            {...controlProps}
+            value={overridePlanKey}
+            placeholder={COPY.subOverridePlanPlaceholder}
+            oninput={(e) => { overridePlanKey = (e.target as HTMLInputElement).value }}
+          />
+        {/snippet}
+      </Field>
+      <Field label={COPY.subOverrideReason} required>
+        {#snippet children(controlProps)}
+          <Textarea
+            {...controlProps}
+            value={overrideReason}
+            placeholder={COPY.subOverrideReasonPlaceholder}
+            oninput={(e) => { overrideReason = (e.target as HTMLTextAreaElement).value }}
+          />
+        {/snippet}
+      </Field>
+    </Stack>
+  {/snippet}
+  {#snippet footer()}
+    <Button variant="ghost" onclick={() => (overrideDialogOpen = false)}>{COPY.cancel}</Button>
+    <Button
+      variant="primary"
+      loading={overrideSubmitting}
+      disabled={!overridePlanKey || !overrideReason}
+      onclick={handleApplySubscriptionOverride}
+    >
+      {COPY.save}
+    </Button>
+  {/snippet}
+</Dialog>
+
+<Dialog bind:open={revokeSubDialogOpen} titleText={COPY.revokeOverride}>
+  {#snippet children()}
+    <p>{COPY.revokeConsequence}</p>
+  {/snippet}
+  {#snippet footer()}
+    <Button variant="ghost" onclick={() => (revokeSubDialogOpen = false)}>{COPY.cancel}</Button>
+    <Button
+      variant="danger"
+      loading={revokeSubSubmitting}
+      onclick={handleRevokeSubscriptionOverride}
+    >
+      {COPY.revokeOverride}
+    </Button>
+  {/snippet}
+</Dialog>
+
 <style>
+  .sanvi-tenant-detail__sub-card {
+    padding: var(--sanvi-spacing-6);
+    border-radius: var(--sanvi-radius-lg);
+    border: var(--sanvi-border-width-thin) solid var(--sanvi-color-border-default);
+    background: var(--sanvi-color-background-primary);
+  }
+
+  .sanvi-tenant-detail__sub-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .sanvi-tenant-detail__sub-header h3 {
+    margin: 0;
+    font-size: var(--sanvi-font-size-lg);
+  }
+
+  .sanvi-tenant-detail__muted {
+    margin: 0;
+    font-size: var(--sanvi-font-size-sm);
+    color: var(--sanvi-color-text-secondary);
+  }
+
   .sanvi-tenant-detail__table {
     width: 100%;
     border-collapse: collapse;
