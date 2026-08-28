@@ -101,6 +101,14 @@ const routes: RouteDefinition[] = [
     guard: (params) => requirePermission(router, 'payments.read', getActiveTenantId())(params),
     load: () => import('./routes/PaymentsSettings.svelte'),
   },
+  {
+    // Deliberately `requireSession`, not `requirePermission` — the access
+    // catalog has no privacy key yet, so any signed-in member of the tenant
+    // may read the request ledger until phase 06 adds one.
+    path: 'privacy',
+    guard: (params) => requireSession(router)(params),
+    load: () => import('./routes/Privacy.svelte'),
+  },
   { path: 'login', load: () => import('./routes/Login.svelte') },
   { path: 'health', load: () => import('./routes/Health.svelte') },
 ]
@@ -205,6 +213,7 @@ const NAV: { href: string; label: string; permission?: string }[] = [
   { href: '/usage', label: 'Usage' },
   { href: '/billing', label: 'Billing', permission: 'billing.subscription.read' },
   { href: '/payments', label: 'Payments', permission: 'payments.read' },
+  { href: '/privacy', label: 'Privacy' },
   { href: '/settings', label: 'Settings' },
   { href: '/settings/security', label: 'Security' },
 ]
