@@ -69,6 +69,8 @@ sanvi-frontend/
 │   ├── design-tokens/           # EXISTS — DTCG → CSS vars / TS via Style Dictionary
 │   ├── csp/                     # EXISTS — Content-Security-Policy builder
 │   ├── billing-elements/        # EXISTS — Stripe Elements forms + money helpers
+│   ├── consent/                 # EXISTS — directive store, GPC, notice re-prompt, gated script loader (phase 05)
+│   ├── analytics/               # EXISTS — consent-aware event tracking (phase 05 skeleton; integrations in 10)
 │   ├── course-media/            # EXISTS — upload, HLS, captions, images (adopted when needed)
 │   ├── ui/                      # component library (Svelte 5 runes, token-driven, a11y-first)
 │   ├── i18n/                    # message catalogs + runtime + formatting

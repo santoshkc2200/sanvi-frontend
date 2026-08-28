@@ -29,6 +29,11 @@ Node server per tenant surface.
   (auth, tenant header, retries, problem+json → typed error). Regenerated in CI; drift fails the build.
 - `tenant`, `auth`, `theme-runtime`, `analytics` are runtime services with an explicit init and a
   documented SSR story (what runs on the server, what hydrates).
+- `consent` (phase 05) is a framework-free state machine over the backend's directive snapshot: it
+  never fetches — the app injects `@sanvi/api-client` callbacks for server sync — and it owns the
+  first-party consent cookie, GPC handling, notice re-prompt logic, and the allow-listed third-party
+  script gate. `@sanvi/analytics` reads its decisions and drops (never queues) events whose purpose
+  is not `allowed`; payloads are flat and PII-checked at the package boundary.
 - Apps compose. Business logic that two apps share moves into a package; logic that one app has stays
   in that app.
 
