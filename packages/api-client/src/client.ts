@@ -160,6 +160,31 @@ const IDEMPOTENT_METHODS = new Set(['GET', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'])
  * The generated OpenAPI client (phase 01) wraps `request` with typed
  * per-endpoint methods; this file only ships the runtime it needs.
  */
+/**
+ * Combines abort signals, falling back to a manual relay where
+ * `AbortSignal.any` is unavailable (jsdom, older runtimes). The fallback keeps
+ * every input signal live — dropping one would silently disable the request
+ * timeout.
+ */
+function anySignal(signals: AbortSignal[]): AbortSignal {
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any(signals)
+
+  const controller = new AbortController()
+  const handlers = new Map<AbortSignal, () => void>()
+  for (const s of signals) {
+    if (s.aborted) {
+      controller.abort(s.reason)
+      return controller.signal
+    }
+    handlers.set(s, () => {
+      for (const [other, handler] of handlers) other.removeEventListener('abort', handler)
+      controller.abort(s.reason)
+    })
+  }
+  for (const [s, handler] of handlers) s.addEventListener('abort', handler, { once: true })
+  return controller.signal
+}
+
 export function createApiClient(config: ApiClientConfig): ApiClient {
   const {
     baseUrl,
@@ -213,7 +238,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     const timeoutController = new AbortController()
     const timeout = setTimeout(() => timeoutController.abort(), timeoutMs)
     const combinedSignal = signal
-      ? AbortSignal.any([signal, timeoutController.signal])
+      ? anySignal([signal, timeoutController.signal])
       : timeoutController.signal
 
     try {

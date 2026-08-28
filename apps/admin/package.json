@@ -22,6 +22,7 @@
   "dependencies": {
     "@sanvi/api-client": "workspace:*",
     "@sanvi/auth": "workspace:*",
+    "@sanvi/billing-elements": "workspace:*",
     "@sanvi/csp": "workspace:*",
     "@sanvi/design-tokens": "workspace:*",
     "@sanvi/query": "workspace:*",

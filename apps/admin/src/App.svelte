@@ -1,16 +1,27 @@
 <script lang="ts">
 import {
+  can,
   getLastDeniedPermission,
   getSession,
   onSessionChange,
   requirePermission,
   requireSession,
 } from '@sanvi/auth'
-import { listTenantEntitlements } from '@sanvi/api-client'
+import { getSubscription, listTenantEntitlements } from '@sanvi/api-client'
+import type { components } from '@sanvi/api-client'
 import { clearCache, QueryDevtools } from '@sanvi/query'
 import type { Router, RouteDefinition } from '@sanvi/spa-router'
 import { createRouter } from '@sanvi/spa-router'
-import { AppShell, ErrorView, Spinner, TenantSwitcher, ToastViewport } from '@sanvi/ui'
+import {
+  AppShell,
+  ErrorView,
+  PastDueBanner,
+  Spinner,
+  SuspendedInterstitial,
+  TenantSwitcher,
+  ToastViewport,
+  TrialBanner,
+} from '@sanvi/ui'
 import {
   getActiveTenantId,
   getMemberships,
@@ -34,14 +45,26 @@ import { apiClient } from './lib/api'
 // svelte-ignore non_reactive_update
 let router: Router
 
-// Reserved for billing/domains/ads — filled in by the phases that own each
-// (04, 08, 10 respectively). Adding a nav item and a route here is that
-// phase's work.
 const routes: RouteDefinition[] = [
   {
     path: '',
     guard: (params) => requireSession(router)(params),
     load: () => import('./routes/Dashboard.svelte'),
+  },
+  {
+    path: 'billing',
+    guard: (params) =>
+      requirePermission(router, 'billing.subscription.read', getActiveTenantId())(params),
+    load: () => import('./routes/Billing.svelte'),
+  },
+  {
+    path: 'activating',
+    guard: (params) => requireSession(router)(params),
+    load: () => import('./routes/Activating.svelte'),
+  },
+  {
+    path: 'onboarding',
+    load: () => import('./routes/Onboarding.svelte'),
   },
   {
     path: 'settings',
@@ -102,10 +125,6 @@ function syncMemberships(session: ReturnType<typeof getSession>): void {
     tenantId: membership.tenant_id,
     slug: membership.tenant_slug,
     displayName: membership.tenant_name,
-    // Role *names* aren't resolved here (would need a per-tenant roles
-    // fetch just for a header dropdown) — `Members.svelte` resolves real
-    // names where it matters. This is a placeholder, not used by
-    // `TenantSwitcher` itself today.
     role: membership.role_ids.join(','),
   }))
   setMemberships(memberships)
@@ -128,13 +147,41 @@ async function syncEntitlements(): Promise<void> {
     if (seq !== entitlementsSyncSeq) return // a newer switch/boot superseded this response
     setEntitlements(entitlements.map((e) => ({ feature: e.feature, enabled: e.enabled })))
   } catch {
-    // No session yet, or the fetch failed (network, 403, feature-gate route
-    // disabled) — either way the store stays empty: unavailable, never the
-    // previous tenant's grants.
+    // No session yet, or the fetch failed
   }
 }
 void syncEntitlements()
 onTenantSwitch(() => void syncEntitlements())
+
+let subscription = $state<components['schemas']['SubscriptionView'] | null | undefined>(undefined)
+let subscriptionSyncSeq = 0
+async function syncSubscription(): Promise<void> {
+  const seq = ++subscriptionSyncSeq
+  try {
+    const sub = await getSubscription(apiClient)
+    if (seq !== subscriptionSyncSeq) return
+    subscription = sub
+  } catch {
+    if (seq !== subscriptionSyncSeq) return
+    subscription = null
+  }
+}
+void syncSubscription()
+onTenantSwitch(() => void syncSubscription())
+
+const trialDaysRemaining = $derived(() => {
+  if (!subscription?.trial_end || subscription.status !== 'trialing') return 0
+  const end = new Date(subscription.trial_end).getTime()
+  return Math.max(0, Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24)))
+})
+
+const showTrialBanner = $derived(
+  subscription?.status === 'trialing' && subscription.trial_end && trialDaysRemaining() <= 7,
+)
+
+const showPastDueBanner = $derived(subscription?.collection_state === 'dunning')
+
+const isSuspended = $derived(subscription?.collection_state === 'grace_expired')
 
 const COPY = {
   brand: 'Sanvi Admin',
@@ -151,15 +198,20 @@ const COPY = {
   retry: 'Try again',
 }
 
-const NAV: { href: string; label: string }[] = [
+const NAV: { href: string; label: string; permission?: string }[] = [
   { href: '/', label: 'Dashboard' },
-  { href: '/members', label: 'Members' },
-  { href: '/roles', label: 'Roles' },
+  { href: '/members', label: 'Members', permission: 'identity.member.read' },
+  { href: '/roles', label: 'Roles', permission: 'access.role.read' },
   { href: '/usage', label: 'Usage' },
-  { href: '/payments', label: 'Payments' },
+  { href: '/billing', label: 'Billing', permission: 'billing.subscription.read' },
+  { href: '/payments', label: 'Payments', permission: 'payments.read' },
   { href: '/settings', label: 'Settings' },
   { href: '/settings/security', label: 'Security' },
 ]
+
+const visibleNav = $derived(
+  NAV.filter((item) => !item.permission || can(item.permission, getActiveTenantId())),
+)
 
 const membershipOptions = $derived(
   getMemberships().map((membership) => ({
@@ -183,7 +235,7 @@ function retry(): void {
   brand={COPY.brand}
   skipLinkLabel={COPY.skipLink}
   primaryNavLabel={COPY.primaryNav}
-  nav={NAV}
+  nav={visibleNav}
   currentPath={router.pathname}
   onNavigate={router.handleLinkClick}
 >
@@ -196,22 +248,36 @@ function retry(): void {
     />
   {/snippet}
 
-  {#if router.error}
-    <ErrorView
-      title={COPY.errorTitle}
-      description={COPY.errorDescription}
-      retryLabel={COPY.retry}
-      onRetry={retry}
-    />
-  {:else if router.guardRejected}
-    <ErrorView title={COPY.deniedTitle} description={deniedDescription} />
-  {:else if router.component}
-    {@const Page = router.component}
-    {#key Page}
-      <Page {...router.params} />
-    {/key}
-  {:else if router.loading}
-    <Spinner label={COPY.loadingLabel} />
+  {#if isSuspended && router.pathname !== '/billing'}
+    <SuspendedInterstitial reason="billing" portalHref="/billing" />
+  {:else}
+    {#if showPastDueBanner}
+      <PastDueBanner portalHref="/billing" />
+    {:else if showTrialBanner}
+      <TrialBanner
+        daysRemaining={trialDaysRemaining()}
+        trialEnd={subscription?.trial_end ?? undefined}
+        subscribeHref="/billing"
+      />
+    {/if}
+
+    {#if router.error}
+      <ErrorView
+        title={COPY.errorTitle}
+        description={COPY.errorDescription}
+        retryLabel={COPY.retry}
+        onRetry={retry}
+      />
+    {:else if router.guardRejected}
+      <ErrorView title={COPY.deniedTitle} description={deniedDescription} />
+    {:else if router.component}
+      {@const Page = router.component}
+      {#key Page}
+        <Page {...router.params} />
+      {/key}
+    {:else if router.loading}
+      <Spinner label={COPY.loadingLabel} />
+    {/if}
   {/if}
 </AppShell>
 <ToastViewport />

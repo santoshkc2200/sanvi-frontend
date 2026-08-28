@@ -79,4 +79,48 @@ export function mockBackend(page: Page): void {
   page.route('**/api/v1/tenant/members', (route) => route.fulfill({ json: [] }))
   page.route('**/api/v1/tenant/invitations', (route) => route.fulfill({ json: [] }))
   page.route('**/api/v1/tenant/entitlements', (route) => route.fulfill({ json: [] }))
+  page.route('**/api/v1/public/plans', (route) =>
+    route.fulfill({
+      json: [
+        {
+          plan_id: '0190f0d0-0000-7000-8000-000000000011',
+          key: 'starter',
+          name: 'Starter',
+          tier: 'starter',
+          sort_order: 1,
+          prices: [
+            {
+              price_id: '0190f0d0-0000-7000-8000-000000000021',
+              currency: 'USD',
+              interval: 'month',
+              unit_amount_minor: 2900,
+              trial_days: 14,
+            },
+          ],
+          entitlements: [],
+        },
+      ],
+    }),
+  )
+  page.route('**/api/v1/tenant/billing/subscription', (route) =>
+    route.fulfill({
+      json: {
+        subscription_id: 'sub-dev-123',
+        plan_key: 'starter',
+        plan_name: 'Starter',
+        status: 'active',
+        source: 'stripe',
+        collection_state: 'ok',
+        cancel_at_period_end: false,
+        current_period: {
+          start: '2026-08-01T00:00:00Z',
+          end: '2026-09-01T00:00:00Z',
+        },
+      },
+    }),
+  )
+  page.route('**/api/v1/tenant/billing/invoices', (route) => route.fulfill({ json: [] }))
+  page.route('**/api/v1/public/slug-availability**', (route) =>
+    route.fulfill({ json: { available: true } }),
+  )
 }

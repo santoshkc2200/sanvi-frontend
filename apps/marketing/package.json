@@ -20,6 +20,8 @@
     "check:budget": "sanvi-check-budget --dir build/client --initial-kb 100 --chunk-kb 50"
   },
   "dependencies": {
+    "@sanvi/api-client": "workspace:*",
+    "@sanvi/billing-elements": "workspace:*",
     "@sanvi/csp": "workspace:*",
     "@sanvi/design-tokens": "workspace:*",
     "@sanvi/ui": "workspace:*"
@@ -32,6 +34,7 @@
     "@sveltejs/adapter-node": "catalog:",
     "@sveltejs/kit": "catalog:",
     "@sveltejs/vite-plugin-svelte": "catalog:",
+    "@testing-library/svelte": "catalog:",
     "svelte": "catalog:",
     "svelte-check": "catalog:",
     "typescript": "catalog:",

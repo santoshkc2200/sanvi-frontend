@@ -1,6 +1,7 @@
 import type { Session } from '@sanvi/auth'
 import { setSession } from '@sanvi/auth'
 import { createQuery, listCacheEntries } from '@sanvi/query'
+import { switchTenant } from '@sanvi/tenant'
 import { axe } from '@sanvi/test-config/axe'
 import { fireEvent, render, screen } from '@testing-library/svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -41,6 +42,24 @@ function mockFetch(input: RequestInfo | URL): Promise<Response> {
   if (url.includes('/tenant/settings')) return Promise.resolve(jsonResponse({ settings: {} }))
   if (url.includes('/tenant/roles')) return Promise.resolve(jsonResponse([]))
   if (url.includes('/access/permissions')) return Promise.resolve(jsonResponse([]))
+  if (url.includes('/tenant/billing/subscription'))
+    return Promise.resolve(
+      jsonResponse({
+        subscription_id: 'sub-1',
+        plan_key: 'starter',
+        plan_name: 'Starter',
+        status: 'active',
+        source: 'stripe',
+        collection_state: 'ok',
+        cancel_at_period_end: false,
+        current_period: {
+          start: '2026-08-01T00:00:00Z',
+          end: '2026-09-01T00:00:00Z',
+        },
+      }),
+    )
+  if (url.includes('/tenant/billing/invoices')) return Promise.resolve(jsonResponse([]))
+  if (url.includes('/public/plans')) return Promise.resolve(jsonResponse([]))
   return Promise.resolve(jsonResponse({ title: 'not mocked', status: 404 }, 404))
 }
 
@@ -78,6 +97,7 @@ const SIGNED_IN_SESSION: Session = {
 // for that), so tests that exercise a guarded route sign in first.
 beforeEach(() => {
   setSession(SIGNED_IN_SESSION)
+  switchTenant('dev-acme')
   vi.stubGlobal('fetch', vi.fn(mockFetch))
 })
 
@@ -138,5 +158,84 @@ describe('App shell', () => {
     const { container } = render(App)
     await screen.findByText('Acme Corporation')
     expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('hides Billing from nav and denies route access without billing.subscription.read', async () => {
+    // SIGNED_IN_SESSION does not have 'billing.subscription.read'
+    render(App)
+    await screen.findByText('Acme Corporation')
+
+    expect(screen.queryByRole('link', { name: 'Billing' })).not.toBeInTheDocument()
+
+    window.history.pushState({}, '', '/billing')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+
+    expect(await screen.findByText('Access denied')).toBeInTheDocument()
+  })
+
+  it('shows Billing nav and renders Billing route with billing.subscription.read', async () => {
+    setSession({
+      ...SIGNED_IN_SESSION,
+      memberships: [
+        {
+          ...SIGNED_IN_SESSION.memberships[0]!,
+          permissions: ['identity.member.read', 'billing.subscription.read'],
+        },
+      ],
+    })
+
+    window.history.pushState({}, '', '/billing')
+    render(App)
+
+    expect(await screen.findByText('Current Subscription')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Billing' })).toBeInTheDocument()
+  })
+
+  it('allows accessing /billing when workspace is suspended so user can pay', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/tenant/billing/subscription')) {
+          return Promise.resolve(
+            jsonResponse({
+              subscription_id: 'sub-suspended',
+              plan_key: 'starter',
+              plan_name: 'Starter',
+              status: 'active',
+              source: 'stripe',
+              collection_state: 'grace_expired',
+              cancel_at_period_end: false,
+            }),
+          )
+        }
+        return mockFetch(input)
+      }),
+    )
+
+    setSession({
+      ...SIGNED_IN_SESSION,
+      memberships: [
+        {
+          tenant_id: 'dev-suspended',
+          tenant_slug: 'suspended',
+          tenant_name: 'Suspended Corp',
+          role_ids: ['role-owner'],
+          permissions: ['identity.member.read', 'billing.subscription.read'],
+          status: 'active',
+        },
+      ],
+    })
+    switchTenant('dev-suspended')
+
+    // On default route, suspended interstitial is shown
+    window.history.pushState({}, '', '/')
+    render(App)
+    expect(await screen.findByText('Workspace suspended')).toBeInTheDocument()
+
+    // On /billing route, billing page is rendered as escape hatch
+    window.history.pushState({}, '', '/billing')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    expect(await screen.findByText('Current Subscription')).toBeInTheDocument()
   })
 })

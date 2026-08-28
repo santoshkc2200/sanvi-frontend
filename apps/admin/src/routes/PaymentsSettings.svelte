@@ -1,7 +1,7 @@
 <script lang="ts">
 import { ApiError, listPaymentProviders } from '@sanvi/api-client'
 import { getActiveTenantId } from '@sanvi/tenant'
-import { Alert, Container, EmptyState, Spinner, Stack } from '@sanvi/ui'
+import { Alert, Container, EmptyState, Spinner, Stack, UpgradePrompt } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
 
 // 09.0 ships only the envelope: the catalog is empty until 09.1 adds real
@@ -72,7 +72,12 @@ $effect(() => {
     {#if loading}
       <Spinner label={COPY.loading} />
     {:else if !entitled}
-      <EmptyState title={COPY.upgradeTitle} description={COPY.upgradeDescription} />
+      <UpgradePrompt
+        feature="payments.stripe_connect"
+        title={COPY.upgradeTitle}
+        description={COPY.upgradeDescription}
+        upgradeHref="/billing"
+      />
     {:else if !error}
       <EmptyState title={COPY.empty} description={COPY.emptyDescription} />
     {/if}

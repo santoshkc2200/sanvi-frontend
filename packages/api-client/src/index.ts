@@ -13,6 +13,13 @@ export {
 } from './access'
 export { approveRequest, listPendingApprovals, rejectRequest } from './approvals'
 export { listAudit } from './audit'
+export {
+  createCheckoutSession,
+  createPortalSession,
+  getSubscription,
+  listInvoices,
+  listPublicPlans,
+} from './billing'
 export type { ApiClient, ApiClientConfig, RawResponse, RequestOptions } from './client'
 export { createApiClient } from './client'
 export type { components, operations, paths } from './generated/types'
@@ -53,6 +60,7 @@ export {
 export type { ProblemDetails } from './problem'
 export { ApiError, apiErrorFromResponse, NetworkError, TimeoutError } from './problem'
 export {
+  checkSlugAvailability,
   getPublicTenantContext,
   getTenantContext,
   getTenantSettings,
