@@ -36,6 +36,8 @@ interface Props {
   gpcOverrideBody?: string
   gpcOverrideConfirmLabel?: string
   gpcOverrideCancelLabel?: string
+  /** Accessible label for the override dialog's close (×) button. */
+  overrideDialogCloseLabel?: string
   class?: string
 }
 
@@ -55,6 +57,7 @@ let {
   gpcOverrideBody = '',
   gpcOverrideConfirmLabel = 'Accept anyway',
   gpcOverrideCancelLabel = 'Keep signal',
+  overrideDialogCloseLabel = 'Close',
   class: className = '',
 }: Props = $props()
 
@@ -142,7 +145,7 @@ function reject(): void {
 <Dialog
   bind:open={overrideDialogOpen}
   titleText={gpcOverrideTitle}
-  closeLabel={gpcOverrideCancelLabel}
+  closeLabel={overrideDialogCloseLabel}
 >
   <p>{gpcOverrideBody}</p>
   {#snippet footer()}
