@@ -29,7 +29,15 @@ async function loadStepUpFlow(): Promise<void> {
     notEnrolled = !flow.ui.nodes.some((node) => node.group === 'totp')
   } catch (err) {
     if (err instanceof KratosRequestError) {
-      notEnrolled = true
+      // An error from the flow itself (expired/consumed/rate-limited) is
+      // NOT "no authenticator enrolled" — restart fresh, per the phase-02
+      // expired-flow policy, before concluding anything about enrolment.
+      try {
+        flow = await startFlow(kratosClient, 'login', { aal: 'aal2', returnTo })
+        notEnrolled = !flow.ui.nodes.some((node) => node.group === 'totp')
+      } catch {
+        error = COPY.genericError
+      }
       return
     }
     error = COPY.genericError

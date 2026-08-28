@@ -8,6 +8,7 @@ import {
 } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import {
+  Alert,
   Badge,
   Button,
   DangerousAction,
@@ -50,6 +51,7 @@ const COPY = {
   defaultEnabledLabel: 'Enabled by default',
   defaultLimitLabel: 'Default limit',
   defaultLimitPlaceholder: '100',
+  defaultLimitInvalid: 'The default limit must be a non-negative whole number.',
   visibilityLabel: 'Visibility',
   cancel: 'Cancel',
   save: 'Save',
@@ -107,6 +109,14 @@ let formDefaultLimit = $state('')
 let formVisibility = $state<'public' | 'hidden'>('public')
 let saving = $state(false)
 
+// `Number("abc")` is NaN and JSON.stringify serializes NaN as null — a typo
+// would silently store "unlimited" as the catalog default. Validate first.
+const formDefaultLimitInvalid = $derived(
+  formKind === 'quota' &&
+    formDefaultLimit.trim() !== '' &&
+    (!/^\d+$/.test(formDefaultLimit.trim()) || !Number.isSafeInteger(Number(formDefaultLimit))),
+)
+
 function openCreate(): void {
   editing = undefined
   formKey = ''
@@ -130,6 +140,7 @@ function openEdit(feature: FeatureRow): void {
 }
 
 async function handleSave(): Promise<void> {
+  if (formDefaultLimitInvalid) return
   saving = true
   try {
     const limit = formKind === 'quota' && formDefaultLimit.trim() ? Number(formDefaultLimit) : null
@@ -283,6 +294,9 @@ async function handleDeprecate(): Promise<void> {
             <Input {id} bind:value={formDefaultLimit} placeholder={COPY.defaultLimitPlaceholder} />
           {/snippet}
         </Field>
+        {#if formDefaultLimitInvalid}
+          <Alert variant="error">{COPY.defaultLimitInvalid}</Alert>
+        {/if}
       {/if}
       <Field label={COPY.visibilityLabel} required>
         {#snippet children({ id })}
@@ -299,7 +313,7 @@ async function handleDeprecate(): Promise<void> {
   {#snippet footer()}
     <Button variant="ghost" onclick={() => (formOpen = false)}>{COPY.cancel}</Button>
     <Button
-      disabled={!formKey.trim() || !formName.trim()}
+      disabled={!formKey.trim() || !formName.trim() || formDefaultLimitInvalid}
       loading={saving}
       onclick={handleSave}
     >

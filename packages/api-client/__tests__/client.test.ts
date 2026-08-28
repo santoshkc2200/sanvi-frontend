@@ -310,6 +310,29 @@ describe('GET coalescing', () => {
     // One shared attempt loop (initial + 1 retry), not one per caller.
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
+
+  it('does not share a response across different active tenants', async () => {
+    // A GET still in flight for tenant A must never be handed to a caller
+    // that just switched to tenant B — the tenant header shapes the response.
+    let tenant = 'a'
+    fetchMock.mockImplementation(async (_url: string, init?: RequestInit) => {
+      const headers = (init?.headers ?? {}) as Record<string, string>
+      return jsonResponse({ tenant: headers['x-tenant-id'] })
+    })
+    const client = createApiClient({
+      baseUrl: 'https://api.example.com',
+      getTenantId: () => tenant,
+    })
+
+    const first = client.get('/v1/entitlements')
+    tenant = 'b'
+    const second = client.get('/v1/entitlements')
+    const [firstValue, secondValue] = await Promise.all([first, second])
+
+    expect(firstValue).toEqual({ tenant: 'a' })
+    expect(secondValue).toEqual({ tenant: 'b' })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('onUnauthorized', () => {

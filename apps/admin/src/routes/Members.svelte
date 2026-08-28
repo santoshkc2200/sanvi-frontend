@@ -24,6 +24,7 @@ import {
   Stack,
 } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
+import { getActiveTenantId } from '@sanvi/tenant'
 
 type RoleView = Awaited<ReturnType<typeof listRolesTenant>>[number]
 type MemberRow = Awaited<ReturnType<typeof listMembers>>[number]
@@ -39,6 +40,7 @@ const COPY = {
   bulkInviteAction: 'Upload CSV',
   bulkInviteResult: (invited: number, failed: number) =>
     failed > 0 ? `${invited} invited, ${failed} failed.` : `${invited} invited.`,
+  unknownRolesIgnored: (keys: string) => `Unknown role keys ignored: ${keys}`,
   emailLabel: 'Email',
   rolesLabel: 'Roles',
   inviteAction: 'Send invitation',
@@ -73,7 +75,12 @@ let inviteEmail = $state('')
 let inviteRoleIds = $state<string[]>([])
 let inviting = $state(false)
 
+// Sequencing token: a tenant switch re-runs the load effect, and a slow
+// response for the previous tenant must never overwrite the new tenant's rows.
+let loadSeq = 0
+
 async function loadAll(): Promise<void> {
+  const seq = ++loadSeq
   loading = true
   error = undefined
   try {
@@ -82,17 +89,21 @@ async function loadAll(): Promise<void> {
       listInvitations(apiClient),
       listRolesTenant(apiClient),
     ])
+    if (seq !== loadSeq) return
     members = membersResult
     invitations = invitationsResult
     roles = rolesResult
   } catch {
+    if (seq !== loadSeq) return
     error = COPY.genericError
   } finally {
-    loading = false
+    if (seq === loadSeq) loading = false
   }
 }
 
 $effect(() => {
+  // Reading the active tenant makes the effect re-run (and refetch) on switch.
+  void getActiveTenantId()
   void loadAll()
 })
 
@@ -112,27 +123,42 @@ async function handleInvite(): Promise<void> {
     inviteRoleIds = []
     showToast({ variant: 'success', title: COPY.invitationSent })
     await loadAll()
+  } catch {
+    showToast({ variant: 'error', title: COPY.genericError })
   } finally {
     inviting = false
   }
 }
 
 async function handleRemove(userId: string): Promise<void> {
-  await removeMember(apiClient, userId)
-  showToast({ variant: 'success', title: COPY.memberRemoved })
-  await loadAll()
+  try {
+    await removeMember(apiClient, userId)
+    showToast({ variant: 'success', title: COPY.memberRemoved })
+    await loadAll()
+  } catch {
+    // e.g. the last-owner guard rejects, or the actor lost the permission
+    showToast({ variant: 'error', title: COPY.genericError })
+  }
 }
 
 async function handleResend(invitationId: string): Promise<void> {
-  await resendInvitation(apiClient, invitationId)
-  showToast({ variant: 'success', title: COPY.invitationResent })
-  await loadAll()
+  try {
+    await resendInvitation(apiClient, invitationId)
+    showToast({ variant: 'success', title: COPY.invitationResent })
+    await loadAll()
+  } catch {
+    showToast({ variant: 'error', title: COPY.genericError })
+  }
 }
 
 async function handleRevoke(invitationId: string): Promise<void> {
-  await revokeInvitation(apiClient, invitationId)
-  showToast({ variant: 'success', title: COPY.invitationRevoked })
-  await loadAll()
+  try {
+    await revokeInvitation(apiClient, invitationId)
+    showToast({ variant: 'success', title: COPY.invitationRevoked })
+    await loadAll()
+  } catch {
+    showToast({ variant: 'error', title: COPY.genericError })
+  }
 }
 
 // Change-roles dialog
@@ -161,6 +187,8 @@ async function handleSaveRoles(): Promise<void> {
     changeRolesOpen = false
     showToast({ variant: 'success', title: COPY.rolesUpdated })
     await loadAll()
+  } catch {
+    showToast({ variant: 'error', title: COPY.genericError })
   } finally {
     savingRoles = false
   }
@@ -201,10 +229,14 @@ async function handleBulkInviteFile(
 
     let invited = 0
     let failed = 0
+    const unknownRoleKeys = new Set<string>()
     for (const row of rows) {
-      const roleIds = row.roleKeys
-        .map((key) => roles.find((role) => role.key === key)?.id)
-        .filter((id): id is string => Boolean(id))
+      const roleIds: string[] = []
+      for (const key of row.roleKeys) {
+        const role = roles.find((candidate) => candidate.key === key)
+        if (role) roleIds.push(role.id)
+        else unknownRoleKeys.add(key)
+      }
       try {
         await inviteMember(apiClient, { email: row.email, role_ids: roleIds })
         invited += 1
@@ -217,7 +249,15 @@ async function handleBulkInviteFile(
       variant: failed > 0 ? 'warning' : 'success',
       title: COPY.bulkInviteResult(invited, failed),
     })
+    if (unknownRoleKeys.size > 0) {
+      showToast({
+        variant: 'warning',
+        title: COPY.unknownRolesIgnored([...unknownRoleKeys].sort().join(', ')),
+      })
+    }
     await loadAll()
+  } catch {
+    showToast({ variant: 'error', title: COPY.genericError })
   } finally {
     bulkInviting = false
     if (fileInput) fileInput.value = ''
@@ -231,14 +271,14 @@ async function handleBulkInviteFile(
 
 {#snippet memberActionsCell(member: MemberRow)}
   <Stack gap="2" align="start">
-    <Can permission="identity.member.grant">
+    <Can permission="identity.member.grant" tenantId={getActiveTenantId()}>
       {#snippet children()}
         <Button variant="ghost" size="sm" onclick={() => openChangeRoles(member)}>
           {COPY.changeRolesAction}
         </Button>
       {/snippet}
     </Can>
-    <Can permission="identity.member.remove">
+    <Can permission="identity.member.remove" tenantId={getActiveTenantId()}>
       {#snippet children()}
         <Button variant="ghost" size="sm" onclick={() => handleRemove(member.user_id)}>
           {COPY.removeAction}
@@ -249,7 +289,7 @@ async function handleBulkInviteFile(
 {/snippet}
 
 {#snippet invitationActionsCell(invitation: InvitationRow)}
-  <Can permission="identity.invitation.manage">
+  <Can permission="identity.invitation.manage" tenantId={getActiveTenantId()}>
     {#snippet children()}
       <Stack gap="2" align="start">
         <Button variant="ghost" size="sm" onclick={() => handleResend(invitation.invitation_id)}>
@@ -269,7 +309,7 @@ async function handleBulkInviteFile(
   </Badge>
 {/snippet}
 
-<Can permission="identity.member.read">
+<Can permission="identity.member.read" tenantId={getActiveTenantId()}>
   {#snippet children()}
     <Stack gap="8">
       {#if error}
@@ -313,7 +353,7 @@ async function handleBulkInviteFile(
           />
         </div>
 
-        <Can permission="identity.member.invite">
+        <Can permission="identity.member.invite" tenantId={getActiveTenantId()}>
           {#snippet children()}
             <Stack gap="6">
               <div>
@@ -353,6 +393,7 @@ async function handleBulkInviteFile(
                     bind:this={fileInput}
                     type="file"
                     accept=".csv"
+                    aria-label={COPY.bulkInviteAction}
                     disabled={bulkInviting}
                     onchange={handleBulkInviteFile}
                   />

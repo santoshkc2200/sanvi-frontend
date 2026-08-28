@@ -38,6 +38,15 @@ let {
 // is a lightweight two-click confirm, not a form.
 let confirmingReject = $state(false)
 
+/** Human-readable wall-clock time; the ISO string stays on the `datetime` attribute. */
+function formatTimestamp(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+    date,
+  )
+}
+
 async function confirmReject(): Promise<void> {
   await onReject()
   confirmingReject = false
@@ -53,7 +62,7 @@ async function confirmReject(): Promise<void> {
       {/if}
     </div>
     <p class="sanvi-approval-request__meta">
-      {request.requestedByLabel} · <time datetime={request.requestedAt}>{request.requestedAt}</time>
+      {request.requestedByLabel} · <time datetime={request.requestedAt}>{formatTimestamp(request.requestedAt)}</time>
     </p>
     {#if request.detail}
       <p class="sanvi-approval-request__reason">{request.detail}</p>

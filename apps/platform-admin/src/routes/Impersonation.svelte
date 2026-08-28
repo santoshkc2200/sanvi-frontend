@@ -7,6 +7,7 @@ import {
 } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import {
+  Alert,
   Badge,
   Button,
   DangerousAction,
@@ -49,6 +50,7 @@ const COPY = {
     'From the member list or a support ticket — there is no in-console member picker yet.',
   reasonLabel: 'Reason',
   durationLabel: 'Duration (minutes)',
+  durationInvalid: 'The duration must be a whole number of minutes (at least 1).',
   modeLabel: 'Mode',
   readOnly: 'Read-only',
   readWrite: 'Read-write',
@@ -105,6 +107,15 @@ let startDuration = $state('30')
 let startMode = $state<'read_only' | 'read_write'>('read_only')
 let starting = $state(false)
 
+// `Number("abc")` is NaN and JSON.stringify serializes NaN as null — the
+// backend would receive a nonsense duration. Validate before submit.
+const startDurationInvalid = $derived.by(() => {
+  const trimmed = startDuration.trim()
+  if (trimmed === '') return false // empty is caught by the disabled submit button
+  const parsed = Number(trimmed)
+  return !Number.isSafeInteger(parsed) || parsed < 1
+})
+
 function openStart(): void {
   startTenantId = ''
   startTargetUserId = ''
@@ -115,6 +126,7 @@ function openStart(): void {
 }
 
 async function handleStart(): Promise<void> {
+  if (startDurationInvalid) return
   starting = true
   try {
     await createImpersonation(apiClient, {
@@ -268,6 +280,9 @@ async function handleRevoke(): Promise<void> {
           <Input {id} bind:value={startDuration} required />
         {/snippet}
       </Field>
+      {#if startDurationInvalid}
+        <Alert variant="error">{COPY.durationInvalid}</Alert>
+      {/if}
       <Field label={COPY.modeLabel} required>
         {#snippet children({ id })}
           <Select
@@ -283,7 +298,13 @@ async function handleRevoke(): Promise<void> {
   {#snippet footer()}
     <Button variant="ghost" onclick={() => (startOpen = false)}>{COPY.cancel}</Button>
     <Button
-      disabled={!startTenantId.trim() || !startTargetUserId.trim() || !startReason.trim() || !startDuration.trim()}
+      disabled={
+        !startTenantId.trim() ||
+        !startTargetUserId.trim() ||
+        !startReason.trim() ||
+        !startDuration.trim() ||
+        startDurationInvalid
+      }
       loading={starting}
       onclick={handleStart}
     >

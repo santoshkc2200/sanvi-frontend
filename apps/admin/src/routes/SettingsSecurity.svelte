@@ -84,7 +84,13 @@ async function handleRevoke(sessionId: string): Promise<void> {
 }
 
 async function handleSignOutEverywhere(): Promise<void> {
-  await logout(kratosClient)
+  try {
+    await logout(kratosClient)
+  } catch {
+    // Building the logout URL needs Kratos reachable — say so instead of
+    // rejecting unhandled under the button.
+    error = COPY.genericError
+  }
 }
 </script>
 

@@ -1,8 +1,9 @@
 import { axe } from '@sanvi/test-config/axe'
 import { fireEvent, render, screen, within } from '@testing-library/svelte'
+import { createRawSnippet } from 'svelte'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import DataTable from '../src/DataTable.svelte'
-import type { TableColumn } from '../src/table-types'
+import type { DataTableBulkActionArgs, TableColumn } from '../src/table-types'
 
 interface Row {
   id: string
@@ -94,7 +95,25 @@ describe('DataTable', () => {
     expect(onSelectionChange).toHaveBeenCalledWith(['1', '2'])
   })
 
-  it('renders bulk actions once a row is selected', () => {
+  it('renders bulk actions and announces the selection once a row is selected', () => {
+    const bulkActions = createRawSnippet<[DataTableBulkActionArgs]>(() => ({
+      render: () => '<button type="button">Clear selection</button>',
+    }))
+    render(DataTable, {
+      props: {
+        ...baseProps(),
+        selectable: true,
+        selectedIds: ['1'],
+        bulkActions,
+      },
+    })
+    expect(screen.getByRole('toolbar')).toBeInTheDocument()
+    expect(screen.getByText('Clear selection')).toBeInTheDocument()
+    // Screen readers must hear selection changes (plan a11y requirement).
+    expect(screen.getByRole('status')).toHaveTextContent('1 row selected')
+  })
+
+  it('does not render a toolbar without bulk actions even when rows are selected', () => {
     render(DataTable, {
       props: {
         ...baseProps(),
@@ -103,7 +122,6 @@ describe('DataTable', () => {
         bulkActions: undefined,
       },
     })
-    // No bulkActions snippet provided — bulk bar shouldn't render, no crash.
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
   })
 
@@ -135,7 +153,53 @@ describe('DataTable', () => {
     await fireEvent.click(screen.getByRole('checkbox', { name: 'Status' }))
 
     expect(screen.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument()
-    expect(JSON.parse(localStorage.getItem('test.table') ?? '[]')).not.toContain('status')
+    const stored = JSON.parse(localStorage.getItem('test.table') ?? '{}') as {
+      known: string[]
+      visible: string[]
+    }
+    expect(stored.visible).not.toContain('status')
+    // The column still exists — recording it keeps a later-added column
+    // distinguishable from a deliberately hidden one.
+    expect(stored.known).toContain('status')
+  })
+
+  it('shows columns added after visibility was stored and never hides alwaysVisible columns', () => {
+    // A stored state from an older release: name and status existed, the user
+    // hid status; the region/actions columns didn't exist yet.
+    localStorage.setItem(
+      'test.table',
+      JSON.stringify({ known: ['name', 'status'], visible: ['name'] }),
+    )
+    const columns: TableColumn<Row>[] = [
+      { key: 'name', header: 'Name', sortable: true },
+      { key: 'status', header: 'Status' },
+      { key: 'region', header: 'Region' }, // added after the state was stored
+      { key: 'actions', header: 'Actions', alwaysVisible: true },
+    ]
+    render(DataTable, {
+      props: {
+        columns,
+        rows: ROWS,
+        getRowId: (row: Row) => row.id,
+        columnVisibilityStorageKey: 'test.table',
+      },
+    })
+
+    // Stored choice honoured for known columns…
+    expect(screen.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument()
+    // …while never-known columns default to visible, and alwaysVisible
+    // columns are restored even when the stored state hides them.
+    expect(screen.getByRole('columnheader', { name: 'Region' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Actions' })).toBeInTheDocument()
+  })
+
+  it('defaults legacy bare-array storage to visible for columns added since', () => {
+    localStorage.setItem('test.table', JSON.stringify(['name']))
+    render(DataTable, { props: { ...baseProps(), columnVisibilityStorageKey: 'test.table' } })
+
+    // Legacy data carried no record of "status" ever existing, so the
+    // sensible migration is visible — the pre-fix behaviour hid it forever.
+    expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

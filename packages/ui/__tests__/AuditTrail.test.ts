@@ -44,6 +44,37 @@ describe('AuditTrail', () => {
     expect(screen.getByText('true')).toBeInTheDocument()
   })
 
+  it('does not flag nullish pairs or reordered object keys as changes', async () => {
+    render(AuditTrail, {
+      props: {
+        entries: [
+          {
+            id: '2',
+            occurredAt: '2026-08-18T10:00:00Z',
+            actorLabel: 'system',
+            action: 'settings.updated',
+            before: { a: 1, b: null },
+            after: { b: undefined, a: 1 },
+          },
+        ],
+      },
+    })
+    await fireEvent.click(screen.getByText('View changes'))
+
+    const row = screen.getByText('a').closest('tr')
+    expect(row).not.toHaveClass('sanvi-audit-trail__diff-row--changed')
+    // Both nullish values render the same "—" placeholder.
+    expect(screen.getAllByText('—')).toHaveLength(2)
+  })
+
+  it('shows a human-readable time while keeping the ISO value on the datetime attribute', () => {
+    render(AuditTrail, { props: { entries: ENTRIES } })
+    const time = screen.getByText('alice@example.com').parentElement?.querySelector('time')
+    expect(time).toHaveAttribute('datetime', '2026-08-18T10:00:00Z')
+    // The raw ISO string must not be what operators read.
+    expect(time?.textContent).not.toBe('2026-08-18T10:00:00Z')
+  })
+
   it('has no accessibility violations', async () => {
     const { container } = render(AuditTrail, { props: { entries: ENTRIES } })
     expect(await axe(container)).toHaveNoViolations()

@@ -1,6 +1,12 @@
 <script lang="ts">
 import { Can, getSession } from '@sanvi/auth'
-import { createRole, deleteRole, listPermissions, updateRole } from '@sanvi/api-client'
+import {
+  createRole,
+  deleteRole,
+  listPermissions,
+  listRolesTenant,
+  updateRole,
+} from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import { getActiveTenantId } from '@sanvi/tenant'
 import {
@@ -46,6 +52,8 @@ const COPY = {
   genericError: 'Something went wrong. Try again in a moment.',
   denied: "You don't have permission to manage roles.",
   noPermissionTitle: "You don't have this permission",
+  escalationBlocked:
+    'This role contains permissions you do not hold. You cannot save it — ask an owner to drop those permissions first.',
   roleCreated: 'Role created.',
   roleUpdated: 'Role updated.',
   roleDeleted: 'Role deleted.',
@@ -79,24 +87,33 @@ const groupedPermissions = $derived.by(() => {
 const systemRoles = $derived(roles.filter((role) => role.is_system))
 const customRoles = $derived(roles.filter((role) => !role.is_system))
 
+// Sequencing token — a tenant switch re-runs the load effect, and a slow
+// response for the previous tenant must never overwrite the new tenant's roles.
+let loadSeq = 0
+
 async function loadAll(): Promise<void> {
+  const seq = ++loadSeq
   loading = true
   error = undefined
   try {
     const [rolesResult, permissionsResult] = await Promise.all([
-      apiClient.GET('/api/v1/tenant/roles'),
+      listRolesTenant(apiClient),
       listPermissions(apiClient),
     ])
-    roles = rolesResult as unknown as RoleRow[]
+    if (seq !== loadSeq) return
+    roles = rolesResult
     permissions = permissionsResult
   } catch {
+    if (seq !== loadSeq) return
     error = COPY.genericError
   } finally {
-    loading = false
+    if (seq === loadSeq) loading = false
   }
 }
 
 $effect(() => {
+  // Reading the active tenant makes the effect re-run (and refetch) on switch.
+  void getActiveTenantId()
   void loadAll()
 })
 
@@ -127,7 +144,16 @@ function togglePermission(key: string, checked: boolean): void {
   formPermissions = checked ? [...formPermissions, key] : formPermissions.filter((p) => p !== key)
 }
 
+// Save-time half of the escalation guard: a role being edited may already
+// contain permissions the actor lacks (loaded checked but disabled), and a
+// permission checked earlier in the session may have been revoked since.
+// Neither may reach the API — the disabled checkbox alone doesn't guarantee it.
+const escalatedPermissions = $derived(
+  formPermissions.filter((permission) => !ownPermissions.has(permission)),
+)
+
 async function handleSaveRole(): Promise<void> {
+  if (escalatedPermissions.length > 0) return
   saving = true
   try {
     if (formTarget) {
@@ -139,6 +165,8 @@ async function handleSaveRole(): Promise<void> {
     }
     formOpen = false
     await loadAll()
+  } catch {
+    showToast({ variant: 'error', title: COPY.genericError })
   } finally {
     saving = false
   }
@@ -161,13 +189,15 @@ async function handleConfirmDelete(): Promise<void> {
     deleteOpen = false
     showToast({ variant: 'success', title: COPY.roleDeleted })
     await loadAll()
+  } catch {
+    showToast({ variant: 'error', title: COPY.genericError })
   } finally {
     deleting = false
   }
 }
 </script>
 
-<Can permission="access.role.read">
+<Can permission="access.role.read" tenantId={getActiveTenantId()}>
   {#snippet children()}
     <Stack gap="6">
       <div class="sanvi-roles__header">
@@ -175,7 +205,7 @@ async function handleConfirmDelete(): Promise<void> {
           <h1>{COPY.title}</h1>
           <p>{COPY.description}</p>
         </div>
-        <Can permission="access.role.create">
+        <Can permission="access.role.create" tenantId={getActiveTenantId()}>
           {#snippet children()}
             <Button onclick={openCreate}>{COPY.newRole}</Button>
           {/snippet}
@@ -209,12 +239,12 @@ async function handleConfirmDelete(): Promise<void> {
                 <span class="sanvi-roles__name">{role.name}</span>
                 <Badge variant="neutral">{COPY.permissionCount(role.permissions.length)}</Badge>
                 <span class="sanvi-roles__actions">
-                  <Can permission="access.role.update">
+                  <Can permission="access.role.update" tenantId={getActiveTenantId()}>
                     {#snippet children()}
                       <Button variant="ghost" size="sm" onclick={() => openEdit(role)}>{COPY.edit}</Button>
                     {/snippet}
                   </Can>
-                  <Can permission="access.role.delete">
+                  <Can permission="access.role.delete" tenantId={getActiveTenantId()}>
                     {#snippet children()}
                       <Button variant="ghost" size="sm" onclick={() => startDelete(role)}>
                         {COPY.deleteAction}
@@ -254,6 +284,9 @@ async function handleConfirmDelete(): Promise<void> {
       </Field>
       <fieldset>
         <legend>{COPY.permissionsLabel}</legend>
+        {#if escalatedPermissions.length > 0}
+          <Alert variant="error">{COPY.escalationBlocked}</Alert>
+        {/if}
         <Stack gap="4">
           {#each groupedPermissions as [context, contextPermissions] (context)}
             <div>
@@ -266,7 +299,9 @@ async function handleConfirmDelete(): Promise<void> {
                     disabled={!allowed}
                     onchange={(event) => togglePermission(permission.key, event.currentTarget.checked)}
                   >
-                    {permission.description}
+                    {permission.description}{#if !allowed}
+                      <span class="sanvi-visually-hidden"> ({COPY.noPermissionTitle})</span>
+                    {/if}
                   </Checkbox>
                 </span>
               {/each}
@@ -278,7 +313,11 @@ async function handleConfirmDelete(): Promise<void> {
   {/snippet}
   {#snippet footer()}
     <Button variant="ghost" onclick={() => (formOpen = false)}>{COPY.cancel}</Button>
-    <Button disabled={!formName || (!formTarget && !formKey)} loading={saving} onclick={handleSaveRole}>
+    <Button
+      disabled={!formName || (!formTarget && !formKey) || escalatedPermissions.length > 0}
+      loading={saving}
+      onclick={handleSaveRole}
+    >
       {COPY.save}
     </Button>
   {/snippet}
@@ -332,5 +371,17 @@ async function handleConfirmDelete(): Promise<void> {
     font-weight: var(--sanvi-font-weight-semibold);
     text-transform: uppercase;
     color: var(--sanvi-color-text-secondary);
+  }
+
+  .sanvi-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 </style>

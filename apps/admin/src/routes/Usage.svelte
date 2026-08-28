@@ -1,6 +1,7 @@
 <script lang="ts">
 import { listTenantEntitlements } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
+import { getActiveTenantId } from '@sanvi/tenant'
 import { Alert, Badge, Container, EmptyState, Spinner, Stack, StatCard } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
 
@@ -25,19 +26,29 @@ let entitlements = $state<Entitlement[]>([])
 let loading = $state(true)
 let error = $state<string | undefined>(undefined)
 
+// Sequencing token — a tenant switch re-runs the load effect, and a slow
+// response for the previous tenant must never overwrite the new tenant's data.
+let loadSeq = 0
+
 async function load(): Promise<void> {
+  const seq = ++loadSeq
   loading = true
   error = undefined
   try {
-    entitlements = await listTenantEntitlements(apiClient)
+    const result = await listTenantEntitlements(apiClient)
+    if (seq !== loadSeq) return
+    entitlements = result
   } catch {
+    if (seq !== loadSeq) return
     error = COPY.genericError
   } finally {
-    loading = false
+    if (seq === loadSeq) loading = false
   }
 }
 
 $effect(() => {
+  // Reading the active tenant makes the effect re-run (and refetch) on switch.
+  void getActiveTenantId()
   void load()
 })
 

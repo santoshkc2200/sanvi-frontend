@@ -45,8 +45,32 @@ let {
 
 function formatValue(value: unknown): string {
   if (value === undefined || value === null) return '—'
-  if (typeof value === 'object') return JSON.stringify(value)
+  if (typeof value === 'object') return stableStringify(value)
   return String(value)
+}
+
+/**
+ * Key-order-independent stringify that also treats `null` and `undefined` as
+ * equal (both render as "—"): `JSON.stringify` alone flags reordered object
+ * keys and nullish pairs as changes that visually aren't.
+ */
+function stableStringify(value: unknown): string {
+  if (value === null || value === undefined) return 'null'
+  if (typeof value !== 'object') return JSON.stringify(value) ?? 'null'
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, member]) => member !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  return `{${entries.map(([key, member]) => `${JSON.stringify(key)}:${stableStringify(member)}`).join(',')}}`
+}
+
+/** Human-readable wall-clock time; the ISO string stays on the `datetime` attribute. */
+function formatTimestamp(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+    date,
+  )
 }
 
 let expandedIds = $state(new Set<string>())
@@ -74,7 +98,7 @@ function diffRows(
       key,
       before: formatValue(beforeValue),
       after: formatValue(afterValue),
-      changed: JSON.stringify(beforeValue) !== JSON.stringify(afterValue),
+      changed: stableStringify(beforeValue) !== stableStringify(afterValue),
     }
   })
 }
@@ -90,7 +114,7 @@ function diffRows(
       {#each entries as entry (entry.id)}
         <li class="sanvi-audit-trail__entry">
           <div class="sanvi-audit-trail__row">
-            <time class="sanvi-audit-trail__time" datetime={entry.occurredAt}>{entry.occurredAt}</time>
+            <time class="sanvi-audit-trail__time" datetime={entry.occurredAt}>{formatTimestamp(entry.occurredAt)}</time>
             <span class="sanvi-audit-trail__actor">{entry.actorLabel}</span>
             <span class="sanvi-audit-trail__action">{entry.action}</span>
             {#if entry.resourceLabel}

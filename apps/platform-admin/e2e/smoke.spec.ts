@@ -1,4 +1,11 @@
 import { expect, test } from '@playwright/test'
+import { mockBackend } from './mock-backend'
+
+test.beforeEach(async ({ page }) => {
+  // No backend runs alongside `pnpm preview` — the console must boot and
+  // render against these answers alone (see mock-backend.ts).
+  mockBackend(page)
+})
 
 test('app boots and renders with no console errors', async ({ page }) => {
   const consoleErrors: string[] = []

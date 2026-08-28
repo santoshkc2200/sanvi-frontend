@@ -16,6 +16,7 @@ import {
 import type { components } from '@sanvi/api-client'
 import { handleLinkClick } from '@sanvi/spa-router'
 import {
+  Alert,
   AuditTrail,
   type AuditEntryRow,
   Badge,
@@ -95,6 +96,7 @@ const COPY = {
   enabledLabel: 'Enabled',
   limitLabel: 'Limit',
   limitPlaceholder: 'Unlimited',
+  limitInvalid: 'The limit must be a non-negative whole number.',
   expiresAtLabel: 'Expires at',
   reasonLabel: 'Reason',
   reasonPlaceholder: 'Why is this override being granted?',
@@ -122,6 +124,7 @@ const COPY = {
   suspendTitle: 'Suspend tenant',
   suspendConsequence:
     'Every request to this tenant will be rejected with a 423 until it is resumed. Members will not be able to sign in to it.',
+  suspendReasonPlaceholder: 'Select a reason',
   suspended: 'Tenant suspended.',
   suspendError: 'Could not suspend this tenant.',
   resume: 'Resume',
@@ -160,12 +163,20 @@ const SOURCE_LABEL: Record<EntitlementSource, string> = {
   feature_default: 'Default',
 }
 
+let loadedTenantId = $state<string | undefined>(undefined)
 let tenant = $state<TenantView | undefined>(undefined)
 let adminView = $state<TenantAdminView | undefined>(undefined)
 let loading = $state(true)
 let loadError = $state<string | undefined>(undefined)
 
+// Sequencing token — navigating from one tenant's detail page to another
+// keeps this component instance mounted (`{#key}` only reacts to component
+// identity), so both the reload and stale in-flight responses must be tied
+// to the current `id`.
+let loadSeq = 0
+
 async function loadTenant(): Promise<void> {
+  const seq = ++loadSeq
   loading = true
   loadError = undefined
   try {
@@ -173,17 +184,32 @@ async function loadTenant(): Promise<void> {
       getTenant(apiClient, id),
       getTenantAdminView(apiClient, id),
     ])
+    if (seq !== loadSeq) return
     tenant = tenantResult
     adminView = adminResult
   } catch {
+    if (seq !== loadSeq) return
     loadError = COPY.loadError
   } finally {
-    loading = false
+    if (seq === loadSeq) loading = false
   }
 }
 
 $effect(() => {
-  void id
+  // Navigating here from another tenant's detail page reuses this component
+  // instance — every per-tenant cache below must reset, or tenant A's
+  // entitlements and audit entries would render under tenant B.
+  if (loadedTenantId !== id) {
+    loadedTenantId = id
+    entitlementsLoaded = false
+    features = []
+    overrides = []
+    auditLoaded = false
+    auditEntries = []
+    auditCursor = undefined
+    auditHasMore = false
+    activeTab = 'overview'
+  }
   void loadTenant()
 })
 
@@ -225,8 +251,10 @@ let overrides = $state<OverrideView[]>([])
 let entitlementsLoaded = $state(false)
 let entitlementsLoading = $state(false)
 let entitlementsError = $state<string | undefined>(undefined)
+let entitlementsSeq = 0
 
 async function loadEntitlements(): Promise<void> {
+  const seq = ++entitlementsSeq
   entitlementsLoading = true
   entitlementsError = undefined
   try {
@@ -234,13 +262,15 @@ async function loadEntitlements(): Promise<void> {
       listFeatures(apiClient),
       listEntitlementOverrides(apiClient, id),
     ])
+    if (seq !== entitlementsSeq) return
     features = featureList
     overrides = overrideList
     entitlementsLoaded = true
   } catch {
+    if (seq !== entitlementsSeq) return
     entitlementsError = COPY.entitlementsError
   } finally {
-    entitlementsLoading = false
+    if (seq === entitlementsSeq) entitlementsLoading = false
   }
 }
 
@@ -288,8 +318,20 @@ function openGrant(row: EntitlementRow): void {
   grantOpen = true
 }
 
+// `Number("1,000")`/`Number("abc")` are NaN, and JSON.stringify turns NaN
+// into null — i.e. a typo would silently store "unlimited quota". Reject
+// anything that isn't a non-negative integer before it reaches the API.
+const grantLimitInvalid = $derived(
+  grantLimit.trim() !== '' &&
+    (!/^\d+$/.test(grantLimit.trim()) || !Number.isSafeInteger(Number(grantLimit))),
+)
+
+// Plan security requirement: reason fields are required — a grant without
+// a captured "why" must not be submittable.
+const grantReasonValid = $derived(grantReason.trim().length > 0)
+
 async function submitGrant(): Promise<void> {
-  if (!grantTarget) return
+  if (!grantTarget || grantLimitInvalid || !grantReasonValid) return
   grantSubmitting = true
   try {
     const result = await grantEntitlementOverride(apiClient, id, {
@@ -359,6 +401,7 @@ let auditHasMore = $state(false)
 let auditLoaded = $state(false)
 let auditLoading = $state(false)
 let auditError = $state<string | undefined>(undefined)
+let auditSeq = 0
 
 function toAuditRow(entry: components['schemas']['AuditEntry']): AuditEntryRow {
   return {
@@ -375,6 +418,7 @@ function toAuditRow(entry: components['schemas']['AuditEntry']): AuditEntryRow {
 }
 
 async function loadAudit(append: boolean): Promise<void> {
+  const seq = ++auditSeq
   auditLoading = true
   auditError = undefined
   try {
@@ -383,6 +427,7 @@ async function loadAudit(append: boolean): Promise<void> {
       limit: 25,
       after: append ? auditCursor : undefined,
     })
+    if (seq !== auditSeq) return
     auditEntries = append
       ? [...auditEntries, ...page.entries.map(toAuditRow)]
       : page.entries.map(toAuditRow)
@@ -390,9 +435,10 @@ async function loadAudit(append: boolean): Promise<void> {
     auditHasMore = page.next_cursor != null
     auditLoaded = true
   } catch {
+    if (seq !== auditSeq) return
     auditError = COPY.auditError
   } finally {
-    auditLoading = false
+    if (seq === auditSeq) auditLoading = false
   }
 }
 
@@ -402,12 +448,40 @@ $effect(() => {
 
 // --- Lifecycle ----------------------------------------------------------
 
+// The backend validates the suspend reason against this exact vocabulary
+// (400 on anything else) — the dialog must offer the enum, not free text.
+const SUSPENSION_REASON_OPTIONS = [
+  { value: 'billing', label: 'Billing' },
+  { value: 'abuse', label: 'Abuse' },
+  { value: 'legal', label: 'Legal' },
+  { value: 'operational', label: 'Operational' },
+]
+
 let activateOpen = $state(false)
 let resumeOpen = $state(false)
 let suspendOpen = $state(false)
 let archiveOpen = $state(false)
 let lifecycleSubmitting = $state(false)
 let lifecycleError = $state<string | undefined>(undefined)
+
+// One shared error state backs all four dialogs — clear it when a dialog
+// opens so a failed action's message can't leak into a different dialog.
+function openActivate(): void {
+  lifecycleError = undefined
+  activateOpen = true
+}
+function openResume(): void {
+  lifecycleError = undefined
+  resumeOpen = true
+}
+function openSuspend(): void {
+  lifecycleError = undefined
+  suspendOpen = true
+}
+function openArchive(): void {
+  lifecycleError = undefined
+  archiveOpen = true
+}
 
 async function runLifecycle(
   action: () => Promise<unknown>,
@@ -578,15 +652,15 @@ async function confirmArchive(): Promise<void> {
           {:else}
             <Stack gap="2" align="start">
               {#if tenant.status === 'provisioning'}
-                <Button variant="secondary" onclick={() => (activateOpen = true)}>{COPY.activate}</Button>
+                <Button variant="secondary" onclick={openActivate}>{COPY.activate}</Button>
               {/if}
               {#if tenant.status === 'suspended'}
-                <Button variant="secondary" onclick={() => (resumeOpen = true)}>{COPY.resume}</Button>
+                <Button variant="secondary" onclick={openResume}>{COPY.resume}</Button>
               {/if}
               {#if tenant.status === 'active'}
-                <Button variant="danger" onclick={() => (suspendOpen = true)}>{COPY.suspend}</Button>
+                <Button variant="danger" onclick={openSuspend}>{COPY.suspend}</Button>
               {/if}
-              <Button variant="danger" onclick={() => (archiveOpen = true)}>{COPY.archive}</Button>
+              <Button variant="danger" onclick={openArchive}>{COPY.archive}</Button>
             </Stack>
           {/if}
         </Stack>
@@ -620,6 +694,9 @@ async function confirmArchive(): Promise<void> {
   bind:open={suspendOpen}
   titleText={COPY.suspendTitle}
   consequence={COPY.suspendConsequence}
+  reasonLabel={COPY.reasonLabel}
+  reasonPlaceholder={COPY.suspendReasonPlaceholder}
+  reasonOptions={SUSPENSION_REASON_OPTIONS}
   submitting={lifecycleSubmitting}
   errorMessage={lifecycleError}
   onConfirm={confirmSuspend}
@@ -650,22 +727,38 @@ async function confirmArchive(): Promise<void> {
             <Input {id} type="text" bind:value={grantLimit} placeholder={COPY.limitPlaceholder} />
           {/snippet}
         </Field>
+        {#if grantLimitInvalid}
+          <Alert variant="error">{COPY.limitInvalid}</Alert>
+        {/if}
       {/if}
       <Field label={COPY.expiresAtLabel}>
         {#snippet children({ id })}
-          <input id={id} type="date" bind:value={grantExpiresAt} class="sanvi-tenant-detail__date-input" />
+          <input
+            id={id}
+            type="date"
+            min={new Date().toISOString().slice(0, 10)}
+            bind:value={grantExpiresAt}
+            class="sanvi-tenant-detail__date-input"
+          />
         {/snippet}
       </Field>
-      <Field label={COPY.reasonLabel}>
+      <Field label={COPY.reasonLabel} required>
         {#snippet children({ id })}
-          <Textarea {id} bind:value={grantReason} placeholder={COPY.reasonPlaceholder} />
+          <Textarea {id} bind:value={grantReason} placeholder={COPY.reasonPlaceholder} required />
         {/snippet}
       </Field>
     </Stack>
   {/snippet}
   {#snippet footer()}
     <Button variant="ghost" onclick={() => (grantOpen = false)}>{COPY.cancel}</Button>
-    <Button variant="primary" loading={grantSubmitting} onclick={submitGrant}>{COPY.save}</Button>
+    <Button
+      variant="primary"
+      loading={grantSubmitting}
+      disabled={grantLimitInvalid || !grantReasonValid}
+      onclick={submitGrant}
+    >
+      {COPY.save}
+    </Button>
   {/snippet}
 </Dialog>
 

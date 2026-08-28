@@ -16,6 +16,8 @@ interface Props<F extends Record<string, string | undefined>> {
   onChange: (next: Partial<F>) => void
   onClear?: () => void
   clearLabel?: string
+  /** Placeholder/clear option shown for select fields without their own — the value that means "no filter". */
+  anyOptionLabel?: string
   savedViews?: SavedView<F>[]
   onSaveView?: (label: string) => void
   onApplyView?: (id: string) => void
@@ -33,6 +35,7 @@ let {
   onChange,
   onClear,
   clearLabel = 'Clear filters',
+  anyOptionLabel = 'Any',
   savedViews = [],
   onSaveView,
   onApplyView,
@@ -83,7 +86,8 @@ function handleSaveView(): void {
           <Select
             value={values[field.key] ?? ''}
             options={field.options}
-            placeholder={field.placeholder}
+            placeholder={field.placeholder ?? anyOptionLabel}
+            clearable
             onchange={(event) => handleSelectChange(field.key, event.currentTarget.value)}
           />
         </label>

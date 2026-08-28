@@ -6,6 +6,7 @@ import Checkbox from './Checkbox.svelte'
 import Dialog from './Dialog.svelte'
 import Cluster from './layout/Cluster.svelte'
 import Spinner from './Spinner.svelte'
+import { csvDocument, downloadCsv as downloadCsvFile } from './csv'
 import type { DataTableBulkActionArgs, TableColumn } from './table-types'
 
 interface Props {
@@ -38,6 +39,8 @@ interface Props {
   columnsDoneLabel?: string
   selectAllLabel?: string
   selectRowLabel?: string
+  /** Announced to screen readers when the selection changes — e.g. `(count) => `${count} rows selected``. */
+  bulkSelectionLabel?: (count: number) => string
   csvExport?: boolean
   csvFileName?: string
   exportCsvLabel?: string
@@ -74,17 +77,38 @@ let {
   columnsDoneLabel = 'Done',
   selectAllLabel = 'Select all rows on this page',
   selectRowLabel = 'Select row',
+  bulkSelectionLabel = (count) => `${count} row${count === 1 ? '' : 's'} selected`,
   csvExport = false,
   csvFileName = 'export.csv',
   exportCsvLabel = 'Export CSV',
   class: className = '',
 }: Props = $props()
 
-function readStoredVisibleKeys(): string[] | undefined {
+/** Persisted visibility state: `known` records every column that existed at last persist, so a column added later can be told apart from one the user deliberately hid. */
+interface StoredColumnState {
+  known: string[]
+  visible: string[]
+}
+
+function readStoredColumnState(): StoredColumnState | undefined {
   if (!columnVisibilityStorageKey || typeof localStorage === 'undefined') return undefined
   try {
     const raw = localStorage.getItem(columnVisibilityStorageKey)
-    return raw ? (JSON.parse(raw) as string[]) : undefined
+    if (!raw) return undefined
+    const parsed: unknown = JSON.parse(raw)
+    // Legacy entry (a bare array of visible keys) carries no record of which
+    // columns existed — treating exactly those as known means columns added
+    // after it was written default to visible instead of hiding forever.
+    if (Array.isArray(parsed)) return { known: parsed, visible: parsed }
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      Array.isArray((parsed as StoredColumnState).known) &&
+      Array.isArray((parsed as StoredColumnState).visible)
+    ) {
+      return parsed as StoredColumnState
+    }
+    return undefined
   } catch {
     return undefined
   }
@@ -93,15 +117,38 @@ function readStoredVisibleKeys(): string[] | undefined {
 // `columns` is a static per-screen config — only the initial value seeds
 // visibility state, so the reactivity linter's "referenced locally" warning
 // for this line is expected.
-let visibleKeys = $state(untrack(() => readStoredVisibleKeys() ?? columns.map((c) => c.key)))
+let visibleKeys = $state(untrack(() => initialVisibleKeys()))
 let columnsDialogOpen = $state(false)
+
+function initialVisibleKeys(): string[] {
+  const stored = readStoredColumnState()
+  if (!stored) return columns.map((c) => c.key)
+  const knownSet = new Set(stored.known)
+  const visibleSet = new Set(stored.visible)
+  const resolved: string[] = []
+  for (const column of columns) {
+    // A column the stored state never knew is one added since — it shows up
+    // by default. An `alwaysVisible` column shows up no matter what (the
+    // dialog offers no way back for it).
+    if (column.alwaysVisible || !knownSet.has(column.key) || visibleSet.has(column.key)) {
+      resolved.push(column.key)
+    }
+  }
+  return resolved
+}
 
 const visibleColumns = $derived(columns.filter((c) => visibleKeys.includes(c.key)))
 
 function persistVisibleKeys(next: string[]): void {
   visibleKeys = next
   if (!columnVisibilityStorageKey || typeof localStorage === 'undefined') return
-  localStorage.setItem(columnVisibilityStorageKey, JSON.stringify(next))
+  localStorage.setItem(
+    columnVisibilityStorageKey,
+    JSON.stringify({
+      known: columns.map((c) => c.key),
+      visible: next,
+    } satisfies StoredColumnState),
+  )
 }
 
 function toggleColumn(key: string, visible: boolean): void {
@@ -140,36 +187,32 @@ function handleSort(key: string): void {
   onSortChange?.(key, nextDirection)
 }
 
-function csvCell(value: unknown): string {
-  const text = value === null || value === undefined ? '' : String(value)
-  return `"${text.replace(/"/g, '""')}"`
-}
-
 function downloadCsv(): void {
   const exportColumns = columns.filter((c) => !c.cell)
-  const header = exportColumns.map((c) => csvCell(c.header)).join(',')
-  const lines = rows.map((row) => exportColumns.map((c) => csvCell(row[c.key])).join(','))
-  const csv = [header, ...lines].join('\r\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = csvFileName
-  link.click()
-  URL.revokeObjectURL(url)
+  downloadCsvFile(
+    csvDocument([
+      exportColumns.map((c) => c.header),
+      ...rows.map((row) => exportColumns.map((c) => row[c.key])),
+    ]),
+    csvFileName,
+  )
 }
 
 const colSpan = $derived(visibleColumns.length + (selectable ? 1 : 0))
 </script>
 
 <div class="sanvi-data-table {className}">
-  {#if (selectable && selectedIds.length > 0 && bulkActions) || columnVisibilityStorageKey || csvExport}
+  {#if (selectable && selectedIds.length > 0) || columnVisibilityStorageKey || csvExport}
     <Cluster justify="space-between" gap="3">
       <div>
-        {#if selectable && selectedIds.length > 0 && bulkActions}
-          <div role="toolbar">
-            {@render bulkActions({ selectedIds, clearSelection })}
-          </div>
+        {#if selectable && selectedIds.length > 0}
+          {#if bulkActions}
+            <div role="toolbar">
+              {@render bulkActions({ selectedIds, clearSelection })}
+            </div>
+          {/if}
+          <!-- Screen-reader announcement for bulk-selection changes — the plan's a11y requirement for bulk actions. -->
+          <span class="sanvi-visually-hidden" role="status">{bulkSelectionLabel(selectedIds.length)}</span>
         {/if}
       </div>
       <Cluster gap="2">

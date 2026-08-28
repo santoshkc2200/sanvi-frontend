@@ -99,7 +99,12 @@ let nextCursor = $state<Cursor | null | undefined>(undefined)
 let loading = $state(true)
 let error = $state<string | undefined>(undefined)
 
+// Sequencing token: every filter keystroke re-runs the load effect, and a
+// slow response for an earlier query must never overwrite a later one.
+let loadSeq = 0
+
 async function load(): Promise<void> {
+  const seq = ++loadSeq
   loading = true
   error = undefined
   const cursor = decodeCursor(listState.cursor)
@@ -111,12 +116,14 @@ async function load(): Promise<void> {
       after_id: cursor?.tenant_id,
       limit: 25,
     })
+    if (seq !== loadSeq) return
     rows = page.tenants
     nextCursor = page.next_cursor
   } catch {
+    if (seq !== loadSeq) return
     error = COPY.errorMessage
   } finally {
-    loading = false
+    if (seq === loadSeq) loading = false
   }
 }
 

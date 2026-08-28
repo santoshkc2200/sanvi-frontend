@@ -9,6 +9,13 @@ interface Props {
   value?: string
   options: SelectOption[]
   placeholder?: string
+  /**
+   * The placeholder option can be re-selected to clear the value (a filter's
+   * "Any status"). Without this the placeholder is disabled — right for form
+   * selects where an empty submission is never valid, wrong for filters that
+   * must be clearable per field.
+   */
+  clearable?: boolean
   disabled?: boolean
   required?: boolean
   id?: string
@@ -23,6 +30,7 @@ let {
   value = $bindable(''),
   options,
   placeholder,
+  clearable = false,
   disabled = false,
   required = false,
   id,
@@ -47,7 +55,7 @@ let {
   {onchange}
 >
   {#if placeholder}
-    <option value="" disabled selected={value === ''}>{placeholder}</option>
+    <option value="" disabled={!clearable}>{placeholder}</option>
   {/if}
   {#each options as option (option.value)}
     <option value={option.value} disabled={option.disabled}>{option.label}</option>

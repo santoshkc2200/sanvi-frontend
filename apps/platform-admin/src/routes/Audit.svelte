@@ -7,6 +7,8 @@ import {
   Badge,
   Button,
   createListQueryState,
+  csvDocument,
+  downloadCsv,
   FilterBar,
 } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
@@ -44,7 +46,12 @@ let nextCursor = $state<number | null | undefined>(undefined)
 let loading = $state(true)
 let error = $state<string | undefined>(undefined)
 
+// Sequencing token: every filter keystroke re-runs the load effect, and a
+// slow response for an earlier query must never overwrite a later one.
+let loadSeq = 0
+
 async function load(): Promise<void> {
+  const seq = ++loadSeq
   loading = true
   error = undefined
   try {
@@ -55,12 +62,14 @@ async function load(): Promise<void> {
       after: listState.cursor ? Number(listState.cursor) : undefined,
       limit: 50,
     })
+    if (seq !== loadSeq) return
     entries = page.entries
     nextCursor = page.next_cursor
   } catch {
+    if (seq !== loadSeq) return
     error = COPY.errorMessage
   } finally {
-    loading = false
+    if (seq === loadSeq) loading = false
   }
 }
 
@@ -85,42 +94,30 @@ const rows: AuditEntryRow[] = $derived(
   })),
 )
 
-function csvEscape(value: unknown): string {
-  const text = String(value ?? '')
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
-}
-
 function exportCsv(): void {
-  const header = [
-    'occurred_at',
-    'actor_type',
-    'actor_id',
-    'action',
-    'resource_type',
-    'resource_id',
-    'tenant_id',
-  ]
-  const lines = entries.map((entry) =>
-    [
-      entry.occurred_at,
-      entry.actor_type,
-      entry.actor_id,
-      entry.action,
-      entry.resource_type,
-      entry.resource_id,
-      entry.tenant_id,
-    ]
-      .map(csvEscape)
-      .join(','),
+  downloadCsv(
+    csvDocument([
+      [
+        'occurred_at',
+        'actor_type',
+        'actor_id',
+        'action',
+        'resource_type',
+        'resource_id',
+        'tenant_id',
+      ],
+      ...entries.map((entry) => [
+        entry.occurred_at,
+        entry.actor_type,
+        entry.actor_id,
+        entry.action,
+        entry.resource_type,
+        entry.resource_id,
+        entry.tenant_id,
+      ]),
+    ]),
+    'audit.csv',
   )
-  const csv = [header.join(','), ...lines].join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'audit.csv'
-  link.click()
-  URL.revokeObjectURL(url)
 }
 </script>
 

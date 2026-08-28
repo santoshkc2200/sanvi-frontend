@@ -72,6 +72,19 @@ export interface RequestOptions {
   retries?: number
 }
 
+/**
+ * Ambient per-call values captured once when a coalescable GET is initiated —
+ * the coalescing key is built from them and `doFetch` sends them verbatim, so
+ * a tenant/token/locale switch mid-flight can't leak one caller's response
+ * (or headers) to another.
+ */
+interface ResolvedContext {
+  token: string | undefined
+  tenantId: string | undefined
+  localeHeader: string | undefined
+  extraHeaders: Record<string, string> | undefined
+}
+
 export interface RawResponse<T> {
   status: number
   body: T | undefined
@@ -161,8 +174,12 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     onUnauthorized,
   } = config
 
-  /** One `fetch` attempt: builds the URL/headers, applies the timeout, and throws {@link NetworkError}/{@link TimeoutError} on a transport failure. No status handling — callers decide what a non-2xx response means. */
-  async function doFetch(path: string, options: RequestOptions): Promise<Response> {
+  /** One `fetch` attempt: builds the URL/headers, applies the timeout, and throws {@link NetworkError}/{@link TimeoutError} on a transport failure. No status handling — callers decide what a non-2xx response means. When {@link ResolvedContext} is passed (the coalescing path), its captured values are sent verbatim; otherwise the ambient getters are read here. */
+  async function doFetch(
+    path: string,
+    options: RequestOptions,
+    context?: ResolvedContext,
+  ): Promise<Response> {
     const {
       method = 'GET',
       body,
@@ -175,13 +192,14 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
 
     const url = buildUrl(baseUrl, path, query)
     const requestId = crypto.randomUUID()
-    const token = await getAuthToken?.()
-    const tenantId = getTenantId?.()
+    const token = context ? context.token : await getAuthToken?.()
+    const tenantId = context ? context.tenantId : getTenantId?.()
+    const extraHeaders = context ? context.extraHeaders : getExtraHeaders?.()
 
     const requestHeaders: Record<string, string> = {
       accept: 'application/json',
       'x-request-id': requestId,
-      ...getExtraHeaders?.(),
+      ...extraHeaders,
       ...headers,
     }
     if (body !== undefined) requestHeaders['content-type'] = 'application/json'
@@ -189,7 +207,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     if (tenantId) requestHeaders['x-tenant-id'] = tenantId
     if (idempotencyKey) requestHeaders['idempotency-key'] = idempotencyKey
 
-    const localeHeader = locale?.()
+    const localeHeader = context ? context.localeHeader : locale?.()
     if (localeHeader) requestHeaders['accept-language'] = localeHeader
 
     const timeoutController = new AbortController()
@@ -217,7 +235,11 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     }
   }
 
-  async function requestWithRetries<T>(path: string, options: RequestOptions): Promise<T> {
+  async function requestWithRetries<T>(
+    path: string,
+    options: RequestOptions,
+    context?: ResolvedContext,
+  ): Promise<T> {
     const method = options.method ?? 'GET'
     // Non-idempotent methods never retry, whatever the caller asked for.
     const retries = IDEMPOTENT_METHODS.has(method) ? (options.retries ?? defaultRetries) : 0
@@ -228,7 +250,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       if (attempt > 0) await sleep(retryDelay(attempt - 1, retryBaseDelayMs))
 
       try {
-        const response = await doFetch(path, options)
+        const response = await doFetch(path, options, context)
 
         if (!response.ok) {
           const apiError = await apiErrorFromResponse(response)
@@ -275,17 +297,37 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
    */
   const inFlightGets = new Map<string, Promise<unknown>>()
 
-  function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
     const method = options.method ?? 'GET'
     const canShare =
       method === 'GET' && options.signal === undefined && options.headers === undefined
     if (!canShare) return requestWithRetries<T>(path, options)
 
-    const key = buildUrl(baseUrl, path, options.query)
+    // Two GETs may share a response only when everything that shapes it
+    // matches — not just the URL. Without the captured context in the key, a
+    // request still in flight for tenant A would be handed to a caller that
+    // just switched to tenant B. The context is captured at call time,
+    // before any await — a switch in the same tick as the call must not be
+    // missed — and also sent verbatim, so the request's *headers* can't
+    // silently disagree with its key either.
+    const tokenOrPromise = getAuthToken?.()
+    const context: ResolvedContext = {
+      tenantId: getTenantId?.(),
+      localeHeader: locale?.(),
+      extraHeaders: getExtraHeaders?.(),
+      token: await tokenOrPromise,
+    }
+    const key = [
+      context.token ?? '',
+      context.tenantId ?? '',
+      context.localeHeader ?? '',
+      JSON.stringify(context.extraHeaders ?? {}),
+      buildUrl(baseUrl, path, options.query),
+    ].join('|')
     const pending = inFlightGets.get(key)
     if (pending) return pending as Promise<T>
 
-    const promise = requestWithRetries<T>(path, options).finally(() => {
+    const promise = requestWithRetries<T>(path, options, context).finally(() => {
       if (inFlightGets.get(key) === promise) inFlightGets.delete(key)
     })
     inFlightGets.set(key, promise)

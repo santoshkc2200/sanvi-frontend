@@ -35,7 +35,15 @@ function writeSearchParams(params: URLSearchParams): void {
   if (typeof window === 'undefined') return
   const search = params.toString()
   const next = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`
-  window.history.replaceState(window.history.state, '', next)
+  // Safari rate-limits replaceState (~100 calls / 30 s) and *throws* once the
+  // budget is spent — a fast-typing filter user must not crash the page. The
+  // URL may fall out of sync until the next change; the table state stays
+  // correct either way.
+  try {
+    window.history.replaceState(window.history.state, '', next)
+  } catch {
+    // URL stays stale until the next successful sync.
+  }
 }
 
 function readSavedViews<F>(storageKey: string): SavedView<F>[] {
@@ -100,14 +108,27 @@ export class ListQueryState<F extends Record<string, string | undefined>> {
   }
 
   #sync(): void {
+    const current = readSearchParams()
     const params = new URLSearchParams()
+    // Preserve query params this state doesn't manage (utm codes, debug
+    // flags, params owned by other screens) — syncing the table must not
+    // silently strip parts of a shared URL.
+    const managed = new Set([...Object.keys(this.filters), 'sort', 'dir', 'after'])
+    for (const [key, value] of current) {
+      if (!managed.has(key)) params.append(key, value)
+    }
     for (const [key, value] of Object.entries(this.filters)) {
       if (value !== undefined && value !== '' && value !== this.#defaultFilters[key]) {
         params.set(key, String(value))
       }
     }
-    if (this.sortKey) params.set('sort', this.sortKey)
-    if (this.sortDirection !== 'asc') params.set('dir', this.sortDirection)
+    if (this.sortKey) {
+      params.set('sort', this.sortKey)
+      // Always emit `dir` alongside `sort`: omitting it would decode an
+      // explicit `asc` as the screen's default (possibly `desc`) when the
+      // URL is reopened, breaking the restore-exactly contract.
+      params.set('dir', this.sortDirection)
+    }
     if (this.cursor) params.set('after', this.cursor)
     writeSearchParams(params)
   }

@@ -55,12 +55,17 @@ const routes: RouteDefinition[] = [
   },
   {
     path: 'members',
-    guard: (params) => requirePermission(router, 'identity.member.read')(params),
+    // The tenant id must be read when the guard *runs*, not when the route
+    // array is built — a multi-membership operator switching tenants must
+    // be checked against the active tenant's permissions, not the first
+    // membership in the session.
+    guard: (params) =>
+      requirePermission(router, 'identity.member.read', getActiveTenantId())(params),
     load: () => import('./routes/Members.svelte'),
   },
   {
     path: 'roles',
-    guard: (params) => requirePermission(router, 'access.role.read')(params),
+    guard: (params) => requirePermission(router, 'access.role.read', getActiveTenantId())(params),
     load: () => import('./routes/Roles.svelte'),
   },
   {
@@ -70,7 +75,7 @@ const routes: RouteDefinition[] = [
   },
   {
     path: 'payments',
-    guard: (params) => requirePermission(router, 'payments.read')(params),
+    guard: (params) => requirePermission(router, 'payments.read', getActiveTenantId())(params),
     load: () => import('./routes/PaymentsSettings.svelte'),
   },
   { path: 'login', load: () => import('./routes/Login.svelte') },
@@ -112,13 +117,20 @@ onSessionChange(syncMemberships)
 // shipped with before phase 03. Re-synced on every tenant switch, same as
 // the cache clear above — a feature gate must never read the previous
 // tenant's entitlements while the switcher shows the new one.
+let entitlementsSyncSeq = 0
 async function syncEntitlements(): Promise<void> {
+  const seq = ++entitlementsSyncSeq
+  // Fail closed while refetching: between the switch and the response, the
+  // previous tenant's grants must not answer `hasFeature` for the new one.
+  setEntitlements([])
   try {
     const entitlements = await listTenantEntitlements(apiClient)
+    if (seq !== entitlementsSyncSeq) return // a newer switch/boot superseded this response
     setEntitlements(entitlements.map((e) => ({ feature: e.feature, enabled: e.enabled })))
   } catch {
-    // No session yet, or the feature-gate route itself is disabled for this
-    // tenant — either way `hasFeature` already reads safe: unavailable.
+    // No session yet, or the fetch failed (network, 403, feature-gate route
+    // disabled) — either way the store stays empty: unavailable, never the
+    // previous tenant's grants.
   }
 }
 void syncEntitlements()

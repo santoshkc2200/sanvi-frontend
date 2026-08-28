@@ -1,5 +1,6 @@
 <script lang="ts">
 import { ApiError, listPaymentProviders } from '@sanvi/api-client'
+import { getActiveTenantId } from '@sanvi/tenant'
 import { Alert, Container, EmptyState, Spinner, Stack } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
 
@@ -23,7 +24,12 @@ let loading = $state(true)
 let entitled = $state(true)
 let error = $state<string | undefined>(undefined)
 
+// Sequencing token — a tenant switch re-runs the load effect, and a slow
+// response for the previous tenant must never overwrite the new tenant's data.
+let loadSeq = 0
+
 async function load(): Promise<void> {
+  const seq = ++loadSeq
   loading = true
   error = undefined
   entitled = true
@@ -34,17 +40,20 @@ async function load(): Promise<void> {
     // backend tells us to render the upgrade prompt instead of an error —
     // a 404 means the `payments.enabled` phase flag itself is off, which
     // reads the same way to a tenant admin: not available yet.
+    if (seq !== loadSeq) return
     if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
       entitled = false
     } else {
       error = COPY.genericError
     }
   } finally {
-    loading = false
+    if (seq === loadSeq) loading = false
   }
 }
 
 $effect(() => {
+  // Reading the active tenant makes the effect re-run (and refetch) on switch.
+  void getActiveTenantId()
   void load()
 })
 </script>

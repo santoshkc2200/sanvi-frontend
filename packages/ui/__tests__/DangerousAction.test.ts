@@ -60,6 +60,32 @@ describe('DangerousAction', () => {
     expect(onConfirm).toHaveBeenCalledWith('billing dispute pending')
   })
 
+  it('requires picking one of the machine-readable reasons when reasonOptions is set', async () => {
+    const onConfirm = vi.fn()
+    render(DangerousAction, {
+      props: {
+        ...baseProps(),
+        onConfirm,
+        reasonOptions: [
+          { value: 'billing', label: 'Billing' },
+          { value: 'abuse', label: 'Abuse' },
+        ],
+      },
+    })
+
+    const confirm = screen.getByRole('button', { name: 'Confirm' })
+    expect(confirm).toBeDisabled()
+    // Vocabulary mode offers a select, not a free-text reason — there is no
+    // way to talk the confirm button into enabling itself.
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+
+    await fireEvent.change(screen.getByRole('combobox'), { target: { value: 'billing' } })
+    expect(confirm).toBeEnabled()
+
+    await fireEvent.click(confirm)
+    expect(onConfirm).toHaveBeenCalledWith('billing')
+  })
+
   it('has no accessibility violations', async () => {
     const { container } = render(DangerousAction, {
       props: { ...baseProps(), confirmationPhrase: 'acme' },

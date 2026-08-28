@@ -6,6 +6,7 @@ import Field from './Field.svelte'
 import Input from './Input.svelte'
 import Stack from './layout/Stack.svelte'
 import Textarea from './Textarea.svelte'
+import Select, { type SelectOption } from './Select.svelte'
 
 interface Props {
   open?: boolean
@@ -18,6 +19,13 @@ interface Props {
   reasonLabel?: string
   reasonPlaceholder?: string
   minReasonLength?: number
+  /**
+   * When set, the reason is chosen from this machine-readable vocabulary
+   * (e.g. a backend that validates `billing | abuse | legal | operational`)
+   * instead of free text — the confirm button stays disabled until one is
+   * picked, and `onConfirm` receives the option's `value`.
+   */
+  reasonOptions?: SelectOption[]
   confirmLabel?: string
   cancelLabel?: string
   variant?: 'danger' | 'warning'
@@ -36,6 +44,7 @@ let {
   reasonLabel = 'Reason',
   reasonPlaceholder,
   minReasonLength = 10,
+  reasonOptions,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   variant = 'danger',
@@ -49,7 +58,10 @@ let reason = $state('')
 let typedConfirmation = $state('')
 
 const phraseMatches = $derived(!confirmationPhrase || typedConfirmation === confirmationPhrase)
-const canConfirm = $derived(reason.trim().length >= minReasonLength && phraseMatches && !submitting)
+const reasonValid = $derived(
+  reasonOptions ? reason !== '' : reason.trim().length >= minReasonLength,
+)
+const canConfirm = $derived(reasonValid && phraseMatches && !submitting)
 
 function handleCancel(): void {
   open = false
@@ -76,11 +88,26 @@ $effect(() => {
       {#if errorMessage}
         <Alert variant="error">{errorMessage}</Alert>
       {/if}
-      <Field label={reasonLabel} required>
-        {#snippet children({ id })}
+      {#if reasonOptions}
+        <Field label={reasonLabel} required>
+          {#snippet children({ id })}
+            <Select
+              {id}
+              bind:value={reason}
+              options={reasonOptions}
+              placeholder={reasonPlaceholder}
+              clearable
+              required
+            />
+          {/snippet}
+        </Field>
+      {:else}
+        <Field label={reasonLabel} required>
+          {#snippet children({ id })}
           <Textarea {id} bind:value={reason} placeholder={reasonPlaceholder} required />
-        {/snippet}
-      </Field>
+          {/snippet}
+        </Field>
+      {/if}
       {#if confirmationPhrase}
         <Field label="{confirmationLabel}: “{confirmationPhrase}”" required>
           {#snippet children({ id })}

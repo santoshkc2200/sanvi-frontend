@@ -81,6 +81,50 @@ describe('ListQueryState', () => {
     expect(window.location.search).toContain('dir=desc')
   })
 
+  it('restores an explicit asc sort on a screen whose default direction is desc', () => {
+    const options = {
+      storageKey: 'test.tenants',
+      defaultFilters: { status: undefined, q: undefined } as Filters,
+      defaultSort: { key: 'created', direction: 'desc' as const },
+    }
+    const state = createListQueryState<Filters>(options)
+    state.setSort('created', 'asc')
+    // `dir` must be written even when it differs from the default, or the
+    // shared URL would decode back as the default (desc) instead of asc.
+    expect(window.location.search).toContain('sort=created')
+    expect(window.location.search).toContain('dir=asc')
+
+    const restored = createListQueryState<Filters>(options)
+    expect(restored.sortKey).toBe('created')
+    expect(restored.sortDirection).toBe('asc')
+  })
+
+  it('preserves query params it does not manage', () => {
+    resetLocation('/tenants?utm_campaign=launch&status=active')
+    const state = createListQueryState<Filters>({
+      storageKey: 'test.tenants',
+      defaultFilters: { status: undefined, q: undefined },
+    })
+    expect(state.filters.status).toBe('active')
+
+    state.setFilters({ q: 'acme' })
+    expect(window.location.search).toContain('utm_campaign=launch')
+    expect(window.location.search).toContain('status=active')
+    expect(window.location.search).toContain('q=acme')
+  })
+
+  it('round-trips filter values containing reserved URL characters', () => {
+    const options = {
+      storageKey: 'test.tenants',
+      defaultFilters: { status: undefined, q: undefined } as Filters,
+    }
+    const state = createListQueryState<Filters>(options)
+    state.setFilters({ q: 'a&b=c%d e/f' })
+
+    const restored = createListQueryState<Filters>(options)
+    expect(restored.filters.q).toBe('a&b=c%d e/f')
+  })
+
   it('saves, applies, and deletes views in localStorage, scoped by storageKey', () => {
     const state = createListQueryState<Filters>({
       storageKey: 'test.tenants',

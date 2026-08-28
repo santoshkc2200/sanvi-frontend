@@ -7,6 +7,7 @@ import {
   listTenantEntitlements,
 } from '@sanvi/api-client'
 import { handleLinkClick } from '@sanvi/spa-router'
+import { getActiveTenantId } from '@sanvi/tenant'
 import { Alert, Badge, Button, Container, EmptyState, Spinner, Stack, StatCard } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
 
@@ -40,7 +41,12 @@ let timezoneSet = $state(false)
 let loading = $state(true)
 let error = $state<string | undefined>(undefined)
 
+// Sequencing token — a tenant switch re-runs the load effect, and a slow
+// response for the previous tenant must never overwrite the new tenant's data.
+let loadSeq = 0
+
 async function load(): Promise<void> {
+  const seq = ++loadSeq
   loading = true
   error = undefined
   try {
@@ -51,6 +57,7 @@ async function load(): Promise<void> {
       listTenantEntitlements(apiClient),
       getTenantSettings(apiClient),
     ])
+    if (seq !== loadSeq) return
     tenant = tenantResult
     memberCount = members.length
     pendingInviteCount = invitations.filter((invitation) => invitation.status === 'pending').length
@@ -60,13 +67,16 @@ async function load(): Promise<void> {
     const storedTimezone = settings.settings['timezone']
     timezoneSet = typeof storedTimezone === 'string' && storedTimezone.length > 0
   } catch {
+    if (seq !== loadSeq) return
     error = COPY.genericError
   } finally {
-    loading = false
+    if (seq === loadSeq) loading = false
   }
 }
 
 $effect(() => {
+  // Reading the active tenant makes the effect re-run (and refetch) on switch.
+  void getActiveTenantId()
   void load()
 })
 

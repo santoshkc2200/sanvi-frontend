@@ -1,6 +1,7 @@
 <script lang="ts">
 import { Can } from '@sanvi/auth'
 import { getTenantContext, getTenantSettings, updateTenantSettings } from '@sanvi/api-client'
+import { getActiveTenantId } from '@sanvi/tenant'
 import { Alert, Button, Container, Field, Select, showToast, Spinner, Stack } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
 
@@ -34,7 +35,12 @@ let loading = $state(true)
 let error = $state<string | undefined>(undefined)
 let saving = $state(false)
 
+// Sequencing token — a tenant switch re-runs the load effect, and a slow
+// response for the previous tenant must never overwrite the new tenant's data.
+let loadSeq = 0
+
 async function load(): Promise<void> {
+  const seq = ++loadSeq
   loading = true
   error = undefined
   try {
@@ -42,17 +48,21 @@ async function load(): Promise<void> {
       getTenantContext(apiClient),
       getTenantSettings(apiClient),
     ])
+    if (seq !== loadSeq) return
     tenant = tenantResult
     const storedTimezone = settingsResult.settings['timezone']
     timezone = typeof storedTimezone === 'string' && storedTimezone ? storedTimezone : 'UTC'
   } catch {
+    if (seq !== loadSeq) return
     error = COPY.genericError
   } finally {
-    loading = false
+    if (seq === loadSeq) loading = false
   }
 }
 
 $effect(() => {
+  // Reading the active tenant makes the effect re-run (and refetch) on switch.
+  void getActiveTenantId()
   void load()
 })
 
@@ -107,7 +117,7 @@ async function handleSave(): Promise<void> {
         </Stack>
       </div>
 
-      <Can permission="tenancy.settings.update">
+      <Can tenantId={getActiveTenantId()} permission="tenancy.settings.update">
         {#snippet children()}
           <div>
             <h2>{COPY.timezoneLabel}</h2>

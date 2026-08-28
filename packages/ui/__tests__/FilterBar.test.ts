@@ -50,6 +50,16 @@ describe('FilterBar', () => {
     expect(onChange).toHaveBeenCalledWith({ status: 'active' })
   })
 
+  it('allows clearing a select filter by re-selecting the placeholder', async () => {
+    const onChange = vi.fn()
+    render(FilterBar, { props: { ...baseProps(), values: { status: 'active' }, onChange } })
+    const select = screen.getByRole('combobox')
+    expect(select).toHaveValue('active')
+
+    await fireEvent.change(select, { target: { value: '' } })
+    expect(onChange).toHaveBeenCalledWith({ status: undefined })
+  })
+
   it('reports boolean toggles as "true"/undefined', async () => {
     const onChange = vi.fn()
     render(FilterBar, { props: { ...baseProps(), onChange } })

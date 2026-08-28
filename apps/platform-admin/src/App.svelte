@@ -97,8 +97,8 @@ const COPY = {
 // *session itself* to know it's impersonated (an `on_behalf_of`/similar
 // field on `/me`), which the current API doesn't expose. This is the
 // honest version buildable today: how many grants are live right now,
-// fetched once on boot (the Impersonation screen itself stays the source
-// of truth for anything more current).
+// fetched on boot and re-checked on every navigation (force-ending a grant
+// on the Impersonation screen must update the banner immediately).
 let activeImpersonations = $state<{ id: string; expiresAt: string }[]>([])
 
 async function loadActiveImpersonations(): Promise<void> {
@@ -112,14 +112,31 @@ async function loadActiveImpersonations(): Promise<void> {
     // Not fatal — the banner is a convenience, not the enforcement.
   }
 }
-void loadActiveImpersonations()
+
+// The countdown must tick: derive from a `now` that advances, not from
+// `Date.now()` read once per derivation.
+let now = $state(Date.now())
+
+$effect(() => {
+  const timer = window.setInterval(() => {
+    now = Date.now()
+  }, 30_000)
+  return () => window.clearInterval(timer)
+})
+
+$effect(() => {
+  // Re-check on every navigation so a force-end elsewhere in the console
+  // clears the banner without a full reload.
+  void router.pathname
+  void loadActiveImpersonations()
+})
 
 const soonestExpiryMinutes = $derived.by(() => {
   if (activeImpersonations.length === 0) return 0
   const soonest = Math.min(
     ...activeImpersonations.map((grant) => new Date(grant.expiresAt).getTime()),
   )
-  return Math.max(0, Math.round((soonest - Date.now()) / 60_000))
+  return Math.max(0, Math.round((soonest - now) / 60_000))
 })
 
 const NAV: { href: string; label: string }[] = [
