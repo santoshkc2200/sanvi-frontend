@@ -1,6 +1,5 @@
 import { resolveSession } from '@sanvi/auth/server'
 import { TenantHostCache, resolveTenantForHost } from '@sanvi/tenant/server'
-import { buildContentSecurityPolicyForApp } from '@sanvi/csp'
 import type { Handle } from '@sveltejs/kit'
 import { sequence } from '@sveltejs/kit/hooks'
 import { getAppEnv } from '$lib/env'
@@ -74,22 +73,12 @@ const resolveAuth: Handle = async ({ event, resolve }) => {
 }
 
 /**
- * Applies the storefront's CSP. Unlike marketing, the storefront is SSR'd
- * per request (tenant/theme/locale vary per request), so this always runs —
- * no adapter-node static-serving bypass to work around. Phase 09 (Tenant
- * Payments) extends `mediaOrigin`/Stripe allowances per tenant; phase 07
- * (Theming) adds the tenant's theme asset origin.
+ * The CSP is NOT set here: it comes from `kit.csp` in `svelte.config.js`
+ * (policy still defined by `@sanvi/csp`, but in the directive-record shape
+ * SvelteKit consumes). SvelteKit must own the header because it stamps its
+ * per-request inline hydration/bootstrap scripts with the matching hashes —
+ * a statically-built `script-src 'self'` header would block those scripts
+ * and disable all client-side behaviour. See `svelte.config.js` for the
+ * build-time-origin trade-off this involves.
  */
-const applyCsp: Handle = async ({ event, resolve }) => {
-  const response = await resolve(event)
-  const { apiOrigin, mediaOrigin, kratosOrigin } = getAppEnv()
-
-  response.headers.set(
-    'content-security-policy',
-    buildContentSecurityPolicyForApp('storefront', { apiOrigin, mediaOrigin, kratosOrigin }),
-  )
-
-  return response
-}
-
-export const handle: Handle = sequence(resolveTenant, resolveLocale, resolveAuth, applyCsp)
+export const handle: Handle = sequence(resolveTenant, resolveLocale, resolveAuth)

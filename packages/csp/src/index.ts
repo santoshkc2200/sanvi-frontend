@@ -45,6 +45,91 @@ function directive(name: string, ...values: Array<string | false | undefined>): 
   return `${name} ${tokens.join(' ')}`
 }
 
+/** SvelteKit `kit.csp.directives` shape: directive name → source list (empty-string sources dropped). */
+export type CspDirectives = Record<string, string[]>
+
+function directiveSources(
+  name: string,
+  ...values: Array<string | false | undefined>
+): CspDirectives {
+  return {
+    [name]: values.filter((value): value is string => Boolean(value)),
+  }
+}
+
+/**
+ * The same policy as {@link buildContentSecurityPolicy}, in SvelteKit's
+ * `kit.csp.directives` shape. SvelteKit apps that render per-request HTML
+ * should prefer this form: with `kit.csp` configured, SvelteKit stamps its
+ * own inline hydration/bootstrap scripts with a nonce (mode `'nonce'`) and
+ * emits the header itself — a statically-built header from
+ * {@link buildContentSecurityPolicy} cannot know that nonce, and would
+ * block the very scripts the framework needs.
+ */
+export function buildContentSecurityPolicyDirectives(
+  options: ContentSecurityPolicyOptions,
+): CspDirectives {
+  const {
+    apiOrigin,
+    mediaOrigin = '',
+    kratosOrigin = '',
+    allowInlineScripts = false,
+    allowEval = false,
+    delivery = 'header',
+  } = options
+
+  return {
+    ...directiveSources('default-src', "'self'"),
+    ...directiveSources(
+      'script-src',
+      "'self'",
+      allowInlineScripts && "'unsafe-inline'",
+      allowEval && "'unsafe-eval'",
+      'https://js.stripe.com',
+      'https://*.stripe.com',
+    ),
+    ...directiveSources('style-src', "'self'", "'unsafe-inline'"),
+    ...directiveSources(
+      'img-src',
+      "'self'",
+      'data:',
+      'blob:',
+      'https:',
+      mediaOrigin,
+      'https://*.stripe.com',
+      'https://i.ytimg.com',
+      'https://img.youtube.com',
+    ),
+    ...directiveSources('media-src', "'self'", 'blob:', 'https:', mediaOrigin),
+    ...directiveSources('font-src', "'self'", 'data:'),
+    ...directiveSources(
+      'frame-src',
+      'https://js.stripe.com',
+      'https://hooks.stripe.com',
+      'https://*.stripe.com',
+      'https://*.link.com',
+      'https://www.youtube.com',
+      'https://www.youtube-nocookie.com',
+      'https://youtu.be',
+    ),
+    ...directiveSources(
+      'connect-src',
+      "'self'",
+      apiOrigin,
+      mediaOrigin,
+      kratosOrigin,
+      'https://api.stripe.com',
+      'https://*.stripe.com',
+      'https://*.link.com',
+    ),
+    ...directiveSources('worker-src', "'self'", 'blob:'),
+    ...directiveSources('object-src', "'none'"),
+    ...directiveSources('base-uri', "'self'"),
+    ...directiveSources('form-action', "'self'", 'https://*.stripe.com'),
+    ...(delivery === 'header' ? directiveSources('frame-ancestors', "'none'") : {}),
+  }
+}
+
 /**
  * Single source of truth for the CSP every Sanvi app ships (`marketing`,
  * `storefront` — SvelteKit, response header; `admin`, `platform-admin` — Vite
@@ -151,4 +236,16 @@ export function buildContentSecurityPolicyForApp(
   options: CspAppPresetOptions,
 ): string {
   return buildContentSecurityPolicy({ ...options, ...APP_PRESETS[app] })
+}
+
+/**
+ * {@link buildContentSecurityPolicyDirectives} pinned to one of the four
+ * workspace apps — the SvelteKit-app flavour of "every app declares its CSP
+ * through this package".
+ */
+export function buildContentSecurityPolicyDirectivesForApp(
+  app: SanviApp,
+  options: CspAppPresetOptions,
+): CspDirectives {
+  return buildContentSecurityPolicyDirectives({ ...options, ...APP_PRESETS[app] })
 }
