@@ -61,6 +61,11 @@ const routes: RouteDefinition[] = [
     load: () => import('./routes/Approvals.svelte'),
   },
   {
+    path: 'privacy',
+    guard: (params) => requireAal2(router)(params),
+    load: () => import('./routes/Privacy.svelte'),
+  },
+  {
     path: 'settings/security',
     guard: (params) => requireAal2(router)(params),
     load: () => import('./routes/SettingsSecurity.svelte'),
@@ -146,6 +151,7 @@ const NAV: { href: string; label: string }[] = [
   { href: '/audit', label: 'Audit' },
   { href: '/impersonations', label: 'Impersonation' },
   { href: '/approvals', label: 'Approvals' },
+  { href: '/privacy', label: 'Privacy' },
   { href: '/settings/security', label: 'Security' },
 ]
 
