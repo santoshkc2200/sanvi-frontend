@@ -117,5 +117,23 @@ export {
   getTenantSettings,
   updateTenantSettings,
 } from './tenancy'
+export {
+  getPublicTheme,
+  getTenantThemeDraft,
+  listAvailableThemes,
+  previewTenantTheme,
+  publishTenantTheme,
+  putTenantThemeDraft,
+  rollbackTenantTheme,
+  uploadBrandAsset,
+} from './theme'
+export type {
+  AvailableThemesView,
+  ResolvedTheme,
+  TenantThemeDraftView,
+  TenantThemeView,
+  UpdateTenantThemeDraftCommand,
+  UploadBrandAssetCommand,
+} from './theme'
 export type { TypedApiClient } from './typed'
 export { createTypedApiClient, substitutePathParams } from './typed'
