@@ -590,7 +590,7 @@ async function handleSaveRetention(): Promise<void> {
       sensitivity: retentionTarget.sensitivity,
       period_days: retentionPeriodDays,
       action: retentionAction,
-      basis: null,
+      basis: retentionTarget.basis ?? null,
       disclosed_in_notice: retentionDisclosed,
     })
     retentionOpen = false
@@ -628,13 +628,19 @@ function openAddSubprocessor(): void {
 async function handleAddSubprocessor(): Promise<void> {
   savingSubprocessor = true
   try {
+    // This is an upsert keyed by name, and the form collects none of the
+    // contract fields. Carry the registered row's values through so re-adding
+    // a known name cannot blank the transfer mechanism the public
+    // sub-processor page renders.
+    const existing = subprocessors.find((row) => row.name === subName)
     await upsertSubprocessor(apiClient, {
       name: subName,
       role: subRole,
       location: subLocation,
       purpose: subPurpose,
-      contract_terms: null,
-      transfer_mechanism: null,
+      contract_terms: existing?.contract_terms ?? null,
+      ...(existing?.transfer_mechanism ? { transfer_mechanism: existing.transfer_mechanism } : {}),
+      ...(existing?.dpa_url ? { dpa_url: existing.dpa_url } : {}),
     })
     subAddOpen = false
     showToast({ variant: 'success', title: COPY.subAddSuccess })

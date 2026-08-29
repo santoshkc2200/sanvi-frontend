@@ -6,7 +6,7 @@ import {
   getPrivacyNotice,
 } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
-import { resolveConsentModel } from '@sanvi/consent'
+import { CONSENT_COOKIE, ConsentStore, readCookie, resolveConsentModel } from '@sanvi/consent'
 import type { ConsentModel } from '@sanvi/consent'
 import { getAppEnv } from '$lib/env'
 
@@ -34,7 +34,22 @@ export interface PrivacyContext {
   model: ConsentModel
   notice: PrivacyNoticeView | null
   noticeAtCollection: NoticeAtCollectionView | null
+  /**
+   * Whether the banner is due, decided here rather than after hydration so
+   * the consent surface is in the server-rendered HTML. Computed from a
+   * document-less {@link ConsentStore} over the request's own consent cookie,
+   * so it is the same predicate the browser store applies — not a second
+   * implementation that can drift from it.
+   */
+  initialView: { showOptIn: boolean; showNotice: boolean }
 }
+
+/**
+ * Milliseconds before we give up on the privacy API and serve the page
+ * without consent surfaces. 3 s is intentionally short: a hanging
+ * privacy service must not cascade into a storefront outage.
+ */
+const PRIVACY_TIMEOUT_MS = 3000
 
 export async function loadPrivacyContext(
   cookieHeader: string | null,
@@ -50,19 +65,52 @@ export async function loadPrivacyContext(
     }),
   )
 
+  // The three calls are independent, so they go out together rather than in
+  // series, and the abort signal is what actually bounds the wait: a bare
+  // `Promise.race` against a timer leaves the requests running and the
+  // connections held for as long as the API hangs.
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), PRIVACY_TIMEOUT_MS)
+
   try {
-    const { snapshot } = await getDirectives(client)
-    const [notice, noticeAtCollection] = await Promise.all([
-      getPrivacyNotice(client).catch(() => null),
-      getNoticeAtCollection(client).catch(() => null),
+    const [directives, notice, noticeAtCollection] = await Promise.all([
+      getDirectives(client, controller.signal),
+      getPrivacyNotice(client, controller.signal).catch(() => null),
+      getNoticeAtCollection(client, controller.signal).catch(() => null),
     ])
+    const { snapshot } = directives
+    const model = resolveConsentModel(notice, snapshot.jurisdiction)
     return {
       snapshot,
-      model: resolveConsentModel(notice, snapshot.jurisdiction),
+      model,
       notice,
       noticeAtCollection,
+      initialView: resolveInitialView(snapshot, model, noticeAtCollection, cookieHeader),
     }
   } catch {
     return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+function resolveInitialView(
+  snapshot: DirectiveSnapshot,
+  model: ConsentModel,
+  noticeAtCollection: NoticeAtCollectionView | null,
+  cookieHeader: string | null,
+): { showOptIn: boolean; showNotice: boolean } {
+  // No `doc`: the store reads the cookie value handed to it and its
+  // `#persist` is a no-op, so this is a pure read of the same state machine
+  // the client will build from the same cookie on hydration.
+  const store = new ConsentStore({
+    snapshot,
+    consentModel: model,
+    storedCookie: readCookie({ cookie: cookieHeader ?? '' }, CONSENT_COOKIE) ?? null,
+    noticeAtCollectionVersion: noticeAtCollection?.notice_version ?? null,
+  })
+  return {
+    showOptIn: model === 'opt_in' && store.needsChoice(),
+    showNotice: model === 'notice_and_opt_out' && store.needsNoticeAck(),
   }
 }

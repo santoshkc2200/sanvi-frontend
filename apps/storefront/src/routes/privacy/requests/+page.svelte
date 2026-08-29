@@ -129,7 +129,7 @@ function openTracked(): void {
     <h1>{COPY.title}</h1>
     <p>{COPY.intro}</p>
 
-    {#if submitted && verified}
+    {#if submitted && (verified || !submitted.verification_required)}
       <Alert variant="success" title={COPY.successTitle}>
         <Stack>
           <span>{COPY.receivedLabel}: {formatDate(new Date().toISOString())}</span>

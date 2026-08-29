@@ -74,6 +74,19 @@ export interface ConsentStoreOptions {
   sync?: ConsentStoreSync
   /** `navigator.globalPrivacyControl` as detected by the caller (client-only). */
   gpc?: boolean
+  /**
+   * The notice version from `NoticeAtCollectionView`. Used as a fallback for
+   * `needsNoticeAck` when the directive snapshot carries no `notice_version` —
+   * that is the normal US case and must not silently suppress the notice banner.
+   */
+  noticeAtCollectionVersion?: string | null
+  /**
+   * The raw `sanvi_consent` cookie value, for constructing a store where there
+   * is no `doc` to read it from — the server, which needs the same
+   * `needsChoice`/`needsNoticeAck` answers as the browser to render the banner
+   * before hydration. Ignored when `doc` is given (the cookie is read there).
+   */
+  storedCookie?: string | null
   locale?: string
   randomId?: () => string
   now?: () => number
@@ -111,6 +124,7 @@ export function evaluateReprompt(
     versions: { ...stored.versions },
     decisions: { ...stored.decisions },
     noticeAck: stored.noticeAck,
+    gpcRecordedAt: stored.gpcRecordedAt,
     updatedAt: stored.updatedAt,
   }
   for (const directive of directives) {
@@ -137,6 +151,7 @@ export class ConsentStore {
   readonly #locale: string | undefined
   readonly #now: () => number
   readonly #randomId: () => string
+  readonly #noticeAtCollectionVersion: string | null
   readonly #listeners = new Set<ConsentListener>()
   readonly #directives = new Map<ProcessingPurpose, PurposeDirective>()
   readonly #decisions = new Map<ProcessingPurpose, ResolvedDecision>()
@@ -151,12 +166,15 @@ export class ConsentStore {
     this.#locale = options.locale
     this.#now = options.now ?? Date.now
     this.#randomId = options.randomId ?? (() => `dev-${Math.random().toString(36).slice(2)}`)
+    this.#noticeAtCollectionVersion = options.noticeAtCollectionVersion ?? null
 
     for (const directive of options.snapshot.directives) {
       this.#directives.set(directive.purpose, directive)
     }
 
-    const raw = this.#doc ? readCookie(this.#doc, CONSENT_COOKIE) : undefined
+    const raw = this.#doc
+      ? readCookie(this.#doc, CONSENT_COOKIE)
+      : (options.storedCookie ?? undefined)
     const parsed = parseStoredState(raw) ?? { versions: {}, decisions: {} }
     this.#stored = evaluateReprompt(parsed, options.snapshot.directives, this.#model)
 
@@ -173,6 +191,7 @@ export class ConsentStore {
         device_ref: this.#doc ? getOrCreateDeviceRef(this.#doc, this.#randomId, this.#now) : null,
       }
       this.#stored = { ...this.#stored, gpcRecordedAt: this.#now() }
+      this.#persist()
       void this.#sync.optOut?.(command)?.catch(() => {})
     }
   }
@@ -199,9 +218,9 @@ export class ConsentStore {
     return this.#gpcApplied
   }
 
-  /** Current notice version (max across directives), or null when the snapshot carries none. */
+  /** Current notice version (max across directives, or the noticeAtCollection version). */
   get noticeVersion(): string | null {
-    return currentNoticeVersion(this.#snapshot.directives)
+    return currentNoticeVersion(this.#snapshot.directives) ?? this.#noticeAtCollectionVersion
   }
 
   decision(purpose: ProcessingPurpose): ResolvedDecision {
@@ -307,8 +326,13 @@ export class ConsentStore {
    * dialog. Denies the sale/share family, records via the dedicated
    * endpoint (rate-limited by device, not identity), and updates local
    * state from the server's returned directives when it answers.
+   *
+   * Local state is denied synchronously, before the network call. The returned
+   * promise rejects if the server never records the opt-out, so a caller that
+   * tells the user "processing stops immediately" can surface that failure
+   * instead of showing an unconditional success.
    */
-  optOut(source: string): void {
+  optOut(source: string): Promise<void> {
     const command: RecordOptOutCommand = {
       purposes: [...OPT_OUT_PURPOSES],
       source,
@@ -324,26 +348,29 @@ export class ConsentStore {
     }
     this.#persist()
     this.#emit()
-    void this.#sync.optOut?.(command)?.then(
-      (result) => {
-        const directives = (result as { directives?: PurposeDirective[] } | undefined)?.directives
-        if (!Array.isArray(directives)) return
-        for (const directive of directives) {
-          this.#decisions.set(directive.purpose, {
-            purpose: directive.purpose,
-            state: directive.state,
-            source: directive.source,
-            noticeVersion: directive.notice_version ?? null,
-          })
-        }
-        this.#emit()
-      },
-      () => {}, // local state already reflects the refusal; server retried later
-    )
+    const sync = this.#sync.optOut?.(command)
+    if (!sync) return Promise.resolve()
+    return sync.then((result) => {
+      const directives = (result as { directives?: PurposeDirective[] } | undefined)?.directives
+      if (!Array.isArray(directives)) return
+      for (const directive of directives) {
+        this.#decisions.set(directive.purpose, {
+          purpose: directive.purpose,
+          state: directive.state,
+          source: directive.source,
+          noticeVersion: directive.notice_version ?? null,
+        })
+      }
+      this.#emit()
+    })
   }
 
-  /** CPRA "Limit the Use of My Sensitive Personal Information" — one click, no verification. */
-  limitSensitive(source = 'ui'): void {
+  /**
+   * CPRA "Limit the Use of My Sensitive Personal Information" — one click, no
+   * verification. Denies locally first; the returned promise rejects if the
+   * server call fails, so the caller can report it rather than claim success.
+   */
+  limitSensitive(source = 'ui'): Promise<void> {
     this.#decisions.set('sensitive_pi_use', {
       purpose: 'sensitive_pi_use',
       state: 'denied',
@@ -352,7 +379,8 @@ export class ConsentStore {
     })
     this.#persist()
     this.#emit()
-    void this.#sync.limitSensitive?.({ source })?.catch(() => {})
+    const sync = this.#sync.limitSensitive?.({ source })
+    return sync ? sync.then(() => {}) : Promise.resolve()
   }
 
   /** Notice-at-collection acknowledgement (US mode) — not consent, just proof of notice. */
@@ -439,6 +467,14 @@ export class ConsentStore {
       this.#stored = {
         ...this.#stored,
         versions: { ...this.#stored.versions, [purpose]: version },
+        decisions: { ...this.#stored.decisions, [purpose]: granted ? 1 : 0 },
+        updatedAt: this.#now(),
+      }
+    } else {
+      // No notice version available — still persist the decision so it
+      // survives navigation (anonymous EU reject-all must stick).
+      this.#stored = {
+        ...this.#stored,
         decisions: { ...this.#stored.decisions, [purpose]: granted ? 1 : 0 },
         updatedAt: this.#now(),
       }

@@ -422,6 +422,79 @@ describe('ConsentStore — statutory opt-out and sensitive limitation', () => {
     expect(store.decision('analytics').state).toBe('allowed')
     expect(sensitiveCalls).toEqual([{ source: 'ui' }])
   })
+
+  /**
+   * The statutory pages tell the user processing has stopped. Local state
+   * denying it is not the same as the server having recorded it, so a failed
+   * call has to reach the caller instead of being swallowed.
+   */
+  it('optOut denies locally but rejects when the server never records it', async () => {
+    const store = new ConsentStore({
+      snapshot: usSnapshot(),
+      consentModel: 'notice_and_opt_out',
+      doc: fakeDoc(),
+      sync: { optOut: () => Promise.reject(new Error('503')) },
+    })
+
+    const promise = store.optOut('ui')
+    expect(store.decision('sale_or_share').state).toBe('denied')
+    await expect(promise).rejects.toThrow('503')
+  })
+
+  it('limitSensitive rejects when the server never records it', async () => {
+    const store = new ConsentStore({
+      snapshot: usSnapshot(),
+      consentModel: 'notice_and_opt_out',
+      sync: { limitSensitive: () => Promise.reject(new Error('503')) },
+    })
+
+    const promise = store.limitSensitive()
+    expect(store.decision('sensitive_pi_use').state).toBe('denied')
+    await expect(promise).rejects.toThrow('503')
+  })
+})
+
+describe('ConsentStore — directives without a notice version', () => {
+  function unversioned(): DirectiveSnapshot {
+    return {
+      subject: { key: 'subject-1', kind: 'device', identifiers: [] },
+      jurisdiction: 'eu',
+      directives: [
+        {
+          purpose: 'analytics',
+          state: 'denied',
+          source: 'default',
+          effective_at: '2026-01-01T00:00:00Z',
+          jurisdiction: 'eu',
+        },
+      ],
+      honours_universal_opt_out: true,
+    }
+  }
+
+  it('persists a decision so a reject-all is not re-prompted on the next load', () => {
+    const doc = fakeDoc()
+    const store = new ConsentStore({ snapshot: unversioned(), consentModel: 'opt_in', doc })
+
+    store.setDecision('analytics', false)
+
+    const stored = parseStoredState(readCookie(doc, CONSENT_COOKIE))
+    expect(stored?.decisions.analytics).toBe(0)
+    // And a fresh store over the same cookie keeps the refusal.
+    const next = new ConsentStore({ snapshot: unversioned(), consentModel: 'opt_in', doc })
+    expect(next.decision('analytics').source).not.toBe('default')
+  })
+
+  it('falls back to the notice-at-collection version so the US notice still shows', () => {
+    const store = new ConsentStore({
+      snapshot: { ...unversioned(), jurisdiction: 'us-ca' },
+      consentModel: 'notice_and_opt_out',
+      noticeAtCollectionVersion: NOTICE_V1,
+    })
+
+    expect(store.noticeVersion).toBe(NOTICE_V1)
+    expect(store.needsNoticeAck()).toBe(true)
+  })
 })
 
 describe('ConsentStore — server precedence on hydrate', () => {

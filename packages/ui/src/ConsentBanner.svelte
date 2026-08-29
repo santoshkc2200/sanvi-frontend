@@ -71,31 +71,6 @@ $effect(() => {
   if (open) container?.focus()
 })
 
-function focusables(): HTMLElement[] {
-  if (!container) return []
-  return Array.from(
-    container.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-    ),
-  ).filter((element) => !element.hasAttribute('disabled'))
-}
-
-function trapFocus(event: KeyboardEvent): void {
-  if (event.key !== 'Tab') return
-  const items = focusables()
-  if (items.length === 0) return
-  const first = items[0]!
-  const last = items[items.length - 1]!
-  const active = document.activeElement
-  if (event.shiftKey && active === first) {
-    event.preventDefault()
-    last.focus()
-  } else if (!event.shiftKey && active === last) {
-    event.preventDefault()
-    first.focus()
-  }
-}
-
 function accept(): void {
   if (gpcNotice && !overrideDialogOpen) {
     // A browser privacy signal is active — an "accept all" may only pass
@@ -122,7 +97,6 @@ function reject(): void {
     aria-modal="false"
     aria-labelledby={headingId}
     tabindex="-1"
-    onkeydown={trapFocus}
   >
     <h2 class="sanvi-consent-banner__title" id={headingId}>{title}</h2>
     <p class="sanvi-consent-banner__body">{body}</p>

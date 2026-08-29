@@ -79,7 +79,11 @@ $effect(() => {
   const privacy = data.privacy
   markConsentReady()
   if (!privacy || getConsent()) return
-  initConsent({ snapshot: privacy.snapshot, model: privacy.model })
+  initConsent({
+    snapshot: privacy.snapshot,
+    model: privacy.model,
+    noticeAtCollectionVersion: privacy.noticeAtCollection?.notice_version ?? null,
+  })
   initGatedAnalytics()
   consentState.version += 1
 })
@@ -90,16 +94,30 @@ $effect(() => {
 const view = $derived.by(() => {
   void consentState.version
   const active = consentState.ready ? getConsent() : null
-  if (!active) return null
+  if (active) {
+    return {
+      model: active.model,
+      gpcApplied: active.gpcApplied,
+      showOptIn: active.model === 'opt_in' && active.needsChoice(),
+      showNotice: active.model === 'notice_and_opt_out' && active.needsNoticeAck(),
+    }
+  }
+  // Before hydration there is no store, but `initialView` is the same
+  // predicate evaluated on the server against the same consent cookie, so
+  // the banner is in the SSR HTML rather than appearing a beat later.
+  // `gpcApplied` alone is unknowable there — it is a `navigator` flag — so
+  // its notice line joins once the store exists.
+  const privacy = data.privacy
+  if (!privacy) return null
   return {
-    model: active.model,
-    gpcApplied: active.gpcApplied,
-    showOptIn: active.model === 'opt_in' && active.needsChoice(),
-    showNotice: active.model === 'notice_and_opt_out' && active.needsNoticeAck(),
+    model: privacy.model,
+    gpcApplied: false,
+    showOptIn: privacy.initialView.showOptIn,
+    showNotice: privacy.initialView.showNotice,
   }
 })
 
-const usLinks = $derived(view?.model === 'notice_and_opt_out')
+const usLinks = $derived(data.privacy?.model === 'notice_and_opt_out')
 
 const noticeCategories = $derived(data.privacy?.noticeAtCollection?.categories ?? [])
 const saleShareNote = $derived(

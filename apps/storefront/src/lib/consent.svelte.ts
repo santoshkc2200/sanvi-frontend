@@ -23,6 +23,7 @@ let store: ConsentStore | null = null
 export interface PrivacyData {
   snapshot: DirectiveSnapshot
   model: ConsentModel
+  noticeAtCollectionVersion?: string | null
 }
 
 export function initConsent(privacy: PrivacyData): ConsentStore {
@@ -35,6 +36,7 @@ export function initConsent(privacy: PrivacyData): ConsentStore {
     gpc:
       typeof navigator !== 'undefined' &&
       (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true,
+    noticeAtCollectionVersion: privacy.noticeAtCollectionVersion ?? null,
     sync: {
       consent: (change) => updateConsent(apiClient, change),
       optOut: (command) => recordOptOut(apiClient, command),

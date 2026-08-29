@@ -199,6 +199,41 @@ describe('script gate', () => {
     })
   })
 
+  it('a revocation mid-download neutralises the script when it lands', async () => {
+    const store = new ConsentStore({ snapshot: snapshot(true), consentModel: 'notice_and_opt_out' })
+    const { doc, head, created } = fakeDoc()
+    const gate = createScriptGate({ store, allowList: [ALLOWED_SRC], doc })
+
+    // The gate check passed, the request is out — and only then does the user
+    // reject. The element must never be registered as loaded.
+    const promise = gate.load({ src: ALLOWED_SRC, purposes: ['analytics'] })
+    const revoked = vi.fn()
+    head.addEventListener(SCRIPT_REVOKED_EVENT, revoked)
+    store.setDecision('analytics', false)
+
+    created[0]!.dispatch('load')
+
+    await expect(promise).rejects.toBeInstanceOf(ScriptBlockedError)
+    expect(created[0]!.removed).toBe(true)
+    expect(gate.isLoaded(ALLOWED_SRC)).toBe(false)
+    expect(revoked).toHaveBeenCalledTimes(1)
+  })
+
+  it('a re-grant mid-download lets the script land', async () => {
+    const store = new ConsentStore({ snapshot: snapshot(true), consentModel: 'notice_and_opt_out' })
+    const { doc, created } = fakeDoc()
+    const gate = createScriptGate({ store, allowList: [ALLOWED_SRC], doc })
+
+    const promise = gate.load({ src: ALLOWED_SRC, purposes: ['analytics'] })
+    store.setDecision('analytics', false)
+    store.setDecision('analytics', true)
+
+    created[0]!.dispatch('load')
+
+    await expect(promise).resolves.toBeDefined()
+    expect(gate.isLoaded(ALLOWED_SRC)).toBe(true)
+  })
+
   it('shares one in-flight request for a repeated load of the same src', async () => {
     const store = new ConsentStore({ snapshot: snapshot(true), consentModel: 'notice_and_opt_out' })
     const { doc, created } = fakeDoc()

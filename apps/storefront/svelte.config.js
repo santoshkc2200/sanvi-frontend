@@ -12,10 +12,12 @@ import { readFileSync } from 'node:fs'
  * errors). The policy still comes from `@sanvi/csp` — same source of truth
  * as the other three apps — just in the directive-record shape kit wants.
  *
- * CSP origins are therefore resolved at *build* time (from the environment,
- * falling back to this repo's `.env` for dev). Deploy pipelines that build a
- * release must build with the same PUBLIC_* origins they serve with; the
- * runtime `$env/dynamic/public` values remain what the client code reads.
+ * The origins here are resolved at *build* time, which would pin
+ * `connect-src` to whatever environment produced the build. `hooks.server.ts`
+ * therefore rewrites `connect-src` — and only that directive — to the runtime
+ * `$env/dynamic/public` origins on the way out, so a build promoted across
+ * environments still names the API origin it actually calls. Everything else
+ * in the policy, the per-request script hashes included, stays as kit built it.
  */
 function loadPublicEnv() {
   const fromProcess = { ...process.env }
@@ -39,6 +41,10 @@ function loadPublicEnv() {
 }
 
 const env = loadPublicEnv()
+
+// Placeholders, not a promise about production: the server hook replaces
+// `connect-src` with the runtime origins before the response leaves. A build
+// with no origins set is therefore serveable, not broken.
 const apiOrigin = env['PUBLIC_API_ORIGIN'] ?? 'http://localhost:8080'
 const mediaOrigin = env['PUBLIC_MEDIA_ORIGIN']
 const kratosOrigin = env['PUBLIC_KRATOS_ORIGIN'] ?? 'http://localhost:4433'

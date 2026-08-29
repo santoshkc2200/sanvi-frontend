@@ -69,18 +69,34 @@ export function createScriptGate(options: ScriptGateOptions) {
   const loaded = new Map<string, LoadedEntry>()
   const pending = new Map<string, Promise<HTMLScriptElement>>()
 
+  /**
+   * The document itself, so the event matches its documented contract. Falls
+   * back to `head` only for a stub `doc` in tests that isn't an EventTarget.
+   */
+  const dispatchTarget: EventTarget =
+    'dispatchEvent' in doc ? (doc as unknown as EventTarget) : doc.head
+
+  function announceRevoked(src: string, purposes: readonly ProcessingPurpose[]): void {
+    dispatchTarget.dispatchEvent(
+      new CustomEvent<ScriptRevokedDetail>(SCRIPT_REVOKED_EVENT, {
+        detail: { src, purposes },
+        bubbles: true,
+      }),
+    )
+  }
+
+  const isDenied = (purposes: readonly ProcessingPurpose[]): boolean =>
+    purposes.some((purpose) => !options.store.isAllowed(purpose))
+
   const unsubscribe = options.store.subscribe(() => {
     for (const [src, entry] of loaded) {
-      const denied = entry.purposes.some((purpose) => !options.store.isAllowed(purpose))
-      if (!denied) continue
+      if (!isDenied(entry.purposes)) continue
       entry.element.remove()
       loaded.delete(src)
-      doc.head.dispatchEvent(
-        new CustomEvent<ScriptRevokedDetail>(SCRIPT_REVOKED_EVENT, {
-          detail: { src, purposes: entry.purposes },
-        }),
-      )
+      announceRevoked(src, entry.purposes)
     }
+    // In-flight loads need no bookkeeping here: `load`'s own handler re-checks
+    // the store when the script lands, which is both later and authoritative.
   })
 
   /**
@@ -120,6 +136,16 @@ export function createScriptGate(options: ScriptGateOptions) {
         element.setAttribute(name, value)
       }
       element.addEventListener('load', () => {
+        // The gate check at call time can be stale by the time the script
+        // lands: a revocation in that window must still take effect, and a
+        // re-grant in that window must not cancel a load that is now allowed.
+        // Re-reading the store here answers both.
+        if (isDenied(script.purposes)) {
+          element.remove()
+          announceRevoked(script.src, script.purposes)
+          reject(new ScriptBlockedError('Purpose revoked during load', script.src, script.purposes))
+          return
+        }
         loaded.set(script.src, { element, purposes: script.purposes })
         resolve(element)
       })

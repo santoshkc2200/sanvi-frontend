@@ -52,6 +52,10 @@ const COPY = {
 const privacy = $derived(data.privacy)
 
 let overrideKey = $state<ProcessingPurpose | null>(null)
+// Bumped when the store returns 'gpc-confirmation-required' to force rows to
+// re-derive from actual store state (no #emit fires on that path, so
+// consentState.version doesn't change, but we still need the checkbox to sync).
+let localVersion = $state(0)
 
 // Reads the shared bridge's version (bumped by the store's own mutations
 // and by the root layout once the store exists), so this page reacts to
@@ -69,6 +73,7 @@ function sourceText(source: string | undefined): string | undefined {
 }
 
 const rows = $derived.by<PreferenceRow[]>(() => {
+  void localVersion
   const active = consent
   if (!active) return []
   return consentablePurposeCopy()
@@ -90,6 +95,7 @@ const rows = $derived.by<PreferenceRow[]>(() => {
 })
 
 const sensitiveRows = $derived.by<PreferenceRow[]>(() => {
+  void localVersion
   const active = consent
   if (!active) return []
   return consentablePurposeCopy()
@@ -111,7 +117,11 @@ function change(key: string, allowed: boolean): void {
   const active = consent
   if (!active) return
   const result = active.setDecision(key as ProcessingPurpose, allowed)
-  if (result === 'gpc-confirmation-required') overrideKey = key as ProcessingPurpose
+  if (result === 'gpc-confirmation-required') {
+    overrideKey = key as ProcessingPurpose
+    // No #emit fires on this path, so force rows to re-sync with store state.
+    localVersion += 1
+  }
 }
 
 function confirmOverride(): void {

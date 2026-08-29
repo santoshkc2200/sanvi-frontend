@@ -1,7 +1,6 @@
 <script lang="ts">
 import { Alert, Button, Container, EmptyState, Stack } from '@sanvi/ui'
-import { limitSensitiveUse } from '@sanvi/api-client'
-import { apiClient } from '$lib/auth'
+import { getConsent } from '$lib/consent.svelte'
 import type { PageData } from './$types'
 
 /**
@@ -39,7 +38,9 @@ async function limit(): Promise<void> {
   submitting = true
   failed = false
   try {
-    await limitSensitiveUse(apiClient, { source: 'ui' })
+    const store = getConsent()
+    if (!store) throw new Error('Consent store unavailable')
+    await store.limitSensitive('ui')
     done = true
   } catch {
     failed = true

@@ -15,7 +15,7 @@ export async function setPrivacyContext(
   const cookies: { name: string; value: string; url: string }[] = [
     {
       name: 'sanvi_device',
-      value: `e2e-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`,
+      value: `e2e-${Math.random().toString(36).slice(2)}.${Date.now()}`,
       url: 'http://localhost:4174',
     },
   ]

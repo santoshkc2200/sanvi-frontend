@@ -1,9 +1,6 @@
 <script lang="ts">
 import { Alert, Button, Container, EmptyState, Stack } from '@sanvi/ui'
-import { OPT_OUT_PURPOSES, getOrCreateDeviceRef } from '@sanvi/consent'
-import { recordOptOut } from '@sanvi/api-client'
-import { getConsent } from '$lib/consent.svelte'
-import { apiClient } from '$lib/auth'
+import { consentState, getConsent } from '$lib/consent.svelte'
 import type { PageData } from './$types'
 
 /**
@@ -36,7 +33,14 @@ const COPY = {
 }
 
 const privacy = $derived(data.privacy)
-const consent = $derived(getConsent())
+
+// Follow the choices page pattern: read consentState.version/ready so this
+// derivation re-runs once the store is created by the root layout's effect.
+const consent = $derived.by(() => {
+  void consentState.version
+  void consentState.ready
+  return getConsent()
+})
 
 let submitting = $state(false)
 let done = $state(false)
@@ -54,11 +58,9 @@ async function optOut(): Promise<void> {
   submitting = true
   failed = false
   try {
-    await recordOptOut(apiClient, {
-      purposes: [...OPT_OUT_PURPOSES],
-      source: 'ui',
-      device_ref: getOrCreateDeviceRef(document),
-    })
+    const store = getConsent()
+    if (!store) throw new Error('Consent store unavailable')
+    await store.optOut('ui')
     done = true
   } catch {
     failed = true
