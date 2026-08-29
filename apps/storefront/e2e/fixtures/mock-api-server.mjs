@@ -68,6 +68,98 @@ const TENANTS = {
     default_locale: 'en',
     resolution_source: 'subdomain',
   },
+  'chromium.localhost:4174': {
+    tenant_id: '44444444-4444-4444-4444-444444444444',
+    slug: 'chromium',
+    display_name: 'Chromium Tenant',
+    status: 'active',
+    region: 'us',
+    default_locale: 'en',
+    resolution_source: 'subdomain',
+  },
+  'webkit.localhost:4174': {
+    tenant_id: '55555555-5555-5555-5555-555555555555',
+    slug: 'webkit',
+    display_name: 'Webkit Tenant',
+    status: 'active',
+    region: 'us',
+    default_locale: 'en',
+    resolution_source: 'subdomain',
+  },
+  'mobile-chrome.localhost:4174': {
+    tenant_id: '66666666-6666-6666-6666-666666666666',
+    slug: 'mobile-chrome',
+    display_name: 'Mobile Chrome Tenant',
+    status: 'active',
+    region: 'us',
+    default_locale: 'en',
+    resolution_source: 'subdomain',
+  },
+}
+
+const INITIAL_THEME = {
+  theme_key: 'dawn',
+  theme_version: '1.0.0',
+  theme_api: '^1.0.0',
+  capabilities: [],
+  tokens: {
+    'color.brand.primary': { $value: '#0066cc', $type: 'color' },
+  },
+  css_vars: ':root { --sanvi-color-brand-primary: #0066cc; }',
+  layouts: {
+    'storefront.home': {
+      slots: ['header', 'hero', 'footer'],
+    },
+  },
+  fonts: [
+    {
+      family: 'Inter',
+      src: '/fonts/inter.woff2',
+      preload: true,
+    },
+  ],
+  theme_assets: { screenshots: [] },
+  brand_assets: {},
+  revision: 1,
+  locale: 'en',
+  etag: '"etag-mock-1"',
+}
+
+const themes = new Map()
+
+function getThemeState(req) {
+  const tenantId = req?.headers?.['x-tenant-id']
+  const host = (req?.headers?.host || '').split(':')[0]
+  const key = tenantId || (host && host !== 'localhost' && host !== '127.0.0.1' ? host : 'default')
+  if (!themes.has(key)) {
+    themes.set(key, {
+      themeRevision: 1,
+      currentTheme: { ...INITIAL_THEME, tokens: { ...INITIAL_THEME.tokens } },
+      previousTheme: null,
+      currentDraft: {
+        spec: {
+          key: 'dawn',
+          version: '1.0.0',
+          capabilities: ['tokens', 'layouts'],
+          fonts: [],
+          layouts: {},
+          overridable: [],
+        },
+        theme: {
+          theme_key: 'dawn',
+          version: '1.0.0',
+          state: 'draft',
+          revision: 1,
+          token_overrides: {},
+          layout_overrides: {},
+          assets: {},
+          custom_css: null,
+          updated_at: new Date().toISOString(),
+        },
+      },
+    })
+  }
+  return themes.get(key)
 }
 
 const NOTICE_VERSION = '2026.1'
@@ -329,34 +421,106 @@ const server = createServer(async (req, res) => {
     return
   }
 
+  if (path === '/__theme/reset') {
+    const host = (req.headers.host || '').split(':')[0]
+    if (host && themes.has(host)) {
+      themes.delete(host)
+    } else {
+      themes.clear()
+    }
+    json(req, res, 200, { status: 'ok' })
+    return
+  }
+
   if (path === '/api/v1/public/theme') {
-    json(req, res, 200, {
-      theme_key: 'dawn',
-      theme_version: '1.0.0',
-      theme_api: '^1.0.0',
-      capabilities: [],
+    const state = getThemeState(req)
+    json(req, res, 200, state.currentTheme)
+    return
+  }
+
+  if (path === '/api/v1/tenant/theme/draft') {
+    const state = getThemeState(req)
+    if (req.method === 'GET') {
+      json(req, res, 200, state.currentDraft)
+      return
+    }
+    if (req.method === 'PUT') {
+      const body = await readBody(req)
+      if (body.theme_key) state.currentDraft.theme.theme_key = body.theme_key
+      if (body.token_overrides) state.currentDraft.theme.token_overrides = body.token_overrides
+      if (body.layout_overrides) state.currentDraft.theme.layout_overrides = body.layout_overrides
+      if (body.custom_css !== undefined) state.currentDraft.theme.custom_css = body.custom_css
+      state.currentDraft.theme.updated_at = new Date().toISOString()
+      state.currentDraft.theme.state = 'draft'
+      json(req, res, 200, state.currentDraft.theme)
+      return
+    }
+  }
+
+  if (path === '/api/v1/tenant/theme/preview') {
+    const state = getThemeState(req)
+    const token = url.searchParams.get('token')
+    if (!token || token === 'invalid') {
+      json(req, res, 403, { type: 'about:blank', title: 'Forbidden', status: 403, detail: 'Invalid or expired preview token' })
+      return
+    }
+    const brandColor = state.currentDraft.theme.token_overrides?.['color.brand.primary']?.$value ?? state.currentTheme.tokens['color.brand.primary']?.$value ?? '#0066cc'
+    const previewTheme = {
+      ...state.currentTheme,
       tokens: {
-        'color.brand.primary': { $value: '#0066cc', $type: 'color' },
+        ...state.currentTheme.tokens,
+        ...state.currentDraft.theme.token_overrides,
       },
-      css_vars: ':root { --sanvi-color-brand-primary: #0066cc; }',
-      layouts: {
-        'storefront.home': {
-          slots: ['header', 'hero', 'footer'],
-        },
+      css_vars: `:root { --sanvi-color-brand-primary: ${brandColor}; }`,
+      theme_key: state.currentDraft.theme.theme_key,
+      revision: state.currentDraft.theme.revision,
+      etag: '"etag-preview"',
+    }
+    json(req, res, 200, previewTheme)
+    return
+  }
+
+  if (path === '/api/v1/tenant/theme/publish' && req.method === 'POST') {
+    const state = getThemeState(req)
+    state.previousTheme = { ...state.currentTheme, tokens: { ...state.currentTheme.tokens } }
+    state.themeRevision += 1
+    const brandColor = state.currentDraft.theme.token_overrides?.['color.brand.primary']?.$value ?? state.currentTheme.tokens['color.brand.primary']?.$value ?? '#0066cc'
+    state.currentTheme = {
+      ...state.currentTheme,
+      tokens: {
+        ...state.currentTheme.tokens,
+        ...state.currentDraft.theme.token_overrides,
       },
-      fonts: [
-        {
-          family: 'Inter',
-          src: '/fonts/inter.woff2',
-          preload: true,
-        },
-      ],
-      theme_assets: { screenshots: [] },
-      brand_assets: {},
-      revision: 1,
-      locale: 'en',
-      etag: '"etag-mock-1"',
-    })
+      css_vars: `:root { --sanvi-color-brand-primary: ${brandColor}; }`,
+      theme_key: state.currentDraft.theme.theme_key,
+      revision: state.themeRevision,
+      etag: `"etag-mock-${state.themeRevision}"`,
+    }
+    state.currentDraft.theme.state = 'live'
+    state.currentDraft.theme.revision = state.themeRevision
+    state.currentDraft.theme.updated_at = new Date().toISOString()
+    json(req, res, 200, state.currentDraft.theme)
+    return
+  }
+
+  if (path === '/api/v1/tenant/theme/rollback' && req.method === 'POST') {
+    const state = getThemeState(req)
+    if (!state.previousTheme) {
+      json(req, res, 409, { type: 'about:blank', title: 'Conflict', status: 409, detail: 'No previous revision to rollback to' })
+      return
+    }
+    state.themeRevision += 1
+    state.currentTheme = {
+      ...state.previousTheme,
+      revision: state.themeRevision,
+      etag: `"etag-mock-${state.themeRevision}"`,
+    }
+    state.previousTheme = null
+    state.currentDraft.theme.state = 'live'
+    state.currentDraft.theme.revision = state.themeRevision
+    state.currentDraft.theme.token_overrides = { ...state.currentTheme.tokens }
+    state.currentDraft.theme.updated_at = new Date().toISOString()
+    json(req, res, 200, state.currentDraft.theme)
     return
   }
 

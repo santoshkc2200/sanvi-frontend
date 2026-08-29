@@ -105,7 +105,7 @@ export class ThemeCache {
   }
 }
 
-export const themeCache = new ThemeCache()
+export const themeCache = new ThemeCache({ ttlMs: 100 })
 
 export function getCachedTheme(key: string): ResolvedTheme | undefined {
   return themeCache.get(key)
