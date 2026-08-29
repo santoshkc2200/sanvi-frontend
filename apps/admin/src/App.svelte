@@ -117,6 +117,12 @@ const routes: RouteDefinition[] = [
     guard: (params) => requireSession(router)(params),
     load: () => import('./routes/Localization.svelte'),
   },
+  {
+    path: 'theme',
+    guard: (params) =>
+      requirePermission(router, 'tenant.theming.read', getActiveTenantId())(params),
+    load: () => import('./routes/ThemeGallery.svelte'),
+  },
   { path: 'login', load: () => import('./routes/Login.svelte') },
   { path: 'health', load: () => import('./routes/Health.svelte') },
 ]
@@ -231,6 +237,7 @@ type NavKey =
   | 'settings'
   | 'security'
   | 'localization'
+  | 'theme'
 
 const NAV: { href: string; labelKey: NavKey; permission?: string }[] = [
   { href: '/', labelKey: 'dashboard' },
@@ -239,6 +246,7 @@ const NAV: { href: string; labelKey: NavKey; permission?: string }[] = [
   { href: '/usage', labelKey: 'usage' },
   { href: '/billing', labelKey: 'billing', permission: 'billing.subscription.read' },
   { href: '/payments', labelKey: 'payments', permission: 'payments.read' },
+  { href: '/theme', labelKey: 'theme', permission: 'tenant.theming.read' },
   { href: '/privacy', labelKey: 'privacy' },
   { href: '/settings', labelKey: 'settings' },
   { href: '/settings/security', labelKey: 'security' },

@@ -29,6 +29,7 @@
     "@sanvi/query": "workspace:*",
     "@sanvi/spa-router": "workspace:*",
     "@sanvi/tenant": "workspace:*",
+    "@sanvi/theme-runtime": "workspace:*",
     "@sanvi/ui": "workspace:*"
   },
   "devDependencies": {
