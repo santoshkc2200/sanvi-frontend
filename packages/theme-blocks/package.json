@@ -21,7 +21,9 @@
     "format:check": "biome format .",
     "check": "biome lint --write . && biome format .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check:i18n": "sanvi-check-i18n src",
+    "check:tokens": "sanvi-check-tokens src"
   },
   "peerDependencies": {
     "svelte": "catalog:"
@@ -32,15 +34,19 @@
     }
   },
   "dependencies": {
+    "@sanvi/api-client": "workspace:*",
     "@sanvi/design-tokens": "workspace:*",
     "@sanvi/i18n": "workspace:*",
     "@sanvi/theme-runtime": "workspace:*",
     "@sanvi/ui": "workspace:*"
   },
   "devDependencies": {
+    "@sanvi/lint-gates": "workspace:*",
     "@sanvi/test-config": "workspace:*",
     "@sanvi/ts-config": "workspace:*",
+    "@storybook/addon-svelte-csf": "^5.0.0",
     "@sveltejs/vite-plugin-svelte": "catalog:",
+    "@testing-library/svelte": "catalog:",
     "@types/node": "catalog:",
     "svelte": "catalog:",
     "typescript": "catalog:",

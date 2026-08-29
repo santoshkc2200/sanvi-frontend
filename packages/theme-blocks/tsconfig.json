@@ -1,10 +1,8 @@
 {
-  "extends": "@sanvi/ts-config/base",
+  "extends": "@sanvi/ts-config/svelte",
   "compilerOptions": {
-    "rootDir": "./src",
-    "outDir": "./dist",
-    "allowImportingTsExtensions": true
+    "rootDir": "./src"
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist", "__tests__"]
+  "include": ["src/**/*.ts", "src/**/*.svelte"],
+  "exclude": ["node_modules", "__tests__", "src/**/*.stories.svelte"]
 }

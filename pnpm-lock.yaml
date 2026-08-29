@@ -807,6 +807,92 @@ importers:
         specifier: 'catalog:'
         version: 3.2.7(@types/node@22.20.1)(jiti@2.6.1)(jsdom@25.0.1)(lightningcss@1.33.0)(yaml@2.9.0)
 
+  packages/theme-blocks:
+    dependencies:
+      '@sanvi/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+      '@sanvi/design-tokens':
+        specifier: workspace:*
+        version: link:../design-tokens
+      '@sanvi/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@sanvi/theme-runtime':
+        specifier: workspace:*
+        version: link:../theme-runtime
+      '@sanvi/ui':
+        specifier: workspace:*
+        version: link:../ui
+    devDependencies:
+      '@sanvi/lint-gates':
+        specifier: workspace:*
+        version: link:../lint-gates
+      '@sanvi/test-config':
+        specifier: workspace:*
+        version: link:../test-config
+      '@sanvi/ts-config':
+        specifier: workspace:*
+        version: link:../ts-config
+      '@storybook/addon-svelte-csf':
+        specifier: ^5.0.0
+        version: 5.1.2(@storybook/svelte@8.6.18(storybook@8.6.18(prettier@3.9.6))(svelte@5.56.9(@typescript-eslint/types@8.67.0)))(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.9(@typescript-eslint/types@8.67.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0)))(storybook@8.6.18(prettier@3.9.6))(svelte@5.56.9(@typescript-eslint/types@8.67.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0))
+      '@sveltejs/vite-plugin-svelte':
+        specifier: 'catalog:'
+        version: 6.2.4(svelte@5.56.9(@typescript-eslint/types@8.67.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0))
+      '@testing-library/svelte':
+        specifier: 'catalog:'
+        version: 5.4.2(svelte@5.56.9(@typescript-eslint/types@8.67.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0))(vitest@3.2.7(@types/node@22.20.1)(jiti@2.6.1)(jsdom@25.0.1)(lightningcss@1.33.0)(yaml@2.9.0))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.1
+      svelte:
+        specifier: 'catalog:'
+        version: 5.56.9(@typescript-eslint/types@8.67.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vite:
+        specifier: 'catalog:'
+        version: 6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0)
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.6.1)(jsdom@25.0.1)(lightningcss@1.33.0)(yaml@2.9.0)
+
+  packages/theme-runtime:
+    dependencies:
+      '@sanvi/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+      '@sanvi/design-tokens':
+        specifier: workspace:*
+        version: link:../design-tokens
+    devDependencies:
+      '@sanvi/test-config':
+        specifier: workspace:*
+        version: link:../test-config
+      '@sanvi/ts-config':
+        specifier: workspace:*
+        version: link:../ts-config
+      '@sveltejs/vite-plugin-svelte':
+        specifier: 'catalog:'
+        version: 6.2.4(svelte@5.56.9(@typescript-eslint/types@8.67.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.1
+      svelte:
+        specifier: 'catalog:'
+        version: 5.56.9(@typescript-eslint/types@8.67.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vite:
+        specifier: 'catalog:'
+        version: 6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0)
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.6.1)(jsdom@25.0.1)(lightningcss@1.33.0)(yaml@2.9.0)
+
   packages/ts-config:
     devDependencies:
       typescript:
@@ -5908,6 +5994,23 @@ snapshots:
       '@storybook/global': 5.0.0
       storybook: 8.6.18(prettier@3.9.6)
       ts-dedent: 2.3.0
+
+  '@storybook/addon-svelte-csf@5.1.2(@storybook/svelte@8.6.18(storybook@8.6.18(prettier@3.9.6))(svelte@5.56.9(@typescript-eslint/types@8.67.0)))(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.9(@typescript-eslint/types@8.67.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0)))(storybook@8.6.18(prettier@3.9.6))(svelte@5.56.9(@typescript-eslint/types@8.67.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0))':
+    dependencies:
+      '@storybook/csf': 0.1.13
+      '@storybook/svelte': 8.6.18(storybook@8.6.18(prettier@3.9.6))(svelte@5.56.9(@typescript-eslint/types@8.67.0))
+      '@sveltejs/vite-plugin-svelte': 6.2.4(svelte@5.56.9(@typescript-eslint/types@8.67.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0))
+      dedent: 1.7.2
+      es-toolkit: 1.50.0
+      esrap: 1.4.9
+      magic-string: 0.30.21
+      storybook: 8.6.18(prettier@3.9.6)
+      svelte: 5.56.9(@typescript-eslint/types@8.67.0)
+      svelte-ast-print: 0.4.2(svelte@5.56.9(@typescript-eslint/types@8.67.0))
+      vite: 6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0)
+      zimmerframe: 1.1.4
+    transitivePeerDependencies:
+      - babel-plugin-macros
 
   '@storybook/addon-svelte-csf@5.1.2(@storybook/svelte@8.6.18(storybook@8.6.18(prettier@3.9.6))(svelte@5.56.9(@typescript-eslint/types@8.67.0)))(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.56.9(@typescript-eslint/types@8.67.0))(vite@6.4.3(@types/node@26.2.0)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0)))(storybook@8.6.18(prettier@3.9.6))(svelte@5.56.9(@typescript-eslint/types@8.67.0))(vite@6.4.3(@types/node@26.2.0)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0))':
     dependencies:
