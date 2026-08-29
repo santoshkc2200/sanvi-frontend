@@ -20,6 +20,8 @@ export interface Session {
   aal: string
   methods: string[]
   authenticatedAt: string | undefined
+  /** The account's locale preference (`MeView.locale`) — phase 06's "user preference" leg. `undefined` when unset. */
+  locale: string | undefined
 }
 
 /**
@@ -40,6 +42,7 @@ export async function hydrateSession(client: TypedApiClient): Promise<Session | 
       aal: current?.aal ?? 'aal1',
       methods: current?.methods ?? [],
       authenticatedAt: current?.authenticated_at ?? undefined,
+      locale: me.locale ?? undefined,
     }
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) return null
