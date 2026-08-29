@@ -10,11 +10,16 @@ export { default as Button } from './Button.svelte'
 export { default as Checkbox } from './Checkbox.svelte'
 export { default as ConsentBanner, type ConsentBannerPurpose } from './ConsentBanner.svelte'
 export { default as ConsentPreferences, type PreferenceRow } from './ConsentPreferences.svelte'
+export { default as CopyButton } from './CopyButton.svelte'
 export { csvCell, csvDocument, downloadCsv } from './csv'
 export { default as DangerousAction } from './DangerousAction.svelte'
 export { default as DataTable } from './DataTable.svelte'
 export { type DetailShellTab, default as DetailShell } from './DetailShell.svelte'
 export { default as Dialog } from './Dialog.svelte'
+export {
+  default as DomainRecordTable,
+  type DomainRecordItem,
+} from './DomainRecordTable.svelte'
 export { default as Drawer } from './Drawer.svelte'
 export { default as EmptyState } from './EmptyState.svelte'
 export { default as ErrorView } from './ErrorView.svelte'
