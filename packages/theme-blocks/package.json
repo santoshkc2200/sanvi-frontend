@@ -1,0 +1,50 @@
+{
+  "name": "@sanvi/theme-blocks",
+  "version": "0.1.0",
+  "description": "Catalog of customizable theme blocks for Sanvi storefronts",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "require": "./src/index.ts"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome lint --write . && biome format .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "svelte": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "svelte": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@sanvi/design-tokens": "workspace:*",
+    "@sanvi/i18n": "workspace:*",
+    "@sanvi/theme-runtime": "workspace:*",
+    "@sanvi/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@sanvi/test-config": "workspace:*",
+    "@sanvi/ts-config": "workspace:*",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "@types/node": "catalog:",
+    "svelte": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}
