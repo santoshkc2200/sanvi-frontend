@@ -823,6 +823,37 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/platform/tenants/{id}/application-fee': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * `GET /api/v1/platform/tenants/{id}/application-fee` — the stored
+     *     configuration. A never-configured tenant renders the disabled default
+     *     so the console has one shape to bind.
+     */
+    get: operations['get_application_fee']
+    /**
+     * `PUT /api/v1/platform/tenants/{id}/application-fee` — create or update
+     *     the per-tenant fee configuration. Audited with actor + reason; takes
+     *     effect on the next checkout creation with no deploy (rollback is a
+     *     `DELETE` away).
+     */
+    put: operations['set_application_fee']
+    post?: never
+    /**
+     * `DELETE /api/v1/platform/tenants/{id}/application-fee` — disable (the
+     *     rollback path: data, no deploy; the numbers are retained for review).
+     */
+    delete: operations['disable_application_fee']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/platform/tenants/{id}/archive': {
     parameters: {
       query?: never
@@ -1384,6 +1415,22 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/public/track': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['public_track_conversion']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/system/version': {
     parameters: {
       query?: never
@@ -1395,6 +1442,433 @@ export interface paths {
     get: operations['version']
     put?: never
     post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/audiences': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['list_audiences']
+    put?: never
+    post: operations['create_audience']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/campaigns': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['list_campaigns']
+    put?: never
+    post: operations['create_campaign']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/campaigns/{campaign_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_campaign']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch: operations['patch_campaign']
+    trace?: never
+  }
+  '/api/v1/tenant/ads/campaigns/{campaign_id}/ad-groups': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['add_ad_group']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/campaigns/{campaign_id}/ad-groups/{ad_group_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch: operations['update_ad_group']
+    trace?: never
+  }
+  '/api/v1/tenant/ads/campaigns/{campaign_id}/ad-groups/{ad_group_id}/ads': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['add_ad']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/campaigns/{campaign_id}/ad-groups/{ad_group_id}/ads/{ad_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch: operations['update_ad']
+    trace?: never
+  }
+  '/api/v1/tenant/ads/campaigns/{campaign_id}/changes': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['list_campaign_changes']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/campaigns/{campaign_id}/drift': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Explicitly resolve a platform-observed campaign drift. The idempotency
+     *     claim is durable and created before any provider write; the adapter also
+     *     receives the same key for provider-side deduplication.
+     */
+    post: operations['resolve_campaign_drift']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/campaigns/{campaign_id}/pause': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['pause_campaign']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/campaigns/{campaign_id}/publish': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['publish_campaign']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/campaigns/{campaign_id}/resume': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['resume_campaign']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/campaigns/{campaign_id}/validate': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['validate_campaign']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/connections': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['list_connections']
+    put?: never
+    post: operations['create_connection']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/connections/{connection_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    delete: operations['delete_connection']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/connections/{platform}/oauth/callback': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['oauth_callback']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/connections/{platform}/oauth/start': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['start_oauth']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/conversions': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['list_conversions']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/conversions/{id}/diagnostics': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_conversion_diagnostics']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/conversions/{id}/retry': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['retry_conversion']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/creatives': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['list_creatives']
+    put?: never
+    post: operations['create_creative']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/creatives/{creative_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_creative']
+    put?: never
+    post?: never
+    delete: operations['delete_creative']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/creatives/{creative_id}/previews': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_creative_previews']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/platforms': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['list_ad_platforms']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/tracking/settings': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_tracking_settings']
+    put: operations['put_tracking_settings']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/tracking/test-event': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Runs a synthetic event through the exact same capture pipeline as
+     *     `/public/track` — including the directive gate — and returns what was
+     *     captured and why, without persisting anything. Flagged as a test on
+     *     the client side; nothing here ever reaches `advertising.conversion_events`.
+     */
+    post: operations['test_tracking_event']
     delete?: never
     options?: never
     head?: never
@@ -1468,6 +1942,50 @@ export interface paths {
     }
     /** `GET /api/v1/tenant/billing/subscription` — the tenant's subscription. */
     get: operations['get_subscription']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/checkout': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * `POST /api/v1/tenant/checkout` — start a purchase on the tenant's own
+     *     connected account. Direct charge: money lands in the **tenant's**
+     *     Stripe balance; nothing transits Sanvi. The response URL is a hint —
+     *     the confirmation page trusts only `GET /tenant/checkout/{id}`.
+     */
+    post: operations['create_tenant_checkout']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/checkout/{id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * `GET /api/v1/tenant/checkout/{id}` — the confirming state. Polled by
+     *     the confirmation page and trusted over any redirect: a customer who
+     *     never returns still ends with a paid order here, a forged return URL
+     *     yields nothing.
+     */
+    get: operations['get_tenant_checkout']
     put?: never
     post?: never
     delete?: never
@@ -1812,6 +2330,170 @@ export interface paths {
     patch: operations['update_member_roles']
     trace?: never
   }
+  '/api/v1/tenant/payments': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * `GET /api/v1/tenant/payments` — every documented filter combinable,
+     *     cursor-paginated, tenant-scoped by RLS and indexed for the filter set.
+     */
+    get: operations['list_tenant_payments']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/payments/connections': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * `POST /api/v1/tenant/payments/connections` — connect a payment
+     *     provider. Creates the account at the provider (Accounts v2, keyed by
+     *     our connection id), persists the `Pending` connection, emits
+     *     `ProviderConnectionStarted` and writes the audit entry — in that
+     *     order, so a crashed response never orphans an account.
+     */
+    post: operations['create_payment_connection']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/payments/connections/{id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * `GET /api/v1/tenant/payments/connections/{id}` — the connection's
+     *     status, capabilities, outstanding requirements (with i18n render keys
+     *     and deadline), blockers, and the server-computed `can_accept_payments`
+     *     (FR-903). Truthful because 09.3's webhooks and reconciliation job keep
+     *     the row current.
+     */
+    get: operations['get_payment_connection']
+    put?: never
+    post?: never
+    /**
+     * `DELETE /api/v1/tenant/payments/connections/{id}` — disconnect the
+     *     tenant's payment provider (09.7). Local semantics only: the row is
+     *     marked `Disconnected`, new checkouts stop, every historical record
+     *     stays. The provider account itself is never closed — it is the
+     *     tenant's account to close in their own Dashboard.
+     * @description Refused with `409` and a structured blocker list (`in_flight_payments`,
+     *     `open_disputes`, `pending_payouts` as problem-extension members) while
+     *     money could still move. Idempotent: a retried DELETE of an already-
+     *     disconnected connection answers 200 from the record. Reconnecting
+     *     later creates a *new* connection; history stays attached to this one.
+     */
+    delete: operations['delete_payment_connection']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/payments/connections/{id}/session': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * `POST /api/v1/tenant/payments/connections/{id}/session` — mint an
+     *     Account Session client secret for the embedded onboarding component.
+     * @description Fetched per render: never persisted, never logged, single-render;
+     *     refused outright for a disconnected connection.
+     */
+    post: operations['create_payment_connection_session']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/payments/disputes': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * `GET /api/v1/tenant/payments/disputes` — disputes for this tenant,
+     *     cursor-paginated.
+     */
+    get: operations['list_tenant_disputes']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/payments/export': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * `GET /api/v1/tenant/payments/export` — server-side CSV export,
+     *     tenant-scoped, audited.
+     * @description The column set is fixed and documented: `payment_id,external_payment_id,
+     *     checkout_reference,amount_minor,currency,status,fee_minor,fee_currency,
+     *     captured_at,created_at,refunded_minor,dispute_status`.
+     */
+    get: operations['export_tenant_payments']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/payments/payouts': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * `GET /api/v1/tenant/payments/payouts` — the connected account's payout
+     *     history (schedule, next payout, recent history), read live over the
+     *     connected account.
+     */
+    get: operations['list_tenant_payouts']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/tenant/payments/providers': {
     parameters: {
       query?: never
@@ -1826,10 +2508,87 @@ export interface paths {
      *     `payments.stripe_connect` entitlement (`RequiredFeature` — 403, never
      *     404, so the frontend can render an upgrade prompt instead of a dead
      *     end).
+     *
+     *     The response is derived from the provider registry — the handler adds
+     *     nothing provider-specific. The tenant's country (from the tenant
+     *     context's region, when it parses as ISO-3166-1 alpha-2) decides
+     *     per-tenant availability; an unparseable region leaves the provider
+     *     available rather than locking the tenant out.
      */
     get: operations['list_payment_providers']
     put?: never
     post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/payments/tax-settings': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** `GET /api/v1/tenant/payments/tax-settings`. */
+    get: operations['get_tenant_tax_settings']
+    /**
+     * `PUT /api/v1/tenant/payments/tax-settings` — enable/disable automatic
+     *     tax. Enabling runs the preflight first: an account whose tax settings
+     *     are not `active`, or which holds no active registration, cannot enable
+     *     (409 naming the missing step) — without registrations Stripe collects
+     *     nothing and returns no error, and that silence must never look like a
+     *     working toggle.
+     */
+    put: operations['update_tenant_tax_settings']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/payments/{id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * `GET /api/v1/tenant/payments/{id}` — payment detail with timeline,
+     *     refunds and dispute state.
+     */
+    get: operations['get_tenant_payment']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/payments/{id}/refund': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * `POST /api/v1/tenant/payments/{id}/refund` — refund a payment.
+     * @description `Idempotency-Key` is required; the response is the refund record,
+     *     never a bare 204 — a partial refund of an unexpected amount is a
+     *     support incident, so the UI must be able to show what actually
+     *     happened. Arithmetic is in minor units against the already-refunded
+     *     total; an over-refund is rejected with the remaining refundable
+     *     amount in the error, not a generic 422. Executed on the connected
+     *     account — the refund is the tenant's money moving, not ours.
+     */
+    post: operations['refund_tenant_payment']
     delete?: never
     options?: never
     head?: never
@@ -1986,6 +2745,26 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/tenant/theme/preview-token': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * `POST /api/v1/tenant/theme/preview-token` — mint a short-lived token for
+     *     the current tenant's draft.
+     */
+    post: operations['mint_theme_preview_token']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/tenant/theme/publish': {
     parameters: {
       query?: never
@@ -2101,6 +2880,10 @@ export interface components {
       /** @example 64-hex-chars */
       token: string
     }
+    AccountView: {
+      display_name: string
+      external_id: string
+    }
     /**
      * @description Who performed the action. `User` is a tenant user; `PlatformAdmin` is an
      *     operator on the platform host; `System` is an automated process (jobs,
@@ -2108,6 +2891,27 @@ export interface components {
      * @enum {string}
      */
     ActorType: 'user' | 'platform_admin' | 'system'
+    Ad: {
+      creative: components['schemas']['Creative']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      landing_url: string
+      tracking_template?: string | null
+    }
+    AdGroup: {
+      ads: components['schemas']['Ad'][]
+      bid: components['schemas']['BidSettings']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      name: string
+      targeting: components['schemas']['Targeting']
+    }
     AddPriceRequest: {
       currency: string
       interval: components['schemas']['PriceInterval']
@@ -2117,6 +2921,18 @@ export interface components {
       /** Format: int64 */
       unit_amount_minor: number
     }
+    /**
+     * @description Stable RFC-7807 suffixes emitted by future advertising endpoints.
+     * @enum {string}
+     */
+    AdvertisingProblemType:
+      | 'advertising/platform-unavailable'
+      | 'advertising/connection-not-active'
+      | 'advertising/capability-unsupported'
+      | 'advertising/token-expired'
+      | 'advertising/directive-suppressed'
+      | 'advertising/budget-cap-reached'
+      | 'advertising/campaign-invalid'
     AffectedSet: {
       jurisdictions: components['schemas']['JurisdictionRef'][]
       /** Format: int64 */
@@ -2200,12 +3016,14 @@ export interface components {
       authority_notice?: null | components['schemas']['AuthorityContact']
       /** Format: date-time */
       decided_at?: string | null
-      /** Format: uuid */
       decided_by?: string | null
       decision_reason?: string | null
       /** Format: date-time */
       due_at: string
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       outcome?: null | components['schemas']['AppealOutcome']
       reason: string
@@ -2216,7 +3034,10 @@ export interface components {
     /** @enum {string} */
     AppealOutcome: 'upheld' | 'denied'
     AppealRequestOutput: {
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       appeal_id: string
       /** @description The state authority's complaint route, included up front. */
       authority: components['schemas']['AuthorityContact']
@@ -2227,7 +3048,10 @@ export interface components {
       reason: string
     }
     AppealStatusView: {
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       appeal_id: string
       authority_notice?: null | components['schemas']['AuthorityContact']
       /** Format: date-time */
@@ -2236,6 +3060,23 @@ export interface components {
       due_at: string
       outcome?: string | null
       reason: string
+    }
+    /** @description One tenant's application-fee configuration (operator console). */
+    ApplicationFeeView: {
+      /** Format: int32 */
+      basis_points?: number | null
+      /** @description Off everywhere by default in 0.10.0. */
+      enabled: boolean
+      /** Format: int64 */
+      fixed_amount_minor?: number | null
+      fixed_currency?: string | null
+      /** Format: int64 */
+      minimum_minor: number
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id: string
     }
     ApplyLegalHoldCommand: {
       reason: string
@@ -2248,16 +3089,29 @@ export interface components {
       action_type: string
       /** Format: date-time */
       decided_at?: string | null
-      /** Format: uuid */
       decided_by?: string | null
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       payload: unknown
       /** Format: date-time */
       requested_at: string
-      /** Format: uuid */
       requested_by: string
       status: components['schemas']['ApprovalStatus']
+    }
+    AssetMetadata: {
+      aspect_ratio: string
+      /** Format: int32 */
+      duration_seconds?: number | null
+      /** Format: int64 */
+      file_size_bytes: number
+      /** Format: int32 */
+      height_px: number
+      is_video: boolean
+      /** Format: int32 */
+      width_px: number
     }
     /**
      * @description A chained audit entry.
@@ -2270,18 +3124,23 @@ export interface components {
      */
     AuditEntry: {
       action: string
-      /** Format: uuid */
-      actor_id?: string | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      actor_id?: string
       actor_type: components['schemas']['ActorType']
       after?: unknown
       before?: unknown
       hash: number[]
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       ip: string
       /** Format: date-time */
       occurred_at: string
-      /** Format: uuid */
       on_behalf_of?: string | null
       prev_hash: number[]
       request_id?: string | null
@@ -2289,8 +3148,11 @@ export interface components {
       resource_type?: string | null
       /** Format: int64 */
       seq: number
-      /** Format: uuid */
-      tenant_id?: string | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id?: string
       user_agent: string
     }
     /** @description One page of audit entries. */
@@ -2320,6 +3182,15 @@ export interface components {
     }
     AvailableThemesView: {
       themes: components['schemas']['AvailableThemeView'][]
+    }
+    BidSettings: {
+      maximum_bid?: null | components['schemas']['Money']
+      strategy: string
+    }
+    /** @description One reason the connection cannot take payments yet, keyed for i18n. */
+    BlockerView: {
+      /** @example payments.blocker.card_payments_inactive */
+      summary_key: string
     }
     /** @description One validated, stored brand asset. */
     BrandAsset: {
@@ -2354,13 +3225,15 @@ export interface components {
       affected: components['schemas']['AffectedSet']
       /** Format: date-time */
       contained_at?: string | null
-      /** Format: uuid */
       created_by?: string | null
       data_classes: components['schemas']['DataClass'][]
       /** Format: date-time */
       discovered_at: string
       encrypted_at_rest: boolean
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       notes?: string | null
     }
@@ -2402,6 +3275,12 @@ export interface components {
        */
       encryption_safe_harbour: boolean
     }
+    Budget: {
+      amount: components['schemas']['Money']
+      kind: components['schemas']['BudgetType']
+    }
+    /** @enum {string} */
+    BudgetType: 'daily' | 'lifetime'
     /** @description Immutable build/version information, captured at compile time. */
     BuildInfo: {
       /**
@@ -2430,6 +3309,103 @@ export interface components {
        */
       version: string
     }
+    Campaign: {
+      ad_groups: components['schemas']['AdGroup'][]
+      budget: components['schemas']['Budget']
+      drift: components['schemas']['DriftState']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      name: string
+      objective: components['schemas']['Objective']
+      schedule?: null | components['schemas']['Schedule']
+      status: components['schemas']['CampaignStatus']
+    }
+    CampaignChange: {
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      actor_id?: string
+      after_state: components['schemas']['Campaign']
+      before_state: components['schemas']['Campaign']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      campaign_id: string
+      changed_fields: string[]
+      /** Format: date-time */
+      created_at: string
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      /** Format: uuid */
+      mutation_id?: string | null
+      /** Format: int64 */
+      revision: number
+      source: components['schemas']['ChangeSource']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id: string
+    }
+    CampaignChangesView: {
+      changes: components['schemas']['CampaignChange'][]
+    }
+    /** @enum {string} */
+    CampaignStatus: 'draft' | 'active' | 'paused' | 'ended' | 'archived'
+    /**
+     * @description One campaign plus the envelope fields the domain model does not carry:
+     *     which connection it belongs to and the platform-assigned id once
+     *     published.
+     */
+    CampaignView: {
+      campaign: components['schemas']['Campaign']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      connection_id: string
+      external_id?: string | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      /** @example google_ads */
+      platform: string
+      /** Format: int64 */
+      revision: number
+    }
+    CampaignsView: {
+      campaigns: components['schemas']['CampaignView'][]
+    }
+    /** @description Data consumed by both the validator and the frontend form engine. */
+    CapabilityMatrix: {
+      budget_types: components['schemas']['BudgetType'][]
+      creative_placements: components['schemas']['CreativePlacement'][]
+      matrix_version: string
+      minimum_budgets_minor: {
+        [key: string]: {
+          [key: string]: number
+        }
+      }
+      objectives: components['schemas']['Objective'][]
+      schedule_granularity: components['schemas']['ScheduleGranularity']
+      targeting_dimensions: components['schemas']['TargetingDimension'][]
+      /** @description Locale -> field name -> inclusive character limit. */
+      text_limits: {
+        [key: string]: {
+          [key: string]: number
+        }
+      }
+    }
     /**
      * @description The catalog the frontend consumes: every message for one domain in one
      *     locale, plus a revision (ETag) that changes whenever content does.
@@ -2454,9 +3430,14 @@ export interface components {
       txt_name: string
       txt_value: string
     }
+    /** @enum {string} */
+    ChangeSource: 'sanvi' | 'platform'
     CheckoutSessionRequest: {
       cancel_url?: string | null
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       price_id: string
       success_url?: string | null
     }
@@ -2464,11 +3445,60 @@ export interface components {
       session_id: string
       url: string
     }
+    /**
+     * @description The checkout as the storefront sees it. `status` is the only source
+     *     the confirmation page trusts: derived from webhook-recorded truth,
+     *     never from the redirect.
+     */
+    CheckoutView: {
+      /**
+       * Format: int64
+       * @example 2000
+       */
+      amount_minor: number
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      conversion_event_id?: string
+      created_at: string
+      /** @example JPY */
+      currency: string
+      customer_ref?: Record<string, never> | null
+      expires_at?: string | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      reference: string
+      /**
+       * @description `pending` | `paid` | `failed` | `expired` | `canceled`.
+       * @example pending
+       */
+      status: string
+      /**
+       * @description The provider-hosted payment URL, while the checkout can still be
+       *     paid. Absent once terminal.
+       * @example https://checkout.stripe.com/c/pay/cs_…
+       */
+      url?: string | null
+    }
     ClaimCustomDomainCommand: {
       /** @description The hostname to claim (`shop.acme.com`). */
       hostname: string
       /** @description `primary` (default when the tenant has none), `alias` or `redirect`. */
       role?: string | null
+    }
+    ClickIds: {
+      /** Format: date-time */
+      capture_time?: string | null
+      fbc?: string | null
+      fbp?: string | null
+      gbraid?: string | null
+      gclid?: string | null
+      landing_url?: string | null
+      wbraid?: string | null
     }
     /**
      * @description Our dunning machine, orthogonal to Stripe's status.
@@ -2478,6 +3508,60 @@ export interface components {
     CompleteLinkChallengeBody: {
       /** @example 64-hex-chars */
       nonce?: string | null
+    }
+    ConnectionHealthView: {
+      can_sync: boolean
+      can_upload_conversions: boolean
+      last_error?: string | null
+      /** Format: date-time */
+      last_synced_at?: string | null
+      reconnect_required: boolean
+      scopes_missing: string[]
+      /** Format: date-time */
+      token_expires_at?: string | null
+    }
+    /**
+     * @description A short-lived Account Session for the embedded onboarding component.
+     *     Fetched per render; never persisted, never logged, single-render.
+     */
+    ConnectionSessionView: {
+      /**
+       * @description The provider's embedded-components client secret. Handle like a
+       *     credential: no caching, no logging, one render.
+       */
+      client_secret: string
+      /**
+       * @description The embedded components enabled on this session (09.2:
+       *     `account_onboarding` only).
+       */
+      components: string[]
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      connection_id: string
+      expires_at: string
+      /** @example stripe_connect */
+      provider: string
+    }
+    /** @enum {string} */
+    ConnectionState: 'not_connected' | 'connected'
+    ConnectionView: {
+      account_name?: string | null
+      currency: string
+      external_account_id: string
+      health: components['schemas']['ConnectionHealthView']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      platform: string
+      status: string
+      timezone: string
+    }
+    ConnectionsView: {
+      connections: components['schemas']['ConnectionView'][]
     }
     ConsentChangeRequest: {
       granted: boolean
@@ -2502,7 +3586,10 @@ export interface components {
     ConsentRecord: {
       evidence: unknown
       granted: boolean
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       jurisdiction: components['schemas']['JurisdictionRef']
       locale?: string | null
@@ -2512,29 +3599,165 @@ export interface components {
       /** Format: date-time */
       recorded_at: string
       signal_source?: null | components['schemas']['SignalSource']
-      subject_id?: string | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      subject_id?: string
       subject_ref: components['schemas']['SubjectRef']
-      /** Format: uuid */
-      tenant_id?: string | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id?: string
       /** Format: date-time */
       withdrawn_at?: string | null
     }
+    /** @description Capture-time directive proof required by every outbound upload. */
+    ConsentSnapshot: {
+      answers: {
+        [key: string]: string
+      }
+      jurisdiction: string
+      purposes_asked: string[]
+      resolver_version: string
+      signal_source: string
+    }
     /** @enum {string} */
     ControllerRole: 'controller' | 'processor' | 'business' | 'service_provider'
+    ConversionDiagnostics: {
+      /** Format: date-time */
+      captured_at: string
+      event: components['schemas']['ConversionEvent']
+    }
+    ConversionEvent: {
+      click_ids: components['schemas']['ClickIds']
+      consent: components['schemas']['ConsentSnapshot']
+      event_id: string
+      hashed_identifiers: {
+        [key: string]: components['schemas']['HashedIdentifier']
+      }
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      name: string
+      /** Format: date-time */
+      occurred_at: string
+      order_ref?: string | null
+      subject_key?: components['schemas']['SubjectKeyRef']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id: string
+      upload_states?: {
+        [key: string]: components['schemas']['UploadState']
+      }
+      value?: null | components['schemas']['Money']
+      value_source?: null | components['schemas']['ValueSource']
+    }
     /** @description One field correction (rectification). */
     Correction: {
       context: string
       field: string
       value: string
     }
+    CreateAdGroupRequest: {
+      bid: components['schemas']['BidSettings']
+      name: string
+      targeting: components['schemas']['Targeting']
+    }
+    CreateAdRequest: {
+      creative: components['schemas']['Creative']
+      landing_url: string
+      tracking_template?: string | null
+    }
+    CreateCampaignRequest: {
+      budget: components['schemas']['Budget']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      connection_id: string
+      name: string
+      /** @example sales */
+      objective: string
+      schedule?: null | components['schemas']['Schedule']
+    }
+    /**
+     * @description `POST /api/v1/tenant/checkout` — create a checkout session on the
+     *     tenant's connected account (09.4, direct charges). Idempotency-Key is
+     *     required: a double-clicked buy button must not create two sessions.
+     */
+    CreateCheckoutRequest: {
+      /**
+       * Format: int64
+       * @description Minor units — ¥2,000 is `2000` (JPY is zero-decimal).
+       * @example 2000
+       */
+      amount_minor: number
+      /** @example https://shop.tenant.test/cart */
+      cancel_url: string
+      /**
+       * @description ISO-4217 code; must match the connected account's settlement
+       *     currency.
+       * @example JPY
+       */
+      currency: string
+      /**
+       * @description Free-form customer/order context (provider-passthrough; no card
+       *     data ever). Rate limiting buckets one key per distinct value.
+       */
+      customer_ref?: Record<string, never> | null
+      /** @description Presentation locale for the hosted page (`ja`, `en-US`, …). */
+      locale?: string | null
+      /**
+       * @description The merchant's order reference, echoed on every read model.
+       * @example order-2026-0821
+       */
+      reference: string
+      /**
+       * @description Redirect target on a **verified** tenant domain (phase 08). A
+       *     success URL on any other host is rejected outright.
+       * @example https://shop.tenant.test/thanks
+       */
+      success_url: string
+    }
+    CreateConnectionRequest: {
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      connection_id: string
+      /** @example JPY */
+      currency: string
+      external_account_id: string
+      /** @example Asia/Tokyo */
+      timezone: string
+    }
+    CreateCreativeRequest: {
+      asset_references: string[]
+      assets?: components['schemas']['AssetMetadata'][]
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      connection_id: string
+      placement: string
+      texts: components['schemas']['CreativeText'][]
+    }
     CreateImpersonationRequest: {
       /** Format: int32 */
       duration_minutes: number
       mode?: components['schemas']['ImpersonationMode']
       reason: string
-      /** Format: uuid */
       target_user_id: string
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       tenant_id: string
     }
     CreatePlanRequest: {
@@ -2551,6 +3774,77 @@ export interface components {
       name: string
       permissions: string[]
     }
+    Creative: {
+      asset_references: string[]
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      placement: string
+      texts: components['schemas']['CreativeText'][]
+    }
+    CreativeAssetSpec: {
+      aspect_ratios: string[]
+      /**
+       * @description Placement-set-level requirement (whether at least one image asset is required for the placement set).
+       *     Not enforced per asset.
+       */
+      image_required: boolean
+      /** Format: int32 */
+      max_duration_seconds?: number | null
+      /** Format: int64 */
+      max_file_size_bytes?: number | null
+      /** Format: int32 */
+      min_duration_seconds?: number | null
+      /** Format: int32 */
+      min_height_px?: number | null
+      /** Format: int32 */
+      min_width_px?: number | null
+      video_allowed: boolean
+    }
+    CreativePlacement: {
+      asset_spec: components['schemas']['CreativeAssetSpec']
+      key: string
+    }
+    CreativePreviewView: {
+      asset_references: string[]
+      body?: string | null
+      headline?: string | null
+      placement: string
+      spec: components['schemas']['CreativeAssetSpec']
+    }
+    CreativePreviewsView: {
+      previews: components['schemas']['CreativePreviewView'][]
+    }
+    CreativeText: {
+      body: string
+      headline: string
+      locale: string
+    }
+    CreativeView: {
+      assets?: components['schemas']['AssetMetadata'][]
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      connection_id: string
+      /** Format: date-time */
+      created_at: string
+      creative: components['schemas']['Creative']
+      external_id?: string | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      platform: string
+      /** Format: date-time */
+      updated_at: string
+    }
+    CreativesView: {
+      creatives: components['schemas']['CreativeView'][]
+    }
     CustomDomainView: {
       challenge?: null | components['schemas']['ChallengeView']
       /** Format: date-time */
@@ -2558,7 +3852,10 @@ export interface components {
       detected_registrar?: string | null
       failure?: null | components['schemas']['DomainFailure']
       hostname: string
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       kind: string
       role: string
@@ -2581,14 +3878,21 @@ export interface components {
       | 'contact'
       | 'billing'
       | 'invoice'
+      | 'transaction_record'
       | 'audit_log'
       | 'consent_record'
       | 'preference'
       | 'communication'
       | 'jurisdiction'
       | 'request_record'
+      | 'advertising_conversion_event'
+      | 'advertising_metric'
+      | 'advertising_campaign_change'
     DecideAppealOutput: {
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       appeal_id: string
       authority?: null | components['schemas']['AuthorityContact']
       /** Format: date-time */
@@ -2639,6 +3943,34 @@ export interface components {
      * @enum {string}
      */
     DirectiveState: 'allowed' | 'denied'
+    /** @description Cursor-paginated dispute list. */
+    DisputeListView: {
+      items: components['schemas']['DisputeView'][]
+      next_cursor?: string | null
+    }
+    /** @description One dispute plus its dashboard deep link (read-only). */
+    DisputeView: {
+      /** Format: int64 */
+      amount_minor: number
+      charge_id?: string | null
+      created_at: string
+      currency: string
+      dashboard_url?: string | null
+      due_by?: string | null
+      external_dispute_id: string
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      payment_id: string
+      reason?: string | null
+      status: string
+    }
     /** @description Why a domain failed or degraded, as a stable code plus free detail. */
     DomainFailure: {
       code: string
@@ -2658,6 +3990,12 @@ export interface components {
       query: string
       registrar_id: string
       results: components['schemas']['DomainQuote'][]
+    }
+    /** @enum {string} */
+    DriftResolution: 'keep_theirs' | 'reapply_ours'
+    DriftState: {
+      changed_fields: string[]
+      drifted: boolean
     }
     /**
      * @description A DSR kind. `KnowCategories` is the CCPA "right to know" (categories
@@ -2747,7 +4085,6 @@ export interface components {
       /** Format: date-time */
       received_at: string
       rejection_reason?: string | null
-      /** Format: uuid */
       request_id: string
       status: components['schemas']['DsrStatus']
       submitted_by: components['schemas']['Requester']
@@ -2765,7 +4102,6 @@ export interface components {
       | 'granted'
       | {
           approval_required: {
-            /** Format: uuid */
             approval_id: string
           }
         }
@@ -2776,10 +4112,15 @@ export interface components {
     }
     /** @description The registrar-specific walkthrough (localized; phase 06). */
     GuideView: {
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       steps: string[]
       title: string
     }
+    HashedIdentifier: string
     /**
      * @description Whether a dependency is healthy.
      * @enum {string}
@@ -2787,23 +4128,30 @@ export interface components {
     HealthState: 'ok' | 'degraded'
     /** @description One grant as exposed by the API. */
     ImpersonationGrantView: {
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       actor_id: string
       /** Format: date-time */
       created_at: string
       /** Format: date-time */
       expires_at: string
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       mode: components['schemas']['ImpersonationMode']
       reason: string
       /** Format: date-time */
       revoked_at?: string | null
-      /** Format: uuid */
       revoked_by?: string | null
-      /** Format: uuid */
       target_user_id: string
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       tenant_id: string
     }
     /**
@@ -2844,7 +4192,10 @@ export interface components {
       value: string
     }
     InstructionsView: {
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       domain_id: string
       guide: components['schemas']['GuideView']
       hostname: string
@@ -2860,7 +4211,10 @@ export interface components {
       /** @example bob@example.com */
       email: string
       expires_at: string
-      /** @example 0190f0d0-0000-7000-8000-000000000001 */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       invitation_id: string
       role_ids: string[]
       status: components['schemas']['InvitationStatus']
@@ -2881,7 +4235,10 @@ export interface components {
       created_at: string
       currency: string
       hosted_url?: string | null
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       invoice_id: string
       number?: string | null
       /** Format: date-time */
@@ -2949,14 +4306,15 @@ export interface components {
     LegalHold: {
       /** Format: date-time */
       created_at: string
-      /** Format: uuid */
       created_by: string
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       reason: string
       /** Format: date-time */
       released_at?: string | null
-      /** Format: uuid */
       released_by?: string | null
       scope: unknown
     }
@@ -3009,18 +4367,23 @@ export interface components {
       locale?: string | null
       memberships: components['schemas']['MembershipSummary'][]
       status: components['schemas']['UserStatus']
-      /** @example 0190f0d0-0000-7000-8000-000000000001 */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       user_id: string
     }
     MemberView: {
       created_at: string
       /** @example alice@example.com */
       email: string
-      /** Format: uuid */
       invited_by?: string | null
       role_ids: string[]
       status: components['schemas']['MembershipStatus']
-      /** @example 0190f0d0-0000-7000-8000-000000000001 */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       user_id: string
     }
     /** @enum {string} */
@@ -3041,18 +4404,58 @@ export interface components {
       permissions: string[]
       role_ids: string[]
       status: components['schemas']['MembershipStatus']
-      /** @example 0190f0d0-0000-7000-8000-000000000002 */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       tenant_id: string
       /** @example Acme Corporation */
       tenant_name: string
       /** @example acme */
       tenant_slug: string
     }
-    /** @description An amount in the currency's minor unit (cents for USD/JPY). */
-    Money: {
-      currency: string
+    /**
+     * @description One daily chart rollup. The grain is `(tenant, platform, campaign, date)`;
+     *     tenant is supplied by the authenticated route scope.
+     */
+    MetricPoint: {
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      campaign_id: string
       /** Format: int64 */
-      minor: number
+      clicks: number
+      conversion_value: components['schemas']['MoneyView']
+      /**
+       * Format: date
+       * @example 2026-08-24
+       */
+      date: string
+      /** Format: int64 */
+      impressions: number
+      /** @example google_ads */
+      platform: string
+      rendered_spend?: null | components['schemas']['RenderedMoneyView']
+      spend: components['schemas']['MoneyView']
+    }
+    Money: {
+      /** Format: int64 */
+      amount_minor: number
+      currency: string
+    }
+    /**
+     * @description A stored amount is always integer minor units plus the originating ad
+     *     account's ISO-4217 currency. JPY ¥2,000 is represented as `2000` / `JPY`.
+     */
+    MoneyView: {
+      /**
+       * Format: int64
+       * @example 2000
+       */
+      amount_minor: number
+      /** @example JPY */
+      currency: string
     }
     /**
      * @description The notice at collection (served before any collection happens): the
@@ -3091,6 +4494,16 @@ export interface components {
       notified_at?: string | null
       suppressed_by_encryption: boolean
     }
+    OAuthCallbackQuery: {
+      code: string
+      /**
+       * @description Must match the `redirect_uri` sent to `start` — the platform rejects
+       *     a mismatch at exchange time.
+       */
+      redirect_uri: string
+      state: string
+    }
+    Objective: string
     /** @enum {string} */
     ObligationAudience: 'authority' | 'consumer' | 'tenant'
     OrderView: {
@@ -3101,7 +4514,10 @@ export interface components {
       /** Format: date-time */
       expires_at?: string | null
       hostname: string
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       /** Format: int64 */
       price_minor: number
@@ -3118,15 +4534,131 @@ export interface components {
       /** Format: date-time */
       expires_at?: string | null
       feature: string
-      /** Format: uuid */
       granted_by?: string | null
       granted_reason?: string | null
       /** Format: int64 */
       limit?: number | null
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       tenant_id: string
       /** Format: date-time */
       updated_at: string
+    }
+    PatchAdGroupRequest: {
+      bid?: null | components['schemas']['BidSettings']
+      name?: string | null
+      targeting?: null | components['schemas']['Targeting']
+    }
+    PatchAdRequest: {
+      creative?: null | components['schemas']['Creative']
+      landing_url?: string | null
+      /**
+       * @description `None` leaves the stored value unchanged; there is no way to clear it
+       *     back to unset in this slice (same limitation `PATCH /campaigns/{id}`
+       *     has for `schedule`).
+       */
+      tracking_template?: string | null
+    }
+    /**
+     * @description A merge patch: every field is optional and `None` leaves the stored
+     *     value unchanged. Used both by `PATCH` and by `validate`'s dry run.
+     */
+    PatchCampaignRequest: {
+      ad_groups?: components['schemas']['AdGroup'][] | null
+      budget?: null | components['schemas']['Budget']
+      name?: string | null
+      /** @example sales */
+      objective?: string | null
+      schedule?: null | components['schemas']['Schedule']
+    }
+    /**
+     * @description The payment detail the support UI renders: payment + its refunds +
+     *     disputes + timeline.
+     *
+     *     The timeline is a first-class projection derived from stored events
+     *     (created, succeeded/failed, refunded, disputed, paid out), each with
+     *     a timestamp and an actor where one exists.
+     */
+    PaymentDetailView: {
+      checkout_reference?: string | null
+      disputes: components['schemas']['DisputeView'][]
+      payment: components['schemas']['PaymentView']
+      refunds: components['schemas']['RefundView'][]
+      timeline: components['schemas']['TimelineEntry'][]
+    }
+    /** @description Cursor-paginated payment list. */
+    PaymentListView: {
+      items: components['schemas']['PaymentView'][]
+      next_cursor?: string | null
+    }
+    /** @description One payment as the tenant sees it in the list. */
+    PaymentView: {
+      /** Format: int64 */
+      amount_minor: number
+      captured_at?: string | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      checkout_id?: string
+      created_at?: string | null
+      currency: string
+      external_payment_id: string
+      failure_code?: string | null
+      failure_message?: string | null
+      fee_currency?: string | null
+      /**
+       * Format: int64
+       * @description The provider-reported fee on this payment. When the platform's
+       *     application fee is enabled for the tenant, this is where it is
+       *     disclosed — a platform fee the merchant cannot see is not
+       *     acceptable, whatever the contract says.
+       */
+      fee_minor?: number | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      /**
+       * @description Payout status once payout reconciliation includes this payment
+       *     (`pending` | `paid` | `failed`; null until then).
+       */
+      payout_status?: string | null
+      status: string
+    }
+    /**
+     * @description One payout as the tenant's list renders it. Read-only: payout
+     *     management lives in the provider's own dashboard / embedded component.
+     */
+    PayoutView: {
+      /** Format: int64 */
+      amount_minor: number
+      arrival_at?: string | null
+      currency: string
+      external_payout_id: string
+      /**
+       * @description `pending` | `paid` | `failed`. A failed payout is alerted, not
+       *     just listed — the tenant's money is stuck at the provider.
+       * @example paid
+       */
+      status: string
+    }
+    PayoutsListView: {
+      /** @description Newest first; empty before a connection exists. */
+      payouts: components['schemas']['PayoutView'][]
+    }
+    PendingConnectionView: {
+      accounts: components['schemas']['AccountView'][]
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      platform: string
+      status: string
     }
     /** @description A billing period (current or invoice period). */
     Period: {
@@ -3169,7 +4701,10 @@ export interface components {
       active: boolean
       currency: string
       interval: components['schemas']['PriceInterval']
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       price_id: string
       stripe_price_id: string
       /** Format: int32 */
@@ -3182,7 +4717,10 @@ export interface components {
       entitlements: components['schemas']['EntitlementGrant'][]
       key: string
       name: string
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       plan_id: string
       prices: components['schemas']['PlanAdminPriceView'][]
       /** Format: int32 */
@@ -3195,7 +4733,10 @@ export interface components {
     PlanPriceView: {
       currency: string
       interval: components['schemas']['PriceInterval']
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       price_id: string
       /** Format: int32 */
       trial_days?: number | null
@@ -3213,11 +4754,53 @@ export interface components {
      * @enum {string}
      */
     PlanVisibility: 'public' | 'hidden'
-    PortalSessionRequest: {
-      return_url?: string | null
+    /**
+     * @description The platform's fee disclosure for this tenant (their payment settings).
+     *     A platform fee the merchant cannot see is not acceptable, whatever the
+     *     contract says.
+     */
+    PlatformFeeDisclosure: {
+      /** Format: int32 */
+      basis_points?: number | null
+      /** @description Fees are off for this tenant unless stated here. */
+      enabled: boolean
+      fixed_currency?: string | null
+      /** Format: int64 */
+      fixed_minor?: number | null
+      /** Format: int64 */
+      minimum_minor: number
+    }
+    /** @description Adapter-owned identifier. Domain code never switches on a platform name. */
+    PlatformKey: string
+    /**
+     * @description Registry-derived catalog item. A platform without entitlement remains in
+     *     the list so clients can render its upgrade state rather than a dead end.
+     */
+    PlatformView: {
+      available: boolean
+      capability_matrix: components['schemas']['CapabilityMatrix']
+      connection_state: components['schemas']['ConnectionState']
+      /** @example Google Ads */
+      display_name: string
+      entitlement_key: string
+      /** @example google_ads */
+      key: string
+      upgrade_required: boolean
+    }
+    /**
+     * @description Stable envelope for the platform catalog. TASK-010 fills this only from
+     *     registered capability matrices; no platform name is hard-coded here.
+     */
+    PlatformsView: {
+      platforms: components['schemas']['PlatformView'][]
     }
     PortalSessionView: {
       url: string
+    }
+    PreviewTokenView: {
+      /** Format: date-time */
+      expires_at: string
+      token: string
     }
     /**
      * @description Billing variant of a plan: monthly vs annual, currency, amount.
@@ -3233,7 +4816,7 @@ export interface components {
       subprocessors: components['schemas']['SubProcessorNoticeRow'][]
     }
     /** @description RFC 9457 problem detail. This is the only error body the API produces. */
-    ProblemDetail: {
+    ProblemDetail: (Record<string, never> | null) & {
       /** @description Human-readable explanation of this specific occurrence. */
       detail: string
       /** @description URI of the offending resource, if any. */
@@ -3268,14 +4851,15 @@ export interface components {
       controller_role: components['schemas']['ControllerRole']
       /** Format: date-time */
       created_at: string
-      /** Format: uuid */
       created_by?: string | null
       data_classes: components['schemas']['DataClass'][]
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       name: string
       purpose: string
-      /** Format: uuid */
       supersedes?: string | null
       /** Format: int32 */
       version: number
@@ -3297,28 +4881,48 @@ export interface components {
       | 'profiling_significant_effects'
       | 'sensitive_pi_use'
     /**
-     * @description One connectable provider as the settings page renders it. Kept minimal
-     *     in 09.0 (the envelope is the contract); 09.1 fills in the real entries.
+     * @description One connectable provider as the settings page renders it. Derived
+     *     from the adapter's [`crate::domain::ports::ProviderDescriptor`] —
+     *     never hardcoded per provider anywhere in this layer or the handlers.
      */
     ProviderView: {
+      /**
+       * @description Whether *this tenant* may connect (country support).
+       * @example true
+       */
+      available: boolean
       /**
        * @description Human-readable name for cards and menus.
        * @example Stripe
        */
       display_name: string
       /**
-       * @description Stable provider identifier (`stripe_connect`).
+       * @description Stable provider identifier (`stripe_connect`, `fake`).
        * @example stripe_connect
        */
-      provider: string
+      kind: string
+      /**
+       * @description Whether connecting requires an onboarding flow.
+       * @example true
+       */
+      requires_onboarding: boolean
+      /**
+       * @description ISO-3166-1 alpha-2 countries whose tenants may connect.
+       * @example [
+       *       "US",
+       *       "JP",
+       *       "GB",
+       *       "DE"
+       *     ]
+       */
+      supported_countries: string[]
     }
     /**
-     * @description `GET /api/v1/tenant/payments/providers` — the catalog envelope. The
-     *     empty array in 09.0 is the contract's shape, not a placeholder for a
-     *     different one.
+     * @description `GET /api/v1/tenant/payments/providers` — the catalog envelope,
+     *     derived from the provider registry.
      */
     ProvidersView: {
-      /** @description Connectable providers; empty until the catalog lands (09.1). */
+      /** @description Connectable providers, in stable kind order. */
       providers: components['schemas']['ProviderView'][]
     }
     ProvisionTenantCommand: {
@@ -3353,7 +4957,10 @@ export interface components {
       entitlements: components['schemas']['EntitlementGrant'][]
       key: string
       name: string
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       plan_id: string
       prices: components['schemas']['PlanPriceView'][]
       /** Format: int32 */
@@ -3396,7 +5003,6 @@ export interface components {
       tenants: number
     }
     RecordBreachIncidentOutput: {
-      /** Format: uuid */
       incident_id: string
       obligations: components['schemas']['NotificationObligation'][]
     }
@@ -3417,6 +5023,47 @@ export interface components {
     }
     RectifyRequest: {
       corrections: components['schemas']['Correction'][]
+    }
+    RefundAmount: {
+      /** @example JPY */
+      currency: string
+      /**
+       * Format: int64
+       * @example 500
+       */
+      minor_units: number
+    }
+    /** @description Body for `POST /api/v1/tenant/payments/{id}/refund`. */
+    RefundRequest: {
+      amount?: null | components['schemas']['RefundAmount']
+      /** @description Optional free-form note (support context, not the audit reason). */
+      note?: string | null
+      /**
+       * @description Why the refund is being issued — required, audited and shown in
+       *     the timeline. Empty is rejected.
+       */
+      reason: string
+    }
+    /** @description One refund record. */
+    RefundView: {
+      /** Format: int64 */
+      amount_minor: number
+      created_at: string
+      created_by?: string | null
+      currency: string
+      external_refund_id?: string | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      payment_id: string
+      reason?: string | null
+      status: string
     }
     /**
      * @description The legal regime a jurisdiction belongs to; drives nothing by itself —
@@ -3443,6 +5090,20 @@ export interface components {
       /** @description The audited reason for the force-release. */
       reason: string
     }
+    /**
+     * @description A presentation-only conversion. Converted money is never persisted; its
+     *     rate date is required so chart and report values stay explainable.
+     */
+    RenderedMoneyView: {
+      /** Format: int64 */
+      amount_minor: number
+      currency: string
+      /**
+       * Format: date
+       * @example 2026-08-24
+       */
+      fx_rate_date: string
+    }
     RequestOperatorView: {
       /** Format: date-time */
       completed_at?: string | null
@@ -3453,13 +5114,15 @@ export interface components {
       /** Format: date-time */
       received_at: string
       rejection_reason?: string | null
-      /** Format: uuid */
       request_id: string
       status: components['schemas']['DsrStatus']
       subject_key: string
       submitted_by: components['schemas']['Requester']
-      /** Format: uuid */
-      tenant_id?: string | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id?: string
     }
     /**
      * @description Who submitted a request.
@@ -3467,11 +5130,53 @@ export interface components {
      */
     Requester: 'subject' | 'authorized_agent' | 'tenant_operator'
     /**
+     * @description One outstanding provider requirement, with the i18n message key the
+     *     frontend renders it from. The mapping is data
+     *     (`payments.requirement_keys`); a code the map has not learned falls
+     *     back to `payments.req.unmapped`, whose catalog entry shows the raw code
+     *     plus Stripe's requirements help link — new requirements degrade,
+     *     never break.
+     */
+    RequirementEntryView: {
+      /**
+       * @description The provider's requirement code, verbatim.
+       * @example individual.verification.document
+       */
+      code: string
+      /**
+       * @description The i18n key to render (`payments.req.*`).
+       * @example payments.req.id_document
+       */
+      summary_key: string
+    }
+    /**
+     * @description The connection's outstanding-requirements summary, projected with
+     *     render keys.
+     */
+    RequirementsView: {
+      currently_due: components['schemas']['RequirementEntryView'][]
+      deadline?: string | null
+      eventually_due: components['schemas']['RequirementEntryView'][]
+      past_due: components['schemas']['RequirementEntryView'][]
+    }
+    /**
      * @description How the tenant was resolved. Most-specific sources win; the source is
      *     recorded on the context for observability and debugging.
      * @enum {string}
      */
     ResolutionSource: 'internal_header' | 'session_claim' | 'custom_domain' | 'subdomain'
+    ResolveCampaignDriftRequest: {
+      resolution: components['schemas']['DriftResolution']
+      /** Format: int64 */
+      revision: number
+    }
+    ResolvedCampaignDriftView: {
+      campaign: components['schemas']['Campaign']
+      replayed: boolean
+      resolution: components['schemas']['DriftResolution']
+      /** Format: int64 */
+      revision: number
+    }
     /** @description One resolved entitlement as exposed to a tenant. */
     ResolvedEntitlementView: {
       enabled: boolean
@@ -3539,12 +5244,14 @@ export interface components {
     }
     /** @description A DPIA / US state data-protection assessment. */
     RiskAssessment: {
-      /** Format: uuid */
       activity_id: string
       /** Format: date-time */
       created_at: string
       findings?: unknown
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       jurisdictions: components['schemas']['JurisdictionRef'][]
       mitigations?: unknown
@@ -3552,7 +5259,6 @@ export interface components {
       next_review_at?: string | null
       /** Format: date-time */
       reviewed_at?: string | null
-      /** Format: uuid */
       reviewed_by?: string | null
       status: components['schemas']['RiskAssessmentStatus']
       trigger: components['schemas']['RiskAssessmentTrigger']
@@ -3576,16 +5282,28 @@ export interface components {
     RoleView: {
       /** Format: date-time */
       created_at: string
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       is_system: boolean
       key: string
       name: string
       permissions: string[]
       scope: components['schemas']['RoleScope']
-      /** Format: uuid */
-      tenant_id?: string | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id?: string
     }
+    Schedule: {
+      ends_at?: string | null
+      starts_at?: string | null
+    }
+    /** @enum {string} */
+    ScheduleGranularity: 'daily' | 'hourly'
     /**
      * @description How sensitive-personal-information processing starts: permission first,
      *     a "limit my use" directive (CA), or notice only.
@@ -3604,6 +5322,30 @@ export interface components {
       authenticated_at?: string | null
       methods: string[]
       session_id: string
+    }
+    SetApplicationFeeRequest: {
+      /**
+       * Format: int32
+       * @description Basis points of the charge total (1..=10000).
+       */
+      basis_points?: number | null
+      /** @description Master switch. Enabling without a component is a validation error. */
+      enabled?: boolean
+      /**
+       * Format: int64
+       * @description Flat component in minor units, applied to charges in its currency.
+       */
+      fixed_amount_minor?: number | null
+      fixed_currency?: string | null
+      /**
+       * Format: int64
+       * @description Floor on the computed fee, minor units of the charge currency
+       *     (currency-aware by interpretation: JPY minor units are whole yen;
+       *     USD minor units are cents).
+       */
+      minimum_minor?: number
+      /** @description Why the change is being made — audited with the actor. */
+      reason?: string | null
     }
     SetEntitlementsRequest: {
       grants: components['schemas']['EntitlementGrant'][]
@@ -3625,6 +5367,11 @@ export interface components {
     SlugAvailability: {
       available: boolean
     }
+    /**
+     * Format: snowflake-id
+     * @example 873698342314721281
+     */
+    SnowflakeId: string
     StartLinkChallengeCommand: {
       /** @example alice@example.com */
       email: string
@@ -3646,6 +5393,13 @@ export interface components {
        *     (`HttpOnly`, `SameSite=Lax`, TTL = the intent's).
        */
       nonce: string
+    }
+    StartOAuthRequest: {
+      redirect_uri: string
+    }
+    StartOAuthResponse: {
+      authorization_url: string
+      state: string
     }
     /**
      * @description A sub-processor registry row. `role` is the field that turns an
@@ -3696,6 +5450,37 @@ export interface components {
       kind: string
     }
     /**
+     * @description Enough of the capturing subject's identity to rebuild the exact
+     *     `SubjectRef` a later withdrawal re-check must query — without ever
+     *     persisting the raw email/phone TASK-014 forbids in this context. A
+     *     device ref, a tenant's own customer ref, and a platform user id are not
+     *     themselves the raw PII that rule targets, so they are stored verbatim;
+     *     an email-identified (`Contact`) subject stores nothing reconstructable,
+     *     and the retry path refuses rather than re-deriving a directive answer
+     *     against the wrong subject.
+     */
+    SubjectKeyRef:
+      | {
+          device_ref: string
+          /** @enum {string} */
+          kind: 'tenant_device'
+        }
+      | {
+          external_id: string
+          /** @enum {string} */
+          kind: 'end_user'
+        }
+      | {
+          /** @enum {string} */
+          kind: 'tenant_user'
+          /** Format: int64 */
+          user_id: number
+        }
+      | {
+          /** @enum {string} */
+          kind: 'contact'
+        }
+    /**
      * @description Who the personal data belongs to, relative to the platform.
      * @enum {string}
      */
@@ -3703,15 +5488,18 @@ export interface components {
     /**
      * @description The cross-context reference to a data subject. `key` is the canonical,
      *     stable key used for directive materialisation and crypto-shredding:
-     *     `user:{uuid}`, `end_user:{tenant_id}:{external_id}`, `email:{addr}` or
+     *     `user:{snowflake}`, `end_user:{tenant_id}:{external_id}`, `email:{addr}` or
      *     `device:{device_ref}`.
      */
     SubjectRef: {
       identifiers: components['schemas']['SubjectIdentifier'][]
       key: string
       kind: components['schemas']['SubjectKind']
-      /** Format: uuid */
-      tenant_id?: string | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id?: string
     }
     SubmitDsrCommand: {
       agent?: null | components['schemas']['AgentInput']
@@ -3721,7 +5509,6 @@ export interface components {
       subject: components['schemas']['SubjectInput']
     }
     SubmitDsrOutput: {
-      /** Format: uuid */
       challenge_id?: string | null
       /** Format: date-time */
       due_at: string
@@ -3733,11 +5520,15 @@ export interface components {
       /** Format: date-time */
       extended_to?: string | null
       jurisdiction: string
-      /** Format: uuid */
       request_id: string
       status: components['schemas']['DsrStatus']
       /** @description Present when verification is required before disclosure/deletion. */
       verification_required: boolean
+      /**
+       * @description Opaque half of the verification credential. The OTP is delivered
+       *     out-of-band, so neither response nor notification is sufficient alone.
+       */
+      verification_token?: string | null
     }
     SubscriptionOverrideRequest: {
       plan_key: string
@@ -3770,7 +5561,10 @@ export interface components {
       plan_name: string
       source: components['schemas']['SubscriptionSource']
       status: components['schemas']['SubscriptionStatus']
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       subscription_id: string
       /** Format: date-time */
       trial_end?: string | null
@@ -3794,6 +5588,44 @@ export interface components {
        * @example billing
        */
       reason: string
+    }
+    /** @description Typed extension data. Arbitrary JSON is deliberately not admitted to the domain. */
+    Targeting: {
+      dimensions: {
+        [key: string]: string[]
+      }
+      extension_fields: {
+        [key: string]: string
+      }
+    }
+    TargetingDimension: string
+    /**
+     * @description The tenant-facing automatic-tax state plus the standing legal
+     *     statement: registration and remittance are the tenant's responsibility;
+     *     Sanvi never advises on where or whether to register.
+     */
+    TaxSettingsView: {
+      /** Format: int32 */
+      active_registrations: number
+      /** @description Always present, always the same: we never advise. */
+      disclaimer: string
+      enabled: boolean
+      last_checked_at?: string | null
+      /**
+       * @description The liable connected-account id when enabled (`{ type: 'account' }`
+       *     routing) — with direct charges the connected account is the
+       *     merchant of record.
+       */
+      liability_account?: string | null
+      platform_fee?: null | components['schemas']['PlatformFeeDisclosure']
+      provider_status: string
+      warning?: null | components['schemas']['TaxWarningView']
+    }
+    TaxWarningView: {
+      /** @description Stable i18n key (`payments.tax.warning.*`). */
+      code: string
+      detail: string
+      detected_at: string
     }
     /** @description One page of the operator tenant search. */
     TenantAdminPageView: {
@@ -3824,7 +5656,10 @@ export interface components {
       region: string
       slug: string
       status: string
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       tenant_id: string
     }
     /**
@@ -3838,7 +5673,10 @@ export interface components {
       resolution_source: components['schemas']['ResolutionSource']
       slug: string
       status: components['schemas']['TenantRuntimeStatus']
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       tenant_id: string
     }
     TenantListView: {
@@ -3887,6 +5725,10 @@ export interface components {
       created_at: string
       default_locale: string
       display_name: string
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       region: string
       slug: string
@@ -3898,12 +5740,26 @@ export interface components {
     TenantViewCursorView: {
       /** Format: date-time */
       created_at: string
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       tenant_id: string
+    }
+    TestTrackingEventResponse: {
+      captured: components['schemas']['ConversionEvent']
+      /**
+       * @description Always `true` — a marker so this synthetic call is never mistaken
+       *     for a real event by anything reading the response.
+       */
+      test: boolean
     }
     /** @description A registry entry for the platform control plane. */
     ThemeAdminView: {
-      /** Format: uuid */
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
       id: string
       key: string
       publisher: string
@@ -3957,6 +5813,27 @@ export interface components {
      * @enum {string}
      */
     ThemeVisibility: 'public' | 'premium'
+    /** @description One entry in the payment's timeline. */
+    TimelineEntry: {
+      /**
+       * @description Who caused this entry, when a human exists (refunds). Webhook-
+       *     derived entries have no actor — the provider did.
+       */
+      actor?: string | null
+      amount?: null | components['schemas']['Money']
+      at: string
+      /**
+       * @description Human detail (failure code, refund reason, dispute reason,
+       *     status detail), when relevant.
+       */
+      detail?: string | null
+      /**
+       * @description Stable kind: `created`, `succeeded`, `failed`, `canceled`,
+       *     `refunded`, `disputed`, `dispute_closed`, `paid_out` (09.6).
+       * @example refunded
+       */
+      kind: string
+    }
     TlsAuthorizeResponse: {
       allowed: boolean
       reason: string
@@ -3966,6 +5843,31 @@ export interface components {
       $description?: string | null
       $type?: string | null
       $value: unknown
+    }
+    TrackConversionRequest: {
+      click_ids?: components['schemas']['ClickIds']
+      currency?: string | null
+      device_id?: string | null
+      email?: string | null
+      event_id: string
+      event_name: string
+      order_ref?: string | null
+      phone?: string | null
+      /** Format: int64 */
+      value?: number | null
+    }
+    TrackingSettings: {
+      /** @description event name -> (platform key -> the platform's conversion action) */
+      mappings: {
+        [key: string]: {
+          [key: string]: string
+        }
+      }
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id: string
     }
     /** @enum {string} */
     TransferMechanism: 'sccs' | 'uk_addendum' | 'dpf' | 'appi_equivalent' | 'none'
@@ -4004,6 +5906,7 @@ export interface components {
       name: string
       /** Format: int32 */
       sort_order?: number
+      stripe_product_id?: string | null
       visibility?: components['schemas']['PlanVisibility']
     }
     UpdateRoleRequest: {
@@ -4012,6 +5915,14 @@ export interface components {
     }
     UpdateRolesCommand: {
       role_ids: string[]
+    }
+    UpdateTaxSettingsRequest: {
+      /**
+       * @description Enable requires the compliance preflight to pass right now; disable
+       *     always succeeds (and is a tenant-facing change requiring notice:
+       *     mid-period it changes what customers are charged).
+       */
+      enabled: boolean
     }
     /**
      * @description The edit command. Every field is optional: `None` leaves it unchanged;
@@ -4048,6 +5959,55 @@ export interface components {
       /** @description `logo` | `favicon` | `og_image`. */
       kind: string
     }
+    UploadReceipt: {
+      external_id: string
+      platform: components['schemas']['PlatformKey']
+      /** Format: date-time */
+      uploaded_at: string
+    }
+    /**
+     * @description Per-platform upload progress. Suppression is deliberately absent: a
+     *     directive suppresses the whole event, not one platform, and the frozen
+     *     `ConsentSnapshot` already carries which purpose was denied and by which
+     *     signal source. Duplicating that here would give suppression two homes
+     *     that can disagree.
+     */
+    UploadState:
+      | {
+          /** Format: int32 */
+          attempt_count?: number
+          /** @enum {string} */
+          status: 'pending'
+        }
+      | {
+          /** Format: int32 */
+          attempt_count?: number
+          /** @enum {string} */
+          status: 'uploaded'
+        }
+      | {
+          /** Format: int32 */
+          attempt_count?: number
+          reason: string
+          /** @enum {string} */
+          status: 'failed'
+        }
+      | {
+          /** Format: int32 */
+          attempts: number
+          reason: string
+          /** @enum {string} */
+          status: 'parked'
+        }
+      | {
+          /** @enum {string} */
+          status: 'retracted'
+        }
+      | {
+          reason: string
+          /** @enum {string} */
+          status: 'unpropagated'
+        }
     UpsertActivityCommand: {
       basis?: string | null
       controller_role: string
@@ -4056,7 +6016,6 @@ export interface components {
       purpose: string
     }
     UpsertAssessmentCommand: {
-      /** Format: uuid */
       activity_id: string
       findings?: unknown
       jurisdictions: string[]
@@ -4115,10 +6074,20 @@ export interface components {
      * @enum {string}
      */
     UserStatus: 'active' | 'deactivated'
+    ValidationResultView: {
+      /** @description Empty means valid. Same shape a failed create or patch would carry. */
+      violations: components['schemas']['ValidationViolation'][]
+    }
+    ValidationViolation: {
+      code: string
+      field_path: string
+      message: string
+    }
+    /** @enum {string} */
+    ValueSource: 'payment_record' | 'client_reported'
     VerifyRequestOutput: {
       /** Format: date-time */
       due_at: string
-      /** Format: uuid */
       request_id: string
       status: components['schemas']['DsrStatus']
     }
@@ -4572,9 +6541,9 @@ export interface operations {
   list_audit: {
     parameters: {
       query?: {
-        /** @description Restrict to one tenant */
+        /** @description Restrict to one tenant (decimal Snowflake) */
         tenant_id?: string
-        /** @description Restrict to one actor */
+        /** @description Restrict to one actor (decimal Snowflake) */
         actor_id?: string
         /** @description Exact action name, e.g. tenancy.suspend */
         action?: string
@@ -5987,6 +7956,113 @@ export interface operations {
       }
     }
   }
+  get_application_fee: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Tenant id */
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The configuration (disabled when never configured) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApplicationFeeView']
+        }
+      }
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  set_application_fee: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Tenant id */
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SetApplicationFeeRequest']
+      }
+    }
+    responses: {
+      /** @description Configuration stored */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApplicationFeeView']
+        }
+      }
+      /** @description Invalid configuration */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Permission denied or fresh MFA missing */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  disable_application_fee: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Tenant id */
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Disabled */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Permission denied or fresh MFA missing */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
   archive_tenant: {
     parameters: {
       query?: never
@@ -7073,6 +9149,28 @@ export interface operations {
       }
     }
   }
+  public_track_conversion: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TrackConversionRequest']
+      }
+    }
+    responses: {
+      /** @description Always returned, regardless of outcome — see the module doc for why */
+      202: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
   version: {
     parameters: {
       query?: never
@@ -7093,6 +9191,1643 @@ export interface operations {
       }
       /** @description Internal error */
       500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  list_audiences: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Missing advertising.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Audience sync is not implemented yet */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  create_audience: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Missing advertising.campaign.write permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Audience sync is not implemented yet */
+      501: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  list_campaigns: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Every campaign owned by the tenant, newest first */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CampaignsView']
+        }
+      }
+      /** @description Missing advertising.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  create_campaign: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required. A retry with the same key returns the original draft. */
+        'Idempotency-Key': string
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateCampaignRequest']
+      }
+    }
+    responses: {
+      /** @description Draft campaign created. Never touches the platform. */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CampaignView']
+        }
+      }
+      /** @description Missing/malformed Idempotency-Key or invalid campaign fields (advertising/campaign-invalid carries field violations) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.campaign.write permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Connection not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Connection is not active */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_campaign: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Campaign UUID */
+        campaign_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The campaign's current intent and revision */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CampaignView']
+        }
+      }
+      /** @description Missing advertising.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  patch_campaign: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required. The campaign's current revision; a stale value returns 409 with the current state. */
+        'If-Match': string
+        /** @description Required. A retry with the same key returns the original result. */
+        'Idempotency-Key': string
+      }
+      path: {
+        /** @description Campaign UUID */
+        campaign_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PatchCampaignRequest']
+      }
+    }
+    responses: {
+      /** @description Intent updated; if published, the edit was also pushed to the platform */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CampaignView']
+        }
+      }
+      /** @description Missing/malformed headers, invalid creative id, or invalid fields (advertising/campaign-invalid carries field violations) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.campaign.write permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign or creative not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Stale revision or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Platform adapter unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  add_ad_group: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required. The campaign's current revision. */
+        'If-Match': string
+        /** @description Required. A retry with the same key returns the original result. */
+        'Idempotency-Key': string
+      }
+      path: {
+        /** @description Campaign UUID */
+        campaign_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateAdGroupRequest']
+      }
+    }
+    responses: {
+      /** @description Ad group appended; if published, pushed to the platform */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CampaignView']
+        }
+      }
+      /** @description Missing/malformed headers or invalid fields (advertising/campaign-invalid carries field violations) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.campaign.write permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Stale revision or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Platform adapter unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  update_ad_group: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required. The campaign's current revision. */
+        'If-Match': string
+        /** @description Required. A retry with the same key returns the original result. */
+        'Idempotency-Key': string
+      }
+      path: {
+        /** @description Campaign UUID */
+        campaign_id: string
+        /** @description Ad group id */
+        ad_group_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PatchAdGroupRequest']
+      }
+    }
+    responses: {
+      /** @description Ad group updated; if published, pushed to the platform */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CampaignView']
+        }
+      }
+      /** @description Missing/malformed headers or invalid fields (advertising/campaign-invalid carries field violations) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.campaign.write permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign or ad group not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Stale revision or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Platform adapter unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  add_ad: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required. The campaign's current revision. */
+        'If-Match': string
+        /** @description Required. A retry with the same key returns the original result. */
+        'Idempotency-Key': string
+      }
+      path: {
+        /** @description Campaign UUID */
+        campaign_id: string
+        /** @description Ad group id */
+        ad_group_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateAdRequest']
+      }
+    }
+    responses: {
+      /** @description Ad appended; if published, pushed to the platform */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CampaignView']
+        }
+      }
+      /** @description Missing/malformed headers, invalid creative id, or invalid fields (advertising/campaign-invalid carries field violations) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.campaign.write permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign, ad group or creative not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Stale revision or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Platform adapter unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  update_ad: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required. The campaign's current revision. */
+        'If-Match': string
+        /** @description Required. A retry with the same key returns the original result. */
+        'Idempotency-Key': string
+      }
+      path: {
+        /** @description Campaign UUID */
+        campaign_id: string
+        /** @description Ad group id */
+        ad_group_id: string
+        /** @description Ad id */
+        ad_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PatchAdRequest']
+      }
+    }
+    responses: {
+      /** @description Ad updated; if published, pushed to the platform */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CampaignView']
+        }
+      }
+      /** @description Missing/malformed headers, invalid creative id, or invalid fields (advertising/campaign-invalid carries field violations) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.campaign.write permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign, ad group, ad or creative not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Stale revision or idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Platform adapter unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  list_campaign_changes: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Campaign UUID */
+        campaign_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Newest-first attributed change log: actor, source (sanvi|platform), before/after state */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CampaignChangesView']
+        }
+      }
+      /** @description Missing advertising.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  resolve_campaign_drift: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required. A retry of this drift resolution returns its original result. */
+        'Idempotency-Key': string
+      }
+      path: {
+        /** @description Campaign UUID */
+        campaign_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ResolveCampaignDriftRequest']
+      }
+    }
+    responses: {
+      /** @description Drift resolution applied or replayed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ResolvedCampaignDriftView']
+        }
+      }
+      /** @description Missing or malformed idempotency key, or invalid resolution */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.campaign.write permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Stale revision, idempotency conflict, or resolution in progress */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Platform adapter unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  pause_campaign: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required. */
+        'Idempotency-Key': string
+      }
+      path: {
+        /** @description Campaign UUID */
+        campaign_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paused on the platform */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CampaignView']
+        }
+      }
+      /** @description Missing/malformed Idempotency-Key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.campaign.write permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign is not yet published, or an idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Platform adapter unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  publish_campaign: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required. A retry after a timeout returns the one campaign that was created, never a second. */
+        'Idempotency-Key': string
+      }
+      path: {
+        /** @description Campaign UUID */
+        campaign_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Live on the platform; external_id is now set. Replaying publish on an already-published campaign is a no-op success. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CampaignView']
+        }
+      }
+      /** @description Campaign fails platform validation (advertising/campaign-invalid carries field violations) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.campaign.write permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Platform adapter unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  resume_campaign: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required. */
+        'Idempotency-Key': string
+      }
+      path: {
+        /** @description Campaign UUID */
+        campaign_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Resumed on the platform */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CampaignView']
+        }
+      }
+      /** @description Missing/malformed Idempotency-Key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.campaign.write permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign is not yet published, or an idempotency conflict */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Platform adapter unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  validate_campaign: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Campaign UUID */
+        campaign_id: string
+      }
+      cookie?: never
+    }
+    /** @description Fields to validate; omitted fields keep the stored value. An empty body validates the campaign as stored. */
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PatchCampaignRequest']
+      }
+    }
+    responses: {
+      /** @description Field-addressed violations; empty means valid. Never writes. */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ValidationResultView']
+        }
+      }
+      /** @description Invalid objective in the candidate body */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.campaign.write permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  list_connections: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Every connection with server-computed health */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConnectionsView']
+        }
+      }
+      /** @description Missing advertising.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  create_connection: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateConnectionRequest']
+      }
+    }
+    responses: {
+      /** @description Connection finalized and active */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConnectionView']
+        }
+      }
+      /** @description Chosen account was not among the fetched accounts, or invalid currency/timezone */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.connect permission or fresh MFA missing */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Connection not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  delete_connection: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Connection UUID */
+        connection_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Disconnected in Sanvi; the platform side is untouched */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Missing advertising.connect permission or fresh MFA missing */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Connection not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  oauth_callback: {
+    parameters: {
+      query: {
+        /** @description Opaque state returned by start */
+        state: string
+        /** @description Authorization code from the platform */
+        code: string
+        /** @description Must match the redirect_uri sent to start */
+        redirect_uri: string
+      }
+      header?: never
+      path: {
+        /** @description google_ads or meta */
+        platform: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Code redeemed; connection is pending account selection */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PendingConnectionView']
+        }
+      }
+      /** @description Forged, expired, replayed, or cross-tenant state, or the code could not be exchanged */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.connect permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  start_oauth: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description google_ads or meta */
+        platform: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['StartOAuthRequest']
+      }
+    }
+    responses: {
+      /** @description Authorization URL and opaque state; the frontend never constructs the URL and never sees a token */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['StartOAuthResponse']
+        }
+      }
+      /** @description Unknown platform or missing redirect_uri */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.connect permission, missing platform entitlement, or fresh MFA missing */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  list_conversions: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Captured conversion events, newest first */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConversionEvent'][]
+        }
+      }
+      /** @description Missing advertising.metrics.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_conversion_diagnostics: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Conversion event Snowflake ID */
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Conversion event diagnostics story */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConversionDiagnostics']
+        }
+      }
+      /** @description Missing advertising.metrics.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Conversion not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  retry_conversion: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Conversion event Snowflake ID */
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Conversion event re-queued for upload */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConversionEvent']
+        }
+      }
+      /** @description Missing advertising.campaign.write permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Conversion not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Conversion retry refused */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  list_creatives: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Every creative on an entitled platform */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CreativesView']
+        }
+      }
+      /** @description Missing advertising.read permission or advertising platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  create_creative: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required. A retry with the same key returns the original creative. */
+        'Idempotency-Key': string
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateCreativeRequest']
+      }
+    }
+    responses: {
+      /** @description Creative created with upload-time matrix validation. */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CreativeView']
+        }
+      }
+      /** @description Missing/malformed Idempotency-Key or invalid creative fields (advertising/campaign-invalid carries field violations) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.campaign.write permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Connection not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Connection is not active */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_creative: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Creative UUID */
+        creative_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Stored creative specification and metadata */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CreativeView']
+        }
+      }
+      /** @description Missing advertising.read permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Creative not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  delete_creative: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Creative UUID */
+        creative_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Creative deleted */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Missing advertising.campaign.write permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Creative not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_creative_previews: {
+    parameters: {
+      query?: {
+        placement?: string
+      }
+      header?: never
+      path: {
+        /** @description Creative UUID */
+        creative_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Spec-rendered placement previews */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CreativePreviewsView']
+        }
+      }
+      /** @description Missing advertising.read permission or platform entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Creative not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  list_ad_platforms: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Registry-derived, versioned advertising capability catalog */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PlatformsView']
+        }
+      }
+      /** @description Missing advertising.read permission or both advertising platform entitlements */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_tracking_settings: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Event-name to platform-conversion-action mappings */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['TrackingSettings']
+        }
+      }
+      /** @description Missing advertising.connect permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  put_tracking_settings: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TrackingSettings']
+      }
+    }
+    responses: {
+      /** @description Settings saved */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Missing advertising.connect permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  test_tracking_event: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TrackConversionRequest']
+      }
+    }
+    responses: {
+      /** @description What was captured, the resolver's decision, and why */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['TestTrackingEventResponse']
+        }
+      }
+      /** @description Missing advertising.metrics.read permission */
+      403: {
         headers: {
           [name: string]: unknown
         }
@@ -7183,11 +10918,7 @@ export interface operations {
       path?: never
       cookie?: never
     }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['PortalSessionRequest']
-      }
-    }
+    requestBody?: never
     responses: {
       /** @description Portal URL */
       201: {
@@ -7238,6 +10969,146 @@ export interface operations {
       }
       /** @description Permission denied */
       403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  create_tenant_checkout: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required. The same key returns the same checkout — one double-clicked buy button, one session */
+        'Idempotency-Key': string
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateCheckoutRequest']
+      }
+    }
+    responses: {
+      /** @description Idempotent replay: the same checkout the Idempotency-Key already owns */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CheckoutView']
+        }
+      }
+      /** @description Session created on the connected account */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CheckoutView']
+        }
+      }
+      /** @description Malformed request, non-positive amount, or a redirect URL off the verified-domain allow-list (payments/domain-not-allowed) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing payments.checkout permission or the payments.stripe_connect entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description The connected account cannot accept payments (payments/connection-not-active) */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Rate limit exceeded per tenant, client or customer reference (payments/rate-limited) */
+      429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Provider unavailable (payments/provider-unavailable) */
+      502: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description The payments.checkout flag is off (payments/provider-unavailable) */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_tenant_checkout: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description The checkout id returned by POST /api/v1/tenant/checkout */
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The webhook-truthful checkout state (the only thing the confirmation page trusts) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CheckoutView']
+        }
+      }
+      /** @description Missing payments.checkout permission or the entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description No such checkout for this tenant */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description The payments.checkout flag is off (payments/provider-unavailable) */
+      503: {
         headers: {
           [name: string]: unknown
         }
@@ -8136,19 +12007,435 @@ export interface operations {
       }
     }
   }
-  list_payment_providers: {
+  list_tenant_payments: {
     parameters: {
-      query?: never
-      header?: {
-        /** @description Required on every *mutating* payments endpoint (none exist yet); documented here because the convention is fixed now, before the first one ships */
-        'Idempotency-Key'?: string | null
+      query?: {
+        /** @description Filter by payment status */
+        status?: string
+        /** @description Filter by currency (ISO-4217) */
+        currency?: string
+        /** @description Filter by customer reference substring */
+        customer?: string
+        /** @description Filter by created_at >= (RFC3339) */
+        date_from?: string
+        /** @description Filter by created_at <= (RFC3339) */
+        date_to?: string
+        /** @description Pagination cursor (opaque) */
+        cursor?: string
+        /** @description Page size (1-100, default 20) */
+        limit?: number
       }
+      header?: never
       path?: never
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description Connectable payment providers (empty until the catalog lands in 09.1) */
+      /** @description One page of payments */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PaymentListView']
+        }
+      }
+      /** @description Malformed filter (unknown status, bad currency) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing payments.read permission or the entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  create_payment_connection: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required. The same key returns the same connection; it is also the provider-side idempotency key, so a retry after a crash adopts the created account instead of duplicating it */
+        'Idempotency-Key': string
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateConnectionRequest']
+      }
+    }
+    responses: {
+      /** @description Connection created (or the same one returned on an idempotent retry) */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConnectionView']
+        }
+      }
+      /** @description Missing/malformed Idempotency-Key, provider, country or currency */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing payments.manage permission or the payments.stripe_connect entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description An active connection already exists (payments/connection-exists) */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Provider rate limit exhausted (payments/provider-rate-limited) */
+      429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Provider unavailable (payments/provider-unavailable) */
+      502: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_payment_connection: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description The connection id */
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Status, capabilities, requirements, blockers and the server-computed can_accept_payments */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConnectionView']
+        }
+      }
+      /** @description Missing payments.read permission or the entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description No such connection for this tenant */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  delete_payment_connection: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required on every mutating payments endpoint */
+        'Idempotency-Key': string
+      }
+      path: {
+        /** @description The connection id */
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Disconnected (or already disconnected: idempotent replay) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConnectionView']
+        }
+      }
+      /** @description Missing/malformed Idempotency-Key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing payments.manage permission or the payments.stripe_connect entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description No such connection for this tenant */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Money is still moving on this connection; the problem body names the blockers as extension members: blockers: [{code, summary_key}] with code in {in_flight_payments, open_disputes, pending_payouts} (payments/disconnect-blocked) */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  create_payment_connection_session: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required on every mutating payments endpoint; sessions are minted fresh per call */
+        'Idempotency-Key': string
+      }
+      path: {
+        /** @description The connection id */
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Account Session client secret + enabled components */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConnectionSessionView']
+        }
+      }
+      /** @description Missing/malformed Idempotency-Key */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing payments.manage permission or the entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description No such connection for this tenant */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Connection is disconnected or rejected (payments/connection-not-active) */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Provider unavailable (payments/provider-unavailable) */
+      502: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  list_tenant_disputes: {
+    parameters: {
+      query?: {
+        /** @description Filter by dispute status */
+        status?: string
+        /** @description Filter by currency */
+        currency?: string
+        /** @description Filter by created_at >= (RFC3339) */
+        date_from?: string
+        /** @description Filter by created_at <= (RFC3339) */
+        date_to?: string
+        /** @description Pagination cursor */
+        cursor?: string
+        /** @description Page size */
+        limit?: number
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description One page of disputes */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['DisputeListView']
+        }
+      }
+      /** @description Missing payments.read permission or the entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  export_tenant_payments: {
+    parameters: {
+      query?: {
+        /** @description Filter by payment status */
+        status?: string
+        /** @description Filter by currency */
+        currency?: string
+        /** @description Filter by customer reference substring */
+        customer?: string
+        /** @description Filter by created_at >= (RFC3339) */
+        date_from?: string
+        /** @description Filter by created_at <= (RFC3339) */
+        date_to?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description CSV bytes (text/csv) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'text/csv': unknown
+        }
+      }
+      /** @description Missing payments.read permission or the entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  list_tenant_payouts: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The connected account's payout history, newest first */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PayoutsListView']
+        }
+      }
+      /** @description Missing payments.read permission or the entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Provider unavailable (payments/provider-unavailable) */
+      502: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  list_payment_providers: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Connectable providers, derived from the provider registry */
       200: {
         headers: {
           [name: string]: unknown
@@ -8159,6 +12446,220 @@ export interface operations {
       }
       /** @description Missing payments.read permission or the payments.stripe_connect entitlement */
       403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_tenant_tax_settings: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The tenant's automatic-tax state with the legal statement */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['TaxSettingsView']
+        }
+      }
+      /** @description Missing payments.read permission or the entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  update_tenant_tax_settings: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateTaxSettingsRequest']
+      }
+    }
+    responses: {
+      /** @description The updated tax settings */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['TaxSettingsView']
+        }
+      }
+      /** @description Malformed request */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing payments.manage permission or the entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Preflight failed — the response names the exact missing step (payments/tax-preflight-failed) */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Provider unavailable (payments/provider-unavailable) */
+      502: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_tenant_payment: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description The payment id */
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Payment detail with timeline, refunds and disputes */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PaymentDetailView']
+        }
+      }
+      /** @description Missing payments.read permission or the entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description No such payment for this tenant */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  refund_tenant_payment: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required (UUID). The same key with the same amount/reason replays the same refund; a different payload conflicts */
+        'Idempotency-Key': string
+      }
+      path: {
+        /** @description The payment id */
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RefundRequest']
+      }
+    }
+    responses: {
+      /** @description Idempotent replay: the same refund the Idempotency-Key already owns */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RefundView']
+        }
+      }
+      /** @description Refund issued on the connected account */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RefundView']
+        }
+      }
+      /** @description Missing reason, malformed amount, over-refund (payments/over-refund reports remaining), currency mismatch */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing payments.refund permission or the entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description No such payment for this tenant */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Idempotency-Key reuse with a different amount/reason (payments/idempotency-conflict) or already fully refunded */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Provider unavailable (payments/provider-unavailable) */
+      502: {
         headers: {
           [name: string]: unknown
         }
@@ -8701,6 +13202,35 @@ export interface operations {
       }
       /** @description Invalid or expired preview token */
       403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  mint_theme_preview_token: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Signed draft preview token */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PreviewTokenView']
+        }
+      }
+      /** @description Preview signing is not configured */
+      500: {
         headers: {
           [name: string]: unknown
         }
