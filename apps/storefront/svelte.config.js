@@ -47,6 +47,7 @@ const env = loadPublicEnv()
 // with no origins set is therefore serveable, not broken.
 const apiOrigin = env['PUBLIC_API_ORIGIN'] ?? 'http://localhost:8080'
 const mediaOrigin = env['PUBLIC_MEDIA_ORIGIN']
+const themeAssetOrigin = env['PUBLIC_THEME_ASSET_ORIGIN']
 const kratosOrigin = env['PUBLIC_KRATOS_ORIGIN'] ?? 'http://localhost:4433'
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -62,6 +63,7 @@ const config = {
       directives: buildContentSecurityPolicyDirectivesForApp('storefront', {
         apiOrigin,
         mediaOrigin,
+        themeAssetOrigin,
         kratosOrigin,
       }),
     },

@@ -119,6 +119,25 @@ describe('storefront hooks.server.ts', () => {
       )
     })
 
+    it('passes themeAssetOrigin to buildContentSecurityPolicyDirectivesForApp', async () => {
+      const { runtimeConnectSrc } = await import('../src/hooks.server')
+      buildDirectivesMock.mockReturnValue({
+        'connect-src': ["'self'", 'https://api.example.test'],
+      })
+      const resolve = respondWith("default-src 'self'; connect-src 'self'")
+
+      await runtimeConnectSrc({ event: event as never, resolve: resolve as never })
+
+      expect(buildDirectivesMock).toHaveBeenCalledWith(
+        'storefront',
+        expect.objectContaining({
+          apiOrigin: 'https://api.example.test',
+          kratosOrigin: 'https://kratos.example.test',
+          themeAssetOrigin: undefined,
+        }),
+      )
+    })
+
     it('leaves a response without a CSP header untouched', async () => {
       const { runtimeConnectSrc } = await import('../src/hooks.server')
       buildDirectivesMock.mockReturnValue({ 'connect-src': ["'self'"] })

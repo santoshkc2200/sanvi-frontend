@@ -223,10 +223,11 @@ export const runtimeConnectSrc: Handle = async ({ event, resolve }) => {
   const header = response.headers.get('content-security-policy')
   if (!header) return response
 
-  const { apiOrigin, mediaOrigin, kratosOrigin } = getAppEnv()
+  const { apiOrigin, mediaOrigin, themeAssetOrigin, kratosOrigin } = getAppEnv()
   const runtime = buildContentSecurityPolicyDirectivesForApp('storefront', {
     apiOrigin,
     mediaOrigin,
+    themeAssetOrigin,
     kratosOrigin,
   })[CONNECT_SRC]
   if (!runtime?.length) return response
