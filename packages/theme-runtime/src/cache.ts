@@ -105,7 +105,16 @@ export class ThemeCache {
   }
 }
 
-export const themeCache = new ThemeCache({ ttlMs: 100 })
+/**
+ * A publish has no way to reach into this process's in-memory cache directly
+ * (the admin app talks to the backend, not to a running storefront server),
+ * so staleness is bounded by TTL rather than by direct invalidation — the
+ * same tradeoff `@sanvi/tenant`'s `TenantHostCache` makes, and the same
+ * `freshMs` value, for consistency across the two caches a request touches.
+ */
+const DEFAULT_TTL_MS = 30_000
+
+export const themeCache = new ThemeCache({ ttlMs: DEFAULT_TTL_MS })
 
 export function getCachedTheme(key: string): ResolvedTheme | undefined {
   return themeCache.get(key)

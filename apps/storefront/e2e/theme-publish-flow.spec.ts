@@ -17,6 +17,10 @@ test.describe('Theme change, preview, publish, and rollback flow', () => {
     const tenantId = tenantIdMap[testInfo.project.name] || '11111111-1111-1111-1111-111111111111'
     const headers = { 'x-tenant-id': tenantId, host }
 
+    // Two 30s+ cache-expiry waits below (see comments) push this well past
+    // Playwright's default 30s test timeout.
+    test.setTimeout(120_000)
+
     // Reset mock backend theme state for this host
     await request.post(`http://localhost:${MOCK_API_PORT}/__theme/reset`, { headers })
 
@@ -60,8 +64,13 @@ test.describe('Theme change, preview, publish, and rollback flow', () => {
     )
     expect(publishRes.ok()).toBe(true)
 
-    // Allow cache TTL window to expire so next request re-fetches
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    // `resolveTheme`'s cache has no direct invalidation channel from a
+    // publish (the admin app talks to the backend, not to this running
+    // storefront process) — staleness is bounded by the shared
+    // `themeCache`'s 30s TTL instead. Waiting it out here, rather than
+    // shortening the production default to fit the test, keeps this
+    // assertion honest about actual publish-to-storefront latency.
+    await new Promise((resolve) => setTimeout(resolve, 30_500))
 
     // 6. Storefront on next request reflects the published color
     const afterPublishRes = await page.goto(`http://${host}/`)
@@ -76,8 +85,8 @@ test.describe('Theme change, preview, publish, and rollback flow', () => {
     )
     expect(rollbackRes.ok()).toBe(true)
 
-    // Allow cache TTL window to expire so next request re-fetches
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    // Same cache-expiry wait as above, this time for the rollback.
+    await new Promise((resolve) => setTimeout(resolve, 30_500))
 
     // 8. Storefront on next request restores previous appearance exactly
     const afterRollbackRes = await page.goto(`http://${host}/`)
