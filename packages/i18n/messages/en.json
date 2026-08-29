@@ -672,6 +672,7 @@
   "admin.domains.failure.challengeExpired": "The verification challenge expired. Please delete this claim and try again.",
   "admin.domains.failure.verifiedByOtherTenant": "This hostname was claimed and verified by another tenant.",
   "admin.domains.failure.certInvalid": "TLS certificate issuance failed. The system will automatically retry.",
+  "admin.domains.failure.certIssuanceFailed": "TLS certificate issuance failed. The system will automatically retry.",
   "admin.domains.failure.propagating": "DNS records are currently propagating across global resolvers.",
   "admin.domains.failure.generic": "Verification check failed. Please check your DNS records.",
   "admin.privacy.pageTitle": "Privacy & Data Requests",

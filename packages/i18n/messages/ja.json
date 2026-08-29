@@ -672,6 +672,7 @@
   "admin.domains.failure.challengeExpired": "検証チャレンジの有効期限が切れました。ドメイン申請を削除して再度お試しください。",
   "admin.domains.failure.verifiedByOtherTenant": "このホスト名はすでに別のテナントによって申請・検証されています。",
   "admin.domains.failure.certInvalid": "TLS証明書の発行に失敗しました。システムが自動的に再試行します。",
+  "admin.domains.failure.certIssuanceFailed": "TLS証明書の発行に失敗しました。システムが自動的に再試行します。",
   "admin.domains.failure.propagating": "DNSレコードが世界中のリゾルバーに伝播中です。",
   "admin.domains.failure.generic": "検証チェックに失敗しました。DNSレコードの設定をご確認ください。",
   "admin.privacy.pageTitle": "プライバシーとデータリクエスト",

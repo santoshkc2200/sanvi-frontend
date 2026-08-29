@@ -183,6 +183,10 @@ describe('Admin DomainConnect Wizard Component', () => {
     ],
     ['verified_by_other_tenant', 'This hostname was claimed and verified by another tenant.'],
     ['cert_invalid', 'TLS certificate issuance failed. The system will automatically retry.'],
+    [
+      'cert_issuance_failed',
+      'TLS certificate issuance failed. The system will automatically retry.',
+    ],
     ['propagating', 'DNS records are currently propagating across global resolvers.'],
   ])('renders failure banner for failure code %s', async (code, message) => {
     domainsList = [

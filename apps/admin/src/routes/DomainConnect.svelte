@@ -162,6 +162,8 @@ const failureMessage = $derived.by(() => {
       return t['admin.domains.failure.verifiedByOtherTenant']()
     case 'cert_invalid':
       return t['admin.domains.failure.certInvalid']()
+    case 'cert_issuance_failed':
+      return t['admin.domains.failure.certIssuanceFailed']()
     case 'propagating':
       return t['admin.domains.failure.propagating']()
     default:
