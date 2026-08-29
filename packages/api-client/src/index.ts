@@ -39,6 +39,15 @@ export {
   startLinkChallenge,
   updateMemberRoles,
 } from './identity'
+export {
+  getLocalizationOverrides,
+  getLocalizationSettings,
+  getPlatformTranslations,
+  getSupportedLocales,
+  updateLocalizationOverrides,
+  updateLocalizationSettings,
+  updatePlatformTranslations,
+} from './localization'
 export { createImpersonation, listImpersonations, revokeImpersonation } from './impersonation'
 export { listPaymentProviders } from './payments'
 export {
