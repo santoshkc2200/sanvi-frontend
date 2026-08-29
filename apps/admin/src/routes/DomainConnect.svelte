@@ -312,7 +312,7 @@ $effect(() => {
 $effect(() => {
   if (step === 3 || step === 4) {
     if (!elapsedTimer) startElapsedTimer()
-    if (!poller || !poller.isRunning()) startPolling()
+    if (!poller?.isRunning()) startPolling()
   } else if (step === 5) {
     stopElapsedTimer()
     if (poller) poller.stop()
