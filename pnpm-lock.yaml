@@ -158,6 +158,9 @@ importers:
       '@sanvi/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
+      '@sanvi/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@sanvi/query':
         specifier: workspace:*
         version: link:../../packages/query
@@ -222,6 +225,9 @@ importers:
       '@sanvi/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
+      '@sanvi/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@sanvi/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -280,6 +286,9 @@ importers:
       '@sanvi/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
+      '@sanvi/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@sanvi/query':
         specifier: workspace:*
         version: link:../../packages/query
@@ -344,6 +353,9 @@ importers:
       '@sanvi/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
+      '@sanvi/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@sanvi/tenant':
         specifier: workspace:*
         version: link:../../packages/tenant
@@ -605,6 +617,36 @@ importers:
         specifier: 'catalog:'
         version: 3.2.7(@types/node@26.2.0)(jiti@2.6.1)(jsdom@25.0.1)(lightningcss@1.33.0)(yaml@2.9.0)
 
+  packages/i18n:
+    devDependencies:
+      '@sanvi/test-config':
+        specifier: workspace:*
+        version: link:../test-config
+      '@sanvi/ts-config':
+        specifier: workspace:*
+        version: link:../ts-config
+      '@sveltejs/vite-plugin-svelte':
+        specifier: 'catalog:'
+        version: 6.2.4(svelte@5.56.9(@typescript-eslint/types@8.67.0))(vite@6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.1
+      svelte:
+        specifier: 'catalog:'
+        version: 5.56.9(@typescript-eslint/types@8.67.0)
+      svelte-check:
+        specifier: 'catalog:'
+        version: 4.7.6(picomatch@4.0.5)(svelte@5.56.9(@typescript-eslint/types@8.67.0))(typescript@5.9.3)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vite:
+        specifier: 'catalog:'
+        version: 6.4.3(@types/node@22.20.1)(jiti@2.6.1)(lightningcss@1.33.0)(yaml@2.9.0)
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.6.1)(jsdom@25.0.1)(lightningcss@1.33.0)(yaml@2.9.0)
+
   packages/lint-gates:
     devDependencies:
       '@sanvi/test-config':
@@ -773,6 +815,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@fontsource-variable/noto-sans-jp':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@sanvi/design-tokens':
         specifier: workspace:*
         version: link:../design-tokens
@@ -1230,6 +1275,9 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@fontsource-variable/noto-sans-jp@5.3.0':
+    resolution: {integrity: sha512-XVL9GfGBRjj523v9w3Bctu4mNq7E5rUa+AMZm8DK1EM3LAGlKC3DZMvuqkLn4DB4TwwoAjcsJUCiRpUTDzzOkw==}
 
   '@gar/promise-retry@1.0.3':
     resolution: {integrity: sha512-GmzA9ckNokPypTg10pgpeHNQe7ph+iIKKmhKu3Ob9ANkswreCx7R3cKmY781K8QK3AqVL3xVh9A42JvIAbkkSA==}
@@ -5238,6 +5286,8 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
+
+  '@fontsource-variable/noto-sans-jp@5.3.0': {}
 
   '@gar/promise-retry@1.0.3': {}
 
