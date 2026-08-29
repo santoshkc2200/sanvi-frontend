@@ -129,9 +129,11 @@ export {
 } from './theme'
 export type {
   AvailableThemesView,
+  LayoutOverride,
   ResolvedTheme,
   TenantThemeDraftView,
   TenantThemeView,
+  TokenValue,
   UpdateTenantThemeDraftCommand,
   UploadBrandAssetCommand,
 } from './theme'

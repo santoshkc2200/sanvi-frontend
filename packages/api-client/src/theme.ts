@@ -9,6 +9,8 @@ export type TenantThemeDraftView = Schemas['TenantThemeDraftView']
 export type TenantThemeView = Schemas['TenantThemeView']
 export type UpdateTenantThemeDraftCommand = Schemas['UpdateTenantThemeDraftCommand']
 export type UploadBrandAssetCommand = Schemas['UploadBrandAssetCommand']
+export type LayoutOverride = Schemas['LayoutOverride']
+export type TokenValue = Schemas['TokenValue']
 
 /**
  * Theming (phase 07).
