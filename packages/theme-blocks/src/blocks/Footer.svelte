@@ -20,8 +20,8 @@ interface Props {
 }
 
 let {
-  brandName = 'Sanvi',
-  copyrightText = '© 2026 Sanvi Inc. All rights reserved.',
+  brandName,
+  copyrightText,
   columns = [],
   bottomLinks = [],
   class: className = '',

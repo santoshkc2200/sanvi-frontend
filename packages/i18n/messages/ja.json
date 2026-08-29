@@ -1107,5 +1107,16 @@
   "platform.translations.valuePlaceholder": "翻訳メッセージ",
   "platform.translations.submit": "翻訳を保存",
   "platform.translations.saved": "翻訳を保存しました。",
-  "platform.translations.saveError": "この翻訳を保存できませんでした。"
+  "platform.translations.saveError": "この翻訳を保存できませんでした。",
+  "themeBlocks.header.navAriaLabel": "メインナビゲーション",
+  "themeBlocks.contactForm.heading": "お問い合わせ",
+  "themeBlocks.contactForm.nameLabel": "お名前",
+  "themeBlocks.contactForm.emailLabel": "メールアドレス",
+  "themeBlocks.contactForm.messageLabel": "メッセージ",
+  "themeBlocks.contactForm.submitButton": "送信する",
+  "themeBlocks.contactForm.successMessage": "お問い合わせいただきありがとうございます。追ってご連絡いたします。",
+  "themeBlocks.cta.heading": "今すぐ始めませんか?",
+  "themeBlocks.cta.buttonText": "今すぐ始める",
+  "themeBlocks.faq.heading": "よくある質問",
+  "themeBlocks.productGrid.emptyMessage": "現在、商品はありません"
 }

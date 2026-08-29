@@ -18,7 +18,7 @@ interface Props {
 
 let {
   imageUrl = '',
-  imageAlt = 'Promotional banner',
+  imageAlt,
   heading,
   subheading,
   cta,

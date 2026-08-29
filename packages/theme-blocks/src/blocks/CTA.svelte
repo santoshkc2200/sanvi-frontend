@@ -1,4 +1,5 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 import { resolveText, type LocalizedText } from '../utils'
 
 interface Props {
@@ -13,9 +14,9 @@ interface Props {
 }
 
 let {
-  heading = 'Ready to get started?',
+  heading,
   description,
-  buttonText = 'Get Started',
+  buttonText,
   buttonHref = '/',
   secondaryButtonText,
   secondaryButtonHref,
@@ -23,9 +24,11 @@ let {
   class: className = '',
 }: Props = $props()
 
-const headingText = $derived(resolveText(heading))
+const headingText = $derived(heading ? resolveText(heading) : t['themeBlocks.cta.heading']())
 const descText = $derived(resolveText(description))
-const primaryBtnText = $derived(resolveText(buttonText))
+const primaryBtnText = $derived(
+  buttonText ? resolveText(buttonText) : t['themeBlocks.cta.buttonText'](),
+)
 const secondaryBtnText = $derived(resolveText(secondaryButtonText))
 </script>
 

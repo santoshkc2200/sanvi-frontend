@@ -18,12 +18,12 @@ interface Props {
 }
 
 let {
-  title = 'Welcome to Our Store',
+  title,
   subtitle,
   primaryCta,
   secondaryCta,
   imageUrl,
-  imageAlt = 'Hero banner',
+  imageAlt,
   align = 'left',
   class: className = '',
 }: Props = $props()

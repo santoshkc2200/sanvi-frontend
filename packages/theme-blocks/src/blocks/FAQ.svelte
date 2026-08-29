@@ -1,4 +1,5 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 import { resolveText, type LocalizedText } from '../utils'
 
 export interface FaqItem {
@@ -13,14 +14,9 @@ interface Props {
   class?: string
 }
 
-let {
-  heading = 'Frequently Asked Questions',
-  subheading,
-  items = [],
-  class: className = '',
-}: Props = $props()
+let { heading, subheading, items = [], class: className = '' }: Props = $props()
 
-const headingText = $derived(resolveText(heading))
+const headingText = $derived(heading ? resolveText(heading) : t['themeBlocks.faq.heading']())
 const subheadingText = $derived(resolveText(subheading))
 </script>
 

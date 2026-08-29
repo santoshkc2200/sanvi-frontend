@@ -1107,5 +1107,16 @@
   "platform.translations.valuePlaceholder": "Localized message",
   "platform.translations.submit": "Save translation",
   "platform.translations.saved": "Translation saved.",
-  "platform.translations.saveError": "Could not save this translation."
+  "platform.translations.saveError": "Could not save this translation.",
+  "themeBlocks.header.navAriaLabel": "Main navigation",
+  "themeBlocks.contactForm.heading": "Contact Us",
+  "themeBlocks.contactForm.nameLabel": "Your Name",
+  "themeBlocks.contactForm.emailLabel": "Email Address",
+  "themeBlocks.contactForm.messageLabel": "Message",
+  "themeBlocks.contactForm.submitButton": "Send Message",
+  "themeBlocks.contactForm.successMessage": "Thank you for reaching out. We will get back to you soon.",
+  "themeBlocks.cta.heading": "Ready to get started?",
+  "themeBlocks.cta.buttonText": "Get Started",
+  "themeBlocks.faq.heading": "Frequently Asked Questions",
+  "themeBlocks.productGrid.emptyMessage": "No products available"
 }

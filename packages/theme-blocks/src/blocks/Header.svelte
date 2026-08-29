@@ -1,4 +1,5 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 import { resolveText, type LocalizedText } from '../utils'
 
 export interface HeaderNavItem {
@@ -16,16 +17,18 @@ interface Props {
 }
 
 let {
-  brandName = 'Sanvi',
+  brandName,
   brandLogoUrl,
   navItems = [],
   sticky = false,
-  navAriaLabel = 'Main navigation',
+  navAriaLabel,
   class: className = '',
 }: Props = $props()
 
 const brand = $derived(resolveText(brandName))
-const navLabel = $derived(resolveText(navAriaLabel))
+const navLabel = $derived(
+  navAriaLabel ? resolveText(navAriaLabel) : t['themeBlocks.header.navAriaLabel'](),
+)
 </script>
 
 <header class="sanvi-block-header {sticky ? "sanvi-block-header--sticky" : ""} {className}">

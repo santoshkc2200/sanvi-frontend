@@ -1,4 +1,5 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 import { resolveText, type LocalizedText } from '../utils'
 
 export interface ProductItem {
@@ -25,13 +26,15 @@ let {
   subheading,
   columns = 3,
   products = [],
-  emptyMessage = 'No products available',
+  emptyMessage,
   class: className = '',
 }: Props = $props()
 
 const headingText = $derived(resolveText(heading))
 const subheadingText = $derived(resolveText(subheading))
-const emptyText = $derived(resolveText(emptyMessage))
+const emptyText = $derived(
+  emptyMessage ? resolveText(emptyMessage) : t['themeBlocks.productGrid.emptyMessage'](),
+)
 const colsClass = $derived(`sanvi-block-product-grid--cols-${columns}`)
 </script>
 

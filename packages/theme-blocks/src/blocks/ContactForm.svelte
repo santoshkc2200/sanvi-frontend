@@ -1,4 +1,5 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 import { resolveText, type LocalizedText } from '../utils'
 
 interface Props {
@@ -14,13 +15,13 @@ interface Props {
 }
 
 let {
-  heading = 'Contact Us',
+  heading,
   description,
-  nameLabel = 'Your Name',
-  emailLabel = 'Email Address',
-  messageLabel = 'Message',
-  submitButtonText = 'Send Message',
-  successMessage = 'Thank you for reaching out. We will get back to you soon.',
+  nameLabel,
+  emailLabel,
+  messageLabel,
+  submitButtonText,
+  successMessage,
   onSubmit,
   class: className = '',
 }: Props = $props()
@@ -31,13 +32,25 @@ let message = $state('')
 let submitted = $state(false)
 let isSubmitting = $state(false)
 
-const headingText = $derived(resolveText(heading))
+const headingText = $derived(
+  heading ? resolveText(heading) : t['themeBlocks.contactForm.heading'](),
+)
 const descText = $derived(resolveText(description))
-const nameLabelText = $derived(resolveText(nameLabel))
-const emailLabelText = $derived(resolveText(emailLabel))
-const messageLabelText = $derived(resolveText(messageLabel))
-const submitText = $derived(resolveText(submitButtonText))
-const successText = $derived(resolveText(successMessage))
+const nameLabelText = $derived(
+  nameLabel ? resolveText(nameLabel) : t['themeBlocks.contactForm.nameLabel'](),
+)
+const emailLabelText = $derived(
+  emailLabel ? resolveText(emailLabel) : t['themeBlocks.contactForm.emailLabel'](),
+)
+const messageLabelText = $derived(
+  messageLabel ? resolveText(messageLabel) : t['themeBlocks.contactForm.messageLabel'](),
+)
+const submitText = $derived(
+  submitButtonText ? resolveText(submitButtonText) : t['themeBlocks.contactForm.submitButton'](),
+)
+const successText = $derived(
+  successMessage ? resolveText(successMessage) : t['themeBlocks.contactForm.successMessage'](),
+)
 
 async function handleSubmit(event: SubmitEvent) {
   event.preventDefault()
