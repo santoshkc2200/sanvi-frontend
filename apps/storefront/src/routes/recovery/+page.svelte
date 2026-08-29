@@ -1,9 +1,11 @@
 <script lang="ts">
 import { KratosForm, submitFlow } from '@sanvi/auth'
 import type { KratosFlow, UiNode } from '@sanvi/auth'
+import { t } from '@sanvi/i18n'
 import { Alert, Container, Stack } from '@sanvi/ui'
 import { untrack } from 'svelte'
 import { kratosClient } from '$lib/auth'
+import { localePath } from '$lib/links'
 import { loadFlow } from '$lib/load-flow'
 import type { PageData } from './$types'
 
@@ -13,12 +15,12 @@ let flow = $state<KratosFlow>(untrack(() => data.flow))
 let submitting = $state(false)
 let error = $state<string | undefined>(undefined)
 
-const COPY = {
-  title: 'Recover your account',
-  genericError: 'Something went wrong. Try again in a moment.',
-  emailSent: 'If that email has an account, a recovery code was just sent to it.',
-  completeBody: 'Your account is recovered — continue to settings to choose a new password.',
-}
+const COPY = $derived({
+  title: t['auth.recovery.title'](),
+  genericError: t['auth.recovery.genericError'](),
+  emailSent: t['auth.recovery.emailSent'](),
+  completeBody: t['auth.recovery.completeBody'](),
+})
 
 async function handleSubmit(node: UiNode, values: Record<string, string | boolean>): Promise<void> {
   submitting = true
@@ -34,7 +36,7 @@ async function handleSubmit(node: UiNode, values: Record<string, string | boolea
       if (result.flow) {
         flow = result.flow
       } else {
-        window.location.href = '/settings/security'
+        window.location.href = localePath('/settings/security')
       }
       return
     }

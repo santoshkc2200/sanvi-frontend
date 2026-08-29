@@ -1,9 +1,11 @@
 <script lang="ts">
+import { t, normalizeEmail } from '@sanvi/i18n'
 import { Alert, Button, Container, Field, Input, Select, Spinner, Stack, Textarea } from '@sanvi/ui'
 import { submitDsr, verifyDsr } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import { apiClient } from '$lib/auth'
 import { formatDate } from '$lib/format'
+import { localePath } from '$lib/links'
 import type { PageData } from './$types'
 
 /**
@@ -18,44 +20,41 @@ let { data }: { data: PageData } = $props()
 type SubmitDsrOutput = components['schemas']['SubmitDsrOutput']
 type DsrKind = components['schemas']['DsrKind']
 
-const COPY = {
-  title: 'Your privacy requests',
-  intro:
-    'Ask for a copy, a correction or the erasure of your data. The deadline shown comes from the rules that apply to your jurisdiction, not from us.',
-  kindLabel: 'What are you asking for?',
+const COPY = $derived({
+  title: t['privacy.requests.title'](),
+  intro: t['privacy.requests.intro'](),
+  kindLabel: t['privacy.requests.kindLabel'](),
   kindOptions: [
-    { value: 'access', label: 'Access — see what data we hold about you' },
-    { value: 'export', label: 'Export — download a copy of your data' },
-    { value: 'rectification', label: 'Rectification — correct wrong data' },
-    { value: 'erasure', label: 'Erasure — delete my data (see the erasure page first)' },
+    { value: 'access', label: t['privacy.requests.kindAccess']() },
+    { value: 'export', label: t['privacy.requests.kindExport']() },
+    { value: 'rectification', label: t['privacy.requests.kindRectification']() },
+    { value: 'erasure', label: t['privacy.requests.kindErasure']() },
   ],
-  emailLabel: 'Your email address',
-  emailHint: 'We send a one-time code to this address to verify it is you.',
-  noteLabel: 'Anything we should know? (optional)',
-  submit: 'Submit request',
-  busy: 'Submitting…',
-  verifyTitle: 'Check your email',
-  verifyBody: (email: string) =>
-    `We sent a one-time code to ${email}. Enter it below to confirm the request.`,
-  codeLabel: 'One-time code',
-  verify: 'Confirm request',
-  verifying: 'Confirming…',
-  successTitle: 'Request submitted',
-  receivedLabel: 'Received',
-  dueLabel: 'Expected completion by',
-  jurisdictionLabel: 'Jurisdiction',
-  statusLabel: 'Status',
-  trackTitle: 'Track an existing request',
-  trackIntro:
-    'The request id is in the confirmation email. The token comes with the download link, if your request has one.',
-  trackIdLabel: 'Request id',
-  trackTokenLabel: 'Token (optional)',
-  trackButton: 'Open request',
-  trackLink: 'View the request status',
-  backLink: 'Back to your privacy overview',
-  errorBody: 'The request could not be submitted. Check the details and try again.',
-  verifyErrorBody: 'That code was not accepted. Check the email and try again.',
-}
+  emailLabel: t['privacy.requests.emailLabel'](),
+  emailHint: t['privacy.requests.emailHint'](),
+  noteLabel: t['privacy.requests.noteLabel'](),
+  submit: t['privacy.requests.submit'](),
+  busy: t['privacy.requests.busy'](),
+  verifyTitle: t['privacy.requests.verifyTitle'](),
+  verifyBody: (email: string) => t['privacy.requests.verifyBody']({ email }),
+  codeLabel: t['privacy.requests.codeLabel'](),
+  verify: t['privacy.requests.verify'](),
+  verifying: t['privacy.requests.verifying'](),
+  successTitle: t['privacy.requests.successTitle'](),
+  receivedLabel: t['privacy.requests.receivedLabel'](),
+  dueLabel: t['privacy.requests.dueLabel'](),
+  jurisdictionLabel: t['privacy.requests.jurisdictionLabel'](),
+  statusLabel: t['privacy.requests.statusLabel'](),
+  trackTitle: t['privacy.requests.trackTitle'](),
+  trackIntro: t['privacy.requests.trackIntro'](),
+  trackIdLabel: t['privacy.requests.trackIdLabel'](),
+  trackTokenLabel: t['privacy.requests.trackTokenLabel'](),
+  trackButton: t['privacy.requests.trackButton'](),
+  trackLink: t['privacy.requests.trackLink'](),
+  backLink: t['privacy.overview.backLink'](),
+  errorBody: t['privacy.requests.errorBody'](),
+  verifyErrorBody: t['privacy.requests.verifyErrorBody'](),
+})
 
 const session = $derived(data.session)
 
@@ -86,7 +85,9 @@ async function submit(): Promise<void> {
       requester: 'subject',
       subject: {
         kind: session ? 'tenant_user' : 'contact',
-        ...(email ? { email } : {}),
+        // NFKC-normalised for the backend match (full-width IME output); the
+        // input keeps the raw text for display.
+        ...(email ? { email: normalizeEmail(email) } : {}),
         evidence: [],
       },
       ...(note ? { note } : {}),
@@ -118,7 +119,9 @@ async function verify(): Promise<void> {
 function openTracked(): void {
   if (!trackId) return
   const tokenQuery = trackToken ? `?token=${encodeURIComponent(trackToken)}` : ''
-  window.location.assign(`/privacy/requests/${encodeURIComponent(trackId)}${tokenQuery}`)
+  window.location.assign(
+    localePath(`/privacy/requests/${encodeURIComponent(trackId)}`) + tokenQuery,
+  )
 }
 </script>
 
@@ -136,7 +139,7 @@ function openTracked(): void {
           <span>{COPY.dueLabel}: {formatDate(submitted.due_at)}</span>
           <span>{COPY.jurisdictionLabel}: {submitted.jurisdiction}</span>
           <span>{COPY.statusLabel}: {submitted.status}</span>
-          <a href="/privacy/requests/{submitted.request_id}">{COPY.trackLink}</a>
+          <a href={localePath(`/privacy/requests/${submitted.request_id}`)}>{COPY.trackLink}</a>
         </Stack>
       </Alert>
     {:else if submitted && submitted.verification_required}
@@ -211,6 +214,6 @@ function openTracked(): void {
       </div>
     </Stack>
 
-    <a href="/privacy">{COPY.backLink}</a>
+    <a href={localePath('/privacy')}>{COPY.backLink}</a>
   </Stack>
 </Container>

@@ -1,4 +1,6 @@
+import { currentLocale } from '@sanvi/i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { resolveLocale } from '../src/hooks.server'
 
 // `PUBLIC_API_ORIGIN` below matches vitest.config.ts's `$env/dynamic/public` alias stub.
 const resolveTenantForHostMock = vi.fn()
@@ -115,5 +117,150 @@ describe('storefront hooks.server.ts', () => {
 
       expect(response.headers.get('content-security-policy')).toBeNull()
     })
+  })
+})
+
+// ── Phase 06: resolveLocale ──
+
+describe('resolveLocale', () => {
+  const TENANT_EN = {
+    tenant_id: 't1',
+    slug: 'acme',
+    display_name: 'Acme',
+    status: 'active',
+    region: 'us',
+    default_locale: 'en',
+    resolution_source: 'subdomain',
+  }
+
+  function event(overrides: {
+    pathname?: string
+    localeCookie?: string
+    sessionLocale?: string | null
+    tenant?: typeof TENANT_EN
+    acceptLanguage?: string | null
+    method?: string
+    isDataRequest?: boolean
+  }) {
+    const url = new URL(`http://acme.test${overrides.pathname ?? '/'}`)
+    return {
+      request: new Request(url, {
+        method: overrides.method ?? 'GET',
+        headers: overrides.acceptLanguage ? { 'accept-language': overrides.acceptLanguage } : {},
+      }),
+      url,
+      isDataRequest: overrides.isDataRequest ?? false,
+      cookies: { get: (_name: string) => overrides.localeCookie },
+      locals: {
+        tenant: overrides.tenant ?? TENANT_EN,
+        tenantResolution: 'ok',
+        session: overrides.sessionLocale ? { locale: overrides.sessionLocale } : null,
+      },
+    } as never
+  }
+
+  /**
+   * The kit `resolve` stub records the options (`transformPageChunk`) and
+   * answers from the *ambient i18n locale* — proving the render ran inside
+   * `runWithLocale`'s AsyncLocalStorage scope.
+   */
+  async function runLocaleTest(eventInput: ReturnType<typeof event>) {
+    let seenLocale: string | undefined
+    let seenChunk: ((chunk: { html: string }) => string) | undefined
+    const resolve = vi.fn(async (_event: unknown, options?: { transformPageChunk?: never }) => {
+      const transform = options?.['transformPageChunk'] as
+        | ((chunk: { html: string }) => string)
+        | undefined
+      seenChunk = transform
+      seenLocale = currentLocale()
+      return new Response('<html lang="en"><body>ok</body></html>', {
+        headers: { 'content-type': 'text/html' },
+      })
+    })
+    const response = await resolveLocale({ event: eventInput, resolve: resolve as never })
+    return { response, seenLocale, transform: seenChunk }
+  }
+
+  it('serves the unprefixed default locale without a redirect, inside runWithLocale', async () => {
+    const { response, seenLocale, transform } = await runLocaleTest(event({ pathname: '/' }))
+    expect(seenLocale).toBe('en')
+    expect(response.headers.get('content-language')).toBe('en')
+    expect(response.headers.get('vary')?.toLowerCase()).toContain('accept-language')
+    expect(transform?.({ html: '<html lang="en"></html>' })).toBe('<html lang="en"></html>')
+  })
+
+  it('renders a non-default locale prefix in that language, no flash of English', async () => {
+    const { response, seenLocale, transform } = await runLocaleTest(
+      event({ pathname: '/ja/privacy' }),
+    )
+    expect(response.status).toBe(200)
+    expect(seenLocale).toBe('ja')
+    expect(response.headers.get('content-language')).toBe('ja')
+    expect(transform?.({ html: '<html lang="en"></html>' })).toBe('<html lang="ja"></html>')
+  })
+
+  it('308s a default-locale prefix to the canonical unprefixed URL', async () => {
+    const { response } = await runLocaleTest(event({ pathname: '/en/privacy?flow=1' }))
+    expect(response.status).toBe(308)
+    expect(response.headers.get('location')).toBe('/privacy?flow=1')
+  })
+
+  it('307s an unprefixed request whose cookie picked a non-default locale', async () => {
+    const { response } = await runLocaleTest(event({ pathname: '/privacy', localeCookie: 'ja' }))
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe('/ja/privacy')
+    expect(response.headers.get('vary')?.toLowerCase()).toContain('cookie')
+  })
+
+  it('tenant default outranks Accept-Language (mirrors the backend) — no redirect', async () => {
+    // A ja browser on an en-default tenant gets English at `/` until they
+    // explicitly switch (cookie/session) — the documented negotiation order.
+    const { response, seenLocale } = await runLocaleTest(
+      event({ pathname: '/', acceptLanguage: 'ja-JP,ja;q=0.9,en;q=0.8' }),
+    )
+    expect(response.status).toBe(200)
+    expect(seenLocale).toBe('en')
+  })
+
+  it('the session preference beats Accept-Language', async () => {
+    const { response } = await runLocaleTest(
+      event({ pathname: '/', acceptLanguage: 'en', sessionLocale: 'ja' }),
+    )
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe('/ja')
+  })
+
+  it('a ja-default tenant is served unprefixed even to ja browsers', async () => {
+    const jaTenant = { ...TENANT_EN, default_locale: 'ja' }
+    const { response, seenLocale } = await runLocaleTest(
+      event({ pathname: '/', tenant: jaTenant, acceptLanguage: 'ja' }),
+    )
+    expect(response.status).toBe(200)
+    expect(seenLocale).toBe('ja')
+  })
+
+  it('never redirects data requests or asset-shaped paths', async () => {
+    for (const pathname of ['/favicon.svg', '/mock-analytics.js']) {
+      const { response } = await runLocaleTest(event({ pathname, localeCookie: 'ja' }))
+      expect(response.status, pathname).toBe(200)
+    }
+    const { response } = await runLocaleTest(
+      event({ pathname: '/privacy', localeCookie: 'ja', isDataRequest: true }),
+    )
+    expect(response.status).toBe(200)
+  })
+
+  it('ignores an unconfigured prefix and renders the default at that path', async () => {
+    const { response, seenLocale } = await runLocaleTest(event({ pathname: '/de/privacy' }))
+    expect(response.status).toBe(200)
+    expect(seenLocale).toBe('en')
+  })
+
+  it('skips /health entirely', async () => {
+    const resolve = vi.fn(async () => new Response('ok'))
+    const healthEvent = event({ pathname: '/health' })
+    const response = await resolveLocale({ event: healthEvent, resolve: resolve as never })
+    expect((await response.text()) === 'ok' || response.status === 200).toBe(true)
+    expect(response.headers.get('content-language')).toBeNull()
   })
 })

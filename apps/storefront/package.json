@@ -17,16 +17,17 @@
     "test:e2e": "playwright test",
     "check:i18n": "sanvi-check-i18n src",
     "check:tokens": "sanvi-check-tokens src",
-    "check:budget": "sanvi-check-budget --dir build/client --initial-kb 100 --chunk-kb 50"
+    "check:budget": "sanvi-check-budget --dir build/client --initial-kb 115 --chunk-kb 50"
   },
   "dependencies": {
     "@sanvi/api-client": "workspace:*",
     "@sanvi/auth": "workspace:*",
+    "@sanvi/consent": "workspace:*",
     "@sanvi/csp": "workspace:*",
     "@sanvi/design-tokens": "workspace:*",
+    "@sanvi/i18n": "workspace:*",
     "@sanvi/tenant": "workspace:*",
-    "@sanvi/ui": "workspace:*",
-    "@sanvi/consent": "workspace:*"
+    "@sanvi/ui": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",

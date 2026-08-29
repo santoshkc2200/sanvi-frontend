@@ -1,4 +1,5 @@
 <script lang="ts">
+import { t, normalizeEmail } from '@sanvi/i18n'
 import {
   Alert,
   Button,
@@ -13,6 +14,7 @@ import {
 import type { components } from '@sanvi/api-client'
 import { submitDsr } from '@sanvi/api-client'
 import { apiClient } from '$lib/auth'
+import { localePath } from '$lib/links'
 import type { PageData } from './$types'
 
 /**
@@ -27,49 +29,45 @@ type RetentionRow = components['schemas']['RetentionNoticeRow']
 
 let { data }: { data: PageData } = $props()
 
-const COPY = {
-  title: 'Erasing your data',
-  intro:
-    'Erasure removes your personal data from this storefront. It is a real request with real consequences, so this page explains what happens before you confirm.',
-  willBeDeletedTitle: 'What is deleted',
-  willBeDeletedBody:
-    'Your profile, contact details, preferences, consents and non-transactional history are erased or anonymised so they can no longer be linked to you.',
-  retainedTitle: 'What is kept, and why',
-  retainedBody:
-    'Some records are retained because the law requires it — invoices for tax, for example, or records of consent so we can prove what you chose. Everything below is kept only for the listed period.',
-  retainedCategory: 'Category',
-  retainedPeriod: 'Kept for',
-  retainedAfter: 'After that',
-  periodDays: (n: number) => `${n} days`,
-  coolingTitle: 'Cooling-off window',
-  coolingBody:
-    'After you submit, a short cooling-off window opens. You can cancel from your request status page during it; after it closes, deletion runs and cannot be undone.',
-  breaksTitle: 'What breaks',
-  breaksBody:
-    'Orders can no longer be traced to you, saved preferences disappear, and an account with this email cannot be recovered afterwards. Sign-in with this account stops working.',
-  confirmLabel: 'Type ERASE to confirm',
-  confirmKeyword: 'ERASE',
-  emailLabel: 'Your email address',
-  submit: 'Submit erasure request',
-  busy: 'Submitting…',
-  successTitle: 'Erasure request submitted',
-  successBody: 'Check the request status page for its progress and the cooling-off window.',
-  requestLink: 'Open your request',
-  unavailableTitle: 'Privacy service unavailable',
-  unavailableBody: 'Erasure cannot be submitted right now. Nothing is deleted by a failed request.',
-  backLink: 'Back to your privacy overview',
-  errorBody: 'The request could not be submitted. Check the details and try again.',
-}
+const COPY = $derived({
+  title: t['privacy.erasure.title'](),
+  intro: t['privacy.erasure.intro'](),
+  willBeDeletedTitle: t['privacy.erasure.willBeDeletedTitle'](),
+  willBeDeletedBody: t['privacy.erasure.willBeDeletedBody'](),
+  retainedTitle: t['privacy.erasure.retainedTitle'](),
+  retainedBody: t['privacy.erasure.retainedBody'](),
+  retainedCategory: t['privacy.erasure.retainedCategory'](),
+  retainedPeriod: t['privacy.erasure.retainedPeriod'](),
+  retainedAfter: t['privacy.erasure.retainedAfter'](),
+  periodDays: (n: number) => t['privacy.erasure.periodDays']({ count: n }),
+  coolingTitle: t['privacy.erasure.coolingTitle'](),
+  coolingBody: t['privacy.erasure.coolingBody'](),
+  breaksTitle: t['privacy.erasure.breaksTitle'](),
+  breaksBody: t['privacy.erasure.breaksBody'](),
+  confirmLabel: t['privacy.erasure.confirmLabel'](),
+  emailLabel: t['privacy.erasure.emailLabel'](),
+  submit: t['privacy.erasure.submit'](),
+  busy: t['privacy.erasure.busy'](),
+  successTitle: t['privacy.erasure.successTitle'](),
+  successBody: t['privacy.erasure.successBody'](),
+  requestLink: t['privacy.erasure.requestLink'](),
+  unavailableTitle: t['privacy.erasure.unavailableTitle'](),
+  unavailableBody: t['privacy.erasure.unavailableBody'](),
+  backLink: t['privacy.overview.backLink'](),
+  errorBody: t['privacy.erasure.errorBody'](),
+})
 
 const privacy = $derived(data.privacy)
 const session = $derived(data.session)
 
 const retentionRows = $derived(privacy?.notice?.retention ?? [])
-const retentionColumns: TableColumn<RetentionRow>[] = [
+const retentionColumns: TableColumn<RetentionRow>[] = $derived([
   { key: 'category', header: COPY.retainedCategory },
   { key: 'period_days', header: COPY.retainedPeriod },
   { key: 'action', header: COPY.retainedAfter },
-]
+])
+
+const CONFIRM_KEYWORD = 'ERASE'
 
 let confirmation = $state('')
 let email = $state('')
@@ -77,7 +75,7 @@ let submitting = $state(false)
 let failed = $state(false)
 let requestId = $state<string | null>(null)
 
-const confirmationValid = $derived(confirmation.trim() === COPY.confirmKeyword)
+const confirmationValid = $derived(confirmation.trim() === CONFIRM_KEYWORD)
 const emailInvalid = $derived(!session && email.trim().length === 0)
 
 async function submit(): Promise<void> {
@@ -90,7 +88,9 @@ async function submit(): Promise<void> {
       requester: 'subject',
       subject: {
         kind: session ? 'tenant_user' : 'contact',
-        ...(email ? { email } : {}),
+        // NFKC-normalised for the backend match (full-width IME output); the
+        // input keeps the raw text for display.
+        ...(email ? { email: normalizeEmail(email) } : {}),
         evidence: [],
       },
     })
@@ -112,10 +112,10 @@ async function submit(): Promise<void> {
 
     {#if !privacy}
       <Alert variant="warning" title={COPY.unavailableTitle}>{COPY.unavailableBody}</Alert>
-      <a href="/privacy">{COPY.backLink}</a>
+      <a href={localePath('/privacy')}>{COPY.backLink}</a>
     {:else if requestId}
       <Alert variant="success" title={COPY.successTitle}>{COPY.successBody}</Alert>
-      <a href="/privacy/requests/{requestId}">{COPY.requestLink}</a>
+      <a href={localePath(`/privacy/requests/${requestId}`)}>{COPY.requestLink}</a>
     {:else}
       <section aria-labelledby="sanvi-deleted">
         <h2 id="sanvi-deleted">{COPY.willBeDeletedTitle}</h2>
@@ -166,7 +166,7 @@ async function submit(): Promise<void> {
           {/if}
         </div>
       </Stack>
-      <a href="/privacy">{COPY.backLink}</a>
+      <a href={localePath('/privacy')}>{COPY.backLink}</a>
     {/if}
   </Stack>
 </Container>

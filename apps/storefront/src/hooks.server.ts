@@ -1,9 +1,19 @@
 import { resolveSession } from '@sanvi/auth/server'
 import { buildContentSecurityPolicyDirectivesForApp } from '@sanvi/csp'
+import {
+  BASE_LOCALE,
+  LOCALE_COOKIE,
+  normalizeLocaleTag,
+  type Locale,
+  parseLocalePrefix,
+  withLocalePrefix,
+} from '@sanvi/i18n'
+import { resolveRequestLocale, runWithLocale } from '@sanvi/i18n/server'
 import { TenantHostCache, resolveTenantForHost } from '@sanvi/tenant/server'
 import type { Handle } from '@sveltejs/kit'
 import { sequence } from '@sveltejs/kit/hooks'
 import { getAppEnv } from '$lib/env'
+import { getAvailableLocales } from '$lib/locales.server'
 
 /**
  * Shared across every request on purpose — it caches by host, which is
@@ -44,23 +54,14 @@ export const resolveTenant: Handle = async ({ event, resolve }) => {
 }
 
 /**
- * Resolves the request's locale from `Accept-Language`/a cookie. Phase 06
- * (i18n) replaces this; phase 00 hardcodes `en` so every downstream read of
- * `event.locals.locale` is already typed and non-optional.
- */
-const resolveLocale: Handle = async ({ event, resolve }) => {
-  event.locals.locale = 'en'
-  return resolve(event, {
-    transformPageChunk: ({ html }) => html.replace('lang="en"', `lang="${event.locals.locale}"`),
-  })
-}
-
-/**
  * Resolves the signed-in session from the request's `Cookie` header — a
  * fresh per-request client (see `@sanvi/auth/server`'s `resolveSession` doc
  * comment for why this, unlike `tenantHostCache` above, is never shared
  * across requests). `null` on 401 (signed out); any other failure bubbles
  * up as a 500 rather than silently rendering as signed-out.
+ *
+ * Runs *before* locale resolution: the locale chain's "account preference"
+ * leg reads `locals.session.locale` (`MeView.locale`).
  */
 const resolveAuth: Handle = async ({ event, resolve }) => {
   if (isHealthCheck(event.url.pathname)) return resolve(event)
@@ -74,21 +75,98 @@ const resolveAuth: Handle = async ({ event, resolve }) => {
 }
 
 /**
- * The CSP header is still *emitted* by `kit.csp` (see `svelte.config.js`):
- * SvelteKit must own it because it stamps its per-request inline
- * hydration/bootstrap scripts with the matching hashes, which a header built
- * here cannot know.
+ * Which requests may get locale-canonicalizing redirects. Data requests and
+ * anything asset-shaped (a `.` in the last segment) must pass through
+ * untouched — a 307 on `/_app/immutable/…` or `favicon.svg` would be
+ * nonsense, and `__data.json` needs to answer for the URL it was built for.
+ */
+function isRedirectCandidate(event: {
+  request: Request
+  isDataRequest: boolean
+  url: URL
+}): boolean {
+  if (event.request.method !== 'GET' && event.request.method !== 'HEAD') return false
+  if (event.isDataRequest) return false
+  const lastSegment = event.url.pathname.split('/').pop() ?? ''
+  return !lastSegment.includes('.')
+}
+
+/**
+ * Phase 06's locale resolution — the frontend half of the backend's
+ * negotiation order (`@sanvi/i18n/server`'s `resolveRequestLocale`), plus
+ * the URL canonicalization the SEO model needs:
  *
- * But `kit.csp` resolves its origins at build time, while the app reads
- * `PUBLIC_API_ORIGIN` from `$env/dynamic/public` at *runtime*. Promote one
- * build across environments, or change the origin without rebuilding, and
- * `connect-src` names an origin the app never calls — every API request is
- * blocked by the browser with nothing to see server-side.
+ * - `/{locale}/…` prefixes are honored for every available locale; a prefix
+ *   in the *tenant default* locale is a duplicate of the canonical
+ *   unprefixed URL and 308-redirects to it.
+ * - An unprefixed URL where negotiation picked a non-default locale (via
+ *   switcher cookie, account preference, or `Accept-Language`) 307s to the
+ *   prefixed canonical URL — SSR HTML never renders a language that
+ *   disagrees with its own canonical link, and a Japanese reader landing on
+ *   `/` never sees a flash of English.
+ * - The tenant default itself needs no redirect: unprefixed *is* its
+ *   canonical form.
  *
- * So this rewrites `connect-src` (and only that directive) to the runtime
- * origins, leaving SvelteKit's script hashes untouched. The value comes from
- * `@sanvi/csp` — the same builder `svelte.config.js` uses — so there is still
- * one source of truth for the policy.
+ * The render runs inside `runWithLocale`, so every `t()`/`fmt()` call in
+ * this request's components and load functions reads this locale from the
+ * request's AsyncLocalStorage — per-request state, never a module global.
+ */
+export const resolveLocale: Handle = async ({ event, resolve }) => {
+  if (isHealthCheck(event.url.pathname)) return resolve(event)
+
+  const available = getAvailableLocales()
+  const tenantDefault: Locale =
+    normalizeLocaleTag(event.locals.tenant?.default_locale) ?? BASE_LOCALE
+  const prefix = parseLocalePrefix(event.url.pathname, available)
+
+  if (prefix && isRedirectCandidate(event) && prefix.locale === tenantDefault) {
+    // `/en/privacy` (default-locale prefix) → `/privacy`: one canonical URL per page.
+    return new Response(null, {
+      status: 308,
+      headers: { location: prefix.rest + event.url.search },
+    })
+  }
+
+  if (!prefix && isRedirectCandidate(event)) {
+    const negotiated = resolveRequestLocale({
+      pathname: event.url.pathname,
+      cookieLocale: event.cookies.get(LOCALE_COOKIE),
+      sessionLocale: event.locals.session?.locale ?? null,
+      tenantDefaultLocale: event.locals.tenant?.default_locale ?? null,
+      acceptLanguage: event.request.headers.get('accept-language'),
+      available,
+    })
+    if (negotiated.locale !== tenantDefault) {
+      const target = withLocalePrefix(event.url.pathname, negotiated.locale, tenantDefault)
+      return new Response(null, {
+        status: 307,
+        headers: { location: target + event.url.search, vary: 'accept-language, cookie' },
+      })
+    }
+  }
+
+  const locale = prefix?.locale ?? tenantDefault
+  event.locals.locale = locale
+
+  const response = await runWithLocale(locale, () =>
+    resolve(event, {
+      transformPageChunk: ({ html }) => html.replace('lang="en"', `lang="${locale}"`),
+    }),
+  )
+  response.headers.set('content-language', locale)
+  const vary = response.headers.get('vary')
+  if (!vary?.toLowerCase().includes('accept-language')) {
+    response.headers.set('vary', vary ? `${vary}, accept-language` : 'accept-language')
+  }
+  return response
+}
+
+/**
+ * The CSP header is *emitted* by `kit.csp` (see `svelte.config.js`): SvelteKit
+ * hashes its own inline hydration scripts per request, which a static header
+ * can't know. But kit freezes `connect-src` at *build* time, while the origins
+ * are runtime env — so the header is rewritten here, on the way out, with the
+ * runtime origins. Everything else stays as kit built it.
  */
 const CONNECT_SRC = 'connect-src'
 
@@ -118,4 +196,4 @@ export const runtimeConnectSrc: Handle = async ({ event, resolve }) => {
   return response
 }
 
-export const handle: Handle = sequence(resolveTenant, resolveLocale, resolveAuth, runtimeConnectSrc)
+export const handle: Handle = sequence(resolveTenant, resolveAuth, resolveLocale, runtimeConnectSrc)

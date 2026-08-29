@@ -1,10 +1,12 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 import { Alert, Badge, Container, EmptyState, Spinner, Stack } from '@sanvi/ui'
 import { getDsrStatus, exportDownloadUrl } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import { apiClient } from '$lib/auth'
 import { getAppEnv } from '$lib/env'
 import { formatDate } from '$lib/format'
+import { localePath } from '$lib/links'
 import type { PageData } from './$types'
 
 /**
@@ -19,31 +21,28 @@ let { data, params }: { data: PageData; params: { id: string } } = $props()
 
 type StatusView = components['schemas']['GetRequestStatusOutput']
 
-const COPY = {
-  title: 'Request status',
-  kindLabel: 'Request',
-  statusLabel: 'Status',
-  receivedLabel: 'Received',
-  acknowledgedLabel: 'Acknowledged',
-  dueLabel: 'Expected completion by',
-  extendedLabel: 'Extended to',
-  completedLabel: 'Completed',
-  jurisdictionLabel: 'Jurisdiction',
-  backLink: 'Back to your privacy requests',
-  loadTitle: 'Loading your request…',
-  notFoundTitle: 'Request not found',
-  notFoundBody:
-    'This request does not exist, or the token is wrong. Check the link from the confirmation email.',
-  rejectedTitle: 'Your request was refused',
-  appealCta: 'Appeal this decision',
-  downloadTitle: 'Your export is ready',
-  downloadBody:
-    'The download link is single-use and expires. The passphrase is NOT in this email chain — it was delivered separately. Keep both at hand before you start.',
-  downloadLink: 'Download export',
-  downloadNoToken:
-    'The download link and its token were sent to you separately from the passphrase. Open that link to download; it works once.',
-  timelineLabel: 'Progress',
-}
+const COPY = $derived({
+  title: t['privacy.requestDetail.title'](),
+  kindLabel: t['privacy.requestDetail.kindLabel'](),
+  statusLabel: t['privacy.requestDetail.statusLabel'](),
+  receivedLabel: t['privacy.requestDetail.receivedLabel'](),
+  acknowledgedLabel: t['privacy.requestDetail.acknowledgedLabel'](),
+  dueLabel: t['privacy.requestDetail.dueLabel'](),
+  extendedLabel: t['privacy.requestDetail.extendedLabel'](),
+  completedLabel: t['privacy.requestDetail.completedLabel'](),
+  jurisdictionLabel: t['privacy.requestDetail.jurisdictionLabel'](),
+  backLink: t['privacy.requestDetail.backLink'](),
+  loadTitle: t['privacy.requestDetail.loadTitle'](),
+  notFoundTitle: t['privacy.requestDetail.notFoundTitle'](),
+  notFoundBody: t['privacy.requestDetail.notFoundBody'](),
+  rejectedTitle: t['privacy.requestDetail.rejectedTitle'](),
+  appealCta: t['privacy.appeal.title'](),
+  downloadTitle: t['privacy.requestDetail.downloadTitle'](),
+  downloadBody: t['privacy.requestDetail.downloadBody'](),
+  downloadLink: t['privacy.requestDetail.downloadLink'](),
+  downloadNoToken: t['privacy.requestDetail.downloadNoToken'](),
+  timelineLabel: t['privacy.requestDetail.timelineLabel'](),
+})
 
 const downloadToken = $derived(new URLSearchParams(window.location.search).get('token'))
 const downloadHref = $derived(
@@ -99,7 +98,7 @@ const steps = $derived.by(() => {
       <Spinner label={COPY.loadTitle} />
     {:else if notFound || !status}
       <EmptyState title={COPY.notFoundTitle} description={COPY.notFoundBody} />
-      <a href="/privacy/requests">{COPY.backLink}</a>
+      <a href={localePath('/privacy/requests')}>{COPY.backLink}</a>
     {:else}
       <p><strong>{COPY.kindLabel}:</strong> {status.kind}</p>
       <p>
@@ -126,7 +125,7 @@ const steps = $derived.by(() => {
         <Alert variant="warning" title={COPY.rejectedTitle}>
           <Stack>
             <span>{status.rejection_reason}</span>
-            <a href="/privacy/requests/{params.id}/appeal">{COPY.appealCta}</a>
+            <a href={localePath(`/privacy/requests/${params.id}/appeal`)}>{COPY.appealCta}</a>
           </Stack>
         </Alert>
       {/if}
@@ -142,7 +141,7 @@ const steps = $derived.by(() => {
           {/if}
         </section>
       {/if}
-      <a href="/privacy/requests">{COPY.backLink}</a>
+      <a href={localePath('/privacy/requests')}>{COPY.backLink}</a>
     {/if}
   </Stack>
 </Container>

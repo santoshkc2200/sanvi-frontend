@@ -1,4 +1,5 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 import {
   Alert,
   Button,
@@ -12,6 +13,7 @@ import {
 import type { ProcessingPurpose } from '@sanvi/consent'
 import { consentState, getConsent } from '$lib/consent.svelte'
 import { consentablePurposeCopy } from '$lib/purpose-copy'
+import { localePath } from '$lib/links'
 import type { PageData } from './$types'
 
 /**
@@ -25,29 +27,24 @@ export const ssr = false
 
 let { data }: { data: PageData } = $props()
 
-const COPY = {
-  title: 'Your privacy choices',
-  intro:
-    'Every purpose below is a separate decision. Turning one off takes effect immediately, here and on other devices after your next sign-in.',
-  sensitiveTitle: 'Sensitive personal information',
-  recordNote:
-    'Changes are recorded together with the notice version and your jurisdiction, so your choices can be proven later.',
-  unavailableTitle: 'Choices unavailable',
-  unavailableBody:
-    'The privacy service did not answer, so no preferences can be shown. Nothing non-essential is running while this page is like this.',
-  backLink: 'Back to your privacy overview',
-  gpcNote:
-    'A browser privacy signal (Global Privacy Control) was detected and applied. It holds the affected purposes down until you explicitly override it below.',
-  sourceYourChoice: 'Your choice',
-  sourceBrowserSignal: 'Browser signal',
-  lockedNote: 'Held by your browser privacy signal.',
-  overrideLabel: 'Override signal',
-  overrideTitle: 'Override your browser privacy signal?',
-  overrideBody:
-    'Your browser asked us not to sell or share your information. Overriding replaces that signal with your own explicit choice.',
-  overrideConfirm: 'Override',
-  overrideCancel: 'Keep signal',
-}
+const COPY = $derived({
+  title: t['privacy.choices.title'](),
+  intro: t['privacy.choices.intro'](),
+  sensitiveTitle: t['privacy.choices.sensitiveTitle'](),
+  recordNote: t['privacy.choices.recordNote'](),
+  unavailableTitle: t['privacy.choices.unavailableTitle'](),
+  unavailableBody: t['privacy.choices.unavailableBody'](),
+  backLink: t['privacy.overview.backLink'](),
+  gpcNote: t['privacy.choices.gpcNote'](),
+  sourceYourChoice: t['privacy.choices.sourceYourChoice'](),
+  sourceBrowserSignal: t['privacy.choices.sourceBrowserSignal'](),
+  lockedNote: t['privacy.choices.lockedNote'](),
+  overrideLabel: t['privacy.choices.overrideLabel'](),
+  overrideTitle: t['consent.override.title'](),
+  overrideBody: t['privacy.choices.overrideBody'](),
+  overrideConfirm: t['privacy.choices.overrideConfirm'](),
+  overrideCancel: t['consent.override.cancel'](),
+})
 
 const privacy = $derived(data.privacy)
 
@@ -145,7 +142,7 @@ function setOverrideOpen(open: boolean): void {
 
     {#if !consent || !privacy}
       <EmptyState title={COPY.unavailableTitle} description={COPY.unavailableBody} />
-      <a href="/privacy">{COPY.backLink}</a>
+      <a href={localePath('/privacy')}>{COPY.backLink}</a>
     {:else}
       <ConsentPreferences
         label={COPY.title}

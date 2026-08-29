@@ -1,6 +1,7 @@
 <script lang="ts">
 import { KratosForm, submitFlow } from '@sanvi/auth'
 import type { KratosFlow, UiNode } from '@sanvi/auth'
+import { t } from '@sanvi/i18n'
 import { Alert, Container, Stack } from '@sanvi/ui'
 import { untrack } from 'svelte'
 import { kratosClient } from '$lib/auth'
@@ -13,12 +14,12 @@ let flow = $state<KratosFlow>(untrack(() => data.flow))
 let submitting = $state(false)
 let error = $state<string | undefined>(undefined)
 
-const COPY = {
-  title: 'Verify your email',
-  genericError: 'Something went wrong. Try again in a moment.',
-  emailSent: 'Check your email for a verification code.',
-  complete: 'Your email is verified.',
-}
+const COPY = $derived({
+  title: t['auth.verification.title'](),
+  genericError: t['auth.verification.genericError'](),
+  emailSent: t['auth.verification.emailSent'](),
+  complete: t['auth.verification.complete'](),
+})
 
 async function handleSubmit(node: UiNode, values: Record<string, string | boolean>): Promise<void> {
   submitting = true

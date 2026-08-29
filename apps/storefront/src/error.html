@@ -42,6 +42,11 @@
       ours). Static, not Svelte — no design-tokens import here, kept close by hand
       instead; the message is intentionally generic so an unknown host is never
       distinguishable from any other root-layout failure.
+
+      INTENTIONALLY ENGLISH-ONLY: this file renders when the i18n runtime is
+      unavailable (no locale negotiation, possibly no tenant at all), so there
+      is no catalog to translate it into. English-only is the accepted
+      catastrophic-failure fallback, and check:i18n does not scan .html.
     -->
     <div class="error">
       <h1>%sveltekit.status%</h1>

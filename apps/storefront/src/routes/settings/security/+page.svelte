@@ -2,6 +2,7 @@
 import { KratosForm, logout, submitFlow } from '@sanvi/auth'
 import type { KratosFlow, UiNode } from '@sanvi/auth'
 import { listSessions, revokeSession } from '@sanvi/api-client'
+import { t } from '@sanvi/i18n'
 import { Alert, Button, Container, Stack } from '@sanvi/ui'
 import { untrack } from 'svelte'
 import { apiClient, kratosClient } from '$lib/auth'
@@ -16,20 +17,22 @@ let error = $state<string | undefined>(undefined)
 let sessions = $state<Awaited<ReturnType<typeof listSessions>>>([])
 let revokingId = $state<string | undefined>(undefined)
 
-const COPY = {
-  title: 'Security',
-  genericError: 'Something went wrong. Try again in a moment.',
-  saved: 'Saved.',
-  sessionsTitle: 'Sessions',
+const COPY = $derived({
+  title: t['settings.security.title'](),
+  genericError: t['settings.security.genericError'](),
+  saved: t['settings.security.saved'](),
+  sessionsTitle: t['settings.security.sessionsTitle'](),
   // The backend's `SessionView` (phase 02) reports only session id, aal,
   // methods, and authenticated_at — no device/IP/location yet, so this
   // section shows exactly that rather than fabricating fields the API
   // doesn't return.
   currentSessionLabel: (methods: string[]) =>
-    `Signed in via ${methods.join(', ') || 'unknown method'}`,
-  revoke: 'Sign out this session',
-  signOutEverywhere: 'Sign out everywhere',
-}
+    t['settings.security.currentSession']({
+      methods: methods.join(', ') || t['settings.security.unknownMethod'](),
+    }),
+  revoke: t['settings.security.revoke'](),
+  signOutEverywhere: t['settings.security.signOutEverywhere'](),
+})
 
 $effect(() => {
   // Best-effort: a failed sessions list (network blip) shouldn't error the

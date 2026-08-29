@@ -1,4 +1,5 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 import { Container, EmptyState, Stack, Table, type TableColumn } from '@sanvi/ui'
 import type { components } from '@sanvi/api-client'
 import type { PageData } from './$types'
@@ -12,27 +13,25 @@ type MetricsRow = components['schemas']['PublicMetricsRow']
 
 let { data }: { data: PageData } = $props()
 
-const COPY = {
-  title: 'Annual request metrics',
-  yearLabel: (year: number) => `Requests received in ${year}, by jurisdiction and kind`,
-  receivedColumn: 'Received',
-  compliedColumn: 'Complied',
-  deniedColumn: 'Denied',
-  jurisdictionColumn: 'Jurisdiction',
-  kindColumn: 'Request kind',
-  medianColumn: 'Median days to respond',
-  notReported: '—',
-  unavailableTitle: 'Metrics unavailable',
-  unavailableBody: 'The metrics service did not answer. Please try again later.',
-}
+const COPY = $derived({
+  title: t['legal.requestMetrics.title'](),
+  yearLabel: (year: number) => t['legal.requestMetrics.yearLabel']({ year }),
+  receivedColumn: t['legal.requestMetrics.receivedColumn'](),
+  compliedColumn: t['legal.requestMetrics.compliedColumn'](),
+  deniedColumn: t['legal.requestMetrics.deniedColumn'](),
+  jurisdictionColumn: t['legal.requestMetrics.jurisdictionColumn'](),
+  kindColumn: t['legal.requestMetrics.kindColumn'](),
+  unavailableTitle: t['legal.requestMetrics.unavailableTitle'](),
+  unavailableBody: t['legal.requestMetrics.unavailableBody'](),
+})
 
-const columns: TableColumn<MetricsRow>[] = [
+const columns: TableColumn<MetricsRow>[] = $derived([
   { key: 'jurisdiction', header: COPY.jurisdictionColumn },
   { key: 'kind', header: COPY.kindColumn },
   { key: 'received', header: COPY.receivedColumn },
   { key: 'complied', header: COPY.compliedColumn },
   { key: 'denied', header: COPY.deniedColumn },
-]
+])
 </script>
 
 <svelte:head><title>{COPY.title}</title></svelte:head>

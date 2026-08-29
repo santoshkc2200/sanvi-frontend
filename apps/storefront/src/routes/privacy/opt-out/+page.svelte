@@ -1,6 +1,8 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 import { Alert, Button, Container, EmptyState, Stack } from '@sanvi/ui'
 import { consentState, getConsent } from '$lib/consent.svelte'
+import { localePath } from '$lib/links'
 import type { PageData } from './$types'
 
 /**
@@ -12,25 +14,20 @@ export const ssr = false
 
 let { data }: { data: PageData } = $props()
 
-const COPY = {
-  title: 'Do Not Sell or Share My Personal Information',
-  intro:
-    'Press once to stop the sale or sharing of your personal information and to opt out of targeted advertising and profiling. You do not need an account, and no verification is required.',
-  button: 'Opt out now',
-  busy: 'Opting out…',
-  doneTitle: 'Opt-out recorded',
-  doneBody:
-    'Your opt-out is recorded and takes effect at the source, not just on this screen. Processing covered by the opt-out stops for this browser immediately and stays stopped.',
-  effectiveDaysPrefix: 'Opt-outs on this storefront take effect within',
-  effectiveDaysSuffix: 'business days.',
-  alreadyTitle: 'Already opted out',
-  alreadyBody:
-    'This browser already has an opt-out (your choice or a browser privacy signal). Nothing more to do — but pressing again changes nothing.',
-  unavailableTitle: 'Privacy service unavailable',
-  unavailableBody: 'The opt-out service did not answer. Nothing is being shared while it is down.',
-  backLink: 'Back to your privacy overview',
-  errorBody: 'The opt-out could not be recorded. Please try again in a moment.',
-}
+const COPY = $derived({
+  title: t['privacy.optOut.title'](),
+  intro: t['privacy.optOut.intro'](),
+  button: t['privacy.optOut.button'](),
+  busy: t['privacy.optOut.busy'](),
+  doneTitle: t['privacy.optOut.doneTitle'](),
+  doneBody: t['privacy.optOut.doneBody'](),
+  alreadyTitle: t['privacy.optOut.alreadyTitle'](),
+  alreadyBody: t['privacy.optOut.alreadyBody'](),
+  unavailableTitle: t['privacy.optOut.unavailableTitle'](),
+  unavailableBody: t['privacy.optOut.unavailableBody'](),
+  backLink: t['privacy.overview.backLink'](),
+  errorBody: t['privacy.optOut.errorBody'](),
+})
 
 const privacy = $derived(data.privacy)
 
@@ -79,7 +76,7 @@ async function optOut(): Promise<void> {
 
     {#if !privacy}
       <EmptyState title={COPY.unavailableTitle} description={COPY.unavailableBody} />
-      <a href="/privacy">{COPY.backLink}</a>
+      <a href={localePath('/privacy')}>{COPY.backLink}</a>
     {:else if done}
       <Alert variant="success" title={COPY.doneTitle}>{COPY.doneBody}</Alert>
     {:else if alreadyOptedOut}
@@ -94,13 +91,9 @@ async function optOut(): Promise<void> {
         <Alert variant="error">{COPY.errorBody}</Alert>
       {/if}
       {#if effectiveDays !== null}
-        <p>
-          {COPY.effectiveDaysPrefix}
-          {effectiveDays}
-          {COPY.effectiveDaysSuffix}
-        </p>
+        <p>{t['privacy.optOut.effectiveDays']({ count: effectiveDays })}</p>
       {/if}
     {/if}
-    <a href="/privacy">{COPY.backLink}</a>
+    <a href={localePath('/privacy')}>{COPY.backLink}</a>
   </Stack>
 </Container>

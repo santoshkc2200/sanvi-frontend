@@ -8,7 +8,17 @@ import {
 } from '@sanvi/ui'
 import '@sanvi/ui/styles.css'
 import { setTenantContext } from '@sanvi/tenant'
+import {
+  currentLocale,
+  initI18n,
+  localeHref,
+  localeOptions,
+  persistLocaleChoice,
+  t,
+} from '@sanvi/i18n'
 import { goto } from '$app/navigation'
+import { base } from '$app/paths'
+import { page } from '$app/state'
 import { untrack } from 'svelte'
 import type { Snippet } from 'svelte'
 import {
@@ -19,9 +29,37 @@ import {
   markConsentReady,
 } from '$lib/consent.svelte'
 import { consentablePurposeCopy } from '$lib/purpose-copy'
+import { localePath, setClientDefaultLocale } from '$lib/links'
+// Preload targets for ja pages (see `<svelte:head>` below): the two
+// highest-value unicode-range subsets, vendored in `static/fonts/` from
+// `@fontsource-variable/noto-sans-jp` (OFL-1.1 — see static/fonts/README).
+// The faces themselves are wired up by the package's unicode-range-split
+// CSS, imported through `@sanvi/ui`'s styles.
+const kanaSubset = `${base}/fonts/noto-sans-jp-119-wght-normal.woff2`
+const kanjiCommonSubset = `${base}/fonts/noto-sans-jp-118-wght-normal.woff2`
 import type { LayoutData } from './$types'
 
 let { data, children }: { data: LayoutData; children: Snippet } = $props()
+
+// Before anything renders (this component's init runs before children do,
+// on the server and during hydration alike), the runtime must agree with
+// the locale the hook negotiated — otherwise the client would render from
+// its cookie while the server rendered from the URL, and hydration would
+// flash or mismatch. After this, `t`/`fmt` read the same locale everywhere.
+// Deliberately the init-time value — see the comment below.
+// svelte-ignore state_referenced_locally
+initI18n({ locale: data.locale })
+// Captured for `localePath`'s event-handler path — `getContext` is
+// init-only, but handlers (banner buttons, form redirects) need the
+// tenant default too.
+setClientDefaultLocale(untrack(() => data.seo.defaultLocale))
+// Client-side navigations can move between locales (/privacy → /ja/privacy
+// via the switcher): the layout component survives, so its init above
+// doesn't re-run — this tracked effect re-seeds the runtime whenever the
+// server-negotiated locale changes.
+$effect(() => {
+  initI18n({ locale: data.locale })
+})
 
 // SSR-safe: Svelte context is per-request (per component tree), never a
 // module-level singleton — see `@sanvi/tenant`'s `context.ts`. `untrack`
@@ -35,36 +73,16 @@ const lockedReason = $derived(
   data.tenant && data.tenant.status !== 'active' ? data.tenant.status : null,
 )
 
-const COPY = {
-  footerNav: 'Privacy and legal',
-  copyright: (name: string) => `Powered by Sanvi for ${name}`,
-  choicesLabel: 'Your privacy choices',
-  noticeLabel: 'Privacy notice',
-  usOptOutLabel: 'Do Not Sell or Share My Personal Information',
-  usSensitiveLabel: 'Limit the Use of My Sensitive Personal Information',
-  bannerTitle: 'We ask before we track',
-  bannerBody:
-    'Some features use cookies and similar technology to work well. You decide per purpose, and you can change your mind at any time from “Your privacy choices”.',
-  bannerAccept: 'Accept all',
-  bannerReject: 'Reject all',
-  bannerChoose: 'Choose purposes',
-  gpcNotice:
-    'We detected a browser privacy signal (Global Privacy Control) and applied it. Accepting all would override it, so we will ask you to confirm first.',
-  gpcOverrideTitle: 'Override your browser privacy signal?',
-  gpcOverrideBody:
-    'Your browser asked us not to sell or share your information. Accepting all overrides that signal — only continue if you mean it.',
-  gpcOverrideConfirm: 'Accept anyway',
-  gpcOverrideCancel: 'Keep signal',
-  overrideDialogClose: 'Close',
-  noticeTitle: 'Notice at collection',
-  noticeBody:
-    'Before you browse: this store collects the categories listed below. Opting out takes one click from any page and never requires an account.',
-  noticeAck: 'Got it',
-  noticeSaleShare: (sold: boolean) =>
-    sold
-      ? 'Personal information may be sold or shared for cross-context advertising until you opt out.'
-      : 'Personal information is not sold or shared for cross-context advertising.',
-}
+// Crawlable locale links — the switcher for an SEO-relevant app is real
+// `<a hreflang>` anchors, not a `<select>` (invisible to crawlers).
+// Preserving path+query is `localeHref`'s whole job.
+const localeLinks = $derived(
+  localeOptions().map((option) => ({
+    ...option,
+    href: localeHref(page.url.pathname + page.url.search, option.code),
+    current: option.code === currentLocale(),
+  })),
+)
 
 const purposes = $derived(
   consentablePurposeCopy().map(({ purpose, copy }) => ({ key: purpose, label: copy.label })),
@@ -121,9 +139,35 @@ const usLinks = $derived(data.privacy?.model === 'notice_and_opt_out')
 
 const noticeCategories = $derived(data.privacy?.noticeAtCollection?.categories ?? [])
 const saleShareNote = $derived(
-  COPY.noticeSaleShare(data.privacy?.noticeAtCollection?.sale_or_share ?? false),
+  data.privacy?.noticeAtCollection?.sale_or_share
+    ? t['consent.notice.saleShareSold']()
+    : t['consent.notice.saleShareNotSold'](),
 )
+
+const pageTitle = $derived(data.tenant?.display_name ?? t['storefront.home.fallbackTitle']())
 </script>
+
+<svelte:head>
+  <title>{pageTitle}</title>
+  <link rel="canonical" href="{page.url.origin}{data.seo.canonicalPath}" />
+  {#each data.seo.alternates as alternate (alternate.locale)}
+    <link rel="alternate" hreflang={alternate.locale} href="{page.url.origin}{alternate.href}" />
+  {/each}
+  <meta property="og:locale" content={data.seo.ogLocale} />
+  {#if data.locale === 'ja'}
+    <!-- Japanese font preloads — only for ja pages, per the phase-06 LCP
+         budget: these subsets cover kana + the most frequent kanji; the
+         unicode-range-split faces pick up the rest on demand. -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin="anonymous" href={kanaSubset} />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin="anonymous"
+      href={kanjiCommonSubset}
+    />
+  {/if}
+</svelte:head>
 
 {#if lockedReason}
   <SuspendedTenantNotice reason={lockedReason} />
@@ -139,19 +183,33 @@ const saleShareNote = $derived(
 
   <footer class="sanvi-footer">
     <div class="sanvi-footer__inner">
+      <nav class="sanvi-footer__locales" aria-label={t['storefront.footer.language']()}>
+        {#each localeLinks as link (link.code)}
+          <a
+            href={link.href}
+            hreflang={link.code}
+            aria-current={link.current ? 'true' : undefined}
+            onclick={() => persistLocaleChoice(link.code)}
+          >
+            {link.label}
+          </a>
+        {/each}
+      </nav>
       <PrivacyFooterLinks
-        label={COPY.footerNav}
-        choicesLabel={COPY.choicesLabel}
-        choicesHref="/privacy/choices"
-        noticeLabel={COPY.noticeLabel}
-        noticeHref="/legal/privacy-notice"
-        optOutLabel={usLinks ? COPY.usOptOutLabel : undefined}
-        optOutHref={usLinks ? '/privacy/opt-out' : undefined}
-        sensitiveLabel={usLinks ? COPY.usSensitiveLabel : undefined}
-        sensitiveHref={usLinks ? '/privacy/limit-sensitive' : undefined}
+        label={t['storefront.footer.nav']()}
+        choicesLabel={t['storefront.footer.choices']()}
+        choicesHref={localePath('/privacy/choices')}
+        noticeLabel={t['storefront.footer.notice']()}
+        noticeHref={localePath('/legal/privacy-notice')}
+        optOutLabel={usLinks ? t['storefront.footer.usOptOut']() : undefined}
+        optOutHref={usLinks ? localePath('/privacy/opt-out') : undefined}
+        sensitiveLabel={usLinks ? t['storefront.footer.usSensitive']() : undefined}
+        sensitiveHref={usLinks ? localePath('/privacy/limit-sensitive') : undefined}
       />
       {#if data.tenant}
-        <p class="sanvi-footer__copyright">{COPY.copyright(data.tenant.display_name)}</p>
+        <p class="sanvi-footer__copyright">
+          {t['storefront.footer.copyright']({ name: data.tenant.display_name })}
+        </p>
       {/if}
     </div>
   </footer>
@@ -160,34 +218,34 @@ const saleShareNote = $derived(
     {#if view.showOptIn}
       <ConsentBanner
         open
-        title={COPY.bannerTitle}
-        body={COPY.bannerBody}
+        title={t['consent.banner.title']()}
+        body={t['consent.banner.body']()}
         purposes={purposes}
-        acceptLabel={COPY.bannerAccept}
-        rejectLabel={COPY.bannerReject}
-        chooseLabel={COPY.bannerChoose}
-        gpcNotice={view.gpcApplied ? COPY.gpcNotice : undefined}
-        gpcOverrideTitle={COPY.gpcOverrideTitle}
-        gpcOverrideBody={COPY.gpcOverrideBody}
-        gpcOverrideConfirmLabel={COPY.gpcOverrideConfirm}
-        gpcOverrideCancelLabel={COPY.gpcOverrideCancel}
-        overrideDialogCloseLabel={COPY.overrideDialogClose}
+        acceptLabel={t['consent.banner.accept']()}
+        rejectLabel={t['consent.banner.reject']()}
+        chooseLabel={t['consent.banner.choose']()}
+        gpcNotice={view.gpcApplied ? t['consent.banner.gpcNotice']() : undefined}
+        gpcOverrideTitle={t['consent.override.title']()}
+        gpcOverrideBody={t['consent.override.body']()}
+        gpcOverrideConfirmLabel={t['consent.override.confirm']()}
+        gpcOverrideCancelLabel={t['consent.override.cancel']()}
+        overrideDialogCloseLabel={t['consent.override.close']()}
         onAcceptAll={({ overrideGpc }) => getConsent()?.acceptAll({ overrideGpc })}
         onRejectAll={() => getConsent()?.rejectAll()}
-        onChoose={() => goto('/privacy/choices')}
+        onChoose={() => goto(localePath('/privacy/choices'))}
       />
     {:else if view.showNotice}
       <PrivacyNoticeBanner
         open
-        title={COPY.noticeTitle}
-        body={COPY.noticeBody}
+        title={t['consent.notice.title']()}
+        body={t['consent.notice.body']()}
         categories={noticeCategories}
         saleShareNote={saleShareNote}
-        choicesLabel={COPY.choicesLabel}
-        choicesHref="/privacy/choices"
-        noticeLabel={COPY.noticeLabel}
-        noticeHref="/legal/privacy-notice"
-        acknowledgeLabel={COPY.noticeAck}
+        choicesLabel={t['storefront.footer.choices']()}
+        choicesHref={localePath('/privacy/choices')}
+        noticeLabel={t['storefront.footer.notice']()}
+        noticeHref={localePath('/legal/privacy-notice')}
+        acknowledgeLabel={t['consent.notice.ack']()}
         onAcknowledge={() => getConsent()?.acknowledgeNotice()}
       />
     {/if}
@@ -196,7 +254,11 @@ const saleShareNote = $derived(
 
 <style>
   .sanvi-consent-spacer {
-    min-height: calc(var(--sanvi-spacing-12) * 2 + var(--sanvi-spacing-8));
+    /* Scroll headroom for content under the floating consent banner: the
+       banner's stacked mobile height, plus the footer (whose locale nav
+       made it taller in phase 06) so end-of-page controls can still scroll
+       above the overlay. */
+    min-height: calc(var(--sanvi-spacing-12) * 3 + var(--sanvi-spacing-8));
   }
 
   .sanvi-footer {
@@ -212,6 +274,21 @@ const saleShareNote = $derived(
     max-width: 100%;
     margin-inline: auto;
     padding: var(--sanvi-spacing-4);
+  }
+
+  .sanvi-footer__locales {
+    display: flex;
+    gap: var(--sanvi-spacing-3);
+  }
+
+  .sanvi-footer__locales a {
+    color: var(--sanvi-color-text-secondary);
+    font-size: var(--sanvi-font-size-sm);
+  }
+
+  .sanvi-footer__locales a[aria-current='true'] {
+    color: var(--sanvi-color-text-primary);
+    font-weight: var(--sanvi-font-weight-medium);
   }
 
   .sanvi-footer__copyright {

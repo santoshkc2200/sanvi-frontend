@@ -1,9 +1,11 @@
 <script lang="ts">
 import { KratosForm, submitFlow } from '@sanvi/auth'
 import type { KratosFlow, UiNode } from '@sanvi/auth'
+import { t } from '@sanvi/i18n'
 import { Alert, Container, Stack } from '@sanvi/ui'
 import { untrack } from 'svelte'
 import { kratosClient } from '$lib/auth'
+import { localePath } from '$lib/links'
 import { loadFlow } from '$lib/load-flow'
 import type { PageData } from './$types'
 
@@ -13,12 +15,12 @@ let flow = $state<KratosFlow>(untrack(() => data.flow))
 let submitting = $state(false)
 let error = $state<string | undefined>(undefined)
 
-const COPY = {
-  title: 'Create an account',
-  genericError: 'Something went wrong. Try again in a moment.',
-  signInPrompt: 'Already have an account?',
-  signInLink: 'Sign in',
-}
+const COPY = $derived({
+  title: t['auth.registration.title'](),
+  genericError: t['auth.registration.genericError'](),
+  signInPrompt: t['auth.registration.signInPrompt'](),
+  signInLink: t['auth.registration.signInLink'](),
+})
 
 // Consent/opt-out UI for the account's jurisdiction (phase 05's privacy
 // centre) attaches here once that phase lands — Kratos's own registration
@@ -70,7 +72,7 @@ async function handleSubmit(node: UiNode, values: Record<string, string | boolea
 
     <p>
       {COPY.signInPrompt}
-      <a href="/login">{COPY.signInLink}</a>
+      <a href={localePath('/login')}>{COPY.signInLink}</a>
     </p>
   </Stack>
 </Container>

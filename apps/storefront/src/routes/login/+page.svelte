@@ -1,9 +1,11 @@
 <script lang="ts">
 import { KratosForm, submitFlow } from '@sanvi/auth'
 import type { KratosFlow, UiNode } from '@sanvi/auth'
+import { t } from '@sanvi/i18n'
 import { Alert, Container, Stack } from '@sanvi/ui'
 import { untrack } from 'svelte'
 import { kratosClient } from '$lib/auth'
+import { localePath } from '$lib/links'
 import { loadFlow } from '$lib/load-flow'
 import type { PageData } from './$types'
 
@@ -13,12 +15,12 @@ let flow = $state<KratosFlow>(untrack(() => data.flow))
 let submitting = $state(false)
 let error = $state<string | undefined>(undefined)
 
-const COPY = {
-  title: 'Sign in',
-  genericError: 'Something went wrong. Try again in a moment.',
-  signUpPrompt: "Don't have an account?",
-  signUpLink: 'Create one',
-}
+const COPY = $derived({
+  title: t['auth.login.title'](),
+  genericError: t['auth.login.genericError'](),
+  signUpPrompt: t['auth.login.signUpPrompt'](),
+  signUpLink: t['auth.login.signUpLink'](),
+})
 
 async function handleSubmit(node: UiNode, values: Record<string, string | boolean>): Promise<void> {
   submitting = true
@@ -67,7 +69,7 @@ async function handleSubmit(node: UiNode, values: Record<string, string | boolea
 
     <p>
       {COPY.signUpPrompt}
-      <a href="/registration">{COPY.signUpLink}</a>
+      <a href={localePath('/registration')}>{COPY.signUpLink}</a>
     </p>
   </Stack>
 </Container>

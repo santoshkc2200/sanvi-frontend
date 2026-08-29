@@ -1,9 +1,11 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 import { Alert, Button, Container, Field, Spinner, Stack, Textarea } from '@sanvi/ui'
 import { appealRequest } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import { apiClient } from '$lib/auth'
 import { formatDate } from '$lib/format'
+import { localePath } from '$lib/links'
 
 /**
  * Appeal of a refused request. The authority's complaint route is rendered
@@ -14,23 +16,20 @@ export const ssr = false
 
 type AppealOutput = components['schemas']['AppealRequestOutput']
 
-const COPY = {
-  title: 'Appeal this decision',
-  intro:
-    'If your privacy request was refused, you can appeal. A different reviewer who did not make the original decision will look at it again.',
-  reasonLabel: 'Why do you think the refusal was wrong?',
-  submit: 'Submit appeal',
-  busy: 'Submitting…',
-  successTitle: 'Appeal received',
-  dueLabel: 'Decision expected by',
-  authorityTitle: 'You can also complain to the authority',
-  authorityIntro:
-    'Independent of your appeal, you can raise this with the authority responsible for your jurisdiction:',
-  complaintLink: 'File a complaint',
-  backLink: 'Back to request status',
-  errorBody: 'The appeal could not be submitted. Check the details and try again.',
-  loadTitle: 'Loading…',
-}
+const COPY = $derived({
+  title: t['privacy.appeal.title'](),
+  intro: t['privacy.appeal.intro'](),
+  reasonLabel: t['privacy.appeal.reasonLabel'](),
+  submit: t['privacy.appeal.submit'](),
+  busy: t['privacy.appeal.busy'](),
+  successTitle: t['privacy.appeal.successTitle'](),
+  dueLabel: t['privacy.appeal.dueLabel'](),
+  authorityTitle: t['privacy.appeal.authorityTitle'](),
+  authorityIntro: t['privacy.appeal.authorityIntro'](),
+  complaintLink: t['privacy.appeal.complaintLink'](),
+  backLink: t['privacy.appeal.backLink'](),
+  errorBody: t['privacy.appeal.errorBody'](),
+})
 
 let { params }: { params: { id: string } } = $props()
 
@@ -91,6 +90,6 @@ async function submit(): Promise<void> {
         {/if}
       </div>
     {/if}
-    <a href="/privacy/requests/{params.id}">{COPY.backLink}</a>
+    <a href={localePath(`/privacy/requests/${params.id}`)}>{COPY.backLink}</a>
   </Stack>
 </Container>

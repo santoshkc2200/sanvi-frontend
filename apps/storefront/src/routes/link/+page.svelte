@@ -1,9 +1,11 @@
 <script lang="ts">
 import { KratosForm, completeLinking, startLinking, submitFlow } from '@sanvi/auth'
 import type { KratosFlow, UiNode } from '@sanvi/auth'
+import { t } from '@sanvi/i18n'
 import { Alert, Container, Stack } from '@sanvi/ui'
 import { untrack } from 'svelte'
 import { apiClient, kratosClient } from '$lib/auth'
+import { localePath } from '$lib/links'
 import { loadFlow } from '$lib/load-flow'
 import type { PageData } from './$types'
 
@@ -14,17 +16,14 @@ let submitting = $state(false)
 let error = $state<string | undefined>(undefined)
 let linked = $state<{ provider: string } | undefined>(undefined)
 
-const COPY = {
-  title: 'Link your account',
-  missingChallenge:
-    'This linking request is invalid or has expired — start over from the sign-in page.',
-  explanation: (email: string) =>
-    `An account already exists for ${email}. Sign in below to link it.`,
-  genericError: 'Something went wrong. Try again in a moment.',
-  successTitle: 'Linked',
-  successBody: (provider: string) => `${provider} is now linked to your account.`,
-  continue: 'Continue',
-}
+const COPY = $derived({
+  title: t['auth.link.title'](),
+  missingChallenge: t['auth.link.missingChallenge'](),
+  explanation: (email: string) => t['auth.link.explanation']({ email }),
+  genericError: t['auth.link.genericError'](),
+  successBody: (provider: string) => t['auth.link.successBody']({ provider }),
+  continue: t['auth.link.continue'](),
+})
 
 async function handleSubmit(node: UiNode, values: Record<string, string | boolean>): Promise<void> {
   if (!flow || !data.challenge) return
@@ -71,7 +70,7 @@ async function handleSubmit(node: UiNode, values: Record<string, string | boolea
       <Alert variant="error">{COPY.missingChallenge}</Alert>
     {:else if linked}
       <Alert variant="success">{COPY.successBody(linked.provider)}</Alert>
-      <a href="/settings/security">{COPY.continue}</a>
+      <a href={localePath('/settings/security')}>{COPY.continue}</a>
     {:else}
       <Alert variant="info">{COPY.explanation(data.challenge.email)}</Alert>
       {#if error}

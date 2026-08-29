@@ -1,4 +1,5 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 import { Container, EmptyState, Stack, Table, type TableColumn } from '@sanvi/ui'
 import type { components } from '@sanvi/api-client'
 import type { PageData } from './$types'
@@ -12,26 +13,25 @@ type SubProcessor = components['schemas']['SubProcessor']
 
 let { data }: { data: PageData } = $props()
 
-const COPY = {
-  title: 'Sub-processors',
-  intro:
-    'These are the third parties that process data for this storefront on our behalf, with their role and the transfer mechanism for data leaving its region.',
-  nameColumn: 'Name',
-  roleColumn: 'Role',
-  locationColumn: 'Location',
-  purposeColumn: 'Purpose',
-  unavailableTitle: 'List unavailable',
-  unavailableBody: 'The sub-processor registry did not answer. Please try again later.',
-}
+const COPY = $derived({
+  title: t['legal.subProcessors.title'](),
+  intro: t['legal.subProcessors.intro'](),
+  nameColumn: t['legal.subProcessors.nameColumn'](),
+  roleColumn: t['legal.subProcessors.roleColumn'](),
+  locationColumn: t['legal.subProcessors.locationColumn'](),
+  purposeColumn: t['legal.subProcessors.purposeColumn'](),
+  unavailableTitle: t['legal.subProcessors.unavailableTitle'](),
+  unavailableBody: t['legal.subProcessors.unavailableBody'](),
+})
 
 const active = $derived((data.subprocessors ?? []).filter((entry) => !entry.removed_at))
 
-const columns: TableColumn<SubProcessor>[] = [
+const columns: TableColumn<SubProcessor>[] = $derived([
   { key: 'name', header: COPY.nameColumn },
   { key: 'role', header: COPY.roleColumn },
   { key: 'location', header: COPY.locationColumn },
   { key: 'purpose', header: COPY.purposeColumn },
-]
+])
 </script>
 
 <svelte:head><title>{COPY.title}</title></svelte:head>

@@ -1,6 +1,8 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 import { Alert, Button, Container, EmptyState, Stack } from '@sanvi/ui'
 import { getConsent } from '$lib/consent.svelte'
+import { localePath } from '$lib/links'
 import type { PageData } from './$types'
 
 /**
@@ -11,21 +13,18 @@ export const ssr = false
 
 let { data }: { data: PageData } = $props()
 
-const COPY = {
-  title: 'Limit the Use of My Sensitive Personal Information',
-  intro:
-    'Press once to limit how your sensitive personal information is used. You do not need an account, and no verification is required.',
-  button: 'Limit use now',
-  busy: 'Recording…',
-  doneTitle: 'Limitation recorded',
-  doneBody:
-    'Sensitive personal information is now limited to what the service strictly requires — you will not see this change, but the restriction is enforced at the source.',
-  unavailableTitle: 'Privacy service unavailable',
-  unavailableBody:
-    'The privacy service did not answer. Nothing beyond the service requirements happens with sensitive data while it is down.',
-  backLink: 'Back to your privacy overview',
-  errorBody: 'The limitation could not be recorded. Please try again in a moment.',
-}
+const COPY = $derived({
+  title: t['privacy.limitSensitive.title'](),
+  intro: t['privacy.limitSensitive.intro'](),
+  button: t['privacy.limitSensitive.button'](),
+  busy: t['privacy.limitSensitive.busy'](),
+  doneTitle: t['privacy.limitSensitive.doneTitle'](),
+  doneBody: t['privacy.limitSensitive.doneBody'](),
+  unavailableTitle: t['privacy.limitSensitive.unavailableTitle'](),
+  unavailableBody: t['privacy.limitSensitive.unavailableBody'](),
+  backLink: t['privacy.overview.backLink'](),
+  errorBody: t['privacy.limitSensitive.errorBody'](),
+})
 
 const privacy = $derived(data.privacy)
 
@@ -71,6 +70,6 @@ async function limit(): Promise<void> {
         <Alert variant="error">{COPY.errorBody}</Alert>
       {/if}
     {/if}
-    <a href="/privacy">{COPY.backLink}</a>
+    <a href={localePath('/privacy')}>{COPY.backLink}</a>
   </Stack>
 </Container>

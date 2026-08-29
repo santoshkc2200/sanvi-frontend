@@ -1,9 +1,11 @@
 <script lang="ts">
+import { t, normalizeEmail } from '@sanvi/i18n'
 import { Alert, Button, Container, Field, Input, Select, Spinner, Stack, Textarea } from '@sanvi/ui'
 import { submitDsr } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import { apiClient } from '$lib/auth'
 import { formatDate } from '$lib/format'
+import { localePath } from '$lib/links'
 
 /**
  * Authorized-agent submission — a distinct path that collects the agent's
@@ -16,42 +18,40 @@ export const ssr = false
 
 type SubmitDsrOutput = components['schemas']['SubmitDsrOutput']
 
-const COPY = {
-  title: 'Submit as an authorized agent',
-  intro:
-    "You can submit a privacy request on someone else's behalf if they authorized you in writing. This form records your authorisation — the consumer will still be asked to verify themselves before anything is disclosed.",
-  agentNameLabel: 'Your full name',
-  agentContactLabel: 'Your email address',
-  subjectEmailLabel: "The consumer's email address",
-  kindLabel: 'Request type',
+const COPY = $derived({
+  title: t['privacy.agent.title'](),
+  intro: t['privacy.agent.intro'](),
+  agentNameLabel: t['privacy.agent.agentNameLabel'](),
+  agentContactLabel: t['privacy.agent.agentContactLabel'](),
+  subjectEmailLabel: t['privacy.agent.subjectEmailLabel'](),
+  kindLabel: t['privacy.agent.kindLabel'](),
   kindOptions: [
-    { value: 'access', label: 'Access — see what data is held' },
-    { value: 'export', label: 'Export — download a copy of the data' },
-    { value: 'erasure', label: 'Erasure — delete the data' },
-    { value: 'opt_out_sale_or_share', label: 'Opt out of sale or sharing' },
+    { value: 'access', label: t['privacy.agent.kindAccess']() },
+    { value: 'export', label: t['privacy.agent.kindExport']() },
+    { value: 'erasure', label: t['privacy.agent.kindErasure']() },
+    { value: 'opt_out_sale_or_share', label: t['privacy.agent.kindOptOut']() },
   ],
-  evidenceKindLabel: 'Authorisation evidence type',
+  evidenceKindLabel: t['privacy.agent.evidenceKindLabel'](),
   evidenceKindOptions: [
-    { value: 'written_permission', label: 'Written permission signed by the consumer' },
-    { value: 'power_of_attorney', label: 'Power of attorney' },
-    { value: 'guardian', label: 'Guardianship documentation' },
+    { value: 'written_permission', label: t['privacy.agent.evidenceWrittenPermission']() },
+    { value: 'power_of_attorney', label: t['privacy.agent.evidencePowerOfAttorney']() },
+    { value: 'guardian', label: t['privacy.agent.evidenceGuardian']() },
   ],
-  evidenceReferenceLabel: 'Evidence reference',
-  evidenceHint: 'The reference or file id of the scanned authorisation document you submitted.',
-  noteLabel: 'Notes (optional)',
-  statement:
-    'The consumer will be asked to verify their identity directly before any data is disclosed or deleted.',
-  submit: 'Submit as agent',
-  busy: 'Submitting…',
-  successTitle: 'Agent submission recorded',
-  receivedLabel: 'Received',
-  dueLabel: 'Expected completion by',
-  unavailableTitle: 'Privacy service unavailable',
-  unavailableBody: 'Agent submissions cannot be recorded right now. Please try again later.',
-  trackLink: 'View the request status',
-  backLink: 'Back to your privacy overview',
-  errorBody: 'The submission could not be recorded. Check the details and try again.',
-}
+  evidenceReferenceLabel: t['privacy.agent.evidenceReferenceLabel'](),
+  evidenceHint: t['privacy.agent.evidenceHint'](),
+  noteLabel: t['privacy.agent.noteLabel'](),
+  statement: t['privacy.agent.statement'](),
+  submit: t['privacy.agent.submit'](),
+  busy: t['privacy.agent.busy'](),
+  successTitle: t['privacy.agent.successTitle'](),
+  receivedLabel: t['privacy.agent.receivedLabel'](),
+  dueLabel: t['privacy.agent.dueLabel'](),
+  unavailableTitle: t['privacy.agent.unavailableTitle'](),
+  unavailableBody: t['privacy.agent.unavailableBody'](),
+  trackLink: t['privacy.requests.trackLink'](),
+  backLink: t['privacy.overview.backLink'](),
+  errorBody: t['privacy.agent.errorBody'](),
+})
 
 let agentName = $state('')
 let agentContact = $state('')
@@ -79,10 +79,12 @@ async function submit(): Promise<void> {
     result = await submitDsr(apiClient, {
       kind: kind as 'access',
       requester: 'authorized_agent',
-      subject: { kind: 'end_user', email: subjectEmail, evidence: [] },
+      // NFKC-normalised for the backend match (full-width IME output); the
+      // inputs keep the raw text for display.
+      subject: { kind: 'end_user', email: normalizeEmail(subjectEmail), evidence: [] },
       agent: {
         agent_name: agentName,
-        agent_contact: { email: agentContact },
+        agent_contact: { email: normalizeEmail(agentContact) },
         authorization_evidence: { kind: evidenceKind, value: evidenceReference },
       },
       ...(note ? { note } : {}),
@@ -108,7 +110,7 @@ async function submit(): Promise<void> {
         <Stack>
           <span>{COPY.receivedLabel}: {formatDate(new Date().toISOString())}</span>
           <span>{COPY.dueLabel}: {formatDate(result.due_at)}</span>
-          <a href="/privacy/requests/{result.request_id}">{COPY.trackLink}</a>
+          <a href={localePath(`/privacy/requests/${result.request_id}`)}>{COPY.trackLink}</a>
         </Stack>
       </Alert>
     {:else}
@@ -160,6 +162,6 @@ async function submit(): Promise<void> {
         </div>
       </Stack>
     {/if}
-    <a href="/privacy">{COPY.backLink}</a>
+    <a href={localePath('/privacy')}>{COPY.backLink}</a>
   </Stack>
 </Container>

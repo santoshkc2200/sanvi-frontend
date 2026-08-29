@@ -1,6 +1,8 @@
 <script lang="ts">
 import type { components } from '@sanvi/api-client'
+import { t } from '@sanvi/i18n'
 import { Container, EmptyState, Stack, Table, type TableColumn } from '@sanvi/ui'
+import { localePath } from '$lib/links'
 import type { PageData } from './$types'
 
 /**
@@ -10,41 +12,34 @@ import type { PageData } from './$types'
  */
 let { data }: { data: PageData } = $props()
 
-const COPY = {
-  title: 'Your privacy',
-  intro:
-    'What this store holds about you, which privacy rules apply, and how to act on it — all in one place.',
-  heldTitle: 'What we collect',
-  heldIntro: 'The categories collected on this storefront, and how long each is kept:',
-  retentionCaption: 'Retention per category',
-  purposesLabel: 'Purposes',
-  categoriesLabel: 'Categories',
-  retentionColumn: 'Retention',
-  afterExpiryColumn: 'After expiry',
-  rulesTitle: 'Which rules apply',
-  rulesIntro:
-    'The jurisdiction resolved for you decides how consent works here. This is set by the service, not chosen by the page.',
-  jurisdictionLabel: 'Jurisdiction',
-  regimeLabel: 'Regime',
-  responseDaysLabel: 'Response window',
-  modelLabel: 'Consent model',
-  modelOptIn: 'Opt-in — nothing non-essential runs before you allow it',
-  modelNotice: 'Notice and opt-out — you are told what is collected, and a refusal is honoured',
-  days: (n: number) => `${n} days`,
-  actionsTitle: 'Act on your data',
-  choicesAction: 'Change your privacy choices',
-  requestsAction: 'Request a copy, correction or erasure of your data',
-  erasureAction: 'Understand and request erasure',
-  agentAction: 'Submit as an authorized agent',
-  unavailableTitle: 'Privacy surfaces unavailable',
-  unavailableBody:
-    'The privacy service did not answer for this page. Nothing is collected behind your back — the consent gate fails closed.',
-  legalTitle: 'Legal documents',
-  cookiesLink: 'Cookie policy',
-  subprocessorsLink: 'Sub-processors',
-  metricsLink: 'Annual request metrics',
-  noticeLink: 'Privacy notice',
-}
+const COPY = $derived({
+  title: t['privacy.overview.title'](),
+  intro: t['privacy.overview.intro'](),
+  heldTitle: t['privacy.overview.heldTitle'](),
+  heldIntro: t['privacy.overview.heldIntro'](),
+  retentionCaption: t['privacy.overview.retentionCaption'](),
+  purposesLabel: t['privacy.overview.purposesLabel'](),
+  categoriesLabel: t['privacy.overview.categoriesLabel'](),
+  retentionColumn: t['privacy.overview.retentionColumn'](),
+  afterExpiryColumn: t['privacy.overview.afterExpiryColumn'](),
+  rulesTitle: t['privacy.overview.rulesTitle'](),
+  rulesIntro: t['privacy.overview.rulesIntro'](),
+  jurisdictionLabel: t['privacy.overview.jurisdictionLabel'](),
+  regimeLabel: t['privacy.overview.regimeLabel'](),
+  responseDaysLabel: t['privacy.overview.responseDaysLabel'](),
+  modelLabel: t['privacy.overview.modelLabel'](),
+  modelOptIn: t['privacy.overview.modelOptIn'](),
+  modelNotice: t['privacy.overview.modelNotice'](),
+  days: (n: number) => t['privacy.overview.periodDays']({ count: n }),
+  actionsTitle: t['privacy.overview.actionsTitle'](),
+  choicesAction: t['privacy.overview.choicesAction'](),
+  requestsAction: t['privacy.overview.requestsAction'](),
+  erasureAction: t['privacy.overview.erasureAction'](),
+  agentAction: t['privacy.overview.agentAction'](),
+  unavailableTitle: t['privacy.overview.unavailableTitle'](),
+  unavailableBody: t['privacy.overview.unavailableBody'](),
+  legalTitle: t['privacy.overview.legalTitle'](),
+})
 
 const privacy = $derived(data.privacy)
 
@@ -55,11 +50,11 @@ const jurisdictionView = $derived(
 
 const retentionRows = $derived(privacy?.notice?.retention ?? [])
 
-const retentionColumns: TableColumn<components['schemas']['RetentionNoticeRow']>[] = [
+const retentionColumns: TableColumn<components['schemas']['RetentionNoticeRow']>[] = $derived([
   { key: 'category', header: COPY.categoriesLabel },
   { key: 'period_days', header: COPY.retentionColumn },
   { key: 'action', header: COPY.afterExpiryColumn },
-]
+])
 </script>
 
 <svelte:head><title>{COPY.title}</title></svelte:head>
@@ -123,20 +118,20 @@ const retentionColumns: TableColumn<components['schemas']['RetentionNoticeRow']>
     <section aria-labelledby="sanvi-actions">
       <h2 id="sanvi-actions">{COPY.actionsTitle}</h2>
       <Stack>
-        <a href="/privacy/choices">{COPY.choicesAction}</a>
-        <a href="/privacy/requests">{COPY.requestsAction}</a>
-        <a href="/privacy/erasure">{COPY.erasureAction}</a>
-        <a href="/privacy/agent">{COPY.agentAction}</a>
+        <a href={localePath('/privacy/choices')}>{COPY.choicesAction}</a>
+        <a href={localePath('/privacy/requests')}>{COPY.requestsAction}</a>
+        <a href={localePath('/privacy/erasure')}>{COPY.erasureAction}</a>
+        <a href={localePath('/privacy/agent')}>{COPY.agentAction}</a>
       </Stack>
     </section>
 
     <section aria-labelledby="sanvi-legal">
       <h2 id="sanvi-legal">{COPY.legalTitle}</h2>
       <Stack>
-        <a href="/legal/privacy-notice">{COPY.noticeLink}</a>
-        <a href="/legal/cookies">{COPY.cookiesLink}</a>
-        <a href="/legal/sub-processors">{COPY.subprocessorsLink}</a>
-        <a href="/legal/request-metrics">{COPY.metricsLink}</a>
+        <a href={localePath('/legal/privacy-notice')}>{t['storefront.footer.notice']()}</a>
+        <a href={localePath('/legal/cookies')}>{t['legal.cookies.title']()}</a>
+        <a href={localePath('/legal/sub-processors')}>{t['legal.subProcessors.title']()}</a>
+        <a href={localePath('/legal/request-metrics')}>{t['legal.requestMetrics.title']()}</a>
       </Stack>
     </section>
   </Stack>
