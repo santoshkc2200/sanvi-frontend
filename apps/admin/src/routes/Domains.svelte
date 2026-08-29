@@ -122,14 +122,11 @@ function getKindLabel(kind: string): string {
         </div>
         {#if entitled && !loading}
           <Cluster gap="3">
-            <Button
-              variant="secondary"
-              disabled
-              title={t['admin.domains.connectDisabledTooltip']()}
-            >
-              <!-- Connect domain wizard is wired in Wave 2 -->
-              {t['admin.domains.connectButton']()}
-            </Button>
+            <a class="sanvi-domains__header-action" href="/domains/connect">
+              <Button variant="secondary">
+                {t['admin.domains.connectButton']()}
+              </Button>
+            </a>
             <Button
               variant="primary"
               disabled
@@ -305,5 +302,9 @@ function getKindLabel(kind: string): string {
 
   .sanvi-domains__kind {
     color: var(--sanvi-color-text-secondary);
+  }
+
+  .sanvi-domains__header-action {
+    text-decoration: none;
   }
 </style>
