@@ -1,3 +1,4 @@
+import { createApiClient, createTypedApiClient, getPublicTheme } from '@sanvi/api-client'
 import { resolveSession } from '@sanvi/auth/server'
 import { buildContentSecurityPolicyDirectivesForApp } from '@sanvi/csp'
 import {
@@ -10,6 +11,7 @@ import {
 } from '@sanvi/i18n'
 import { resolveRequestLocale, runWithLocale } from '@sanvi/i18n/server'
 import { TenantHostCache, resolveTenantForHost } from '@sanvi/tenant/server'
+import { DEFAULT_FALLBACK_THEME, getCachedTheme, setCachedTheme } from '@sanvi/theme-runtime'
 import type { Handle } from '@sveltejs/kit'
 import { sequence } from '@sveltejs/kit/hooks'
 import { getAppEnv } from '$lib/env'
@@ -71,6 +73,52 @@ const resolveAuth: Handle = async ({ event, resolve }) => {
     apiOrigin,
     cookieHeader: event.request.headers.get('cookie'),
   })
+  return resolve(event)
+}
+
+/**
+ * Resolves the active theme for the tenant/host from `GET /api/v1/public/theme`
+ * via `@sanvi/theme-runtime`'s host/locale cache.
+ *
+ * Never throws and never blocks the response: any failure (network error,
+ * non-2xx status, timeout, malformed payload) degrades to
+ * `DEFAULT_FALLBACK_THEME` and logs.
+ */
+export const resolveTheme: Handle = async ({ event, resolve }) => {
+  if (isHealthCheck(event.url.pathname)) return resolve(event)
+
+  const host = event.request.headers.get('host') ?? event.url.host
+  const locale = event.locals.locale ?? event.locals.tenant?.default_locale ?? 'en'
+  const cacheKey = `${host}:${locale}`
+
+  const cached = getCachedTheme(cacheKey)
+  if (cached) {
+    event.locals.theme = cached
+    return resolve(event)
+  }
+
+  try {
+    const { apiOrigin } = getAppEnv()
+    const client = createTypedApiClient(
+      createApiClient({
+        baseUrl: apiOrigin,
+        getTenantId: () => event.locals.tenant?.tenant_id,
+        getExtraHeaders: () => ({ host }),
+      }),
+    )
+
+    const theme = await getPublicTheme(client)
+    if (theme && typeof theme === 'object' && 'theme_key' in theme) {
+      setCachedTheme(cacheKey, theme)
+      event.locals.theme = theme
+    } else {
+      event.locals.theme = DEFAULT_FALLBACK_THEME
+    }
+  } catch (error) {
+    console.error('Failed to resolve theme, falling back to default:', error)
+    event.locals.theme = DEFAULT_FALLBACK_THEME
+  }
+
   return resolve(event)
 }
 
@@ -196,4 +244,10 @@ export const runtimeConnectSrc: Handle = async ({ event, resolve }) => {
   return response
 }
 
-export const handle: Handle = sequence(resolveTenant, resolveAuth, resolveLocale, runtimeConnectSrc)
+export const handle: Handle = sequence(
+  resolveTenant,
+  resolveAuth,
+  resolveTheme,
+  resolveLocale,
+  runtimeConnectSrc,
+)

@@ -1,6 +1,7 @@
 import type { Session } from '@sanvi/auth/server'
 import type { Locale } from '@sanvi/i18n'
 import type { TenantContext } from '@sanvi/tenant'
+import type { ResolvedTheme } from '@sanvi/theme-runtime'
 
 // See https://svelte.dev/docs/kit/types#app.d.ts
 declare global {
@@ -13,6 +14,8 @@ declare global {
       locale: Locale
       /** Resolved from the request's `Cookie` header by `hooks.server.ts`'s `resolveAuth`. `null` when signed out. */
       session: Session | null
+      /** Resolved from the host/tenant and cached per host/locale or fallback. */
+      theme: ResolvedTheme
     }
     interface Error {
       message: string

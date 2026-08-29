@@ -359,6 +359,12 @@ importers:
       '@sanvi/tenant':
         specifier: workspace:*
         version: link:../../packages/tenant
+      '@sanvi/theme-blocks':
+        specifier: workspace:*
+        version: link:../../packages/theme-blocks
+      '@sanvi/theme-runtime':
+        specifier: workspace:*
+        version: link:../../packages/theme-runtime
       '@sanvi/ui':
         specifier: workspace:*
         version: link:../../packages/ui

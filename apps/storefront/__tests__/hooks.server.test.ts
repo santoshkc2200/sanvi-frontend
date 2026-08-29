@@ -1,4 +1,5 @@
 import { currentLocale } from '@sanvi/i18n'
+import { clearThemeCache, DEFAULT_FALLBACK_THEME } from '@sanvi/theme-runtime'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { resolveLocale } from '../src/hooks.server'
 
@@ -15,9 +16,19 @@ vi.mock('@sanvi/csp', () => ({
   buildContentSecurityPolicyDirectivesForApp: (...args: unknown[]) => buildDirectivesMock(...args),
 }))
 
+const getPublicThemeMock = vi.fn()
+vi.mock('@sanvi/api-client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@sanvi/api-client')>()
+  return {
+    ...actual,
+    getPublicTheme: (...args: unknown[]) => getPublicThemeMock(...args),
+  }
+})
+
 describe('storefront hooks.server.ts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearThemeCache()
   })
 
   it('resolveTenant sets locals.tenant + tenantResolution from the Host header, via @sanvi/tenant/server', async () => {
@@ -262,5 +273,129 @@ describe('resolveLocale', () => {
     const response = await resolveLocale({ event: healthEvent, resolve: resolve as never })
     expect((await response.text()) === 'ok' || response.status === 200).toBe(true)
     expect(response.headers.get('content-language')).toBeNull()
+  })
+})
+
+describe('resolveTheme', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    clearThemeCache()
+  })
+
+  const mockTheme = {
+    theme_key: 'dawn',
+    theme_version: '1.0.0',
+    theme_api: '^1.0.0',
+    capabilities: [],
+    tokens: {
+      'color.brand.primary': { $value: '#0066cc', $type: 'color' },
+    },
+    css_vars: '--sanvi-color-brand-primary: #0066cc;',
+    layouts: {},
+    fonts: [],
+    theme_assets: { screenshots: [] },
+    brand_assets: {},
+    revision: 1,
+    locale: 'en',
+    etag: '"etag-123"',
+  }
+
+  it('sets locals.theme to the fetched ResolvedTheme on success', async () => {
+    const { resolveTheme } = await import('../src/hooks.server')
+    getPublicThemeMock.mockResolvedValueOnce(mockTheme)
+
+    const locals: Record<string, unknown> = {
+      tenant: { tenant_id: 't1', slug: 'acme' },
+      tenantResolution: 'ok',
+      locale: 'en',
+    }
+    const event = {
+      request: new Request('http://ignored.internal/', { headers: { host: 'acme.example' } }),
+      url: new URL('http://ignored.internal/'),
+      locals,
+    }
+    const resolve = vi.fn().mockResolvedValue(new Response('ok'))
+
+    await resolveTheme({ event: event as never, resolve: resolve as never })
+
+    expect(locals.theme).toEqual(mockTheme)
+    expect(resolve).toHaveBeenCalledWith(event)
+    expect(getPublicThemeMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('sets locals.theme to DEFAULT_FALLBACK_THEME on fetch rejection and does not throw', async () => {
+    const { resolveTheme } = await import('../src/hooks.server')
+    getPublicThemeMock.mockRejectedValueOnce(new Error('Network outage'))
+
+    const locals: Record<string, unknown> = {
+      tenant: { tenant_id: 't1', slug: 'acme' },
+      tenantResolution: 'ok',
+      locale: 'en',
+    }
+    const event = {
+      request: new Request('http://ignored.internal/', { headers: { host: 'acme.example' } }),
+      url: new URL('http://ignored.internal/'),
+      locals,
+    }
+    const resolve = vi.fn().mockResolvedValue(new Response('ok'))
+
+    await expect(
+      resolveTheme({ event: event as never, resolve: resolve as never }),
+    ).resolves.toBeDefined()
+
+    expect(locals.theme).toEqual(DEFAULT_FALLBACK_THEME)
+    expect(resolve).toHaveBeenCalledWith(event)
+  })
+
+  it('serves cached theme on second request without re-fetching', async () => {
+    const { resolveTheme } = await import('../src/hooks.server')
+    getPublicThemeMock.mockResolvedValueOnce(mockTheme)
+
+    const locals1: Record<string, unknown> = {
+      tenant: { tenant_id: 't1', slug: 'acme' },
+      tenantResolution: 'ok',
+      locale: 'en',
+    }
+    const event1 = {
+      request: new Request('http://ignored.internal/', { headers: { host: 'acme.example' } }),
+      url: new URL('http://ignored.internal/'),
+      locals: locals1,
+    }
+    const resolve = vi.fn().mockResolvedValue(new Response('ok'))
+
+    await resolveTheme({ event: event1 as never, resolve: resolve as never })
+    expect(locals1.theme).toEqual(mockTheme)
+    expect(getPublicThemeMock).toHaveBeenCalledTimes(1)
+
+    const locals2: Record<string, unknown> = {
+      tenant: { tenant_id: 't1', slug: 'acme' },
+      tenantResolution: 'ok',
+      locale: 'en',
+    }
+    const event2 = {
+      request: new Request('http://ignored.internal/', { headers: { host: 'acme.example' } }),
+      url: new URL('http://ignored.internal/'),
+      locals: locals2,
+    }
+
+    await resolveTheme({ event: event2 as never, resolve: resolve as never })
+    expect(locals2.theme).toEqual(mockTheme)
+    expect(getPublicThemeMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('skips /health entirely without fetching theme', async () => {
+    const { resolveTheme } = await import('../src/hooks.server')
+    const locals: Record<string, unknown> = {}
+    const event = {
+      request: new Request('http://ignored.internal/health'),
+      url: new URL('http://ignored.internal/health'),
+      locals,
+    }
+    const resolve = vi.fn().mockResolvedValue(new Response('ok'))
+
+    const response = await resolveTheme({ event: event as never, resolve: resolve as never })
+    expect(await response.text()).toBe('ok')
+    expect(getPublicThemeMock).not.toHaveBeenCalled()
+    expect(locals.theme).toBeUndefined()
   })
 })

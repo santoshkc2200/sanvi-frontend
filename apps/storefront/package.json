@@ -27,6 +27,8 @@
     "@sanvi/design-tokens": "workspace:*",
     "@sanvi/i18n": "workspace:*",
     "@sanvi/tenant": "workspace:*",
+    "@sanvi/theme-blocks": "workspace:*",
+    "@sanvi/theme-runtime": "workspace:*",
     "@sanvi/ui": "workspace:*"
   },
   "devDependencies": {
