@@ -29,3 +29,11 @@ test('404 route renders the error page', async ({ page }) => {
   expect(response?.status()).toBe(404)
   await expect(page.getByText('Page not found')).toBeVisible()
 })
+
+test('SSR HTML contains inlined theme style tag with zero flash', async ({ request }) => {
+  const response = await request.get('/')
+  expect(response.ok()).toBe(true)
+  const body = await response.text()
+  expect(body).toContain('<style id="sanvi-theme">')
+})
+

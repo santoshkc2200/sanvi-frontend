@@ -329,6 +329,37 @@ const server = createServer(async (req, res) => {
     return
   }
 
+  if (path === '/api/v1/public/theme') {
+    json(req, res, 200, {
+      theme_key: 'dawn',
+      theme_version: '1.0.0',
+      theme_api: '^1.0.0',
+      capabilities: [],
+      tokens: {
+        'color.brand.primary': { $value: '#0066cc', $type: 'color' },
+      },
+      css_vars: ':root { --sanvi-color-brand-primary: #0066cc; }',
+      layouts: {
+        'storefront.home': {
+          slots: ['header', 'hero', 'footer'],
+        },
+      },
+      fonts: [
+        {
+          family: 'Inter',
+          src: '/fonts/inter.woff2',
+          preload: true,
+        },
+      ],
+      theme_assets: { screenshots: [] },
+      brand_assets: {},
+      revision: 1,
+      locale: 'en',
+      etag: '"etag-mock-1"',
+    })
+    return
+  }
+
   if (path === '/api/v1/me' || path === '/api/v1/me/sessions') {
     // No session exists in the mock — `resolveSession` treats a 401 as
     // "signed out"; any other status would bubble up as a storefront 500.

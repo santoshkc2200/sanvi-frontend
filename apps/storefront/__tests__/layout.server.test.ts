@@ -82,4 +82,36 @@ describe('storefront root +layout.server.ts', () => {
     expect(result?.seo.alternates.find((a) => a.locale === 'en')?.href).toBe('/en/privacy')
     expect(result?.seo.alternates.find((a) => a.locale === 'x-default')?.href).toBe('/privacy')
   })
+
+  it('returns resolved theme from locals.theme', async () => {
+    const mockTheme = {
+      theme_key: 'custom-theme',
+      theme_version: '1.0.0',
+      theme_api: '^1.0.0',
+      capabilities: [],
+      tokens: {},
+      css_vars: '--sanvi-test: 1;',
+      layouts: {},
+      fonts: [],
+      theme_assets: { screenshots: [] },
+      brand_assets: {},
+      revision: 1,
+      locale: 'en',
+      etag: '"etag-test"',
+    }
+    const locals = {
+      tenant: TENANT,
+      tenantResolution: 'ok' as const,
+      locale: 'en',
+      theme: mockTheme,
+    }
+
+    const result = await load({
+      locals,
+      request: requestWithCookies,
+      url: new URL('http://acme.test/'),
+    } as never)
+
+    expect(result?.theme).toEqual(mockTheme)
+  })
 })

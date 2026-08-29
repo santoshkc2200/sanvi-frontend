@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { SpacingScale } from '@sanvi/ui/tokens'
+import type { SpacingScale } from '@sanvi/ui'
 
 interface Props {
   size?: SpacingScale | string

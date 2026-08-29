@@ -28,6 +28,7 @@ export const load: LayoutServerLoad = async ({ locals, request, url }) => {
     tenant: locals.tenant,
     locale: locals.locale,
     session: locals.session,
+    theme: locals.theme,
     privacy,
     seo: {
       canonicalPath: alternates.canonicalPath,

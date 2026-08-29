@@ -1,4 +1,6 @@
 <script lang="ts">
+import { registerAllBlocks } from '@sanvi/theme-blocks'
+import { renderLayout, themeStyleTag } from '@sanvi/theme-runtime'
 import { setSessionContext } from '@sanvi/auth'
 import {
   ConsentBanner,
@@ -30,6 +32,8 @@ import {
 } from '$lib/consent.svelte'
 import { consentablePurposeCopy } from '$lib/purpose-copy'
 import { localePath, setClientDefaultLocale } from '$lib/links'
+
+registerAllBlocks()
 // Preload targets for ja pages (see `<svelte:head>` below): the two
 // highest-value unicode-range subsets, vendored in `static/fonts/` from
 // `@fontsource-variable/noto-sans-jp` (OFL-1.1 — see static/fonts/README).
@@ -145,15 +149,32 @@ const saleShareNote = $derived(
 )
 
 const pageTitle = $derived(data.tenant?.display_name ?? t['storefront.home.fallbackTitle']())
+
+const layoutTree = $derived(
+  renderLayout('storefront.home', {
+    theme: data.theme,
+  }),
+)
+
+const headerSlot = $derived(layoutTree.slots.find((s) => s.name === 'header'))
+const footerSlot = $derived(layoutTree.slots.find((s) => s.name === 'footer'))
 </script>
 
 <svelte:head>
   <title>{pageTitle}</title>
+  {@html themeStyleTag(data.theme)}
   <link rel="canonical" href="{page.url.origin}{data.seo.canonicalPath}" />
   {#each data.seo.alternates as alternate (alternate.locale)}
     <link rel="alternate" hreflang={alternate.locale} href="{page.url.origin}{alternate.href}" />
   {/each}
   <meta property="og:locale" content={data.seo.ogLocale} />
+  {#if data.theme?.fonts}
+    {#each data.theme.fonts as font (font.source)}
+      {#if !font.subsets || font.subsets.length === 0 || font.subsets.includes(data.locale)}
+        <link rel="preload" as="font" type="font/woff2" crossorigin="anonymous" href={font.source} />
+      {/if}
+    {/each}
+  {/if}
   {#if data.locale === 'ja'}
     <!-- Japanese font preloads — only for ja pages, per the phase-06 LCP
          budget: these subsets cover kana + the most frequent kanji; the
@@ -172,6 +193,12 @@ const pageTitle = $derived(data.tenant?.display_name ?? t['storefront.home.fallb
 {#if lockedReason}
   <SuspendedTenantNotice reason={lockedReason} />
 {:else}
+  {#if headerSlot && headerSlot.blocks.length > 0}
+    {#each headerSlot.blocks as block (block.id)}
+      <block.component {...block.props} />
+    {/each}
+  {/if}
+
   {@render children()}
 
   {#if view?.showOptIn || view?.showNotice}
@@ -181,38 +208,44 @@ const pageTitle = $derived(data.tenant?.display_name ?? t['storefront.home.fallb
     <div class="sanvi-consent-spacer" aria-hidden="true"></div>
   {/if}
 
-  <footer class="sanvi-footer">
-    <div class="sanvi-footer__inner">
-      <nav class="sanvi-footer__locales" aria-label={t['storefront.footer.language']()}>
-        {#each localeLinks as link (link.code)}
-          <a
-            href={link.href}
-            hreflang={link.code}
-            aria-current={link.current ? 'true' : undefined}
-            onclick={() => persistLocaleChoice(link.code)}
-          >
-            {link.label}
-          </a>
-        {/each}
-      </nav>
-      <PrivacyFooterLinks
-        label={t['storefront.footer.nav']()}
-        choicesLabel={t['storefront.footer.choices']()}
-        choicesHref={localePath('/privacy/choices')}
-        noticeLabel={t['storefront.footer.notice']()}
-        noticeHref={localePath('/legal/privacy-notice')}
-        optOutLabel={usLinks ? t['storefront.footer.usOptOut']() : undefined}
-        optOutHref={usLinks ? localePath('/privacy/opt-out') : undefined}
-        sensitiveLabel={usLinks ? t['storefront.footer.usSensitive']() : undefined}
-        sensitiveHref={usLinks ? localePath('/privacy/limit-sensitive') : undefined}
-      />
-      {#if data.tenant}
-        <p class="sanvi-footer__copyright">
-          {t['storefront.footer.copyright']({ name: data.tenant.display_name })}
-        </p>
-      {/if}
-    </div>
-  </footer>
+  {#if footerSlot && footerSlot.blocks.length > 0}
+    {#each footerSlot.blocks as block (block.id)}
+      <block.component {...block.props} />
+    {/each}
+  {:else}
+    <footer class="sanvi-footer">
+      <div class="sanvi-footer__inner">
+        <nav class="sanvi-footer__locales" aria-label={t['storefront.footer.language']()}>
+          {#each localeLinks as link (link.code)}
+            <a
+              href={link.href}
+              hreflang={link.code}
+              aria-current={link.current ? 'true' : undefined}
+              onclick={() => persistLocaleChoice(link.code)}
+            >
+              {link.label}
+            </a>
+          {/each}
+        </nav>
+        <PrivacyFooterLinks
+          label={t['storefront.footer.nav']()}
+          choicesLabel={t['storefront.footer.choices']()}
+          choicesHref={localePath('/privacy/choices')}
+          noticeLabel={t['storefront.footer.notice']()}
+          noticeHref={localePath('/legal/privacy-notice')}
+          optOutLabel={usLinks ? t['storefront.footer.usOptOut']() : undefined}
+          optOutHref={usLinks ? localePath('/privacy/opt-out') : undefined}
+          sensitiveLabel={usLinks ? t['storefront.footer.usSensitive']() : undefined}
+          sensitiveHref={usLinks ? localePath('/privacy/limit-sensitive') : undefined}
+        />
+        {#if data.tenant}
+          <p class="sanvi-footer__copyright">
+            {t['storefront.footer.copyright']({ name: data.tenant.display_name })}
+          </p>
+        {/if}
+      </div>
+    </footer>
+  {/if}
 
   {#if view}
     {#if view.showOptIn}
