@@ -366,6 +366,32 @@ describe('resolveTheme', () => {
     expect(resolve).toHaveBeenCalledWith(event)
   })
 
+  it('sets locals.theme to DEFAULT_FALLBACK_THEME on malformed payload and does not throw', async () => {
+    const { resolveTheme } = await import('../src/hooks.server')
+    getPublicThemeMock.mockResolvedValueOnce({
+      corrupt_payload: true,
+    } as never)
+
+    const locals: Record<string, unknown> = {
+      tenant: { tenant_id: 't1', slug: 'acme' },
+      tenantResolution: 'ok',
+      locale: 'en',
+    }
+    const event = {
+      request: new Request('http://ignored.internal/', { headers: { host: 'acme.example' } }),
+      url: new URL('http://ignored.internal/'),
+      locals,
+    }
+    const resolve = vi.fn().mockResolvedValue(new Response('ok'))
+
+    await expect(
+      resolveTheme({ event: event as never, resolve: resolve as never }),
+    ).resolves.toBeDefined()
+
+    expect(locals.theme).toEqual(DEFAULT_FALLBACK_THEME)
+    expect(resolve).toHaveBeenCalledWith(event)
+  })
+
   it('serves cached theme on second request without re-fetching', async () => {
     const { resolveTheme } = await import('../src/hooks.server')
     getPublicThemeMock.mockResolvedValueOnce(mockTheme)
