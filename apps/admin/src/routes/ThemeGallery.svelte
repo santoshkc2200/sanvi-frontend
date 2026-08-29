@@ -114,7 +114,7 @@ async function handleApplyTheme(themeKey: string): Promise<void> {
                       <Badge variant="info">{t['admin.theme.gallery.current']()}</Badge>
                     {/if}
                     {#if theme.visibility === 'premium'}
-                      <Badge variant="neutral">Premium</Badge>
+                      <Badge variant="neutral">{t['admin.theme.gallery.premium']()}</Badge>
                     {/if}
                   </Cluster>
                 </Cluster>

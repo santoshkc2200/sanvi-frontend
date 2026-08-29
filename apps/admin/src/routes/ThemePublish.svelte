@@ -136,7 +136,9 @@ async function handleRollback(): Promise<void> {
         <div class="sanvi-diff-card">
           <Stack gap="4">
             <Cluster justify="space-between" align="center">
-              <h3 class="sanvi-diff-title">Draft Summary (Revision {draft.theme.revision})</h3>
+              <h3 class="sanvi-diff-title">
+                {t['admin.theme.publish.draftSummary']({ revision: draft.theme.revision })}
+              </h3>
               <Badge variant={draft.theme.state === 'draft' ? 'warning' : 'success'}>
                 {draft.theme.state}
               </Badge>

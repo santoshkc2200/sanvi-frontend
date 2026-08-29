@@ -131,10 +131,10 @@ function toggleSlot(slot: string): void {
                           {slot}
                         </span>
                         {#if hidden}
-                          <Badge variant="neutral">Hidden</Badge>
+                          <Badge variant="neutral">{t['admin.theme.layout.hidden']()}</Badge>
                         {/if}
                         {#if isLocked}
-                          <Badge variant="warning">Locked</Badge>
+                          <Badge variant="warning">{t['admin.theme.layout.locked']()}</Badge>
                         {/if}
                       </Cluster>
 

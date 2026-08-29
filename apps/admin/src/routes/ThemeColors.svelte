@@ -109,7 +109,10 @@ const violations = $derived<ContrastViolation[]>(checkContrast(currentTokens))
                     ratio: v.ratio,
                     min: v.minimum,
                   })}
-                  ({v.foreground} on {v.background})
+                  {t['admin.theme.colors.contrastPair']({
+                    foreground: v.foreground,
+                    background: v.background,
+                  })}
                 </p>
               {/each}
               <Checkbox
