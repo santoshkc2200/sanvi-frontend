@@ -135,12 +135,12 @@ locale, visible to tenant staff only.
 
 ## Acceptance criteria
 
-- [ ] Every app renders fully in Japanese with no untranslated strings on shipped surfaces.
-- [ ] Server-rendered pages arrive in the correct language — no flash of English.
-- [ ] Japanese pages meet the same LCP budget as English ones.
-- [ ] IME input works correctly in every text field, including search and inline editing.
-- [ ] JPY prices render with no decimals everywhere they appear.
-- [ ] Adding a third locale requires a catalog and a config entry, not code changes (demonstrated).
+- [x] Every app renders fully in Japanese with no untranslated strings on shipped surfaces.
+- [x] Server-rendered pages arrive in the correct language — no flash of English.
+- [x] Japanese pages meet the same LCP budget as English ones.
+- [x] IME input works correctly in every text field, including search and inline editing.
+- [x] JPY prices render with no decimals everywhere they appear.
+- [x] Adding a third locale requires a catalog and a config entry, not code changes (demonstrated).
 
 ## Risks
 
