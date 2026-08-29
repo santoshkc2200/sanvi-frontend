@@ -1,0 +1,25 @@
+/**
+ * Locale typography dimension (phase 06).
+ *
+ * Hand-authored like the rest of `src/` — this IS the token source, not a
+ * consumer style. `[lang]` is set server-side on `<html>` by the SSR apps'
+ * locale hooks, so these overrides apply before first paint with no JS.
+ * Adding a locale means adding its block here alongside its entry in
+ * `@sanvi/i18n`'s config — one place each, both config-declared.
+ *
+ * Japanese needs looser leading (no word spaces to breathe, kana with
+ * descender-like extensions), no letter-spacing tightening, and a stack
+ * that puts the JP-optimized face first while Latin glyphs ride along in
+ * the same variable font. Line-height values stay unitless multipliers of
+ * the same font-size scale — components never need locale branches.
+ */
+
+/* [lang='ja'] deliberately ties `:root`'s specificity (0,1,0) and wins by
+   bundle order — a `:where()` wrapper (0,0,0) would lose to `:root` entirely. */
+[lang='ja'] {
+  --sanvi-font-family-sans: 'Noto Sans JP Variable', 'Hiragino Kaku Gothic ProN',
+    'Hiragino Sans', 'Yu Gothic', 'Meiryo', system-ui, sans-serif;
+  --sanvi-line-height-tight: 1.4;
+  --sanvi-line-height-normal: 1.7;
+  --sanvi-line-height-relaxed: 1.9;
+}

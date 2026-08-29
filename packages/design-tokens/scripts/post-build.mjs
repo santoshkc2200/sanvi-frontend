@@ -40,10 +40,22 @@ export async function postBuild() {
     console.warn('⚠️ No src/theme.css found — skipping tailwind-theme copy.')
   }
 
-  // ─── CSS bundle ────────────
-  // Order matters: primitives → light → dark
+  // ─── Locale layer (phase 06) ────────────
 
-  const cssFiles = ['primitives.css', 'light.css', 'dark.css']
+  const localeSrc = path.join(ROOT, 'src/locale.css')
+  if (exists(localeSrc)) {
+    write(path.join(CSS_DIR, 'locale.css'), read(localeSrc))
+    console.log('✓ dist/css/locale.css copied')
+  } else {
+    console.warn('⚠️ No src/locale.css found — skipping locale-layer copy.')
+  }
+
+  // ─── CSS bundle ────────────
+  // Order matters: primitives → light → dark → locale. The locale layer's
+  // `[lang]` selectors tie `:root`'s specificity and win by coming last;
+  // scoping by `lang` means it can never override light/dark *color* choices.
+
+  const cssFiles = ['primitives.css', 'light.css', 'dark.css', 'locale.css']
   const cssParts = ['/**', ' * Auto-generated.', ' * Do not edit.', ' */', '']
 
   for (const file of cssFiles) {
