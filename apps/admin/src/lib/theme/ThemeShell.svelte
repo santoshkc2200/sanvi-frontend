@@ -5,7 +5,7 @@ import type { DetailShellTab } from '@sanvi/ui'
 import type { Snippet } from 'svelte'
 
 interface Props {
-  activeTab: 'gallery' | 'brand' | 'colors' | 'typography' | 'layout' | 'publish'
+  activeTab: 'gallery' | 'brand' | 'colors' | 'typography' | 'layout' | 'preview' | 'publish'
   children?: Snippet
 }
 
@@ -17,6 +17,7 @@ const tabs: DetailShellTab[] = $derived([
   { href: '/theme/colors', label: t['admin.theme.nav.colors']() },
   { href: '/theme/typography', label: t['admin.theme.nav.typography']() },
   { href: '/theme/layout', label: t['admin.theme.nav.layout']() },
+  { href: '/theme/preview', label: t['admin.theme.nav.preview']() },
   { href: '/theme/publish', label: t['admin.theme.nav.publish']() },
 ])
 
