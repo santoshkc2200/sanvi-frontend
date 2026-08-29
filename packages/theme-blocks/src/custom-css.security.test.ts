@@ -56,7 +56,7 @@ describe('Custom CSS Security Fixtures', () => {
       expect(tag.endsWith('</style>')).toBe(true)
 
       // Must never contain unescaped closing style tag that breaks out into executable HTML
-      const inner = tag.slice('<style id="sanvi-theme">'.len, -'</style>'.length)
+      const inner = tag.slice('<style id="sanvi-theme">'.length, -'</style>'.length)
       expect(inner).not.toContain('</style>')
       expect(inner).not.toContain('<!--')
 

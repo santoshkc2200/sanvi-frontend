@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ url, locals, setHeaders }) => {
       createApiClient({
         baseUrl: apiOrigin,
         getTenantId: () => locals.tenant?.tenant_id,
-        getExtraHeaders: () => (host ? { host } : {}),
+        getExtraHeaders: () => (host ? { host } : undefined),
       }),
     )
 

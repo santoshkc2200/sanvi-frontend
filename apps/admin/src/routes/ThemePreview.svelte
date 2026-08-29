@@ -66,7 +66,7 @@ const localeSelectOptions = $derived(
 </svelte:head>
 
 <ThemeShell activeTab="preview">
-  <Container size="xl" padding="6">
+  <Container size="full" padding="6">
     <Stack gap="6">
       <Cluster justify="space-between" align="center">
         <div>
@@ -139,7 +139,7 @@ const localeSelectOptions = $derived(
             </Cluster>
 
             <div class="sanvi-preview-locale">
-              <Field label={t['admin.theme.preview.locale']()} htmlFor="preview-locale-select">
+              <Field label={t['admin.theme.preview.locale']()}>
                 <Select
                   id="preview-locale-select"
                   options={localeSelectOptions}
