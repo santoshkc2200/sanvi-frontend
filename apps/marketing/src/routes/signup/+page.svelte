@@ -1,4 +1,5 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 import { Container, Stack } from '@sanvi/ui'
 import type { PageData } from './$types'
 
@@ -8,16 +9,9 @@ interface Props {
 
 let { data }: Props = $props()
 
-const COPY = {
-  title: 'Get started with Sanvi',
-  metaDescription: 'Create your account and start your 14-day free trial.',
-  heading: 'Start your 14-day free trial',
-  subheading: (plan: string, interval: string) =>
-    `You selected the ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan (${interval}ly). You will not be charged today.`,
-  continueCta: 'Continue to workspace setup',
-  signInPrompt: 'Already have an account?',
-  signInLink: 'Sign in to admin',
-}
+// Same display capitalization as before ("starter" → "Starter"); the catalog
+// message owns everything around it.
+const planLabel = $derived(data.selectedPlan.charAt(0).toUpperCase() + data.selectedPlan.slice(1))
 
 const adminOnboardingUrl = $derived(
   `/onboarding?plan=${encodeURIComponent(data.selectedPlan)}&interval=${encodeURIComponent(data.selectedInterval)}&currency=${encodeURIComponent(data.selectedCurrency)}`,
@@ -25,27 +19,31 @@ const adminOnboardingUrl = $derived(
 </script>
 
 <svelte:head>
-  <title>{COPY.title}</title>
-  <meta name="description" content={COPY.metaDescription} />
+  <title>{t['marketing.signup.title']()}</title>
+  <meta name="description" content={t['marketing.signup.metaDescription']()} />
 </svelte:head>
 
 <Container size="sm" padding="6">
   <Stack gap="6" align="center">
     <Stack gap="2" align="center">
-      <h1 class="sanvi-signup__title">{COPY.heading}</h1>
-      <p class="sanvi-signup__subtitle">{COPY.subheading(data.selectedPlan, data.selectedInterval)}</p>
+      <h1 class="sanvi-signup__title">{t['marketing.signup.heading']()}</h1>
+      <p class="sanvi-signup__subtitle">
+        {t['marketing.signup.subheading']({ plan: planLabel, interval: data.selectedInterval })}
+      </p>
     </Stack>
 
     <div class="sanvi-signup__card">
       <Stack gap="4">
         <a class="sanvi-signup__cta" href={adminOnboardingUrl}>
-          {COPY.continueCta}
+          {t['marketing.signup.continueCta']()}
         </a>
 
         <div class="sanvi-signup__footer">
-          <span>{COPY.signInPrompt}</span>
+          <span>{t['marketing.signup.signInPrompt']()}</span>
           <!-- rel="external" prevents client router interception for cross-route link -->
-          <a class="sanvi-signup__link" href="/login" rel="external">{COPY.signInLink}</a>
+          <a class="sanvi-signup__link" href="/login" rel="external">
+            {t['marketing.signup.signInLink']()}
+          </a>
         </div>
       </Stack>
     </div>

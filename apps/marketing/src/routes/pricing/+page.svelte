@@ -1,8 +1,9 @@
 <script lang="ts">
-import { formatMinor } from '@sanvi/billing-elements'
-import { Badge, Button, Cluster, Container, Radio, Stack, Table } from '@sanvi/ui'
-import { COMPARISON_FEATURES, calculateAnnualSavingsPercentage, getPriceForPlan } from '$lib/plans'
+import { en, fmt, t } from '@sanvi/i18n'
+import { Badge, Cluster, Container, Stack } from '@sanvi/ui'
+import { localePath } from '$lib/links'
 import type { PriceInterval, PublicPlanView } from '$lib/plans'
+import { COMPARISON_FEATURES, calculateAnnualSavingsPercentage, getPriceForPlan } from '$lib/plans'
 import type { PageData } from './$types'
 
 interface Props {
@@ -17,56 +18,16 @@ let currency = $state<string>('USD')
 const plans = $derived<PublicPlanView[]>(data.plans)
 
 const CURRENCY_OPTIONS = [
-  { value: 'USD', label: 'USD ($)' },
-  { value: 'JPY', label: 'JPY (¥)' },
-]
+  { value: 'USD', labelKey: 'marketing.pricing.currency.usd' },
+  { value: 'JPY', labelKey: 'marketing.pricing.currency.jpy' },
+] as const
 
-const COPY = {
-  pageTitle: 'Pricing — Sanvi',
-  metaDescription:
-    'Simple, transparent pricing for course creators and organizations. Start your 14-day free trial today.',
-  heading: 'Simple, transparent pricing',
-  subheading:
-    'Choose the right plan to build, launch, and scale your course platform. Every plan includes a 14-day free trial.',
-  billingCycleLabel: 'Billing interval',
-  monthly: 'Monthly',
-  annual: 'Annual',
-  saveBadge: (percent: number) => `Save ${percent}%`,
-  saveUpTo: 'Save up to 20% on annual billing',
-  currencyLabel: 'Currency',
-  perMonth: '/month',
-  perYear: '/year',
-  trialBadge: (days: number) => `${days}-day free trial`,
-  mostPopular: 'Most Popular',
-  startTrial: 'Start 14-day trial',
-  getStarted: 'Get started',
-  taxNote: 'Taxes calculated at checkout based on your billing address and tax identification.',
-  featureComparisonTitle: 'Compare all features',
-  featureComparisonSubtitle: 'See which plan fits your platform requirements.',
-  featureCol: 'Feature',
-  included: 'Included',
-  notIncluded: 'Not included',
-  unlimited: 'Unlimited',
-  faqTitle: 'Frequently asked questions',
-  faqs: [
-    {
-      q: 'How does the 14-day free trial work?',
-      a: 'You can test all features of your chosen plan for 14 days without charge. You can cancel at any time during the trial with zero cost.',
-    },
-    {
-      q: 'Can I change my plan later?',
-      a: 'Yes. You can upgrade, downgrade, or switch between monthly and annual intervals at any time directly through the billing centre in your admin console.',
-    },
-    {
-      q: 'How is sales tax or VAT handled?',
-      a: 'Tax is calculated at checkout based on your country and jurisdiction. Registered businesses can input their VAT or tax ID to apply reverse charges where applicable.',
-    },
-    {
-      q: 'What payment methods do you accept?',
-      a: 'We accept major credit and debit cards (Visa, Mastercard, American Express), Apple Pay, Google Pay, and localized payment methods via Stripe.',
-    },
-  ],
-}
+const FAQS = [
+  { q: 'marketing.pricing.faq.trial.q', a: 'marketing.pricing.faq.trial.a' },
+  { q: 'marketing.pricing.faq.changePlan.q', a: 'marketing.pricing.faq.changePlan.a' },
+  { q: 'marketing.pricing.faq.tax.q', a: 'marketing.pricing.faq.tax.a' },
+  { q: 'marketing.pricing.faq.payment.q', a: 'marketing.pricing.faq.payment.a' },
+] as const
 
 const maxAnnualSavings = $derived(() => {
   let max = 0
@@ -87,7 +48,10 @@ const structuredData = $derived(
       '@context': 'https://schema.org',
       '@type': 'Product',
       name: 'Sanvi Course Platform',
-      description: COPY.metaDescription,
+      // Schema.org structured data stays English for search engines
+      // regardless of the rendering locale — read straight from the base
+      // catalog, not the current locale's `t`.
+      description: en['marketing.pricing.metaDescription'],
       offers: plans.flatMap((plan) =>
         plan.prices.map((price) => ({
           '@type': 'Offer',
@@ -105,10 +69,10 @@ const jsonLdScript = $derived(`<script type="application/ld+json">${structuredDa
 </script>
 
 <svelte:head>
-  <title>{COPY.pageTitle}</title>
-  <meta name="description" content={COPY.metaDescription} />
-  <meta property="og:title" content={COPY.pageTitle} />
-  <meta property="og:description" content={COPY.metaDescription} />
+  <title>{t['marketing.pricing.pageTitle']()}</title>
+  <meta name="description" content={t['marketing.pricing.metaDescription']()} />
+  <meta property="og:title" content={t['marketing.pricing.pageTitle']()} />
+  <meta property="og:description" content={t['marketing.pricing.metaDescription']()} />
   <!-- Structured Data for SEO -->
   <!-- eslint-disable-next-line svelte/no-at-html-tags -->
   {@html jsonLdScript}
@@ -119,44 +83,51 @@ const jsonLdScript = $derived(`<script type="application/ld+json">${structuredDa
     <Stack gap="10" align="center">
       <!-- Header -->
       <Stack gap="3" align="center">
-        <h1 class="sanvi-pricing-page__title">{COPY.heading}</h1>
-        <p class="sanvi-pricing-page__subtitle">{COPY.subheading}</p>
+        <h1 class="sanvi-pricing-page__title">{t['marketing.pricing.heading']()}</h1>
+        <p class="sanvi-pricing-page__subtitle">{t['marketing.pricing.subheading']()}</p>
       </Stack>
 
       <!-- Controls: Interval & Currency -->
       <Cluster gap="6" justify="center" align="center">
-        <fieldset class="sanvi-pricing-page__toggle-group" aria-label={COPY.billingCycleLabel}>
-          <legend class="sanvi-pricing-page__sr-only">{COPY.billingCycleLabel}</legend>
+        <fieldset
+          class="sanvi-pricing-page__toggle-group"
+          aria-label={t['marketing.pricing.billingCycleLabel']()}
+        >
+          <legend class="sanvi-pricing-page__sr-only">
+            {t['marketing.pricing.billingCycleLabel']()}
+          </legend>
           <button
             type="button"
             class="sanvi-pricing-page__toggle-button {interval === 'month' ? 'sanvi-pricing-page__toggle-button--active' : ''}"
             onclick={() => { interval = 'month' }}
           >
-            {COPY.monthly}
+            {t['marketing.pricing.monthly']()}
           </button>
           <button
             type="button"
             class="sanvi-pricing-page__toggle-button {interval === 'year' ? 'sanvi-pricing-page__toggle-button--active' : ''}"
             onclick={() => { interval = 'year' }}
           >
-            {COPY.annual}
+            {t['marketing.pricing.annual']()}
             {#if maxAnnualSavings() !== null}
-              <Badge variant="success">{COPY.saveBadge(maxAnnualSavings()!)}</Badge>
+              <Badge variant="success">
+                {t['marketing.pricing.saveBadge']({ percent: maxAnnualSavings()! })}
+              </Badge>
             {/if}
           </button>
         </fieldset>
 
         <div class="sanvi-pricing-page__currency-selector">
           <label for="currency-select" class="sanvi-pricing-page__currency-label">
-            {COPY.currencyLabel}:
+            {t['marketing.pricing.currencyLabel']()}:
           </label>
           <select
             id="currency-select"
             class="sanvi-pricing-page__select"
             bind:value={currency}
           >
-            {#each CURRENCY_OPTIONS as opt}
-              <option value={opt.value}>{opt.label}</option>
+            {#each CURRENCY_OPTIONS as opt (opt.value)}
+              <option value={opt.value}>{t[opt.labelKey]()}</option>
             {/each}
           </select>
         </div>
@@ -173,7 +144,9 @@ const jsonLdScript = $derived(`<script type="application/ld+json">${structuredDa
           >
             {#if isPopular}
               <div class="sanvi-plan-card__badge-wrapper">
-                <span class="sanvi-plan-card__popular-badge">{COPY.mostPopular}</span>
+                <span class="sanvi-plan-card__popular-badge">
+                  {t['marketing.pricing.mostPopular']()}
+                </span>
               </div>
             {/if}
 
@@ -181,17 +154,21 @@ const jsonLdScript = $derived(`<script type="application/ld+json">${structuredDa
               <div class="sanvi-plan-card__header">
                 <h2 class="sanvi-plan-card__name">{plan.name}</h2>
                 {#if price?.trial_days}
-                  <Badge variant="info">{COPY.trialBadge(price.trial_days)}</Badge>
+                  <Badge variant="info">
+                    {t['marketing.pricing.trialBadge']({ days: price.trial_days })}
+                  </Badge>
                 {/if}
               </div>
 
               <div class="sanvi-plan-card__price-wrapper">
                 {#if price}
                   <span class="sanvi-plan-card__amount">
-                    {formatMinor(price.unit_amount_minor, price.currency)}
+                    {fmt.money(price.unit_amount_minor, price.currency)}
                   </span>
                   <span class="sanvi-plan-card__interval">
-                    {interval === 'month' ? COPY.perMonth : COPY.perYear}
+                    {interval === 'month'
+                      ? t['marketing.pricing.perMonth']()
+                      : t['marketing.pricing.perYear']()}
                   </span>
                 {:else}
                   <span class="sanvi-plan-card__amount">—</span>
@@ -200,14 +177,19 @@ const jsonLdScript = $derived(`<script type="application/ld+json">${structuredDa
 
               <a
                 class="sanvi-plan-card__cta {isPopular ? 'sanvi-plan-card__cta--primary' : 'sanvi-plan-card__cta--secondary'}"
-                href="/signup?plan={plan.key}&interval={interval}&currency={currency}"
+                href={localePath(`/signup?plan=${plan.key}&interval=${interval}&currency=${currency}`)}
               >
-                {price?.trial_days ? COPY.startTrial : COPY.getStarted}
+                {price?.trial_days
+                  ? t['marketing.pricing.startTrial']()
+                  : t['marketing.pricing.getStarted']()}
               </a>
 
               <hr class="sanvi-plan-card__divider" />
 
-              <ul class="sanvi-plan-card__feature-list" aria-label="{plan.name} features">
+              <ul
+                class="sanvi-plan-card__feature-list"
+                aria-label={t['marketing.pricing.planFeaturesAria']({ name: plan.name })}
+              >
                 {#each plan.entitlements as ent (ent.feature_key)}
                   <li class="sanvi-plan-card__feature-item">
                     <span class="sanvi-plan-card__check" aria-hidden="true">
@@ -217,7 +199,7 @@ const jsonLdScript = $derived(`<script type="application/ld+json">${structuredDa
                       {#if ent.limit !== null && ent.limit !== undefined}
                         {ent.limit} {ent.feature_key.replace('.', ' ')}
                       {:else if ent.enabled && ent.limit === null}
-                        {COPY.unlimited} {ent.feature_key.replace('.', ' ')}
+                        {t['marketing.pricing.unlimited']()} {ent.feature_key.replace('.', ' ')}
                       {:else}
                         {ent.feature_key.replace('.', ' ')}
                       {/if}
@@ -230,22 +212,26 @@ const jsonLdScript = $derived(`<script type="application/ld+json">${structuredDa
         {/each}
       </div>
 
-      <p class="sanvi-pricing-page__tax-note">{COPY.taxNote}</p>
+      <p class="sanvi-pricing-page__tax-note">{t['marketing.pricing.taxNote']()}</p>
 
       <!-- Feature Comparison Table -->
       <div class="sanvi-pricing-page__comparison-section">
         <Stack gap="6" align="center">
           <div class="sanvi-pricing-page__comparison-header">
-            <h2>{COPY.featureComparisonTitle}</h2>
-            <p>{COPY.featureComparisonSubtitle}</p>
+            <h2>{t['marketing.pricing.featureComparisonTitle']()}</h2>
+            <p>{t['marketing.pricing.featureComparisonSubtitle']()}</p>
           </div>
 
           <div class="sanvi-pricing-page__table-wrapper">
             <table class="sanvi-comparison-table">
-              <caption class="sanvi-pricing-page__sr-only">{COPY.featureComparisonTitle}</caption>
+              <caption class="sanvi-pricing-page__sr-only">
+                {t['marketing.pricing.featureComparisonTitle']()}
+              </caption>
               <thead>
                 <tr>
-                  <th scope="col" class="sanvi-comparison-table__feature-header">{COPY.featureCol}</th>
+                  <th scope="col" class="sanvi-comparison-table__feature-header">
+                    {t['marketing.pricing.featureCol']()}
+                  </th>
                   {#each plans as plan}
                     <th scope="col" class="sanvi-comparison-table__plan-header">{plan.name}</th>
                   {/each}
@@ -265,14 +251,23 @@ const jsonLdScript = $derived(`<script type="application/ld+json">${structuredDa
                           {#if grant.limit !== null && grant.limit !== undefined}
                             <strong>{grant.limit}</strong>
                           {:else if grant.enabled && grant.limit === null}
-                            <strong>{COPY.unlimited}</strong>
+                            <strong>{t['marketing.pricing.unlimited']()}</strong>
                           {:else if grant.enabled}
-                            <span class="sanvi-comparison-table__check" aria-label={COPY.included}>✓</span>
+                            <span
+                              class="sanvi-comparison-table__check"
+                              aria-label={t['marketing.pricing.included']()}
+                            >✓</span>
                           {:else}
-                            <span class="sanvi-comparison-table__cross" aria-label={COPY.notIncluded}>—</span>
+                            <span
+                              class="sanvi-comparison-table__cross"
+                              aria-label={t['marketing.pricing.notIncluded']()}
+                            >—</span>
                           {/if}
                         {:else}
-                          <span class="sanvi-comparison-table__cross" aria-label={COPY.notIncluded}>—</span>
+                          <span
+                            class="sanvi-comparison-table__cross"
+                            aria-label={t['marketing.pricing.notIncluded']()}
+                          >—</span>
                         {/if}
                       </td>
                     {/each}
@@ -287,12 +282,12 @@ const jsonLdScript = $derived(`<script type="application/ld+json">${structuredDa
       <!-- FAQ Section -->
       <div class="sanvi-pricing-page__faq-section">
         <Stack gap="6">
-          <h2 class="sanvi-pricing-page__faq-title">{COPY.faqTitle}</h2>
+          <h2 class="sanvi-pricing-page__faq-title">{t['marketing.pricing.faqTitle']()}</h2>
           <div class="sanvi-pricing-page__faq-grid">
-            {#each COPY.faqs as faq}
+            {#each FAQS as faq (faq.q)}
               <div class="sanvi-faq-item">
-                <h3 class="sanvi-faq-item__question">{faq.q}</h3>
-                <p class="sanvi-faq-item__answer">{faq.a}</p>
+                <h3 class="sanvi-faq-item__question">{t[faq.q]()}</h3>
+                <p class="sanvi-faq-item__answer">{t[faq.a]()}</p>
               </div>
             {/each}
           </div>

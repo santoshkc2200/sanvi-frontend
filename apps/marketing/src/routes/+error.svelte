@@ -1,22 +1,24 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 import { Container, EmptyState } from '@sanvi/ui'
 import { page } from '$app/state'
 
-const COPY = {
-  titleSuffix: 'Sanvi',
-  notFoundTitle: 'Page not found',
-  errorTitle: 'Something went wrong',
-  defaultDescription: 'Try reloading the page, or head back to the homepage.',
-}
+const titleSuffix = 'Sanvi'
 
-const title = $derived(page.status === 404 ? COPY.notFoundTitle : COPY.errorTitle)
-const description = $derived(page.error?.message ?? COPY.defaultDescription)
+const title = $derived(
+  page.status === 404 ? t['errors.notFound.title']() : t['errors.generic.title'](),
+)
+const description = $derived(page.error?.message ?? t['errors.default.description']())
 </script>
 
 <svelte:head>
-  <title>{page.status} — {COPY.titleSuffix}</title>
+  <title>{page.status} — {titleSuffix}</title>
 </svelte:head>
 
 <Container size="md" padding="6">
-  <EmptyState {title} {description} />
+  <EmptyState {title} {description}>
+    {#snippet action()}
+      <a href={page.url.pathname}>{t['common.retry']()}</a>
+    {/snippet}
+  </EmptyState>
 </Container>

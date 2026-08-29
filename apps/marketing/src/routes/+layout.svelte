@@ -1,8 +1,83 @@
 <script lang="ts">
 import '@sanvi/ui/styles.css'
+import {
+  BASE_LOCALE,
+  currentLocale,
+  initI18n,
+  localeHref,
+  localeOptions,
+  parseLocalePrefix,
+  t,
+} from '@sanvi/i18n'
+import { page } from '$app/state'
 import type { Snippet } from 'svelte'
 
 let { children }: { children: Snippet } = $props()
+
+// Marketing's locale is purely path-derived (no tenant, no cookie): the
+// unprefixed pages are `en`, `/{locale}/…` prefixes are that locale's
+// canonical URL. Init-time (before children render, server and hydration
+// alike) plus a tracking effect for client-side navigations — this layout
+// isn't re-inited when only the page changes, but the effect re-seeds the
+// runtime whenever the path's locale does.
+initI18n({ locale: parseLocalePrefix(page.url.pathname)?.locale ?? BASE_LOCALE })
+$effect(() => {
+  initI18n({ locale: parseLocalePrefix(page.url.pathname)?.locale ?? BASE_LOCALE })
+})
+
+// Crawlable locale links in a real nav — the prerender crawler discovers
+// every `/{locale}` variant through these anchors. Path only: prerender
+// forbids `url.search`, and marketing pages take no query parameters.
+const localeLinks = $derived(
+  localeOptions().map((option) => ({
+    ...option,
+    href: localeHref(page.url.pathname, option.code),
+    current: option.code === currentLocale(),
+  })),
+)
 </script>
 
+<svelte:head>
+  <link rel="canonical" href="{page.url.origin}{page.url.pathname}" />
+  {#each localeLinks as link (link.code)}
+    <link rel="alternate" hreflang={link.code} href="{page.url.origin}{link.href}" />
+  {/each}
+  <link rel="alternate" hreflang="x-default" href="{page.url.origin}{page.url.pathname}" />
+</svelte:head>
+
 {@render children()}
+
+<footer class="sanvi-marketing-footer">
+  <nav aria-label={t['marketing.footer.language']()}>
+    {#each localeLinks as link (link.code)}
+      <a href={link.href} hreflang={link.code} aria-current={link.current ? 'true' : undefined}>
+        {link.label}
+      </a>
+    {/each}
+  </nav>
+</footer>
+
+<style>
+  .sanvi-marketing-footer {
+    margin-top: var(--sanvi-spacing-8);
+    border-top: var(--sanvi-border-width-thin) solid var(--sanvi-color-border-default);
+    padding: var(--sanvi-spacing-4) var(--sanvi-spacing-6);
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .sanvi-marketing-footer nav {
+    display: flex;
+    gap: var(--sanvi-spacing-3);
+  }
+
+  .sanvi-marketing-footer a {
+    color: var(--sanvi-color-text-secondary);
+    font-size: var(--sanvi-font-size-sm);
+  }
+
+  .sanvi-marketing-footer a[aria-current='true'] {
+    color: var(--sanvi-color-text-primary);
+    font-weight: var(--sanvi-font-weight-medium);
+  }
+</style>

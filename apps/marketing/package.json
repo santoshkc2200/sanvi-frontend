@@ -24,6 +24,7 @@
     "@sanvi/billing-elements": "workspace:*",
     "@sanvi/csp": "workspace:*",
     "@sanvi/design-tokens": "workspace:*",
+    "@sanvi/i18n": "workspace:*",
     "@sanvi/ui": "workspace:*"
   },
   "devDependencies": {
