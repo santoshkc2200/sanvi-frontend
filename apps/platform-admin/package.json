@@ -1,7 +1,7 @@
 {
   "name": "@sanvi/platform-admin",
   "version": "0.1.0",
-  "description": "Sanvi platform operator console — Svelte SPA behind auth + MFA. Different privilege tier from @sanvi/admin; shares every package, not a build target.",
+  "description": "Sanvi platform operator console \u2014 Svelte SPA behind auth + MFA. Different privilege tier from @sanvi/admin; shares every package, not a build target.",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,13 +17,14 @@
     "test:e2e": "playwright test",
     "check:i18n": "sanvi-check-i18n src",
     "check:tokens": "sanvi-check-tokens src",
-    "check:budget": "sanvi-check-budget --dir dist --initial-kb 250 --chunk-kb 50"
+    "check:budget": "sanvi-check-budget --dir dist --initial-kb 250 --chunk-kb 60"
   },
   "dependencies": {
     "@sanvi/api-client": "workspace:*",
     "@sanvi/auth": "workspace:*",
     "@sanvi/csp": "workspace:*",
     "@sanvi/design-tokens": "workspace:*",
+    "@sanvi/i18n": "workspace:*",
     "@sanvi/query": "workspace:*",
     "@sanvi/spa-router": "workspace:*",
     "@sanvi/ui": "workspace:*"

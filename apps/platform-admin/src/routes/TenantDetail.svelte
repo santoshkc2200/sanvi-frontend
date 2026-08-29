@@ -16,6 +16,7 @@ import {
   suspendTenant,
 } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
+import { t } from '@sanvi/i18n'
 import { handleLinkClick } from '@sanvi/spa-router'
 import {
   Alert,
@@ -61,104 +62,6 @@ interface EntitlementRow {
   limit: number | null | undefined
 }
 
-const COPY = {
-  loading: 'Loading',
-  loadError: 'Could not load this tenant.',
-  retry: 'Try again',
-  backToTenants: 'Back to tenants',
-  tabOverview: 'Overview',
-  tabEntitlements: 'Entitlements',
-  tabAudit: 'Audit',
-  tabDanger: 'Danger zone',
-  tabSubscription: 'Subscription',
-  noSubscription: 'No active subscription for this tenant.',
-  subPeriod: 'Current period',
-  subOverrideTitle: 'Apply subscription override',
-  subOverrideDesc: 'Pin this tenant to a specific plan outside Stripe billing.',
-  subOverridePlanKey: 'Plan key',
-  subOverridePlanPlaceholder: 'starter, professional, enterprise',
-  subOverrideReason: 'Reason',
-  subOverrideReasonPlaceholder: 'e.g. Enterprise pilot agreement',
-  applyOverride: 'Apply override',
-  revokeOverride: 'Revoke override',
-  subOverrideApplied: 'Subscription override applied.',
-  subOverrideRevoked: 'Subscription override revoked.',
-  subOverrideError: 'Could not apply subscription override.',
-  subRevokeError: 'Could not revoke subscription override.',
-  tabDomains: 'Domains',
-  tabDomainsReason: 'Ships in phase 08',
-  metaTitle: 'Details',
-  metaRegion: 'Region',
-  metaLocale: 'Default locale',
-  metaCreated: 'Created',
-  metaMembers: 'Members',
-  metaOverrides: 'Entitlement overrides',
-  metaImpersonations: 'Active impersonations',
-  overviewSlug: 'Slug',
-  overviewStatus: 'Status',
-  overviewSuspendedReason: 'Suspension reason',
-  overviewUpdated: 'Last updated',
-  overviewArchived: 'Archived',
-  entitlementsEmpty: 'No features in the catalog yet.',
-  entitlementsError: 'Could not load entitlements.',
-  colFeature: 'Feature',
-  colSource: 'Source',
-  colStatus: 'Status',
-  colLimit: 'Limit',
-  colActions: 'Actions',
-  grant: 'Grant',
-  editOverride: 'Edit override',
-  revoke: 'Revoke',
-  grantTitle: (name: string) => `Grant ${name}`,
-  enabledLabel: 'Enabled',
-  limitLabel: 'Limit',
-  limitPlaceholder: 'Unlimited',
-  limitInvalid: 'The limit must be a non-negative whole number.',
-  expiresAtLabel: 'Expires at',
-  reasonLabel: 'Reason',
-  reasonPlaceholder: 'Why is this override being granted?',
-  cancel: 'Cancel',
-  save: 'Save',
-  granted: (feature: string) => `${feature} updated for this tenant.`,
-  grantError: 'Could not save this entitlement override.',
-  approvalRequiredTitle: 'Approval required',
-  approvalRequiredDescription: 'This grant needs a second approval before it takes effect.',
-  goToApprovals: 'Go to approvals',
-  revokeTitle: (feature: string) => `Revoke ${feature}`,
-  revokeConsequence:
-    'This removes the tenant-specific override. The feature falls back to its plan or catalog default immediately.',
-  revoked: (feature: string) => `${feature} override revoked.`,
-  revokeError: 'Could not revoke this override.',
-  auditEmpty: 'No audit activity for this tenant yet.',
-  auditError: 'Could not load the audit log.',
-  auditNext: 'Load more',
-  activate: 'Activate',
-  activateTitle: 'Activate tenant',
-  activateConsequence: 'The tenant becomes reachable and can start serving traffic immediately.',
-  activated: 'Tenant activated.',
-  activateError: 'Could not activate this tenant.',
-  suspend: 'Suspend',
-  suspendTitle: 'Suspend tenant',
-  suspendConsequence:
-    'Every request to this tenant will be rejected with a 423 until it is resumed. Members will not be able to sign in to it.',
-  suspendReasonPlaceholder: 'Select a reason',
-  suspended: 'Tenant suspended.',
-  suspendError: 'Could not suspend this tenant.',
-  resume: 'Resume',
-  resumeTitle: 'Resume tenant',
-  resumeConsequence: 'The tenant immediately regains access.',
-  resumed: 'Tenant resumed.',
-  resumeError: 'Could not resume this tenant.',
-  archive: 'Archive',
-  archiveTitle: 'Archive tenant',
-  archiveConsequence: (slug: string) =>
-    `This is terminal — ${slug} becomes permanently inaccessible and cannot be reactivated from this console.`,
-  archiveConfirmationLabel: 'Type the slug to confirm',
-  archived: 'Tenant archived.',
-  archiveError: 'Could not archive this tenant.',
-  noLifecycleActions: 'This tenant is archived — no further lifecycle actions are available.',
-}
-
 const STATUS_VARIANT: Record<string, 'neutral' | 'info' | 'success' | 'warning' | 'error'> = {
   provisioning: 'info',
   active: 'success',
@@ -173,12 +76,14 @@ const SOURCE_VARIANT: Record<EntitlementSource, 'neutral' | 'info' | 'success' |
   feature_default: 'neutral',
 }
 
-const SOURCE_LABEL: Record<EntitlementSource, string> = {
-  override: 'Override',
-  subscription: 'Subscription',
-  plan_default: 'Plan default',
-  feature_default: 'Default',
-}
+// `$derived`, not a plain const — the labels go through `t`, so a locale
+// switch has to rebuild them.
+const SOURCE_LABEL = $derived<Record<EntitlementSource, string>>({
+  override: t['platform.tenantDetail.sourceOverride'](),
+  subscription: t['platform.tenantDetail.sourceSubscription'](),
+  plan_default: t['platform.tenantDetail.sourcePlanDefault'](),
+  feature_default: t['platform.tenantDetail.sourceFeatureDefault'](),
+})
 
 let loadedTenantId = $state<string | undefined>(undefined)
 let tenant = $state<TenantView | undefined>(undefined)
@@ -206,7 +111,7 @@ async function loadTenant(): Promise<void> {
     adminView = adminResult
   } catch {
     if (seq !== loadSeq) return
-    loadError = COPY.loadError
+    loadError = t['platform.tenantDetail.loadError']()
   } finally {
     if (seq === loadSeq) loading = false
   }
@@ -265,19 +170,20 @@ $effect(() => {
 type TabId = 'overview' | 'entitlements' | 'audit' | 'danger' | 'subscription'
 let activeTab = $state<TabId>('overview')
 
-const TABS: DetailShellTab[] = [
-  { href: 'overview', label: COPY.tabOverview },
-  { href: 'entitlements', label: COPY.tabEntitlements },
-  { href: 'subscription', label: COPY.tabSubscription },
-  { href: 'audit', label: COPY.tabAudit },
-  { href: 'danger', label: COPY.tabDanger },
+// `$derived` — the labels go through `t` and must survive a locale switch.
+const TABS = $derived<DetailShellTab[]>([
+  { href: 'overview', label: t['platform.tenantDetail.tabOverview']() },
+  { href: 'entitlements', label: t['platform.tenantDetail.tabEntitlements']() },
+  { href: 'subscription', label: t['platform.tenantDetail.tabSubscription']() },
+  { href: 'audit', label: t['platform.tenantDetail.tabAudit']() },
+  { href: 'danger', label: t['platform.tenantDetail.tabDanger']() },
   {
     href: 'domains',
-    label: COPY.tabDomains,
+    label: t['platform.tenantDetail.tabDomains'](),
     disabled: true,
-    disabledReason: COPY.tabDomainsReason,
+    disabledReason: t['platform.tenantDetail.tabDomainsReason'](),
   },
-]
+])
 
 function handleTabNavigate(event: MouseEvent, href: string): void {
   event.preventDefault()
@@ -308,7 +214,7 @@ async function loadEntitlements(): Promise<void> {
     entitlementsLoaded = true
   } catch {
     if (seq !== entitlementsSeq) return
-    entitlementsError = COPY.entitlementsError
+    entitlementsError = t['platform.tenantDetail.entitlementsError']()
   } finally {
     if (seq === entitlementsSeq) entitlementsLoading = false
   }
@@ -383,20 +289,23 @@ async function submitGrant(): Promise<void> {
     })
     grantOpen = false
     if (result === 'granted') {
-      showToast({ variant: 'success', title: COPY.granted(grantTarget.name) })
+      showToast({
+        variant: 'success',
+        title: t['platform.tenantDetail.granted']({ feature: grantTarget.name }),
+      })
       entitlementsLoaded = false
       await loadEntitlements()
     } else {
       showToast({
         variant: 'info',
-        title: COPY.approvalRequiredTitle,
-        description: COPY.approvalRequiredDescription,
+        title: t['platform.tenantDetail.approvalRequiredTitle'](),
+        description: t['platform.tenantDetail.approvalRequiredDescription'](),
       })
     }
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.grantError,
+      title: t['platform.tenantDetail.grantError'](),
       description: err instanceof ApiError ? err.detail : undefined,
     })
   } finally {
@@ -419,13 +328,16 @@ async function confirmRevoke(): Promise<void> {
   try {
     await revokeEntitlementOverride(apiClient, id, revokeTarget.key)
     revokeOpen = false
-    showToast({ variant: 'success', title: COPY.revoked(revokeTarget.name) })
+    showToast({
+      variant: 'success',
+      title: t['platform.tenantDetail.revoked']({ feature: revokeTarget.name }),
+    })
     entitlementsLoaded = false
     await loadEntitlements()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.revokeError,
+      title: t['platform.tenantDetail.revokeError'](),
       description: err instanceof ApiError ? err.detail : undefined,
     })
   } finally {
@@ -476,7 +388,7 @@ async function loadAudit(append: boolean): Promise<void> {
     auditLoaded = true
   } catch {
     if (seq !== auditSeq) return
-    auditError = COPY.auditError
+    auditError = t['platform.tenantDetail.auditError']()
   } finally {
     if (seq === auditSeq) auditLoading = false
   }
@@ -490,12 +402,15 @@ $effect(() => {
 
 // The backend validates the suspend reason against this exact vocabulary
 // (400 on anything else) — the dialog must offer the enum, not free text.
-const SUSPENSION_REASON_OPTIONS = [
-  { value: 'billing', label: 'Billing' },
-  { value: 'abuse', label: 'Abuse' },
-  { value: 'legal', label: 'Legal' },
-  { value: 'operational', label: 'Operational' },
-]
+// The backend validates the suspend reason against this exact vocabulary
+// (400 on anything else) — the dialog must offer the enum, not free text.
+// `$derived` — the labels go through `t` and must survive a locale switch.
+const SUSPENSION_REASON_OPTIONS = $derived([
+  { value: 'billing', label: t['platform.tenantDetail.reasonBilling']() },
+  { value: 'abuse', label: t['platform.tenantDetail.reasonAbuse']() },
+  { value: 'legal', label: t['platform.tenantDetail.reasonLegal']() },
+  { value: 'operational', label: t['platform.tenantDetail.reasonOperational']() },
+])
 
 let activateOpen = $state(false)
 let resumeOpen = $state(false)
@@ -547,20 +462,32 @@ async function runLifecycle(
 }
 
 async function confirmActivate(): Promise<void> {
-  await runLifecycle(() => activateTenant(apiClient, id), COPY.activated, COPY.activateError)
+  await runLifecycle(
+    () => activateTenant(apiClient, id),
+    t['platform.tenantDetail.activated'](),
+    t['platform.tenantDetail.activateError'](),
+  )
 }
 async function confirmResume(): Promise<void> {
-  await runLifecycle(() => resumeTenant(apiClient, id), COPY.resumed, COPY.resumeError)
+  await runLifecycle(
+    () => resumeTenant(apiClient, id),
+    t['platform.tenantDetail.resumed'](),
+    t['platform.tenantDetail.resumeError'](),
+  )
 }
 async function confirmSuspend(reason: string): Promise<void> {
   await runLifecycle(
     () => suspendTenant(apiClient, id, { reason }),
-    COPY.suspended,
-    COPY.suspendError,
+    t['platform.tenantDetail.suspended'](),
+    t['platform.tenantDetail.suspendError'](),
   )
 }
 async function confirmArchive(): Promise<void> {
-  await runLifecycle(() => archiveTenant(apiClient, id), COPY.archived, COPY.archiveError)
+  await runLifecycle(
+    () => archiveTenant(apiClient, id),
+    t['platform.tenantDetail.archived'](),
+    t['platform.tenantDetail.archiveError'](),
+  )
 }
 
 let overrideDialogOpen = $state(false)
@@ -576,7 +503,7 @@ const hasOverride = $derived(subscription?.source === 'override')
 
 async function handleApplySubscriptionOverride(): Promise<void> {
   if (!overridePlanKey.trim() || !overrideReason.trim()) {
-    overrideError = 'Please specify both plan key and reason.'
+    overrideError = t['platform.tenantDetail.subOverrideValidationError']()
     return
   }
   overrideSubmitting = true
@@ -587,10 +514,10 @@ async function handleApplySubscriptionOverride(): Promise<void> {
       reason: overrideReason.trim(),
     })
     overrideDialogOpen = false
-    showToast({ title: COPY.subOverrideApplied, variant: 'success' })
+    showToast({ title: t['platform.tenantDetail.subOverrideApplied'](), variant: 'success' })
     await Promise.all([loadTenant(), loadSubscription()])
   } catch {
-    overrideError = COPY.subOverrideError
+    overrideError = t['platform.tenantDetail.subOverrideError']()
   } finally {
     overrideSubmitting = false
   }
@@ -601,10 +528,10 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
   try {
     await revokeSubscriptionOverride(apiClient, id)
     revokeSubDialogOpen = false
-    showToast({ title: COPY.subOverrideRevoked, variant: 'success' })
+    showToast({ title: t['platform.tenantDetail.subOverrideRevoked'](), variant: 'success' })
     await Promise.all([loadTenant(), loadSubscription()])
   } catch {
-    showToast({ title: COPY.subRevokeError, variant: 'error' })
+    showToast({ title: t['platform.tenantDetail.subRevokeError'](), variant: 'error' })
   } finally {
     revokeSubSubmitting = false
   }
@@ -619,16 +546,16 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
 
 {#snippet metaPanel()}
   <Stack gap="3">
-    <h2>{COPY.metaTitle}</h2>
+    <h2>{t['platform.tenantDetail.metaTitle']()}</h2>
     {#if tenant}
-      <p><strong>{COPY.metaRegion}:</strong> {tenant.region}</p>
-      <p><strong>{COPY.metaLocale}:</strong> {tenant.default_locale}</p>
-      <p><strong>{COPY.metaCreated}:</strong> <time datetime={tenant.created_at}>{tenant.created_at}</time></p>
+      <p><strong>{t['platform.tenantDetail.metaRegion']()}:</strong> {tenant.region}</p>
+      <p><strong>{t['platform.tenantDetail.metaLocale']()}:</strong> {tenant.default_locale}</p>
+      <p><strong>{t['platform.tenantDetail.metaCreated']()}:</strong> <time datetime={tenant.created_at}>{tenant.created_at}</time></p>
     {/if}
     {#if adminView}
-      <p><strong>{COPY.metaMembers}:</strong> {adminView.member_count}</p>
-      <p><strong>{COPY.metaOverrides}:</strong> {adminView.override_count}</p>
-      <p><strong>{COPY.metaImpersonations}:</strong> {adminView.active_impersonations}</p>
+      <p><strong>{t['platform.tenantDetail.metaMembers']()}:</strong> {adminView.member_count}</p>
+      <p><strong>{t['platform.tenantDetail.metaOverrides']()}:</strong> {adminView.override_count}</p>
+      <p><strong>{t['platform.tenantDetail.metaImpersonations']()}:</strong> {adminView.active_impersonations}</p>
     {/if}
   </Stack>
 {/snippet}
@@ -641,9 +568,9 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
 {/snippet}
 
 {#if loading}
-  <Spinner label={COPY.loading} />
+  <Spinner label={t['common.loading']()} />
 {:else if loadError || !tenant}
-  <ErrorView title={loadError ?? COPY.loadError} retryLabel={COPY.retry} onRetry={loadTenant} />
+  <ErrorView title={loadError ?? t['platform.tenantDetail.loadError']()} retryLabel={t['common.retry']()} onRetry={loadTenant} />
 {:else}
   <DetailShell
     title={tenant.display_name}
@@ -654,45 +581,45 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
     onNavigate={handleTabNavigate}
     meta={metaPanel}
     backHref="/tenants"
-    backLabel={COPY.backToTenants}
+    backLabel={t['platform.tenantDetail.backToTenants']()}
     onNavigateBack={(event) => handleLinkClick(event, '/tenants')}
   >
     {#snippet children()}
       {#if tenant}
       {#if activeTab === 'overview'}
         <Stack gap="3">
-          <p><strong>{COPY.overviewSlug}:</strong> {tenant.slug}</p>
-          <p><strong>{COPY.overviewStatus}:</strong> {tenant.status}</p>
+          <p><strong>{t['platform.tenantDetail.overviewSlug']()}:</strong> {tenant.slug}</p>
+          <p><strong>{t['platform.tenantDetail.overviewStatus']()}:</strong> {tenant.status}</p>
           {#if tenant.suspended_reason}
-            <p><strong>{COPY.overviewSuspendedReason}:</strong> {tenant.suspended_reason}</p>
+            <p><strong>{t['platform.tenantDetail.overviewSuspendedReason']()}:</strong> {tenant.suspended_reason}</p>
           {/if}
           <p>
-            <strong>{COPY.overviewUpdated}:</strong>
+            <strong>{t['platform.tenantDetail.overviewUpdated']()}:</strong>
             <time datetime={tenant.updated_at}>{tenant.updated_at}</time>
           </p>
           {#if tenant.archived_at}
             <p>
-              <strong>{COPY.overviewArchived}:</strong>
+              <strong>{t['platform.tenantDetail.overviewArchived']()}:</strong>
               <time datetime={tenant.archived_at}>{tenant.archived_at}</time>
             </p>
           {/if}
         </Stack>
       {:else if activeTab === 'entitlements'}
         {#if entitlementsLoading}
-          <Spinner label={COPY.loading} />
+          <Spinner label={t['common.loading']()} />
         {:else if entitlementsError}
-          <ErrorView title={entitlementsError} retryLabel={COPY.retry} onRetry={loadEntitlements} />
+          <ErrorView title={entitlementsError} retryLabel={t['common.retry']()} onRetry={loadEntitlements} />
         {:else if entitlementRows.length === 0}
-          <EmptyState title={COPY.entitlementsEmpty} />
+          <EmptyState title={t['platform.tenantDetail.entitlementsEmpty']()} />
         {:else}
           <table class="sanvi-tenant-detail__table">
             <thead>
               <tr>
-                <th scope="col">{COPY.colFeature}</th>
-                <th scope="col">{COPY.colSource}</th>
-                <th scope="col">{COPY.colStatus}</th>
-                <th scope="col">{COPY.colLimit}</th>
-                <th scope="col"><span class="sanvi-visually-hidden">{COPY.colActions}</span></th>
+                <th scope="col">{t['platform.tenantDetail.colFeature']()}</th>
+                <th scope="col">{t['platform.tenantDetail.colSource']()}</th>
+                <th scope="col">{t['platform.tenantDetail.colStatus']()}</th>
+                <th scope="col">{t['platform.tenantDetail.colLimit']()}</th>
+                <th scope="col"><span class="sanvi-visually-hidden">{t['platform.tenantDetail.colActions']()}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -700,16 +627,16 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
                 <tr>
                   <td>{@render featureCell(row)}</td>
                   <td><Badge variant={SOURCE_VARIANT[row.source]}>{SOURCE_LABEL[row.source]}</Badge></td>
-                  <td>{row.enabled ? COPY.enabledLabel : '—'}</td>
+                  <td>{row.enabled ? t['platform.tenantDetail.enabledLabel']() : '—'}</td>
                   <td>{row.limit ?? '—'}</td>
                   <td>
                     <Stack gap="2" align="end">
                       <Button variant="ghost" size="sm" onclick={() => openGrant(row)}>
-                        {row.override ? COPY.editOverride : COPY.grant}
+                        {row.override ? t['platform.tenantDetail.editOverride']() : t['platform.tenantDetail.grant']()}
                       </Button>
                       {#if row.override}
                         <Button variant="ghost" size="sm" onclick={() => openRevoke(row.feature)}>
-                          {COPY.revoke}
+                          {t['platform.tenantDetail.revoke']()}
                         </Button>
                       {/if}
                     </Stack>
@@ -724,22 +651,22 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
           <div class="sanvi-tenant-detail__sub-card">
             <Stack gap="4">
               <div class="sanvi-tenant-detail__sub-header">
-                <h3>{COPY.tabSubscription}</h3>
+                <h3>{t['platform.tenantDetail.tabSubscription']()}</h3>
               </div>
 
               {#if subscriptionLoading}
-                <Spinner label={COPY.loading} />
+                <Spinner label={t['common.loading']()} />
               {:else if subscription}
                 <Stack gap="2">
                   <p>
-                    <strong>{COPY.overviewStatus}:</strong>
+                    <strong>{t['platform.tenantDetail.overviewStatus']()}:</strong>
                     <Badge variant={subscription.source === 'override' ? 'warning' : 'success'}>
                       {subscription.plan_name ?? subscription.plan_key} ({subscription.source})
                     </Badge>
                   </p>
                   {#if subscription.current_period?.start && subscription.current_period?.end}
                     <p>
-                      <strong>{COPY.subPeriod}:</strong>
+                      <strong>{t['platform.tenantDetail.subPeriod']()}:</strong>
                       <time datetime={subscription.current_period.start}>{subscription.current_period.start.slice(0, 10)}</time>
                       –
                       <time datetime={subscription.current_period.end}>{subscription.current_period.end.slice(0, 10)}</time>
@@ -747,21 +674,21 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
                   {/if}
                 </Stack>
               {:else}
-                <p class="sanvi-tenant-detail__muted">{COPY.noSubscription}</p>
+                <p class="sanvi-tenant-detail__muted">{t['platform.tenantDetail.noSubscription']()}</p>
               {/if}
 
-              <p class="sanvi-tenant-detail__muted">{COPY.subOverrideDesc}</p>
+              <p class="sanvi-tenant-detail__muted">{t['platform.tenantDetail.subOverrideDesc']()}</p>
 
               <Cluster gap="3">
                 <Button variant="primary" onclick={() => { overrideDialogOpen = true }}>
-                  {COPY.applyOverride}
+                  {t['platform.tenantDetail.applyOverride']()}
                 </Button>
                 <Button
                   variant="danger"
                   disabled={!hasOverride}
                   onclick={() => { revokeSubDialogOpen = true }}
                 >
-                  {COPY.revokeOverride}
+                  {t['platform.tenantDetail.revokeOverride']()}
                 </Button>
               </Cluster>
             </Stack>
@@ -769,13 +696,13 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
         </Stack>
       {:else if activeTab === 'audit'}
         {#if auditError}
-          <ErrorView title={auditError} retryLabel={COPY.retry} onRetry={() => loadAudit(false)} />
+          <ErrorView title={auditError} retryLabel={t['common.retry']()} onRetry={() => loadAudit(false)} />
         {:else}
           <Stack gap="3">
-            <AuditTrail entries={auditEntries} loading={auditLoading && auditEntries.length === 0} emptyMessage={COPY.auditEmpty} />
+            <AuditTrail entries={auditEntries} loading={auditLoading && auditEntries.length === 0} emptyMessage={t['platform.tenantDetail.auditEmpty']()} />
             {#if auditHasMore}
               <Button variant="ghost" size="sm" loading={auditLoading} onclick={() => loadAudit(true)}>
-                {COPY.auditNext}
+                {t['platform.tenantDetail.auditNext']()}
               </Button>
             {/if}
           </Stack>
@@ -783,19 +710,19 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
       {:else if activeTab === 'danger'}
         <Stack gap="4">
           {#if tenant.status === 'archived'}
-            <p>{COPY.noLifecycleActions}</p>
+            <p>{t['platform.tenantDetail.noLifecycleActions']()}</p>
           {:else}
             <Stack gap="2" align="start">
               {#if tenant.status === 'provisioning'}
-                <Button variant="secondary" onclick={openActivate}>{COPY.activate}</Button>
+                <Button variant="secondary" onclick={openActivate}>{t['platform.tenantDetail.activate']()}</Button>
               {/if}
               {#if tenant.status === 'suspended'}
-                <Button variant="secondary" onclick={openResume}>{COPY.resume}</Button>
+                <Button variant="secondary" onclick={openResume}>{t['platform.tenantDetail.resume']()}</Button>
               {/if}
               {#if tenant.status === 'active'}
-                <Button variant="danger" onclick={openSuspend}>{COPY.suspend}</Button>
+                <Button variant="danger" onclick={openSuspend}>{t['platform.tenantDetail.suspend']()}</Button>
               {/if}
-              <Button variant="danger" onclick={openArchive}>{COPY.archive}</Button>
+              <Button variant="danger" onclick={openArchive}>{t['platform.tenantDetail.archive']()}</Button>
             </Stack>
           {/if}
         </Stack>
@@ -805,32 +732,32 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
   </DetailShell>
 {/if}
 
-<Dialog bind:open={activateOpen} titleText={COPY.activateTitle}>
+<Dialog bind:open={activateOpen} titleText={t['platform.tenantDetail.activateTitle']()}>
   {#snippet children()}
-    <p>{COPY.activateConsequence}</p>
+    <p>{t['platform.tenantDetail.activateConsequence']()}</p>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (activateOpen = false)}>{COPY.cancel}</Button>
-    <Button variant="primary" loading={lifecycleSubmitting} onclick={confirmActivate}>{COPY.activate}</Button>
+    <Button variant="ghost" onclick={() => (activateOpen = false)}>{t['platform.tenantDetail.cancel']()}</Button>
+    <Button variant="primary" loading={lifecycleSubmitting} onclick={confirmActivate}>{t['platform.tenantDetail.activate']()}</Button>
   {/snippet}
 </Dialog>
 
-<Dialog bind:open={resumeOpen} titleText={COPY.resumeTitle}>
+<Dialog bind:open={resumeOpen} titleText={t['platform.tenantDetail.resumeTitle']()}>
   {#snippet children()}
-    <p>{COPY.resumeConsequence}</p>
+    <p>{t['platform.tenantDetail.resumeConsequence']()}</p>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (resumeOpen = false)}>{COPY.cancel}</Button>
-    <Button variant="primary" loading={lifecycleSubmitting} onclick={confirmResume}>{COPY.resume}</Button>
+    <Button variant="ghost" onclick={() => (resumeOpen = false)}>{t['platform.tenantDetail.cancel']()}</Button>
+    <Button variant="primary" loading={lifecycleSubmitting} onclick={confirmResume}>{t['platform.tenantDetail.resume']()}</Button>
   {/snippet}
 </Dialog>
 
 <DangerousAction
   bind:open={suspendOpen}
-  titleText={COPY.suspendTitle}
-  consequence={COPY.suspendConsequence}
-  reasonLabel={COPY.reasonLabel}
-  reasonPlaceholder={COPY.suspendReasonPlaceholder}
+  titleText={t['platform.tenantDetail.suspendTitle']()}
+  consequence={t['platform.tenantDetail.suspendConsequence']()}
+  reasonLabel={t['platform.tenantDetail.reasonLabel']()}
+  reasonPlaceholder={t['platform.tenantDetail.suspendReasonPlaceholder']()}
   reasonOptions={SUSPENSION_REASON_OPTIONS}
   submitting={lifecycleSubmitting}
   errorMessage={lifecycleError}
@@ -840,33 +767,33 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
 
 <DangerousAction
   bind:open={archiveOpen}
-  titleText={COPY.archiveTitle}
-  consequence={tenant ? COPY.archiveConsequence(tenant.slug) : ''}
+  titleText={t['platform.tenantDetail.archiveTitle']()}
+  consequence={tenant ? t['platform.tenantDetail.archiveConsequence']({ slug: tenant.slug }) : ''}
   confirmationPhrase={tenant?.slug}
-  confirmationLabel={COPY.archiveConfirmationLabel}
+  confirmationLabel={t['platform.tenantDetail.archiveConfirmationLabel']()}
   submitting={lifecycleSubmitting}
   errorMessage={lifecycleError}
   onConfirm={confirmArchive}
   onCancel={() => (archiveOpen = false)}
 />
 
-<Dialog bind:open={grantOpen} titleText={grantTarget ? COPY.grantTitle(grantTarget.name) : ''}>
+<Dialog bind:open={grantOpen} titleText={grantTarget ? t['platform.tenantDetail.grantTitle']({ name: grantTarget.name }) : ''}>
   {#snippet children()}
     <Stack gap="3">
       <Checkbox checked={grantEnabled} onchange={(event) => (grantEnabled = event.currentTarget.checked)}>
-        {COPY.enabledLabel}
+        {t['platform.tenantDetail.enabledLabel']()}
       </Checkbox>
       {#if grantTarget?.kind === 'quota'}
-        <Field label={COPY.limitLabel}>
+        <Field label={t['platform.tenantDetail.limitLabel']()}>
           {#snippet children({ id })}
-            <Input {id} type="text" bind:value={grantLimit} placeholder={COPY.limitPlaceholder} />
+            <Input {id} type="text" bind:value={grantLimit} placeholder={t['platform.tenantDetail.limitPlaceholder']()} />
           {/snippet}
         </Field>
         {#if grantLimitInvalid}
-          <Alert variant="error">{COPY.limitInvalid}</Alert>
+          <Alert variant="error">{t['platform.tenantDetail.limitInvalid']()}</Alert>
         {/if}
       {/if}
-      <Field label={COPY.expiresAtLabel}>
+      <Field label={t['platform.tenantDetail.expiresAtLabel']()}>
         {#snippet children({ id })}
           <input
             id={id}
@@ -877,59 +804,59 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
           />
         {/snippet}
       </Field>
-      <Field label={COPY.reasonLabel} required>
+      <Field label={t['platform.tenantDetail.reasonLabel']()} required>
         {#snippet children({ id })}
-          <Textarea {id} bind:value={grantReason} placeholder={COPY.reasonPlaceholder} required />
+          <Textarea {id} bind:value={grantReason} placeholder={t['platform.tenantDetail.reasonPlaceholder']()} required />
         {/snippet}
       </Field>
     </Stack>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (grantOpen = false)}>{COPY.cancel}</Button>
+    <Button variant="ghost" onclick={() => (grantOpen = false)}>{t['platform.tenantDetail.cancel']()}</Button>
     <Button
       variant="primary"
       loading={grantSubmitting}
       disabled={grantLimitInvalid || !grantReasonValid}
       onclick={submitGrant}
     >
-      {COPY.save}
+      {t['platform.tenantDetail.save']()}
     </Button>
   {/snippet}
 </Dialog>
 
-<Dialog bind:open={revokeOpen} titleText={revokeTarget ? COPY.revokeTitle(revokeTarget.name) : ''}>
+<Dialog bind:open={revokeOpen} titleText={revokeTarget ? t['platform.tenantDetail.revokeTitle']({ feature: revokeTarget.name }) : ''}>
   {#snippet children()}
-    <p>{COPY.revokeConsequence}</p>
+    <p>{t['platform.tenantDetail.revokeConsequence']()}</p>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (revokeOpen = false)}>{COPY.cancel}</Button>
-    <Button variant="danger" loading={revokeSubmitting} onclick={confirmRevoke}>{COPY.revoke}</Button>
+    <Button variant="ghost" onclick={() => (revokeOpen = false)}>{t['platform.tenantDetail.cancel']()}</Button>
+    <Button variant="danger" loading={revokeSubmitting} onclick={confirmRevoke}>{t['platform.tenantDetail.revoke']()}</Button>
   {/snippet}
 </Dialog>
 
-<Dialog bind:open={overrideDialogOpen} titleText={COPY.subOverrideTitle}>
+<Dialog bind:open={overrideDialogOpen} titleText={t['platform.tenantDetail.subOverrideTitle']()}>
   {#snippet children()}
     <Stack gap="4">
-      <p>{COPY.subOverrideDesc}</p>
+      <p>{t['platform.tenantDetail.subOverrideDesc']()}</p>
       {#if overrideError}
         <Alert variant="error">{overrideError}</Alert>
       {/if}
-      <Field label={COPY.subOverridePlanKey} required>
+      <Field label={t['platform.tenantDetail.subOverridePlanKey']()} required>
         {#snippet children(controlProps)}
           <Input
             {...controlProps}
             value={overridePlanKey}
-            placeholder={COPY.subOverridePlanPlaceholder}
+            placeholder={t['platform.tenantDetail.subOverridePlanPlaceholder']()}
             oninput={(e) => { overridePlanKey = (e.target as HTMLInputElement).value }}
           />
         {/snippet}
       </Field>
-      <Field label={COPY.subOverrideReason} required>
+      <Field label={t['platform.tenantDetail.subOverrideReason']()} required>
         {#snippet children(controlProps)}
           <Textarea
             {...controlProps}
             value={overrideReason}
-            placeholder={COPY.subOverrideReasonPlaceholder}
+            placeholder={t['platform.tenantDetail.subOverrideReasonPlaceholder']()}
             oninput={(e) => { overrideReason = (e.target as HTMLTextAreaElement).value }}
           />
         {/snippet}
@@ -937,30 +864,30 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
     </Stack>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (overrideDialogOpen = false)}>{COPY.cancel}</Button>
+    <Button variant="ghost" onclick={() => (overrideDialogOpen = false)}>{t['platform.tenantDetail.cancel']()}</Button>
     <Button
       variant="primary"
       loading={overrideSubmitting}
       disabled={!overridePlanKey || !overrideReason}
       onclick={handleApplySubscriptionOverride}
     >
-      {COPY.save}
+      {t['platform.tenantDetail.save']()}
     </Button>
   {/snippet}
 </Dialog>
 
-<Dialog bind:open={revokeSubDialogOpen} titleText={COPY.revokeOverride}>
+<Dialog bind:open={revokeSubDialogOpen} titleText={t['platform.tenantDetail.revokeOverride']()}>
   {#snippet children()}
-    <p>{COPY.revokeConsequence}</p>
+    <p>{t['platform.tenantDetail.revokeConsequence']()}</p>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (revokeSubDialogOpen = false)}>{COPY.cancel}</Button>
+    <Button variant="ghost" onclick={() => (revokeSubDialogOpen = false)}>{t['platform.tenantDetail.cancel']()}</Button>
     <Button
       variant="danger"
       loading={revokeSubSubmitting}
       onclick={handleRevokeSubscriptionOverride}
     >
-      {COPY.revokeOverride}
+      {t['platform.tenantDetail.revokeOverride']()}
     </Button>
   {/snippet}
 </Dialog>

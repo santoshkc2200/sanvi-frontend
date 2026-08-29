@@ -1,6 +1,7 @@
 <script lang="ts">
 import { ApiError, provisionTenant, searchTenantAdminViews } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
+import { t } from '@sanvi/i18n'
 import { handleLinkClick } from '@sanvi/spa-router'
 import {
   Badge,
@@ -21,51 +22,23 @@ type TenantRow = components['schemas']['TenantAdminView']
 type Cursor = components['schemas']['TenantViewCursorView']
 type Filters = { status: string | undefined; query: string | undefined }
 
-const COPY = {
-  title: 'Tenants',
-  slugHeader: 'Slug',
-  nameHeader: 'Name',
-  statusHeader: 'Status',
-  regionHeader: 'Region',
-  membersHeader: 'Members',
-  overridesHeader: 'Overrides',
-  createdHeader: 'Created',
-  emptyMessage: 'No tenants match these filters.',
-  errorMessage: 'Could not load tenants.',
-  retry: 'Try again',
-  provisionAction: 'Provision tenant',
-  provisionTitle: 'Provision a new tenant',
-  slugLabel: 'Slug',
-  slugPlaceholder: 'acme',
-  displayNameLabel: 'Display name',
-  displayNamePlaceholder: 'Acme Corporation',
-  regionLabel: 'Region',
-  localeLabel: 'Default locale',
-  cancel: 'Cancel',
-  submit: 'Provision',
-  provisioned: (name: string) => `${name} provisioned.`,
-  provisionError: 'Could not provision this tenant. Check the slug is available and try again.',
-  searchPlaceholder: 'Search by slug or name',
-  searchLabel: 'Search',
-  statusLabel: 'Status',
-  anyStatus: 'Any status',
-  previous: 'Previous',
-  next: 'Next',
-}
+// `$derived`, not plain consts — the labels go through `t`, so a locale
+// switch has to rebuild the options the selects and FilterBar display.
+const STATUS_OPTIONS = $derived([
+  { value: 'provisioning', label: t['platform.tenants.statusProvisioning']() },
+  { value: 'active', label: t['platform.tenants.statusActive']() },
+  { value: 'suspended', label: t['platform.tenants.statusSuspended']() },
+  { value: 'archived', label: t['platform.tenants.statusArchived']() },
+])
 
-const STATUS_OPTIONS = [
-  { value: 'provisioning', label: 'Provisioning' },
-  { value: 'active', label: 'Active' },
-  { value: 'suspended', label: 'Suspended' },
-  { value: 'archived', label: 'Archived' },
-]
+const REGION_OPTIONS = $derived([
+  { value: 'us', label: t['platform.tenants.regionUs']() },
+  { value: 'eu', label: t['platform.tenants.regionEu']() },
+  { value: 'jp', label: t['platform.tenants.regionJp']() },
+])
 
-const REGION_OPTIONS = [
-  { value: 'us', label: 'United States' },
-  { value: 'eu', label: 'European Union' },
-  { value: 'jp', label: 'Japan' },
-]
-
+// Native self-names ("English" / "日本語") label the locale itself rather
+// than being UI copy — untranslated by design, like the LocaleSwitcher.
 const LOCALE_OPTIONS = [
   { value: 'en', label: 'English' },
   { value: 'ja', label: '日本語' },
@@ -121,7 +94,7 @@ async function load(): Promise<void> {
     nextCursor = page.next_cursor
   } catch {
     if (seq !== loadSeq) return
-    error = COPY.errorMessage
+    error = t['platform.tenants.errorMessage']()
   } finally {
     if (seq === loadSeq) loading = false
   }
@@ -157,12 +130,15 @@ async function handleProvision(): Promise<void> {
     provisionOpen = false
     provisionSlug = ''
     provisionName = ''
-    showToast({ variant: 'success', title: COPY.provisioned(tenant.display_name) })
+    showToast({
+      variant: 'success',
+      title: t['platform.tenants.provisioned']({ name: tenant.display_name }),
+    })
     await load()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.provisionError,
+      title: t['platform.tenants.provisionError'](),
       description: err instanceof ApiError ? err.detail : undefined,
     })
   } finally {
@@ -183,19 +159,19 @@ async function handleProvision(): Promise<void> {
 
 <Stack gap="4">
   <div class="sanvi-tenants__header">
-    <h1>{COPY.title}</h1>
-    <Button onclick={() => (provisionOpen = true)}>{COPY.provisionAction}</Button>
+    <h1>{t['platform.tenants.title']()}</h1>
+    <Button onclick={() => (provisionOpen = true)}>{t['platform.tenants.provisionAction']()}</Button>
   </div>
 
   <FilterBar
     fields={[
-      { type: 'text', key: 'query', label: COPY.searchLabel, placeholder: COPY.searchPlaceholder },
+      { type: 'text', key: 'query', label: t['platform.tenants.searchLabel'](), placeholder: t['platform.tenants.searchPlaceholder']() },
       {
         type: 'select',
         key: 'status',
-        label: COPY.statusLabel,
+        label: t['platform.tenants.statusLabel'](),
         options: STATUS_OPTIONS,
-        placeholder: COPY.anyStatus,
+        placeholder: t['platform.tenants.anyStatus'](),
       },
     ]}
     values={listState.filters}
@@ -209,52 +185,52 @@ async function handleProvision(): Promise<void> {
 
   <DataTable
     columns={[
-      { key: 'slug', header: COPY.slugHeader, alwaysVisible: true },
-      { key: 'display_name', header: COPY.nameHeader, alwaysVisible: true, cell: nameCell },
-      { key: 'status', header: COPY.statusHeader, cell: statusCell },
-      { key: 'region', header: COPY.regionHeader },
-      { key: 'member_count', header: COPY.membersHeader, align: 'end' },
-      { key: 'override_count', header: COPY.overridesHeader, align: 'end' },
-      { key: 'created_at', header: COPY.createdHeader },
+      { key: 'slug', header: t['platform.tenants.slugHeader'](), alwaysVisible: true },
+      { key: 'display_name', header: t['platform.tenants.nameHeader'](), alwaysVisible: true, cell: nameCell },
+      { key: 'status', header: t['platform.tenants.statusHeader'](), cell: statusCell },
+      { key: 'region', header: t['platform.tenants.regionHeader']() },
+      { key: 'member_count', header: t['platform.tenants.membersHeader'](), align: 'end' },
+      { key: 'override_count', header: t['platform.tenants.overridesHeader'](), align: 'end' },
+      { key: 'created_at', header: t['platform.tenants.createdHeader']() },
     ]}
     {rows}
     getRowId={(row) => row.tenant_id}
     {loading}
     {error}
     onRetry={load}
-    retryLabel={COPY.retry}
-    emptyMessage={COPY.emptyMessage}
+    retryLabel={t['common.retry']()}
+    emptyMessage={t['platform.tenants.emptyMessage']()}
     hasPrevPage={listState.hasPrevPage}
     hasNextPage={nextCursor != null}
     onPrevPage={() => listState.prevPage()}
     onNextPage={() => nextCursor && listState.nextPage(JSON.stringify(nextCursor))}
-    previousLabel={COPY.previous}
-    nextLabel={COPY.next}
+    previousLabel={t['platform.tenants.previous']()}
+    nextLabel={t['platform.tenants.next']()}
     columnVisibilityStorageKey="platform-admin.tenants.columns"
     csvExport
     csvFileName="tenants.csv"
   />
 </Stack>
 
-<Dialog bind:open={provisionOpen} titleText={COPY.provisionTitle}>
+<Dialog bind:open={provisionOpen} titleText={t['platform.tenants.provisionTitle']()}>
   {#snippet children()}
     <Stack gap="3">
-      <Field label={COPY.slugLabel} required>
+      <Field label={t['platform.tenants.slugLabel']()} required>
         {#snippet children({ id })}
-          <Input {id} bind:value={provisionSlug} placeholder={COPY.slugPlaceholder} required />
+          <Input {id} bind:value={provisionSlug} placeholder={t['platform.tenants.slugPlaceholder']()} required />
         {/snippet}
       </Field>
-      <Field label={COPY.displayNameLabel} required>
+      <Field label={t['platform.tenants.displayNameLabel']()} required>
         {#snippet children({ id })}
-          <Input {id} bind:value={provisionName} placeholder={COPY.displayNamePlaceholder} required />
+          <Input {id} bind:value={provisionName} placeholder={t['platform.tenants.displayNamePlaceholder']()} required />
         {/snippet}
       </Field>
-      <Field label={COPY.regionLabel} required>
+      <Field label={t['platform.tenants.regionLabel']()} required>
         {#snippet children({ id })}
           <Select {id} bind:value={provisionRegion} options={REGION_OPTIONS} />
         {/snippet}
       </Field>
-      <Field label={COPY.localeLabel} required>
+      <Field label={t['platform.tenants.localeLabel']()} required>
         {#snippet children({ id })}
           <Select {id} bind:value={provisionLocale} options={LOCALE_OPTIONS} />
         {/snippet}
@@ -262,13 +238,13 @@ async function handleProvision(): Promise<void> {
     </Stack>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (provisionOpen = false)}>{COPY.cancel}</Button>
+    <Button variant="ghost" onclick={() => (provisionOpen = false)}>{t['platform.tenants.cancel']()}</Button>
     <Button
       disabled={!provisionSlug || !provisionName}
       loading={provisioning}
       onclick={handleProvision}
     >
-      {COPY.submit}
+      {t['platform.tenants.submit']()}
     </Button>
   {/snippet}
 </Dialog>

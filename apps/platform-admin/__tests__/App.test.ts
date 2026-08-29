@@ -14,6 +14,7 @@ const STEPPED_UP_SESSION: Session = {
   aal: 'aal2',
   methods: ['password', 'totp'],
   authenticatedAt: undefined,
+  locale: undefined,
 }
 
 // Every route but `login`/`step-up`/`health` requires `aal2` since phase

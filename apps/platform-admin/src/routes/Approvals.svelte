@@ -1,6 +1,7 @@
 <script lang="ts">
 import { approveRequest, listPendingApprovals, rejectRequest } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
+import { t } from '@sanvi/i18n'
 import {
   ApprovalRequest,
   type ApprovalRequestItem,
@@ -12,18 +13,6 @@ import {
 import { apiClient } from '../lib/api'
 
 type ApprovalRow = components['schemas']['ApprovalView']
-
-const COPY = {
-  title: 'Approvals',
-  description: 'Four-eyes requests pending a second operator’s decision.',
-  empty: 'No pending approvals.',
-  loading: 'Loading',
-  errorMessage: 'Could not load pending approvals.',
-  approved: 'Approved.',
-  rejected: 'Rejected.',
-  approveError: 'Could not approve this request.',
-  rejectError: 'Could not reject this request.',
-}
 
 let approvals = $state<ApprovalRow[]>([])
 let loading = $state(true)
@@ -38,7 +27,7 @@ async function load(): Promise<void> {
       (approval) => approval.status === 'pending',
     )
   } catch {
-    error = COPY.errorMessage
+    error = t['platform.approvals.errorMessage']()
   } finally {
     loading = false
   }
@@ -78,9 +67,9 @@ async function handleApprove(id: string): Promise<void> {
   try {
     await approveRequest(apiClient, id)
     approvals = approvals.filter((approval) => approval.id !== id)
-    showToast({ variant: 'success', title: COPY.approved })
+    showToast({ variant: 'success', title: t['platform.approvals.approved']() })
   } catch {
-    showToast({ variant: 'error', title: COPY.approveError })
+    showToast({ variant: 'error', title: t['platform.approvals.approveError']() })
   } finally {
     submittingId = undefined
   }
@@ -91,9 +80,9 @@ async function handleReject(id: string): Promise<void> {
   try {
     await rejectRequest(apiClient, id)
     approvals = approvals.filter((approval) => approval.id !== id)
-    showToast({ variant: 'success', title: COPY.rejected })
+    showToast({ variant: 'success', title: t['platform.approvals.rejected']() })
   } catch {
-    showToast({ variant: 'error', title: COPY.rejectError })
+    showToast({ variant: 'error', title: t['platform.approvals.rejectError']() })
   } finally {
     submittingId = undefined
   }
@@ -102,16 +91,16 @@ async function handleReject(id: string): Promise<void> {
 
 <Stack gap="6">
   <div>
-    <h1>{COPY.title}</h1>
-    <p>{COPY.description}</p>
+    <h1>{t['platform.approvals.title']()}</h1>
+    <p>{t['platform.approvals.description']()}</p>
   </div>
 
   {#if loading}
-    <Spinner label={COPY.loading} />
+    <Spinner label={t['common.loading']()} />
   {:else if error}
     <EmptyState title={error} />
   {:else if approvals.length === 0}
-    <EmptyState title={COPY.empty} />
+    <EmptyState title={t['platform.approvals.empty']()} />
   {:else}
     <Stack gap="3">
       {#each approvals as approval (approval.id)}

@@ -18,6 +18,7 @@ import {
   upsertSubprocessor,
 } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
+import { fmt, t } from '@sanvi/i18n'
 import {
   Alert,
   Badge,
@@ -50,170 +51,20 @@ type DataClass = components['schemas']['DataClass']
 type RetentionAction = 'delete' | 'anonymise' | 'archive'
 type AppealOutcome = components['schemas']['AppealOutcome']
 
-const COPY = {
-  pageTitle: 'Privacy & Consent',
-  pageDescription:
-    'DSR queue, appeals, jurisdictions, breach incidents, retention, sub-processors.',
-  loading: 'Loading privacy console',
-  loadError: 'Could not load privacy data. Please try again in a moment.',
-  retry: 'Try again',
-  tabRequests: 'Requests',
-  tabAppeals: 'Appeals',
-  tabJurisdictions: 'Jurisdictions',
-  tabIncidents: 'Incidents',
-  tabRetention: 'Retention',
-  tabSubprocessors: 'Sub-processors',
-  yes: 'Yes',
-  no: 'No',
-  none: '—',
-  overdue: 'Overdue',
-  dataClassSeparator: ', ',
-  actionsHeader: 'Actions',
-  cancel: 'Cancel',
-  empty: 'Nothing here yet.',
-  genericActionError: 'Something went wrong. Please try again.',
+// Symbols, not copy — an em-dash placeholder and a join separator carry no
+// words, so they stay local constants rather than catalog entries.
+const NONE = '—'
+const DATA_CLASS_SEPARATOR = ', '
 
-  // Requests tab
-  requestsCaption: 'Data subject requests',
-  dsrReceivedCol: 'Received',
-  dsrKindCol: 'Kind',
-  dsrJurisdictionCol: 'Jurisdiction',
-  dsrStatusCol: 'Status',
-  dsrSubmittedByCol: 'Submitted by',
-  dsrDueCol: 'Due',
-  dsrEmpty: 'No data subject requests.',
-  extendAction: 'Extend',
-  extendSuccess: 'Deadline extended.',
-  extendError: 'Could not extend this request.',
-  rejectAction: 'Reject',
-  rejectTitle: 'Reject request',
-  reasonLabel: 'Reason',
-  reasonPlaceholder: 'Shown to the subject; US requests get the appeal route.',
-  rejectSubmit: 'Reject request',
-  rejectSuccess: 'Request rejected.',
-  rejectError: 'Could not reject this request.',
-
-  // Appeals tab
-  appealsCaption: 'Open appeals',
-  appealRequestCol: 'Request',
-  appealReasonCol: 'Reason',
-  appealReceivedCol: 'Received',
-  appealDueCol: 'Due',
-  appealDecidedCol: 'Decided',
-  appealOutcomeCol: 'Outcome',
-  appealsEmpty: 'No open appeals.',
-  decideAction: 'Decide',
-  decideTitle: 'Decide appeal',
-  outcomeLabel: 'Outcome',
-  outcomeUpheld: 'Upheld',
-  outcomeDenied: 'Denied',
-  decideSubmit: 'Record decision',
-  decideSuccess: 'Decision recorded.',
-  decideError: 'Could not record this decision.',
-  selfReviewError:
-    'This appeal cannot be decided by the operator who decided the original request.',
-
-  // Jurisdictions tab
-  jurisdictionsCaption: 'Jurisdiction profiles',
-  jurCodeCol: 'Code',
-  jurRegimeCol: 'Regime',
-  jurConsentCol: 'Consent model',
-  jurResponseCol: 'Response days',
-  jurExtensionCol: 'Extension days',
-  jurOptOutCol: 'Universal opt-out honoured',
-  jurAuthorityCol: 'Authority',
-  jurisdictionsEmpty: 'No jurisdiction profiles configured.',
-  jurisdictionsReadOnly:
-    'Profiles are read-mostly: edits go through the API for now, so every change lands on the audit trail with an operator identity attached.',
-
-  // Incidents tab
-  incidentsCaption: 'Breach incidents',
-  incidentDiscoveredCol: 'Discovered',
-  incidentSubjectsCol: 'Subjects',
-  incidentTenantsCol: 'Tenants',
-  incidentDataClassesCol: 'Data classes',
-  incidentEncryptedCol: 'Encrypted at rest',
-  incidentsEmpty: 'No incidents recorded.',
-  recordIncidentAction: 'Record incident',
-  recordIncidentTitle: 'Record breach incident',
-  discoveredLabel: 'Discovered at',
-  subjectsLabel: 'Subjects affected',
-  tenantsLabel: 'Tenants affected',
-  jurisdictionsLabel: 'Jurisdictions',
-  jurisdictionsPlaceholder: 'eu, us-ca',
-  dataClassLabel: 'Data class',
-  dataClassPlaceholder: 'Select a data class',
-  encryptedLabel: 'Data encrypted at rest',
-  recordIncidentSubmit: 'Record incident',
-  recordIncidentSuccess: 'Incident recorded.',
-  recordIncidentError: 'Could not record this incident.',
-  obligationsAction: 'Obligations',
-  obligationsTitle: 'Notification obligations',
-  obligationsJurisdictionCol: 'Jurisdiction',
-  obligationsAudienceCol: 'Audience',
-  obligationsDueCol: 'Due',
-  obligationsNotifiedCol: 'Notified',
-  obligationsSuppressedCol: 'Suppressed by encryption',
-  obligationsEmpty: 'No notification obligations computed.',
-  obligationsError: 'Could not load obligations.',
-  markNotifiedAction: 'Mark notified',
-  notifiedSuccess: 'Obligation marked notified.',
-  notifiedError: 'Could not mark this obligation notified.',
-
-  // Retention tab
-  retentionCaption: 'Retention rules',
-  retentionDataClassCol: 'Data class',
-  retentionSensitivityCol: 'Sensitivity',
-  retentionPeriodCol: 'Period (days)',
-  retentionActionCol: 'Action',
-  retentionBasisCol: 'Basis',
-  retentionDisclosedCol: 'Disclosed in notice',
-  retentionEmpty: 'No retention rules configured.',
-  retentionEditAction: 'Edit',
-  retentionEditTitle: 'Edit retention rule',
-  periodLabel: 'Period (days)',
-  actionLabel: 'Action',
-  disclosedLabel: 'Disclosed in privacy notice',
-  retentionSave: 'Save rule',
-  retentionSuccess: 'Retention rule saved.',
-  retentionError: 'Could not save this retention rule.',
-
-  // Sub-processors tab
-  subprocessorsCaption: 'Sub-processor registry',
-  subNameCol: 'Name',
-  subRoleCol: 'Role',
-  subLocationCol: 'Location',
-  subPurposeCol: 'Purpose',
-  subTransferCol: 'Transfer mechanism',
-  subAddedCol: 'Added',
-  subRemovedCol: 'Removed',
-  subprocessorsEmpty: 'No sub-processors registered.',
-  subAddAction: 'Add sub-processor',
-  subAddTitle: 'Add sub-processor',
-  nameLabel: 'Name',
-  namePlaceholder: 'Acme Analytics',
-  roleLabel: 'Role',
-  rolePlaceholder: 'Select a role',
-  locationLabel: 'Location',
-  locationPlaceholder: 'Frankfurt, Germany',
-  purposeLabel: 'Purpose',
-  purposePlaceholder: 'Product analytics',
-  subAddSubmit: 'Add sub-processor',
-  subAddSuccess: 'Sub-processor saved.',
-  subAddError: 'Could not save this sub-processor.',
-  subRemoveAction: 'Remove',
-  subRemoveSuccess: 'Sub-processor removed.',
-  subRemoveError: 'Could not remove this sub-processor.',
-}
-
-const TABS: DetailShellTab[] = [
-  { href: 'requests', label: COPY.tabRequests },
-  { href: 'appeals', label: COPY.tabAppeals },
-  { href: 'jurisdictions', label: COPY.tabJurisdictions },
-  { href: 'incidents', label: COPY.tabIncidents },
-  { href: 'retention', label: COPY.tabRetention },
-  { href: 'subprocessors', label: COPY.tabSubprocessors },
-]
+// `$derived` — the labels go through `t` and must survive a locale switch.
+const TABS = $derived<DetailShellTab[]>([
+  { href: 'requests', label: t['platform.privacy.tabRequests']() },
+  { href: 'appeals', label: t['platform.privacy.tabAppeals']() },
+  { href: 'jurisdictions', label: t['platform.privacy.tabJurisdictions']() },
+  { href: 'incidents', label: t['platform.privacy.tabIncidents']() },
+  { href: 'retention', label: t['platform.privacy.tabRetention']() },
+  { href: 'subprocessors', label: t['platform.privacy.tabSubprocessors']() },
+])
 
 type ActiveTab =
   | 'requests'
@@ -313,7 +164,7 @@ async function load(): Promise<void> {
     subprocessors = subprocessorResult ?? []
   } catch {
     if (seq !== loadSeq) return
-    error = COPY.loadError
+    error = t['platform.privacy.loadError']()
   } finally {
     if (seq === loadSeq) loading = false
   }
@@ -324,16 +175,11 @@ $effect(() => {
 })
 
 function formatDateTime(value?: string | null): string {
-  if (!value) return COPY.none
-  try {
-    return new Date(value).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  } catch {
-    return value
-  }
+  // `fmt.date` binds to the current locale (and passes the raw string back
+  // when it can't parse it) — the old `toLocaleDateString(undefined, …)`
+  // hardcoded the runtime's locale instead of the chosen one.
+  if (!value) return NONE
+  return fmt.date(value, 'medium')
 }
 
 function isPastDue(dueAt: string): boolean {
@@ -365,13 +211,13 @@ async function handleExtend(id: string): Promise<void> {
   extendingId = id
   try {
     await extendDsr(apiClient, id)
-    showToast({ variant: 'success', title: COPY.extendSuccess })
+    showToast({ variant: 'success', title: t['platform.privacy.extendSuccess']() })
     await load()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.extendError,
-      description: errorDetail(err) ?? COPY.genericActionError,
+      title: t['platform.privacy.extendError'](),
+      description: errorDetail(err) ?? t['platform.privacy.genericActionError'](),
     })
   } finally {
     extendingId = undefined
@@ -395,13 +241,13 @@ async function handleReject(): Promise<void> {
   try {
     await rejectDsr(apiClient, rejectTarget.request_id, { reason: rejectReason })
     rejectOpen = false
-    showToast({ variant: 'success', title: COPY.rejectSuccess })
+    showToast({ variant: 'success', title: t['platform.privacy.rejectSuccess']() })
     await load()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.rejectError,
-      description: errorDetail(err) ?? COPY.genericActionError,
+      title: t['platform.privacy.rejectError'](),
+      description: errorDetail(err) ?? t['platform.privacy.genericActionError'](),
     })
   } finally {
     rejecting = false
@@ -435,7 +281,7 @@ async function handleDecide(): Promise<void> {
       reason: decideReason,
     })
     decideOpen = false
-    showToast({ variant: 'success', title: COPY.decideSuccess })
+    showToast({ variant: 'success', title: t['platform.privacy.decideSuccess']() })
     await load()
   } catch (err) {
     // 409 here means the operator decided the original request — a
@@ -443,8 +289,8 @@ async function handleDecide(): Promise<void> {
     // inline so the operator understands why the action is refused.
     decideError =
       err instanceof ApiError
-        ? (err.detail ?? (err.status === 409 ? COPY.selfReviewError : err.title))
-        : COPY.decideError
+        ? (err.detail ?? (err.status === 409 ? t['platform.privacy.selfReviewError']() : err.title))
+        : t['platform.privacy.decideError']()
   } finally {
     decideSubmitting = false
   }
@@ -499,13 +345,13 @@ async function handleRecordIncident(): Promise<void> {
       encrypted_at_rest: incidentEncrypted,
     })
     incidentOpen = false
-    showToast({ variant: 'success', title: COPY.recordIncidentSuccess })
+    showToast({ variant: 'success', title: t['platform.privacy.recordIncidentSuccess']() })
     await load()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.recordIncidentError,
-      description: errorDetail(err) ?? COPY.genericActionError,
+      title: t['platform.privacy.recordIncidentError'](),
+      description: errorDetail(err) ?? t['platform.privacy.genericActionError'](),
     })
   } finally {
     recordingIncident = false
@@ -530,7 +376,7 @@ async function loadObligations(): Promise<void> {
   try {
     obligations = (await listObligations(apiClient, obligationsIncident.id)) ?? []
   } catch {
-    obligationsError = COPY.obligationsError
+    obligationsError = t['platform.privacy.obligationsError']()
   } finally {
     obligationsLoading = false
   }
@@ -551,13 +397,13 @@ async function handleMarkNotified(row: ObligationRow): Promise<void> {
       audience: row.audience,
       jurisdiction: row.jurisdiction,
     })
-    showToast({ variant: 'success', title: COPY.notifiedSuccess })
+    showToast({ variant: 'success', title: t['platform.privacy.notifiedSuccess']() })
     await loadObligations()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.notifiedError,
-      description: errorDetail(err) ?? COPY.genericActionError,
+      title: t['platform.privacy.notifiedError'](),
+      description: errorDetail(err) ?? t['platform.privacy.genericActionError'](),
     })
   } finally {
     notifyingKey = undefined
@@ -594,13 +440,13 @@ async function handleSaveRetention(): Promise<void> {
       disclosed_in_notice: retentionDisclosed,
     })
     retentionOpen = false
-    showToast({ variant: 'success', title: COPY.retentionSuccess })
+    showToast({ variant: 'success', title: t['platform.privacy.retentionSuccess']() })
     await load()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.retentionError,
-      description: errorDetail(err) ?? COPY.genericActionError,
+      title: t['platform.privacy.retentionError'](),
+      description: errorDetail(err) ?? t['platform.privacy.genericActionError'](),
     })
   } finally {
     savingRetention = false
@@ -643,13 +489,13 @@ async function handleAddSubprocessor(): Promise<void> {
       ...(existing?.dpa_url ? { dpa_url: existing.dpa_url } : {}),
     })
     subAddOpen = false
-    showToast({ variant: 'success', title: COPY.subAddSuccess })
+    showToast({ variant: 'success', title: t['platform.privacy.subAddSuccess']() })
     await load()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.subAddError,
-      description: errorDetail(err) ?? COPY.genericActionError,
+      title: t['platform.privacy.subAddError'](),
+      description: errorDetail(err) ?? t['platform.privacy.genericActionError'](),
     })
   } finally {
     savingSubprocessor = false
@@ -661,13 +507,13 @@ async function handleRemoveSubprocessor(name: string): Promise<void> {
   removingSubprocessor = name
   try {
     await removeSubprocessor(apiClient, name)
-    showToast({ variant: 'success', title: COPY.subRemoveSuccess })
+    showToast({ variant: 'success', title: t['platform.privacy.subRemoveSuccess']() })
     await load()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.subRemoveError,
-      description: errorDetail(err) ?? COPY.genericActionError,
+      title: t['platform.privacy.subRemoveError'](),
+      description: errorDetail(err) ?? t['platform.privacy.genericActionError'](),
     })
   } finally {
     removingSubprocessor = undefined
@@ -683,7 +529,7 @@ async function handleRemoveSubprocessor(name: string): Promise<void> {
   <Cluster gap="2" align="center">
     <span>{formatDateTime(dueAt)}</span>
     {#if overdue}
-      <Badge variant="warning">{COPY.overdue}</Badge>
+      <Badge variant="warning">{t['platform.privacy.overdue']()}</Badge>
     {/if}
   </Cluster>
 {/snippet}
@@ -700,16 +546,16 @@ async function handleRemoveSubprocessor(name: string): Promise<void> {
       loading={extendingId === row.request_id}
       onclick={() => handleExtend(row.request_id)}
     >
-      {COPY.extendAction}
+      {t['platform.privacy.extendAction']()}
     </Button>
     <Button size="sm" variant="secondary" onclick={() => openReject(row)}>
-      {COPY.rejectAction}
+      {t['platform.privacy.rejectAction']()}
     </Button>
   </Cluster>
 {/snippet}
 
 {#snippet optOutCell(row: JurisdictionRow)}
-  {row.honours_universal_opt_out ? COPY.yes : COPY.no}
+  {row.honours_universal_opt_out ? t['platform.privacy.yes']() : t['platform.privacy.no']()}
 {/snippet}
 
 {#snippet authorityCell(row: JurisdictionRow)}
@@ -725,27 +571,27 @@ async function handleRemoveSubprocessor(name: string): Promise<void> {
 {/snippet}
 
 {#snippet dataClassesCell(row: IncidentRow)}
-  {row.data_classes.join(COPY.dataClassSeparator)}
+  {row.data_classes.join(DATA_CLASS_SEPARATOR)}
 {/snippet}
 
 {#snippet encryptedCell(row: IncidentRow)}
-  {row.encrypted_at_rest ? COPY.yes : COPY.no}
+  {row.encrypted_at_rest ? t['platform.privacy.yes']() : t['platform.privacy.no']()}
 {/snippet}
 
 {#snippet basisCell(row: RetentionRow)}
-  {row.basis ?? COPY.none}
+  {row.basis ?? NONE}
 {/snippet}
 
 {#snippet disclosedCell(row: RetentionRow)}
-  {row.disclosed_in_notice ? COPY.yes : COPY.no}
+  {row.disclosed_in_notice ? t['platform.privacy.yes']() : t['platform.privacy.no']()}
 {/snippet}
 
 {#snippet transferCell(row: SubProcessorRow)}
-  {row.transfer_mechanism ?? COPY.none}
+  {row.transfer_mechanism ?? NONE}
 {/snippet}
 
 {#snippet removedCell(row: SubProcessorRow)}
-  {row.removed_at ? formatDateTime(row.removed_at) : COPY.none}
+  {row.removed_at ? formatDateTime(row.removed_at) : NONE}
 {/snippet}
 
 {#snippet obligationDueCell(row: ObligationRow)}
@@ -753,11 +599,11 @@ async function handleRemoveSubprocessor(name: string): Promise<void> {
 {/snippet}
 
 {#snippet notifiedCell(row: ObligationRow)}
-  {row.notified_at ? formatDateTime(row.notified_at) : COPY.none}
+  {row.notified_at ? formatDateTime(row.notified_at) : NONE}
 {/snippet}
 
 {#snippet suppressedCell(row: ObligationRow)}
-  {row.suppressed_by_encryption ? COPY.yes : COPY.no}
+  {row.suppressed_by_encryption ? t['platform.privacy.yes']() : t['platform.privacy.no']()}
 {/snippet}
 
 {#snippet obligationActionsCell(row: ObligationRow)}
@@ -768,7 +614,7 @@ async function handleRemoveSubprocessor(name: string): Promise<void> {
       loading={notifyingKey === obligationKey(row)}
       onclick={() => handleMarkNotified(row)}
     >
-      {COPY.markNotifiedAction}
+      {t['platform.privacy.markNotifiedAction']()}
     </Button>
   {/if}
 {/snippet}
@@ -782,25 +628,25 @@ async function handleRemoveSubprocessor(name: string): Promise<void> {
     <Cluster gap="2" align="center">
       <span>{formatDateTime(row.decided_at)}</span>
       <Badge variant={row.outcome === 'upheld' ? 'success' : 'neutral'}>
-        {row.outcome ?? COPY.none}
+        {row.outcome ?? NONE}
       </Badge>
     </Cluster>
   {:else}
     <Button size="sm" variant="secondary" onclick={() => openDecide(row)}>
-      {COPY.decideAction}
+      {t['platform.privacy.decideAction']()}
     </Button>
   {/if}
 {/snippet}
 
 {#snippet incidentActionsCell(row: IncidentRow)}
   <Button size="sm" variant="secondary" onclick={() => openObligations(row)}>
-    {COPY.obligationsAction}
+    {t['platform.privacy.obligationsAction']()}
   </Button>
 {/snippet}
 
 {#snippet retentionActionsCell(row: RetentionRow)}
   <Button size="sm" variant="secondary" onclick={() => openRetention(row)}>
-    {COPY.retentionEditAction}
+    {t['platform.privacy.retentionEditAction']()}
   </Button>
 {/snippet}
 
@@ -816,148 +662,148 @@ async function handleRemoveSubprocessor(name: string): Promise<void> {
       loading={removingSubprocessor === row.name}
       onclick={() => handleRemoveSubprocessor(row.name)}
     >
-      {COPY.subRemoveAction}
+      {t['platform.privacy.subRemoveAction']()}
     </Button>
   {/if}
 {/snippet}
 
 <svelte:head>
-  <title>{COPY.pageTitle}</title>
+  <title>{t['platform.privacy.pageTitle']()}</title>
 </svelte:head>
 
 <DetailShell
-  title={COPY.pageTitle}
-  subtitle={COPY.pageDescription}
+  title={t['platform.privacy.pageTitle']()}
+  subtitle={t['platform.privacy.pageDescription']()}
   tabs={TABS}
   activeHref={activeTab}
   onNavigate={handleTabNavigate}
 >
   {#if loading}
-    <Spinner label={COPY.loading} />
+    <Spinner label={t['platform.privacy.loading']()} />
   {:else if error}
     <Alert variant="error">{error}</Alert>
-    <Button variant="secondary" onclick={() => void load()}>{COPY.retry}</Button>
+    <Button variant="secondary" onclick={() => void load()}>{t['common.retry']()}</Button>
   {:else if activeTab === 'requests'}
     <Table
       columns={[
-        { key: 'received_at', header: COPY.dsrReceivedCol },
-        { key: 'kind', header: COPY.dsrKindCol },
-        { key: 'jurisdiction', header: COPY.dsrJurisdictionCol },
-        { key: 'status', header: COPY.dsrStatusCol, cell: statusCell },
-        { key: 'submitted_by', header: COPY.dsrSubmittedByCol },
-        { key: 'due_at', header: COPY.dsrDueCol, cell: dsrDueCell },
-        { key: 'actions', header: COPY.actionsHeader, cell: dsrActionsCell },
+        { key: 'received_at', header: t['platform.privacy.dsrReceivedCol']() },
+        { key: 'kind', header: t['platform.privacy.dsrKindCol']() },
+        { key: 'jurisdiction', header: t['platform.privacy.dsrJurisdictionCol']() },
+        { key: 'status', header: t['platform.privacy.dsrStatusCol'](), cell: statusCell },
+        { key: 'submitted_by', header: t['platform.privacy.dsrSubmittedByCol']() },
+        { key: 'due_at', header: t['platform.privacy.dsrDueCol'](), cell: dsrDueCell },
+        { key: 'actions', header: t['platform.privacy.actionsHeader'](), cell: dsrActionsCell },
       ]}
       rows={dsrs}
       getRowId={(row) => row.request_id}
-      caption={COPY.requestsCaption}
-      emptyMessage={COPY.dsrEmpty}
+      caption={t['platform.privacy.requestsCaption']()}
+      emptyMessage={t['platform.privacy.dsrEmpty']()}
     />
   {:else if activeTab === 'appeals'}
     <Table
       columns={[
-        { key: 'request_id', header: COPY.appealRequestCol },
-        { key: 'reason', header: COPY.appealReasonCol },
-        { key: 'received_at', header: COPY.appealReceivedCol },
-        { key: 'due_at', header: COPY.appealDueCol, cell: appealDueCell },
-        { key: 'decision', header: COPY.appealDecidedCol, cell: appealDecisionCell },
+        { key: 'request_id', header: t['platform.privacy.appealRequestCol']() },
+        { key: 'reason', header: t['platform.privacy.appealReasonCol']() },
+        { key: 'received_at', header: t['platform.privacy.appealReceivedCol']() },
+        { key: 'due_at', header: t['platform.privacy.appealDueCol'](), cell: appealDueCell },
+        { key: 'decision', header: t['platform.privacy.appealDecidedCol'](), cell: appealDecisionCell },
       ]}
       rows={appeals}
       getRowId={(row) => row.id}
-      caption={COPY.appealsCaption}
-      emptyMessage={COPY.appealsEmpty}
+      caption={t['platform.privacy.appealsCaption']()}
+      emptyMessage={t['platform.privacy.appealsEmpty']()}
     />
   {:else if activeTab === 'jurisdictions'}
     <Stack gap="4">
-      <Alert variant="info">{COPY.jurisdictionsReadOnly}</Alert>
+      <Alert variant="info">{t['platform.privacy.jurisdictionsReadOnly']()}</Alert>
       <Table
         columns={[
-          { key: 'code', header: COPY.jurCodeCol },
-          { key: 'regime', header: COPY.jurRegimeCol },
-          { key: 'consent_model', header: COPY.jurConsentCol },
-          { key: 'response_days', header: COPY.jurResponseCol, align: 'end' },
-          { key: 'extension_days', header: COPY.jurExtensionCol, align: 'end' },
-          { key: 'honours_universal_opt_out', header: COPY.jurOptOutCol, cell: optOutCell },
-          { key: 'authority', header: COPY.jurAuthorityCol, cell: authorityCell },
+          { key: 'code', header: t['platform.privacy.jurCodeCol']() },
+          { key: 'regime', header: t['platform.privacy.jurRegimeCol']() },
+          { key: 'consent_model', header: t['platform.privacy.jurConsentCol']() },
+          { key: 'response_days', header: t['platform.privacy.jurResponseCol'](), align: 'end' },
+          { key: 'extension_days', header: t['platform.privacy.jurExtensionCol'](), align: 'end' },
+          { key: 'honours_universal_opt_out', header: t['platform.privacy.jurOptOutCol'](), cell: optOutCell },
+          { key: 'authority', header: t['platform.privacy.jurAuthorityCol'](), cell: authorityCell },
         ]}
         rows={jurisdictions}
         getRowId={(row) => row.code}
-        caption={COPY.jurisdictionsCaption}
-        emptyMessage={COPY.jurisdictionsEmpty}
+        caption={t['platform.privacy.jurisdictionsCaption']()}
+        emptyMessage={t['platform.privacy.jurisdictionsEmpty']()}
       />
     </Stack>
   {:else if activeTab === 'incidents'}
     <Stack gap="4">
       <div class="sanvi-privacy__toolbar">
-        <h2>{COPY.tabIncidents}</h2>
-        <Button onclick={openRecordIncident}>{COPY.recordIncidentAction}</Button>
+        <h2>{t['platform.privacy.tabIncidents']()}</h2>
+        <Button onclick={openRecordIncident}>{t['platform.privacy.recordIncidentAction']()}</Button>
       </div>
       <Table
         columns={[
-          { key: 'discovered_at', header: COPY.incidentDiscoveredCol },
-          { key: 'subjects', header: COPY.incidentSubjectsCol, align: 'end', cell: subjectsCell },
-          { key: 'tenants', header: COPY.incidentTenantsCol, align: 'end', cell: tenantsCell },
-          { key: 'data_classes', header: COPY.incidentDataClassesCol, cell: dataClassesCell },
-          { key: 'encrypted_at_rest', header: COPY.incidentEncryptedCol, cell: encryptedCell },
-          { key: 'actions', header: COPY.actionsHeader, cell: incidentActionsCell },
+          { key: 'discovered_at', header: t['platform.privacy.incidentDiscoveredCol']() },
+          { key: 'subjects', header: t['platform.privacy.incidentSubjectsCol'](), align: 'end', cell: subjectsCell },
+          { key: 'tenants', header: t['platform.privacy.incidentTenantsCol'](), align: 'end', cell: tenantsCell },
+          { key: 'data_classes', header: t['platform.privacy.incidentDataClassesCol'](), cell: dataClassesCell },
+          { key: 'encrypted_at_rest', header: t['platform.privacy.incidentEncryptedCol'](), cell: encryptedCell },
+          { key: 'actions', header: t['platform.privacy.actionsHeader'](), cell: incidentActionsCell },
         ]}
         rows={incidents}
         getRowId={(row) => row.id}
-        caption={COPY.incidentsCaption}
-        emptyMessage={COPY.incidentsEmpty}
+        caption={t['platform.privacy.incidentsCaption']()}
+        emptyMessage={t['platform.privacy.incidentsEmpty']()}
       />
     </Stack>
   {:else if activeTab === 'retention'}
     <Table
       columns={[
-        { key: 'data_class', header: COPY.retentionDataClassCol },
-        { key: 'sensitivity', header: COPY.retentionSensitivityCol },
-        { key: 'period_days', header: COPY.retentionPeriodCol, align: 'end' },
-        { key: 'action', header: COPY.retentionActionCol },
-        { key: 'basis', header: COPY.retentionBasisCol, cell: basisCell },
-        { key: 'disclosed_in_notice', header: COPY.retentionDisclosedCol, cell: disclosedCell },
-        { key: 'actions', header: COPY.actionsHeader, cell: retentionActionsCell },
+        { key: 'data_class', header: t['platform.privacy.retentionDataClassCol']() },
+        { key: 'sensitivity', header: t['platform.privacy.retentionSensitivityCol']() },
+        { key: 'period_days', header: t['platform.privacy.retentionPeriodCol'](), align: 'end' },
+        { key: 'action', header: t['platform.privacy.retentionActionCol']() },
+        { key: 'basis', header: t['platform.privacy.retentionBasisCol'](), cell: basisCell },
+        { key: 'disclosed_in_notice', header: t['platform.privacy.retentionDisclosedCol'](), cell: disclosedCell },
+        { key: 'actions', header: t['platform.privacy.actionsHeader'](), cell: retentionActionsCell },
       ]}
       rows={retentionRules}
       getRowId={(row) => `${row.data_class}:${row.sensitivity}`}
-      caption={COPY.retentionCaption}
-      emptyMessage={COPY.retentionEmpty}
+      caption={t['platform.privacy.retentionCaption']()}
+      emptyMessage={t['platform.privacy.retentionEmpty']()}
     />
   {:else if activeTab === 'subprocessors'}
     <Stack gap="4">
       <div class="sanvi-privacy__toolbar">
-        <h2>{COPY.tabSubprocessors}</h2>
-        <Button onclick={openAddSubprocessor}>{COPY.subAddAction}</Button>
+        <h2>{t['platform.privacy.tabSubprocessors']()}</h2>
+        <Button onclick={openAddSubprocessor}>{t['platform.privacy.subAddAction']()}</Button>
       </div>
       <Table
         columns={[
-          { key: 'name', header: COPY.subNameCol, cell: subprocessorNameCell },
-          { key: 'role', header: COPY.subRoleCol },
-          { key: 'location', header: COPY.subLocationCol },
-          { key: 'purpose', header: COPY.subPurposeCol },
-          { key: 'transfer_mechanism', header: COPY.subTransferCol, cell: transferCell },
-          { key: 'added_at', header: COPY.subAddedCol },
-          { key: 'removed_at', header: COPY.subRemovedCol, cell: removedCell },
-          { key: 'actions', header: COPY.actionsHeader, cell: subprocessorActionsCell },
+          { key: 'name', header: t['platform.privacy.subNameCol'](), cell: subprocessorNameCell },
+          { key: 'role', header: t['platform.privacy.subRoleCol']() },
+          { key: 'location', header: t['platform.privacy.subLocationCol']() },
+          { key: 'purpose', header: t['platform.privacy.subPurposeCol']() },
+          { key: 'transfer_mechanism', header: t['platform.privacy.subTransferCol'](), cell: transferCell },
+          { key: 'added_at', header: t['platform.privacy.subAddedCol']() },
+          { key: 'removed_at', header: t['platform.privacy.subRemovedCol'](), cell: removedCell },
+          { key: 'actions', header: t['platform.privacy.actionsHeader'](), cell: subprocessorActionsCell },
         ]}
         rows={subprocessors}
         getRowId={(row) => row.name}
-        caption={COPY.subprocessorsCaption}
-        emptyMessage={COPY.subprocessorsEmpty}
+        caption={t['platform.privacy.subprocessorsCaption']()}
+        emptyMessage={t['platform.privacy.subprocessorsEmpty']()}
       />
     </Stack>
   {/if}
 </DetailShell>
 
-<Dialog bind:open={rejectOpen} titleText={COPY.rejectTitle}>
+<Dialog bind:open={rejectOpen} titleText={t['platform.privacy.rejectTitle']()}>
   {#snippet children()}
     <Stack gap="3">
-      <Field label={COPY.reasonLabel} required>
+      <Field label={t['platform.privacy.reasonLabel']()} required>
         {#snippet children({ id })}
           <Textarea
             {id}
             bind:value={rejectReason}
-            placeholder={COPY.reasonPlaceholder}
+            placeholder={t['platform.privacy.reasonPlaceholder']()}
             required
           />
         {/snippet}
@@ -965,56 +811,56 @@ async function handleRemoveSubprocessor(name: string): Promise<void> {
     </Stack>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (rejectOpen = false)}>{COPY.cancel}</Button>
+    <Button variant="ghost" onclick={() => (rejectOpen = false)}>{t['platform.privacy.cancel']()}</Button>
     <Button
       variant="danger"
       disabled={rejectReason === ''}
       loading={rejecting}
       onclick={handleReject}
     >
-      {COPY.rejectSubmit}
+      {t['platform.privacy.rejectSubmit']()}
     </Button>
   {/snippet}
 </Dialog>
 
-<Dialog bind:open={decideOpen} titleText={COPY.decideTitle}>
+<Dialog bind:open={decideOpen} titleText={t['platform.privacy.decideTitle']()}>
   {#snippet children()}
     <Stack gap="3">
       {#if decideError}
         <Alert variant="error">{decideError}</Alert>
       {/if}
       <fieldset class="sanvi-privacy__radio-group">
-        <legend>{COPY.outcomeLabel}</legend>
+        <legend>{t['platform.privacy.outcomeLabel']()}</legend>
         <Radio name="appeal-outcome" value="upheld" bind:group={decideOutcome}>
-          {COPY.outcomeUpheld}
+          {t['platform.privacy.outcomeUpheld']()}
         </Radio>
         <Radio name="appeal-outcome" value="denied" bind:group={decideOutcome}>
-          {COPY.outcomeDenied}
+          {t['platform.privacy.outcomeDenied']()}
         </Radio>
       </fieldset>
-      <Field label={COPY.reasonLabel} required>
+      <Field label={t['platform.privacy.reasonLabel']()} required>
         {#snippet children({ id })}
-          <Textarea {id} bind:value={decideReason} placeholder={COPY.reasonPlaceholder} required />
+          <Textarea {id} bind:value={decideReason} placeholder={t['platform.privacy.reasonPlaceholder']()} required />
         {/snippet}
       </Field>
     </Stack>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (decideOpen = false)}>{COPY.cancel}</Button>
+    <Button variant="ghost" onclick={() => (decideOpen = false)}>{t['platform.privacy.cancel']()}</Button>
     <Button
       disabled={decideReason === ''}
       loading={decideSubmitting}
       onclick={handleDecide}
     >
-      {COPY.decideSubmit}
+      {t['platform.privacy.decideSubmit']()}
     </Button>
   {/snippet}
 </Dialog>
 
-<Dialog bind:open={incidentOpen} titleText={COPY.recordIncidentTitle}>
+<Dialog bind:open={incidentOpen} titleText={t['platform.privacy.recordIncidentTitle']()}>
   {#snippet children()}
     <Stack gap="3">
-      <Field label={COPY.discoveredLabel} required>
+      <Field label={t['platform.privacy.discoveredLabel']()} required>
         {#snippet children({ id })}
           <!-- `Input` only accepts text-like types, so datetime-local and
                number fall back to raw inputs styled with the same tokens. -->
@@ -1027,7 +873,7 @@ async function handleRemoveSubprocessor(name: string): Promise<void> {
           />
         {/snippet}
       </Field>
-      <Field label={COPY.subjectsLabel} required>
+      <Field label={t['platform.privacy.subjectsLabel']()} required>
         {#snippet children({ id })}
           <input
             {id}
@@ -1040,7 +886,7 @@ async function handleRemoveSubprocessor(name: string): Promise<void> {
           />
         {/snippet}
       </Field>
-      <Field label={COPY.tenantsLabel} required>
+      <Field label={t['platform.privacy.tenantsLabel']()} required>
         {#snippet children({ id })}
           <input
             {id}
@@ -1053,65 +899,65 @@ async function handleRemoveSubprocessor(name: string): Promise<void> {
           />
         {/snippet}
       </Field>
-      <Field label={COPY.jurisdictionsLabel} required>
+      <Field label={t['platform.privacy.jurisdictionsLabel']()} required>
         {#snippet children({ id })}
           <Input
             {id}
             bind:value={incidentJurisdictions}
-            placeholder={COPY.jurisdictionsPlaceholder}
+            placeholder={t['platform.privacy.jurisdictionsPlaceholder']()}
             invalid={incidentJurisdictionsInvalid}
             required
           />
         {/snippet}
       </Field>
-      <Field label={COPY.dataClassLabel} required>
+      <Field label={t['platform.privacy.dataClassLabel']()} required>
         {#snippet children({ id })}
           <Select
             {id}
             bind:value={incidentDataClass}
             options={DATA_CLASS_OPTIONS}
-            placeholder={COPY.dataClassPlaceholder}
+            placeholder={t['platform.privacy.dataClassPlaceholder']()}
             required
           />
         {/snippet}
       </Field>
-      <Checkbox bind:checked={incidentEncrypted}>{COPY.encryptedLabel}</Checkbox>
+      <Checkbox bind:checked={incidentEncrypted}>{t['platform.privacy.encryptedLabel']()}</Checkbox>
     </Stack>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (incidentOpen = false)}>{COPY.cancel}</Button>
+    <Button variant="ghost" onclick={() => (incidentOpen = false)}>{t['platform.privacy.cancel']()}</Button>
     <Button
       disabled={recordIncidentDisabled}
       loading={recordingIncident}
       onclick={handleRecordIncident}
     >
-      {COPY.recordIncidentSubmit}
+      {t['platform.privacy.recordIncidentSubmit']()}
     </Button>
   {/snippet}
 </Dialog>
 
-<Dialog bind:open={obligationsOpen} titleText={COPY.obligationsTitle}>
+<Dialog bind:open={obligationsOpen} titleText={t['platform.privacy.obligationsTitle']()}>
   {#snippet children()}
     <Stack gap="3">
       {#if obligationsLoading}
-        <Spinner label={COPY.loading} size="sm" />
+        <Spinner label={t['platform.privacy.loading']()} size="sm" />
       {:else if obligationsError}
         <Alert variant="error">{obligationsError}</Alert>
       {:else if obligations.length === 0}
-        <p class="sanvi-privacy__muted">{COPY.obligationsEmpty}</p>
+        <p class="sanvi-privacy__muted">{t['platform.privacy.obligationsEmpty']()}</p>
       {:else}
         <Table
           columns={[
-            { key: 'jurisdiction', header: COPY.obligationsJurisdictionCol },
-            { key: 'audience', header: COPY.obligationsAudienceCol },
-            { key: 'due_at', header: COPY.obligationsDueCol, cell: obligationDueCell },
-            { key: 'notified_at', header: COPY.obligationsNotifiedCol, cell: notifiedCell },
+            { key: 'jurisdiction', header: t['platform.privacy.obligationsJurisdictionCol']() },
+            { key: 'audience', header: t['platform.privacy.obligationsAudienceCol']() },
+            { key: 'due_at', header: t['platform.privacy.obligationsDueCol'](), cell: obligationDueCell },
+            { key: 'notified_at', header: t['platform.privacy.obligationsNotifiedCol'](), cell: notifiedCell },
             {
               key: 'suppressed_by_encryption',
-              header: COPY.obligationsSuppressedCol,
+              header: t['platform.privacy.obligationsSuppressedCol'](),
               cell: suppressedCell,
             },
-            { key: 'actions', header: COPY.actionsHeader, cell: obligationActionsCell },
+            { key: 'actions', header: t['platform.privacy.actionsHeader'](), cell: obligationActionsCell },
           ]}
           rows={obligations}
           getRowId={(row) => obligationKey(row)}
@@ -1121,10 +967,10 @@ async function handleRemoveSubprocessor(name: string): Promise<void> {
   {/snippet}
 </Dialog>
 
-<Dialog bind:open={retentionOpen} titleText={COPY.retentionEditTitle}>
+<Dialog bind:open={retentionOpen} titleText={t['platform.privacy.retentionEditTitle']()}>
   {#snippet children()}
     <Stack gap="3">
-      <Field label={COPY.periodLabel} required>
+      <Field label={t['platform.privacy.periodLabel']()} required>
         {#snippet children({ id })}
           <input
             {id}
@@ -1137,61 +983,61 @@ async function handleRemoveSubprocessor(name: string): Promise<void> {
           />
         {/snippet}
       </Field>
-      <Field label={COPY.actionLabel} required>
+      <Field label={t['platform.privacy.actionLabel']()} required>
         {#snippet children({ id })}
           <Select {id} bind:value={retentionAction} options={RETENTION_ACTION_OPTIONS} />
         {/snippet}
       </Field>
-      <Checkbox bind:checked={retentionDisclosed}>{COPY.disclosedLabel}</Checkbox>
+      <Checkbox bind:checked={retentionDisclosed}>{t['platform.privacy.disclosedLabel']()}</Checkbox>
     </Stack>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (retentionOpen = false)}>{COPY.cancel}</Button>
+    <Button variant="ghost" onclick={() => (retentionOpen = false)}>{t['platform.privacy.cancel']()}</Button>
     <Button disabled={retentionPeriodDays < 0} loading={savingRetention} onclick={handleSaveRetention}>
-      {COPY.retentionSave}
+      {t['platform.privacy.retentionSave']()}
     </Button>
   {/snippet}
 </Dialog>
 
-<Dialog bind:open={subAddOpen} titleText={COPY.subAddTitle}>
+<Dialog bind:open={subAddOpen} titleText={t['platform.privacy.subAddTitle']()}>
   {#snippet children()}
     <Stack gap="3">
-      <Field label={COPY.nameLabel} required>
+      <Field label={t['platform.privacy.nameLabel']()} required>
         {#snippet children({ id })}
-          <Input {id} bind:value={subName} placeholder={COPY.namePlaceholder} required />
+          <Input {id} bind:value={subName} placeholder={t['platform.privacy.namePlaceholder']()} required />
         {/snippet}
       </Field>
-      <Field label={COPY.roleLabel} required>
+      <Field label={t['platform.privacy.roleLabel']()} required>
         {#snippet children({ id })}
           <Select
             {id}
             bind:value={subRole}
             options={SUBPROCESSOR_ROLE_OPTIONS}
-            placeholder={COPY.rolePlaceholder}
+            placeholder={t['platform.privacy.rolePlaceholder']()}
             required
           />
         {/snippet}
       </Field>
-      <Field label={COPY.locationLabel} required>
+      <Field label={t['platform.privacy.locationLabel']()} required>
         {#snippet children({ id })}
-          <Input {id} bind:value={subLocation} placeholder={COPY.locationPlaceholder} required />
+          <Input {id} bind:value={subLocation} placeholder={t['platform.privacy.locationPlaceholder']()} required />
         {/snippet}
       </Field>
-      <Field label={COPY.purposeLabel} required>
+      <Field label={t['platform.privacy.purposeLabel']()} required>
         {#snippet children({ id })}
-          <Textarea {id} bind:value={subPurpose} placeholder={COPY.purposePlaceholder} required />
+          <Textarea {id} bind:value={subPurpose} placeholder={t['platform.privacy.purposePlaceholder']()} required />
         {/snippet}
       </Field>
     </Stack>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (subAddOpen = false)}>{COPY.cancel}</Button>
+    <Button variant="ghost" onclick={() => (subAddOpen = false)}>{t['platform.privacy.cancel']()}</Button>
     <Button
       disabled={!subName || !subRole || !subLocation || !subPurpose}
       loading={savingSubprocessor}
       onclick={handleAddSubprocessor}
     >
-      {COPY.subAddSubmit}
+      {t['platform.privacy.subAddSubmit']()}
     </Button>
   {/snippet}
 </Dialog>

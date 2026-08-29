@@ -1,40 +1,21 @@
 <script lang="ts">
 import { listPermissions, listRolesPlatform } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
+import { fmt, t } from '@sanvi/i18n'
 import { Badge, EmptyState, Spinner, Stack } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
 
 type RoleRow = components['schemas']['RoleView']
 type PermissionRow = components['schemas']['PermissionView']
 
-const COPY = {
-  title: 'Roles & permissions',
-  description: 'Platform-scope roles and the full permission registry, grouped by bounded context.',
-  rolesTitle: 'Platform roles',
-  rolesDescription:
-    'Read-only — platform roles are seeded, not authored here. Custom role authoring is scoped to tenants (the admin console).',
-  keyHeader: 'Key',
-  nameHeader: 'Name',
-  permissionsHeader: 'Permissions',
-  typeHeader: 'Type',
-  systemBadge: 'System',
-  customBadge: 'Custom',
-  noRoles: 'No platform roles defined.',
-  registryTitle: 'Permission registry',
-  registryDescription: 'Every permission the backend enforces, browsable by scope and context.',
-  scopePlatform: 'Platform',
-  scopeTenant: 'Tenant',
-  scopeAuthenticated: 'Authenticated',
-  loading: 'Loading',
-  errorMessage: 'Could not load roles and permissions.',
-}
-
 const SCOPE_ORDER = ['platform', 'tenant', 'authenticated'] as const
-const SCOPE_LABEL: Record<(typeof SCOPE_ORDER)[number], string> = {
-  platform: COPY.scopePlatform,
-  tenant: COPY.scopeTenant,
-  authenticated: COPY.scopeAuthenticated,
-}
+// `$derived`, not a plain const — the labels go through `t`, so a locale
+// switch has to rebuild them.
+const SCOPE_LABEL = $derived<Record<(typeof SCOPE_ORDER)[number], string>>({
+  platform: t['platform.roles.scopePlatform'](),
+  tenant: t['platform.roles.scopeTenant'](),
+  authenticated: t['platform.roles.scopeAuthenticated'](),
+})
 
 let roles = $state<RoleRow[]>([])
 let permissions = $state<PermissionRow[]>([])
@@ -52,7 +33,7 @@ async function load(): Promise<void> {
     roles = roleList
     permissions = permissionList
   } catch {
-    error = COPY.errorMessage
+    error = t['platform.roles.errorMessage']()
   } finally {
     loading = false
   }
@@ -81,10 +62,10 @@ const groupedRegistry = $derived.by(() => {
     scope,
     label: SCOPE_LABEL[scope],
     contexts: [...(byScope.get(scope) ?? new Map<string, PermissionRow[]>()).entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => fmt.collator().compare(a, b))
       .map(([context, items]) => ({
         context,
-        items: items.sort((a, b) => a.key.localeCompare(b.key)),
+        items: items.sort((a, b) => fmt.collator().compare(a.key, b.key)),
       })),
   })).filter((group) => group.contexts.length > 0)
 })
@@ -95,28 +76,28 @@ const groupedRegistry = $derived.by(() => {
      is a browser, not an editor. -->
 <Stack gap="8">
   <div>
-    <h1>{COPY.title}</h1>
-    <p>{COPY.description}</p>
+    <h1>{t['platform.roles.title']()}</h1>
+    <p>{t['platform.roles.description']()}</p>
   </div>
 
   {#if loading}
-    <Spinner label={COPY.loading} />
+    <Spinner label={t['common.loading']()} />
   {:else if error}
     <EmptyState title={error} />
   {:else}
     <section>
-      <h2>{COPY.rolesTitle}</h2>
-      <p class="sanvi-operators__hint">{COPY.rolesDescription}</p>
+      <h2>{t['platform.roles.rolesTitle']()}</h2>
+      <p class="sanvi-operators__hint">{t['platform.roles.rolesDescription']()}</p>
       {#if roles.length === 0}
-        <EmptyState title={COPY.noRoles} />
+        <EmptyState title={t['platform.roles.noRoles']()} />
       {:else}
         <table class="sanvi-operators__table">
           <thead>
             <tr>
-              <th scope="col">{COPY.keyHeader}</th>
-              <th scope="col">{COPY.nameHeader}</th>
-              <th scope="col">{COPY.permissionsHeader}</th>
-              <th scope="col"><span class="sanvi-visually-hidden">{COPY.typeHeader}</span></th>
+              <th scope="col">{t['platform.roles.keyHeader']()}</th>
+              <th scope="col">{t['platform.roles.nameHeader']()}</th>
+              <th scope="col">{t['platform.roles.permissionsHeader']()}</th>
+              <th scope="col"><span class="sanvi-visually-hidden">{t['platform.roles.typeHeader']()}</span></th>
             </tr>
           </thead>
           <tbody>
@@ -127,7 +108,7 @@ const groupedRegistry = $derived.by(() => {
                 <td>{role.permissions.length}</td>
                 <td>
                   <Badge variant={role.is_system ? 'neutral' : 'info'}>
-                    {role.is_system ? COPY.systemBadge : COPY.customBadge}
+                    {role.is_system ? t['platform.roles.systemBadge']() : t['platform.roles.customBadge']()}
                   </Badge>
                 </td>
               </tr>
@@ -138,8 +119,8 @@ const groupedRegistry = $derived.by(() => {
     </section>
 
     <section>
-      <h2>{COPY.registryTitle}</h2>
-      <p class="sanvi-operators__hint">{COPY.registryDescription}</p>
+      <h2>{t['platform.roles.registryTitle']()}</h2>
+      <p class="sanvi-operators__hint">{t['platform.roles.registryDescription']()}</p>
       <Stack gap="4">
         {#each groupedRegistry as scopeGroup (scopeGroup.scope)}
           <div>

@@ -1,11 +1,12 @@
 <script lang="ts">
 import { requireAal2 } from '@sanvi/auth'
 import { listImpersonations } from '@sanvi/api-client'
-import { QueryDevtools } from '@sanvi/query'
+import { currentLocale, localeOptions, onLocaleChange, setLocale, t } from '@sanvi/i18n'
+import { clearCache, QueryDevtools } from '@sanvi/query'
 import { handleLinkClick } from '@sanvi/spa-router'
 import type { Router, RouteDefinition } from '@sanvi/spa-router'
 import { createRouter } from '@sanvi/spa-router'
-import { AppShell, ErrorView, Spinner, ToastViewport } from '@sanvi/ui'
+import { AppShell, Cluster, ErrorView, LocaleSwitcher, Spinner, ToastViewport } from '@sanvi/ui'
 import { apiClient } from './lib/api'
 
 // `router` referenced inside the guard closures before assignment — see
@@ -70,6 +71,13 @@ const routes: RouteDefinition[] = [
     guard: (params) => requireAal2(router)(params),
     load: () => import('./routes/SettingsSecurity.svelte'),
   },
+  {
+    // Phase 06 deliverable — the console that edits the platform-wide
+    // catalog overrides the backend merges over its static catalogs.
+    path: 'translations',
+    guard: (params) => requireAal2(router)(params),
+    load: () => import('./routes/Translations.svelte'),
+  },
   { path: 'login', load: () => import('./routes/Login.svelte') },
   { path: 'step-up', load: () => import('./routes/StepUp.svelte') },
   { path: 'health', load: () => import('./routes/Health.svelte') },
@@ -80,22 +88,18 @@ router = createRouter({
   notFound: () => import('./routes/NotFound.svelte'),
 })
 
-const COPY = {
-  brand: 'Sanvi Platform Admin',
-  skipLink: 'Skip to main content',
-  primaryNav: 'Primary',
-  loadingLabel: 'Loading',
-  errorTitle: 'Something went wrong',
-  errorDescription: 'Try reloading the page.',
-  deniedTitle: 'Access denied',
-  deniedDescription: "You don't have permission to view this page.",
-  retry: 'Try again',
-  impersonationBanner: (count: number, minutes: number) =>
-    count === 1
-      ? `1 active impersonation — ends in ${minutes}m`
-      : `${count} active impersonations — soonest ends in ${minutes}m`,
-  impersonationBannerLink: 'View',
-}
+// `$derived` — the labels go through `t` and must survive a locale switch.
+const NAV = $derived<{ href: string; label: string }[]>([
+  { href: '/', label: t['platform.nav.tenants']() },
+  { href: '/features', label: t['platform.nav.features']() },
+  { href: '/roles', label: t['platform.nav.roles']() },
+  { href: '/audit', label: t['platform.nav.audit']() },
+  { href: '/impersonations', label: t['platform.nav.impersonation']() },
+  { href: '/approvals', label: t['platform.nav.approvals']() },
+  { href: '/privacy', label: t['platform.nav.privacy']() },
+  { href: '/settings/security', label: t['platform.nav.security']() },
+  { href: '/translations', label: t['platform.nav.translations']() },
+])
 
 // Best-effort operator awareness, not the "you are now browsing as this
 // user" banner the phase-03 plan describes — that needs the impersonated
@@ -144,47 +148,59 @@ const soonestExpiryMinutes = $derived.by(() => {
   return Math.max(0, Math.round((soonest - now) / 60_000))
 })
 
-const NAV: { href: string; label: string }[] = [
-  { href: '/', label: 'Tenants' },
-  { href: '/features', label: 'Features' },
-  { href: '/roles', label: 'Roles' },
-  { href: '/audit', label: 'Audit' },
-  { href: '/impersonations', label: 'Impersonation' },
-  { href: '/approvals', label: 'Approvals' },
-  { href: '/privacy', label: 'Privacy' },
-  { href: '/settings/security', label: 'Security' },
-]
-
 function retry(): void {
   router.navigate(router.pathname)
 }
+
+// Phase 06: locale switching for the operator console — the switcher lives
+// in the shell header; cached locale-dependent data refetches on change.
+async function switchLocale(code: string): Promise<void> {
+  await setLocale(code)
+}
+onLocaleChange(() => clearCache())
 </script>
 
 {#if activeImpersonations.length > 0}
   <div class="sanvi-impersonation-banner" role="status">
-    <span>{COPY.impersonationBanner(activeImpersonations.length, soonestExpiryMinutes)}</span>
+    <span>
+      {t['platform.app.impersonationBanner']({
+        count: activeImpersonations.length,
+        minutes: soonestExpiryMinutes,
+      })}
+    </span>
     <a href="/impersonations" onclick={(event) => handleLinkClick(event, '/impersonations')}>
-      {COPY.impersonationBannerLink}
+      {t['platform.app.impersonationBannerLink']()}
     </a>
   </div>
 {/if}
 <AppShell
-  brand={COPY.brand}
-  skipLinkLabel={COPY.skipLink}
-  primaryNavLabel={COPY.primaryNav}
+  brand={t['platform.app.brand']()}
+  skipLinkLabel={t['platform.app.skipLink']()}
+  primaryNavLabel={t['platform.app.primaryNav']()}
   nav={NAV}
   currentPath={router.pathname}
   onNavigate={router.handleLinkClick}
 >
+  {#snippet headerExtra()}
+    <LocaleSwitcher
+      options={localeOptions().map((o) => ({ code: o.code, label: o.label }))}
+      current={currentLocale()}
+      label={t['admin.nav.switchLanguage']()}
+      onSwitch={(code) => void switchLocale(code)}
+    />
+  {/snippet}
   {#if router.error}
     <ErrorView
-      title={COPY.errorTitle}
-      description={COPY.errorDescription}
-      retryLabel={COPY.retry}
+      title={t['errors.generic.title']()}
+      description={t['errors.default.description']()}
+      retryLabel={t['common.retry']()}
       onRetry={retry}
     />
   {:else if router.guardRejected}
-    <ErrorView title={COPY.deniedTitle} description={COPY.deniedDescription} />
+    <ErrorView
+      title={t['platform.app.deniedTitle']()}
+      description={t['platform.app.deniedDescription']()}
+    />
   {:else if router.component}
     {@const Page = router.component}
     <!-- `{#key}` forces a full unmount/remount when the route changes to a
@@ -196,7 +212,7 @@ function retry(): void {
       <Page {...router.params} />
     {/key}
   {:else if router.loading}
-    <Spinner label={COPY.loadingLabel} />
+    <Spinner label={t['common.loading']()} />
   {/if}
 </AppShell>
 <ToastViewport />

@@ -1,17 +1,9 @@
 <script lang="ts">
 import { KratosForm, KratosRequestError, safeReturnTo, startFlow, submitFlow } from '@sanvi/auth'
 import type { KratosFlow, UiNode } from '@sanvi/auth'
+import { t } from '@sanvi/i18n'
 import { Alert, Container, Spinner, Stack } from '@sanvi/ui'
 import { kratosClient } from '../lib/api'
-
-const COPY = {
-  title: 'Verify it’s you',
-  loading: 'Loading',
-  genericError: 'Something went wrong. Try again in a moment.',
-  notEnrolled:
-    'Platform admin requires an authenticator app. Set one up in Settings, then come back here.',
-  enroll: 'Go to settings',
-}
 
 let flow = $state<KratosFlow | undefined>(undefined)
 let submitting = $state(false)
@@ -36,11 +28,11 @@ async function loadStepUpFlow(): Promise<void> {
         flow = await startFlow(kratosClient, 'login', { aal: 'aal2', returnTo })
         notEnrolled = !flow.ui.nodes.some((node) => node.group === 'totp')
       } catch {
-        error = COPY.genericError
+        error = t['platform.stepUp.genericError']()
       }
       return
     }
-    error = COPY.genericError
+    error = t['platform.stepUp.genericError']()
   }
 }
 
@@ -69,7 +61,7 @@ async function handleSubmit(node: UiNode, values: Record<string, string | boolea
     }
     await loadStepUpFlow()
   } catch {
-    error = COPY.genericError
+    error = t['platform.stepUp.genericError']()
   } finally {
     submitting = false
   }
@@ -77,24 +69,24 @@ async function handleSubmit(node: UiNode, values: Record<string, string | boolea
 </script>
 
 <svelte:head>
-  <title>{COPY.title}</title>
+  <title>{t['platform.stepUp.title']()}</title>
 </svelte:head>
 
 <Container size="sm" padding="6">
   <Stack gap="6">
-    <h1>{COPY.title}</h1>
+    <h1>{t['platform.stepUp.title']()}</h1>
 
     {#if error}
       <Alert variant="error">{error}</Alert>
     {/if}
 
     {#if notEnrolled}
-      <Alert variant="info">{COPY.notEnrolled}</Alert>
-      <a href="/settings/security">{COPY.enroll}</a>
+      <Alert variant="info">{t['platform.stepUp.notEnrolled']()}</Alert>
+      <a href="/settings/security">{t['platform.stepUp.enroll']()}</a>
     {:else if flow}
       <KratosForm {flow} onSubmit={handleSubmit} {submitting} />
     {:else}
-      <Spinner label={COPY.loading} />
+      <Spinner label={t['common.loading']()} />
     {/if}
   </Stack>
 </Container>

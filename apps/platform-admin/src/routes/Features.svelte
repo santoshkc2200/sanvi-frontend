@@ -20,64 +20,22 @@ import {
   showToast,
   Stack,
 } from '@sanvi/ui'
+import { t } from '@sanvi/i18n'
 import { apiClient } from '../lib/api'
 
 type FeatureRow = components['schemas']['FeatureView']
 
-const COPY = {
-  title: 'Feature catalog',
-  description:
-    'Every optional capability the platform can gate — commercial defaults, not rollout flags.',
-  keyHeader: 'Key',
-  nameHeader: 'Name',
-  kindHeader: 'Kind',
-  defaultEnabledHeader: 'Default',
-  defaultLimitHeader: 'Default limit',
-  visibilityHeader: 'Visibility',
-  deprecatedHeader: 'Deprecated',
-  emptyMessage: 'No features defined yet.',
-  errorMessage: 'Could not load the feature catalog.',
-  retry: 'Try again',
-  newFeature: 'Define feature',
-  edit: 'Edit',
-  deprecate: 'Deprecate',
-  createTitle: 'Define a feature',
-  editTitle: (name: string) => `Edit ${name}`,
-  keyLabel: 'Key',
-  keyPlaceholder: 'advertising.google_ads',
-  keyHint: 'Convention: <context>.<capability>. Cannot be changed after creation.',
-  nameLabel: 'Name',
-  kindLabel: 'Kind',
-  defaultEnabledLabel: 'Enabled by default',
-  defaultLimitLabel: 'Default limit',
-  defaultLimitPlaceholder: '100',
-  defaultLimitInvalid: 'The default limit must be a non-negative whole number.',
-  visibilityLabel: 'Visibility',
-  cancel: 'Cancel',
-  save: 'Save',
-  create: 'Define',
-  deprecateTitle: (key: string) => `Deprecate ${key}`,
-  deprecateConsequence:
-    'Existing entitlement grants for this feature keep working, but it drops out of catalogs and pickers for new grants. This cannot be undone from here.',
-  saved: (name: string) => `${name} saved.`,
-  deprecated: (key: string) => `${key} deprecated.`,
-  saveError: 'Could not save this feature.',
-  deprecateError: 'Could not deprecate this feature.',
-  enabledYes: 'Enabled',
-  enabledNo: 'Disabled',
-  publicLabel: 'Public',
-  hiddenLabel: 'Hidden',
-}
+// `$derived`, not plain consts — the labels go through `t`, so a locale
+// switch has to rebuild the options the selects display.
+const KIND_OPTIONS = $derived([
+  { value: 'boolean', label: t['platform.features.kindBoolean']() },
+  { value: 'quota', label: t['platform.features.kindQuota']() },
+])
 
-const KIND_OPTIONS = [
-  { value: 'boolean', label: 'Boolean' },
-  { value: 'quota', label: 'Quota' },
-]
-
-const VISIBILITY_OPTIONS = [
-  { value: 'public', label: COPY.publicLabel },
-  { value: 'hidden', label: COPY.hiddenLabel },
-]
+const VISIBILITY_OPTIONS = $derived([
+  { value: 'public', label: t['platform.features.publicLabel']() },
+  { value: 'hidden', label: t['platform.features.hiddenLabel']() },
+])
 
 let features = $state<FeatureRow[]>([])
 let loading = $state(true)
@@ -89,7 +47,7 @@ async function load(): Promise<void> {
   try {
     features = await listFeatures(apiClient)
   } catch {
-    error = COPY.errorMessage
+    error = t['platform.features.errorMessage']()
   } finally {
     loading = false
   }
@@ -162,12 +120,12 @@ async function handleSave(): Promise<void> {
       })
     }
     formOpen = false
-    showToast({ variant: 'success', title: COPY.saved(formName) })
+    showToast({ variant: 'success', title: t['platform.features.saved']({ name: formName }) })
     await load()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.saveError,
+      title: t['platform.features.saveError'](),
       description: err instanceof ApiError ? err.detail : undefined,
     })
   } finally {
@@ -190,12 +148,15 @@ async function handleDeprecate(): Promise<void> {
   try {
     await deprecateFeature(apiClient, deprecateTarget.key)
     deprecateOpen = false
-    showToast({ variant: 'success', title: COPY.deprecated(deprecateTarget.key) })
+    showToast({
+      variant: 'success',
+      title: t['platform.features.deprecated']({ key: deprecateTarget.key }),
+    })
     await load()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.deprecateError,
+      title: t['platform.features.deprecateError'](),
       description: err instanceof ApiError ? err.detail : undefined,
     })
   } finally {
@@ -210,21 +171,21 @@ async function handleDeprecate(): Promise<void> {
 
 {#snippet defaultEnabledCell(row: FeatureRow)}
   <Badge variant={row.default_enabled ? 'success' : 'neutral'}>
-    {row.default_enabled ? COPY.enabledYes : COPY.enabledNo}
+    {row.default_enabled ? t['platform.features.enabledYes']() : t['platform.features.enabledNo']()}
   </Badge>
 {/snippet}
 
 {#snippet visibilityCell(row: FeatureRow)}
   <Badge variant={row.visibility === 'public' ? 'info' : 'neutral'}>
-    {row.visibility === 'public' ? COPY.publicLabel : COPY.hiddenLabel}
+    {row.visibility === 'public' ? t['platform.features.publicLabel']() : t['platform.features.hiddenLabel']()}
   </Badge>
 {/snippet}
 
 {#snippet actionsCell(row: FeatureRow)}
   <Stack gap="2" align="end">
-    <Button variant="ghost" size="sm" onclick={() => openEdit(row)}>{COPY.edit}</Button>
+    <Button variant="ghost" size="sm" onclick={() => openEdit(row)}>{t['platform.features.edit']()}</Button>
     {#if !row.deprecated_at}
-      <Button variant="ghost" size="sm" onclick={() => openDeprecate(row)}>{COPY.deprecate}</Button>
+      <Button variant="ghost" size="sm" onclick={() => openDeprecate(row)}>{t['platform.features.deprecate']()}</Button>
     {/if}
   </Stack>
 {/snippet}
@@ -232,21 +193,21 @@ async function handleDeprecate(): Promise<void> {
 <Stack gap="4">
   <div class="sanvi-features__header">
     <div>
-      <h1>{COPY.title}</h1>
-      <p>{COPY.description}</p>
+      <h1>{t['platform.features.title']()}</h1>
+      <p>{t['platform.features.description']()}</p>
     </div>
-    <Button onclick={openCreate}>{COPY.newFeature}</Button>
+    <Button onclick={openCreate}>{t['platform.features.newFeature']()}</Button>
   </div>
 
   <DataTable
     columns={[
-      { key: 'key', header: COPY.keyHeader, alwaysVisible: true },
-      { key: 'name', header: COPY.nameHeader, alwaysVisible: true },
-      { key: 'kind', header: COPY.kindHeader, cell: kindCell },
-      { key: 'default_enabled', header: COPY.defaultEnabledHeader, cell: defaultEnabledCell },
-      { key: 'default_limit', header: COPY.defaultLimitHeader, align: 'end' },
-      { key: 'visibility', header: COPY.visibilityHeader, cell: visibilityCell },
-      { key: 'deprecated_at', header: COPY.deprecatedHeader },
+      { key: 'key', header: t['platform.features.keyHeader'](), alwaysVisible: true },
+      { key: 'name', header: t['platform.features.nameHeader'](), alwaysVisible: true },
+      { key: 'kind', header: t['platform.features.kindHeader'](), cell: kindCell },
+      { key: 'default_enabled', header: t['platform.features.defaultEnabledHeader'](), cell: defaultEnabledCell },
+      { key: 'default_limit', header: t['platform.features.defaultLimitHeader'](), align: 'end' },
+      { key: 'visibility', header: t['platform.features.visibilityHeader'](), cell: visibilityCell },
+      { key: 'deprecated_at', header: t['platform.features.deprecatedHeader']() },
       { key: 'actions', header: '', align: 'end', cell: actionsCell, alwaysVisible: true },
     ]}
     rows={features}
@@ -254,26 +215,26 @@ async function handleDeprecate(): Promise<void> {
     {loading}
     {error}
     onRetry={load}
-    retryLabel={COPY.retry}
-    emptyMessage={COPY.emptyMessage}
+    retryLabel={t['common.retry']()}
+    emptyMessage={t['platform.features.emptyMessage']()}
     columnVisibilityStorageKey="platform-admin.features.columns"
   />
 </Stack>
 
-<Dialog bind:open={formOpen} titleText={editing ? COPY.editTitle(editing.name) : COPY.createTitle}>
+<Dialog bind:open={formOpen} titleText={editing ? t['platform.features.editTitle']({ name: editing.name }) : t['platform.features.createTitle']()}>
   {#snippet children()}
     <Stack gap="3">
-      <Field label={COPY.keyLabel} hint={editing ? undefined : COPY.keyHint} required>
+      <Field label={t['platform.features.keyLabel']()} hint={editing ? undefined : t['platform.features.keyHint']()} required>
         {#snippet children({ id })}
-          <Input {id} bind:value={formKey} placeholder={COPY.keyPlaceholder} disabled={Boolean(editing)} required />
+          <Input {id} bind:value={formKey} placeholder={t['platform.features.keyPlaceholder']()} disabled={Boolean(editing)} required />
         {/snippet}
       </Field>
-      <Field label={COPY.nameLabel} required>
+      <Field label={t['platform.features.nameLabel']()} required>
         {#snippet children({ id })}
           <Input {id} bind:value={formName} required />
         {/snippet}
       </Field>
-      <Field label={COPY.kindLabel} required>
+      <Field label={t['platform.features.kindLabel']()} required>
         {#snippet children({ id })}
           <Select
             {id}
@@ -286,19 +247,19 @@ async function handleDeprecate(): Promise<void> {
       </Field>
       <label class="sanvi-features__checkbox">
         <input type="checkbox" bind:checked={formDefaultEnabled} />
-        <span>{COPY.defaultEnabledLabel}</span>
+        <span>{t['platform.features.defaultEnabledLabel']()}</span>
       </label>
       {#if formKind === 'quota'}
-        <Field label={COPY.defaultLimitLabel}>
+        <Field label={t['platform.features.defaultLimitLabel']()}>
           {#snippet children({ id })}
-            <Input {id} bind:value={formDefaultLimit} placeholder={COPY.defaultLimitPlaceholder} />
+            <Input {id} bind:value={formDefaultLimit} placeholder={t['platform.features.defaultLimitPlaceholder']()} />
           {/snippet}
         </Field>
         {#if formDefaultLimitInvalid}
-          <Alert variant="error">{COPY.defaultLimitInvalid}</Alert>
+          <Alert variant="error">{t['platform.features.defaultLimitInvalid']()}</Alert>
         {/if}
       {/if}
-      <Field label={COPY.visibilityLabel} required>
+      <Field label={t['platform.features.visibilityLabel']()} required>
         {#snippet children({ id })}
           <Select
             {id}
@@ -311,13 +272,13 @@ async function handleDeprecate(): Promise<void> {
     </Stack>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (formOpen = false)}>{COPY.cancel}</Button>
+    <Button variant="ghost" onclick={() => (formOpen = false)}>{t['platform.features.cancel']()}</Button>
     <Button
       disabled={!formKey.trim() || !formName.trim() || formDefaultLimitInvalid}
       loading={saving}
       onclick={handleSave}
     >
-      {editing ? COPY.save : COPY.create}
+      {editing ? t['platform.features.save']() : t['platform.features.create']()}
     </Button>
   {/snippet}
 </Dialog>
@@ -325,8 +286,8 @@ async function handleDeprecate(): Promise<void> {
 {#if deprecateTarget}
   <DangerousAction
     bind:open={deprecateOpen}
-    titleText={COPY.deprecateTitle(deprecateTarget.key)}
-    consequence={COPY.deprecateConsequence}
+    titleText={t['platform.features.deprecateTitle']({ key: deprecateTarget.key })}
+    consequence={t['platform.features.deprecateConsequence']()}
     variant="warning"
     submitting={deprecating}
     onConfirm={handleDeprecate}

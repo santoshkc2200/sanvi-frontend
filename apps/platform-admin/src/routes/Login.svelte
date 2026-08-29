@@ -1,14 +1,9 @@
 <script lang="ts">
 import { KratosForm, getFlow, safeReturnTo, startFlow, submitFlow } from '@sanvi/auth'
 import type { KratosFlow, UiNode } from '@sanvi/auth'
+import { t } from '@sanvi/i18n'
 import { Alert, Container, Spinner, Stack } from '@sanvi/ui'
 import { kratosClient } from '../lib/api'
-
-const COPY = {
-  title: 'Sign in',
-  loading: 'Loading',
-  genericError: 'Something went wrong. Try again in a moment.',
-}
 
 let flow = $state<KratosFlow | undefined>(undefined)
 let submitting = $state(false)
@@ -35,7 +30,7 @@ $effect(() => {
   loadLoginFlow().catch(() => {
     // The restart failed too (backend down, network) — show it instead of
     // leaving an unhandled rejection under a forever-spinner.
-    error = COPY.genericError
+    error = t['platform.login.genericError']()
   })
 })
 
@@ -63,7 +58,7 @@ async function handleSubmit(node: UiNode, values: Record<string, string | boolea
     }
     await loadLoginFlow()
   } catch {
-    error = COPY.genericError
+    error = t['platform.login.genericError']()
   } finally {
     submitting = false
   }
@@ -71,12 +66,12 @@ async function handleSubmit(node: UiNode, values: Record<string, string | boolea
 </script>
 
 <svelte:head>
-  <title>{COPY.title}</title>
+  <title>{t['platform.login.title']()}</title>
 </svelte:head>
 
 <Container size="sm" padding="6">
   <Stack gap="6">
-    <h1>{COPY.title}</h1>
+    <h1>{t['platform.login.title']()}</h1>
 
     {#if error}
       <Alert variant="error">{error}</Alert>
@@ -85,7 +80,7 @@ async function handleSubmit(node: UiNode, values: Record<string, string | boolea
     {#if flow}
       <KratosForm {flow} onSubmit={handleSubmit} {submitting} />
     {:else}
-      <Spinner label={COPY.loading} />
+      <Spinner label={t['common.loading']()} />
     {/if}
   </Stack>
 </Container>

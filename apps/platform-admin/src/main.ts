@@ -1,4 +1,5 @@
 import { bootSession, startSessionAutoRefresh } from '@sanvi/auth'
+import { initI18n, t } from '@sanvi/i18n'
 import { mount } from 'svelte'
 import '@sanvi/ui/styles.css'
 import { apiClient } from './lib/api'
@@ -12,29 +13,33 @@ function resolveTarget(): HTMLElement {
 
 const target = resolveTarget()
 
+// Phase 06: negotiate the locale *before* anything renders — device cookie
+// (already seeded by the runtime) then `navigator.languages`. The account
+// preference leg joins after `bootSession` (below), so even the boot-failure
+// screen is in the right language.
+initI18n({ acceptLanguages: typeof navigator !== 'undefined' ? [...navigator.languages] : [] })
+
 // Session must be known before the router resolves its first route — see
 // `@sanvi/admin`'s identical `main.ts` comment. `hydrateSession` rethrows
 // network/5xx failures; without a session no route can resolve (every screen
 // is behind `requireAal2`), so surface a retryable failure instead of leaving
 // a blank, never-mounted page.
-const BOOT_FAILURE = {
-  message: 'Could not reach the server. Check your connection and try again.',
-  retry: 'Retry',
-}
-
 function renderBootFailure(): void {
   const message = document.createElement('p')
-  message.textContent = BOOT_FAILURE.message
+  message.textContent = t['admin.boot.failureMessage']()
   const retry = document.createElement('button')
   retry.type = 'button'
-  retry.textContent = BOOT_FAILURE.retry
+  retry.textContent = t['common.retry']()
   retry.onclick = () => window.location.reload()
   target.replaceChildren(message, retry)
 }
 
 async function boot(): Promise<void> {
   try {
-    await bootSession(apiClient)
+    const session = await bootSession(apiClient)
+    // The account preference applies only when no device cookie exists —
+    // `initI18n`'s leg order encodes that; a no-op when the cookie decided.
+    initI18n({ sessionLocale: session?.locale })
   } catch {
     renderBootFailure()
     return

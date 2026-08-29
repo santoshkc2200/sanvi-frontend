@@ -6,6 +6,7 @@ import {
   revokeImpersonation,
 } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
+import { t } from '@sanvi/i18n'
 import {
   Alert,
   Badge,
@@ -23,49 +24,12 @@ import { apiClient } from '../lib/api'
 
 type GrantRow = components['schemas']['ImpersonationGrantView']
 
-const COPY = {
-  title: 'Impersonation',
-  description: 'Time-boxed, audited support access into a tenant.',
-  start: 'Start impersonation',
-  activeTitle: 'Active',
-  pastTitle: 'Past',
-  noActive: 'No active impersonation grants.',
-  noPast: 'No past grants.',
-  loading: 'Loading',
-  errorMessage: 'Could not load impersonation grants.',
-  tenantHeader: 'Tenant',
-  targetHeader: 'Target user',
-  modeHeader: 'Mode',
-  reasonHeader: 'Reason',
-  remainingHeader: 'Remaining',
-  revoke: 'Force end',
-  revokeTitle: 'End this impersonation grant',
-  revokeConsequence: 'The impersonated session is terminated immediately.',
-  revoked: 'Grant revoked.',
-  revokeError: 'Could not revoke this grant.',
-  startTitle: 'Start impersonation',
-  tenantIdLabel: 'Tenant id',
-  targetUserIdLabel: 'Target user id',
-  targetUserIdHint:
-    'From the member list or a support ticket — there is no in-console member picker yet.',
-  reasonLabel: 'Reason',
-  durationLabel: 'Duration (minutes)',
-  durationInvalid: 'The duration must be a whole number of minutes (at least 1).',
-  modeLabel: 'Mode',
-  readOnly: 'Read-only',
-  readWrite: 'Read-write',
-  cancel: 'Cancel',
-  submit: 'Start',
-  started: 'Impersonation grant created.',
-  startError: 'Could not create the impersonation grant.',
-  minutesRemaining: (n: number) => `${n} min`,
-  expired: 'Expired',
-}
-
-const MODE_OPTIONS = [
-  { value: 'read_only', label: COPY.readOnly },
-  { value: 'read_write', label: COPY.readWrite },
-]
+// `$derived`, not a plain const — the labels go through `t`, so a locale
+// switch has to rebuild the options the mode select displays.
+const MODE_OPTIONS = $derived([
+  { value: 'read_only', label: t['platform.impersonation.readOnly']() },
+  { value: 'read_write', label: t['platform.impersonation.readWrite']() },
+])
 
 let grants = $state<GrantRow[]>([])
 let loading = $state(true)
@@ -77,7 +41,7 @@ async function load(): Promise<void> {
   try {
     grants = await listImpersonations(apiClient)
   } catch {
-    error = COPY.errorMessage
+    error = t['platform.impersonation.errorMessage']()
   } finally {
     loading = false
   }
@@ -96,7 +60,9 @@ const pastGrants = $derived(grants.filter((grant) => !isActive(grant)))
 
 function minutesRemaining(grant: GrantRow): string {
   const ms = new Date(grant.expires_at).getTime() - Date.now()
-  return ms <= 0 ? COPY.expired : COPY.minutesRemaining(Math.ceil(ms / 60_000))
+  return ms <= 0
+    ? t['platform.impersonation.expired']()
+    : t['platform.impersonation.minutesRemaining']({ count: Math.ceil(ms / 60_000) })
 }
 
 let startOpen = $state(false)
@@ -137,12 +103,12 @@ async function handleStart(): Promise<void> {
       mode: startMode,
     })
     startOpen = false
-    showToast({ variant: 'success', title: COPY.started })
+    showToast({ variant: 'success', title: t['platform.impersonation.started']() })
     await load()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.startError,
+      title: t['platform.impersonation.startError'](),
       description: err instanceof ApiError ? err.detail : undefined,
     })
   } finally {
@@ -165,12 +131,12 @@ async function handleRevoke(): Promise<void> {
   try {
     await revokeImpersonation(apiClient, revokeTarget.id)
     revokeOpen = false
-    showToast({ variant: 'success', title: COPY.revoked })
+    showToast({ variant: 'success', title: t['platform.impersonation.revoked']() })
     await load()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.revokeError,
+      title: t['platform.impersonation.revokeError'](),
       description: err instanceof ApiError ? err.detail : undefined,
     })
   } finally {
@@ -182,31 +148,31 @@ async function handleRevoke(): Promise<void> {
 <Stack gap="6">
   <div class="sanvi-impersonation__header">
     <div>
-      <h1>{COPY.title}</h1>
-      <p>{COPY.description}</p>
+      <h1>{t['platform.impersonation.title']()}</h1>
+      <p>{t['platform.impersonation.description']()}</p>
     </div>
-    <Button onclick={openStart}>{COPY.start}</Button>
+    <Button onclick={openStart}>{t['platform.impersonation.start']()}</Button>
   </div>
 
   {#if loading}
-    <p>{COPY.loading}</p>
+    <p>{t['common.loading']()}</p>
   {:else if error}
     <p role="alert">{error}</p>
   {:else}
     <section>
-      <h2>{COPY.activeTitle}</h2>
+      <h2>{t['platform.impersonation.activeTitle']()}</h2>
       {#if activeGrants.length === 0}
-        <p class="sanvi-impersonation__empty">{COPY.noActive}</p>
+        <p class="sanvi-impersonation__empty">{t['platform.impersonation.noActive']()}</p>
       {:else}
         <table class="sanvi-impersonation__table">
           <thead>
             <tr>
-              <th scope="col">{COPY.tenantHeader}</th>
-              <th scope="col">{COPY.targetHeader}</th>
-              <th scope="col">{COPY.modeHeader}</th>
-              <th scope="col">{COPY.reasonHeader}</th>
-              <th scope="col">{COPY.remainingHeader}</th>
-              <th scope="col"><span class="sanvi-visually-hidden">{COPY.revoke}</span></th>
+              <th scope="col">{t['platform.impersonation.tenantHeader']()}</th>
+              <th scope="col">{t['platform.impersonation.targetHeader']()}</th>
+              <th scope="col">{t['platform.impersonation.modeHeader']()}</th>
+              <th scope="col">{t['platform.impersonation.reasonHeader']()}</th>
+              <th scope="col">{t['platform.impersonation.remainingHeader']()}</th>
+              <th scope="col"><span class="sanvi-visually-hidden">{t['platform.impersonation.revoke']()}</span></th>
             </tr>
           </thead>
           <tbody>
@@ -218,7 +184,7 @@ async function handleRevoke(): Promise<void> {
                 <td>{grant.reason}</td>
                 <td>{minutesRemaining(grant)}</td>
                 <td>
-                  <Button variant="ghost" size="sm" onclick={() => openRevoke(grant)}>{COPY.revoke}</Button>
+                  <Button variant="ghost" size="sm" onclick={() => openRevoke(grant)}>{t['platform.impersonation.revoke']()}</Button>
                 </td>
               </tr>
             {/each}
@@ -228,17 +194,17 @@ async function handleRevoke(): Promise<void> {
     </section>
 
     <section>
-      <h2>{COPY.pastTitle}</h2>
+      <h2>{t['platform.impersonation.pastTitle']()}</h2>
       {#if pastGrants.length === 0}
-        <p class="sanvi-impersonation__empty">{COPY.noPast}</p>
+        <p class="sanvi-impersonation__empty">{t['platform.impersonation.noPast']()}</p>
       {:else}
         <table class="sanvi-impersonation__table">
           <thead>
             <tr>
-              <th scope="col">{COPY.tenantHeader}</th>
-              <th scope="col">{COPY.targetHeader}</th>
-              <th scope="col">{COPY.modeHeader}</th>
-              <th scope="col">{COPY.reasonHeader}</th>
+              <th scope="col">{t['platform.impersonation.tenantHeader']()}</th>
+              <th scope="col">{t['platform.impersonation.targetHeader']()}</th>
+              <th scope="col">{t['platform.impersonation.modeHeader']()}</th>
+              <th scope="col">{t['platform.impersonation.reasonHeader']()}</th>
             </tr>
           </thead>
           <tbody>
@@ -257,33 +223,33 @@ async function handleRevoke(): Promise<void> {
   {/if}
 </Stack>
 
-<Dialog bind:open={startOpen} titleText={COPY.startTitle}>
+<Dialog bind:open={startOpen} titleText={t['platform.impersonation.startTitle']()}>
   {#snippet children()}
     <Stack gap="3">
-      <Field label={COPY.tenantIdLabel} required>
+      <Field label={t['platform.impersonation.tenantIdLabel']()} required>
         {#snippet children({ id })}
           <Input {id} bind:value={startTenantId} required />
         {/snippet}
       </Field>
-      <Field label={COPY.targetUserIdLabel} hint={COPY.targetUserIdHint} required>
+      <Field label={t['platform.impersonation.targetUserIdLabel']()} hint={t['platform.impersonation.targetUserIdHint']()} required>
         {#snippet children({ id })}
           <Input {id} bind:value={startTargetUserId} required />
         {/snippet}
       </Field>
-      <Field label={COPY.reasonLabel} required>
+      <Field label={t['platform.impersonation.reasonLabel']()} required>
         {#snippet children({ id })}
           <Textarea {id} bind:value={startReason} required />
         {/snippet}
       </Field>
-      <Field label={COPY.durationLabel} required>
+      <Field label={t['platform.impersonation.durationLabel']()} required>
         {#snippet children({ id })}
           <Input {id} bind:value={startDuration} required />
         {/snippet}
       </Field>
       {#if startDurationInvalid}
-        <Alert variant="error">{COPY.durationInvalid}</Alert>
+        <Alert variant="error">{t['platform.impersonation.durationInvalid']()}</Alert>
       {/if}
-      <Field label={COPY.modeLabel} required>
+      <Field label={t['platform.impersonation.modeLabel']()} required>
         {#snippet children({ id })}
           <Select
             {id}
@@ -296,7 +262,7 @@ async function handleRevoke(): Promise<void> {
     </Stack>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (startOpen = false)}>{COPY.cancel}</Button>
+    <Button variant="ghost" onclick={() => (startOpen = false)}>{t['platform.impersonation.cancel']()}</Button>
     <Button
       disabled={
         !startTenantId.trim() ||
@@ -308,7 +274,7 @@ async function handleRevoke(): Promise<void> {
       loading={starting}
       onclick={handleStart}
     >
-      {COPY.submit}
+      {t['platform.impersonation.submit']()}
     </Button>
   {/snippet}
 </Dialog>
@@ -316,8 +282,8 @@ async function handleRevoke(): Promise<void> {
 {#if revokeTarget}
   <DangerousAction
     bind:open={revokeOpen}
-    titleText={COPY.revokeTitle}
-    consequence={COPY.revokeConsequence}
+    titleText={t['platform.impersonation.revokeTitle']()}
+    consequence={t['platform.impersonation.revokeConsequence']()}
     submitting={revoking}
     onConfirm={handleRevoke}
   />

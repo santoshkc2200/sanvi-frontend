@@ -1,6 +1,7 @@
 <script lang="ts">
 import { listAudit } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
+import { t } from '@sanvi/i18n'
 import {
   AuditTrail,
   type AuditEntryRow,
@@ -17,22 +18,6 @@ type Filters = {
   tenant_id: string | undefined
   actor_id: string | undefined
   action: string | undefined
-}
-
-const COPY = {
-  title: 'Audit',
-  description: 'The platform-wide, tamper-evident activity chain.',
-  chainStatus: 'Chain intact',
-  tenantIdLabel: 'Tenant id',
-  actorIdLabel: 'Actor id',
-  actionLabel: 'Action',
-  clearFilters: 'Clear filters',
-  export: 'Export CSV',
-  previous: 'Previous',
-  next: 'Next',
-  emptyMessage: 'No matching audit entries.',
-  errorMessage: 'Could not load the audit log.',
-  loading: 'Loading',
 }
 
 // Not `state` — collides with the `$state` rune parser.
@@ -67,7 +52,7 @@ async function load(): Promise<void> {
     nextCursor = page.next_cursor
   } catch {
     if (seq !== loadSeq) return
-    error = COPY.errorMessage
+    error = t['platform.audit.errorMessage']()
   } finally {
     if (seq === loadSeq) loading = false
   }
@@ -123,41 +108,41 @@ function exportCsv(): void {
 
 <div class="sanvi-audit__header">
   <div>
-    <h1>{COPY.title}</h1>
-    <p>{COPY.description}</p>
+    <h1>{t['platform.audit.title']()}</h1>
+    <p>{t['platform.audit.description']()}</p>
   </div>
   <div class="sanvi-audit__header-actions">
     <!-- No chain-verification-status endpoint exists yet — this is a static
          indicator, not a live check, until phase 03's `audit_chain_verify_failures`
          metric gets a UI-facing counterpart. -->
-    <Badge variant="success">{COPY.chainStatus}</Badge>
+    <Badge variant="success">{t['platform.audit.chainStatus']()}</Badge>
     <Button variant="ghost" size="sm" onclick={exportCsv} disabled={entries.length === 0}>
-      {COPY.export}
+      {t['platform.audit.export']()}
     </Button>
   </div>
 </div>
 
 <FilterBar
   fields={[
-    { type: 'text', key: 'tenant_id', label: COPY.tenantIdLabel },
-    { type: 'text', key: 'actor_id', label: COPY.actorIdLabel },
-    { type: 'text', key: 'action', label: COPY.actionLabel },
+    { type: 'text', key: 'tenant_id', label: t['platform.audit.tenantIdLabel']() },
+    { type: 'text', key: 'actor_id', label: t['platform.audit.actorIdLabel']() },
+    { type: 'text', key: 'action', label: t['platform.audit.actionLabel']() },
   ]}
   values={listState.filters}
   onChange={(next) => listState.setFilters(next)}
   onClear={() => listState.clearFilters()}
-  clearLabel={COPY.clearFilters}
+  clearLabel={t['platform.audit.clearFilters']()}
   savedViews={listState.savedViews}
   onSaveView={(label) => listState.saveView(label)}
   onApplyView={(id) => listState.applyView(id)}
   onDeleteView={(id) => listState.deleteView(id)}
 />
 
-<AuditTrail entries={rows} {loading} loadingLabel={COPY.loading} emptyMessage={error ?? COPY.emptyMessage} />
+<AuditTrail entries={rows} {loading} loadingLabel={t['common.loading']()} emptyMessage={error ?? t['platform.audit.emptyMessage']()} />
 
 <div class="sanvi-audit__pagination">
   <Button variant="ghost" size="sm" disabled={!listState.hasPrevPage} onclick={() => listState.prevPage()}>
-    {COPY.previous}
+    {t['platform.audit.previous']()}
   </Button>
   <Button
     variant="ghost"
@@ -165,7 +150,7 @@ function exportCsv(): void {
     disabled={nextCursor == null}
     onclick={() => nextCursor != null && listState.nextPage(String(nextCursor))}
   >
-    {COPY.next}
+    {t['platform.audit.next']()}
   </Button>
 </div>
 
