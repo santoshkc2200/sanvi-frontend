@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildContentSecurityPolicy, buildContentSecurityPolicyForApp } from '../src/index'
+import {
+  buildContentSecurityPolicy,
+  buildContentSecurityPolicyDirectives,
+  buildContentSecurityPolicyForApp,
+} from '../src/index'
 
 describe('buildContentSecurityPolicy', () => {
   it('includes the api origin in connect-src', () => {
@@ -77,6 +81,43 @@ describe('buildContentSecurityPolicy', () => {
     const csp = buildContentSecurityPolicy({ apiOrigin: 'https://api.example.com' })
     expect(csp.endsWith(';')).toBe(false)
     expect(csp.split('; ').every((part) => part.length > 0)).toBe(true)
+  })
+
+  it('folds the theme asset origin into img-src, font-src, and style-src when set', () => {
+    const csp = buildContentSecurityPolicy({
+      apiOrigin: 'https://api.example.com',
+      themeAssetOrigin: 'https://theme-cdn.sanvi.app',
+    })
+    expect(csp).toContain("img-src 'self' data: blob: https: https://theme-cdn.sanvi.app")
+    expect(csp).toContain("font-src 'self' data: https://theme-cdn.sanvi.app")
+    expect(csp).toContain("style-src 'self' 'unsafe-inline' https://theme-cdn.sanvi.app")
+  })
+
+  it('omits theme asset origin when unset', () => {
+    const csp = buildContentSecurityPolicy({ apiOrigin: 'https://api.example.com' })
+    expect(csp).toContain("style-src 'self' 'unsafe-inline'")
+    expect(csp).not.toContain('theme-cdn')
+    expect(csp).toContain("font-src 'self' data:")
+  })
+})
+
+describe('buildContentSecurityPolicyDirectives', () => {
+  it('includes themeAssetOrigin in directives when passed', () => {
+    const directives = buildContentSecurityPolicyDirectives({
+      apiOrigin: 'https://api.example.com',
+      themeAssetOrigin: 'https://theme-cdn.sanvi.app',
+    })
+    expect(directives['img-src']).toContain('https://theme-cdn.sanvi.app')
+    expect(directives['font-src']).toContain('https://theme-cdn.sanvi.app')
+    expect(directives['style-src']).toContain('https://theme-cdn.sanvi.app')
+  })
+
+  it('omits themeAssetOrigin from directives when absent', () => {
+    const directives = buildContentSecurityPolicyDirectives({
+      apiOrigin: 'https://api.example.com',
+    })
+    expect(directives['style-src']).toEqual(["'self'", "'unsafe-inline'"])
+    expect(directives['font-src']).toEqual(["'self'", 'data:'])
   })
 })
 

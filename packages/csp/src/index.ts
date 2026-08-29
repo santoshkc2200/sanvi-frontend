@@ -9,6 +9,8 @@ export interface ContentSecurityPolicyOptions {
    * (e.g. `http://localhost:9000`) that the scheme wildcard can't match.
    */
   mediaOrigin?: string
+  /** Origin theme CDN assets (fonts, images, per-theme stylesheet) are served from. */
+  themeAssetOrigin?: string
   /**
    * Origin Ory Kratos's public API is reachable at (e.g.
    * `http://localhost:4433` in dev, `https://auth.sanvi.app` in prod). The
@@ -72,6 +74,7 @@ export function buildContentSecurityPolicyDirectives(
   const {
     apiOrigin,
     mediaOrigin = '',
+    themeAssetOrigin = '',
     kratosOrigin = '',
     allowInlineScripts = false,
     allowEval = false,
@@ -88,7 +91,7 @@ export function buildContentSecurityPolicyDirectives(
       'https://js.stripe.com',
       'https://*.stripe.com',
     ),
-    ...directiveSources('style-src', "'self'", "'unsafe-inline'"),
+    ...directiveSources('style-src', "'self'", "'unsafe-inline'", themeAssetOrigin),
     ...directiveSources(
       'img-src',
       "'self'",
@@ -96,12 +99,13 @@ export function buildContentSecurityPolicyDirectives(
       'blob:',
       'https:',
       mediaOrigin,
+      themeAssetOrigin,
       'https://*.stripe.com',
       'https://i.ytimg.com',
       'https://img.youtube.com',
     ),
     ...directiveSources('media-src', "'self'", 'blob:', 'https:', mediaOrigin),
-    ...directiveSources('font-src', "'self'", 'data:'),
+    ...directiveSources('font-src', "'self'", 'data:', themeAssetOrigin),
     ...directiveSources(
       'frame-src',
       'https://js.stripe.com',
@@ -141,6 +145,7 @@ export function buildContentSecurityPolicy(options: ContentSecurityPolicyOptions
   const {
     apiOrigin,
     mediaOrigin = '',
+    themeAssetOrigin = '',
     kratosOrigin = '',
     allowInlineScripts = false,
     allowEval = false,
@@ -157,7 +162,7 @@ export function buildContentSecurityPolicy(options: ContentSecurityPolicyOptions
       'https://js.stripe.com',
       'https://*.stripe.com',
     ),
-    directive('style-src', "'self'", "'unsafe-inline'"),
+    directive('style-src', "'self'", "'unsafe-inline'", themeAssetOrigin),
     directive(
       'img-src',
       "'self'",
@@ -165,12 +170,13 @@ export function buildContentSecurityPolicy(options: ContentSecurityPolicyOptions
       'blob:',
       'https:',
       mediaOrigin,
+      themeAssetOrigin,
       'https://*.stripe.com',
       'https://i.ytimg.com',
       'https://img.youtube.com',
     ),
     directive('media-src', "'self'", 'blob:', 'https:', mediaOrigin),
-    directive('font-src', "'self'", 'data:'),
+    directive('font-src', "'self'", 'data:', themeAssetOrigin),
     directive(
       'frame-src',
       'https://js.stripe.com',
@@ -206,7 +212,7 @@ export type SanviApp = 'marketing' | 'storefront' | 'admin' | 'platform-admin'
 
 export type CspAppPresetOptions = Pick<
   ContentSecurityPolicyOptions,
-  'apiOrigin' | 'mediaOrigin' | 'kratosOrigin'
+  'apiOrigin' | 'mediaOrigin' | 'kratosOrigin' | 'themeAssetOrigin'
 >
 
 /**
