@@ -123,6 +123,18 @@ const routes: RouteDefinition[] = [
       requirePermission(router, 'tenant.theming.read', getActiveTenantId())(params),
     load: () => import('./routes/ThemeGallery.svelte'),
   },
+  {
+    path: 'theme/brand',
+    guard: (params) =>
+      requirePermission(router, 'tenant.theming.write', getActiveTenantId())(params),
+    load: () => import('./routes/ThemeBrand.svelte'),
+  },
+  {
+    path: 'theme/colors',
+    guard: (params) =>
+      requirePermission(router, 'tenant.theming.write', getActiveTenantId())(params),
+    load: () => import('./routes/ThemeColors.svelte'),
+  },
   { path: 'login', load: () => import('./routes/Login.svelte') },
   { path: 'health', load: () => import('./routes/Health.svelte') },
 ]
