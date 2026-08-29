@@ -143,22 +143,22 @@ async function handleApplyTheme(themeKey: string): Promise<void> {
 
 <style>
   .sanvi-theme-card {
-    border: 1px solid var(--color-border-primary);
-    border-radius: var(--radius-md);
-    padding: var(--space-6);
-    background: var(--color-background-primary);
+    border: 1px solid var(--sanvi-color-border-default);
+    border-radius: var(--sanvi-radius-md);
+    padding: var(--sanvi-spacing-6);
+    background: var(--sanvi-color-background-primary);
   }
 
   .sanvi-theme-card__title {
     margin: 0;
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-bold);
-    color: var(--color-text-primary);
+    font-size: var(--sanvi-font-size-lg);
+    font-weight: var(--sanvi-font-weight-bold);
+    color: var(--sanvi-color-text-primary);
   }
 
   .sanvi-theme-card__version {
     margin: 0;
-    font-size: var(--font-size-sm);
-    color: var(--color-text-secondary);
+    font-size: var(--sanvi-font-size-sm);
+    color: var(--sanvi-color-text-secondary);
   }
 </style>

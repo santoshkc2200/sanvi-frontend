@@ -226,32 +226,32 @@ async function handleRollback(): Promise<void> {
 <style>
   .sanvi-publish-desc {
     margin: 0;
-    font-size: var(--font-size-base);
-    color: var(--color-text-secondary);
+    font-size: var(--sanvi-font-size-md);
+    color: var(--sanvi-color-text-secondary);
   }
 
   .sanvi-diff-card {
-    border: 1px solid var(--color-border-primary);
-    border-radius: var(--radius-md);
-    padding: var(--space-6);
-    background: var(--color-background-primary);
+    border: 1px solid var(--sanvi-color-border-default);
+    border-radius: var(--sanvi-radius-md);
+    padding: var(--sanvi-spacing-6);
+    background: var(--sanvi-color-background-primary);
   }
 
   .sanvi-diff-title {
     margin: 0;
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-bold);
-    color: var(--color-text-primary);
+    font-size: var(--sanvi-font-size-md);
+    font-weight: var(--sanvi-font-weight-bold);
+    color: var(--sanvi-color-text-primary);
   }
 
   .sanvi-diff-empty {
     margin: 0;
-    color: var(--color-text-secondary);
+    color: var(--sanvi-color-text-secondary);
   }
 
   .sanvi-diff-list {
     margin: 0;
-    padding-left: var(--space-6);
-    color: var(--color-text-primary);
+    padding-left: var(--sanvi-spacing-6);
+    color: var(--sanvi-color-text-primary);
   }
 </style>

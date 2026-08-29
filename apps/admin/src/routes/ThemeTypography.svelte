@@ -137,7 +137,7 @@ const headingFontMissingJa = $derived(
 <style>
   .sanvi-typography-desc {
     margin: 0;
-    font-size: var(--font-size-base);
-    color: var(--color-text-secondary);
+    font-size: var(--sanvi-font-size-md);
+    color: var(--sanvi-color-text-secondary);
   }
 </style>
