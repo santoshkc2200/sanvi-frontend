@@ -22,6 +22,18 @@ export {
 } from './billing'
 export type { ApiClient, ApiClientConfig, RawResponse, RequestOptions } from './client'
 export { createApiClient } from './client'
+export {
+  claimCustomDomain,
+  getDomainInstructions,
+  listCustomDomains,
+  listDomainOrders,
+  placeDomainOrder,
+  promoteDomain,
+  removeCustomDomain,
+  requestDomainVerification,
+  searchDomains,
+  setOrderAutoRenew,
+} from './domains'
 export type { components, operations, paths } from './generated/types'
 export {
   acceptInvitation,
