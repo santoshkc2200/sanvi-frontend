@@ -1,15 +1,17 @@
 <script lang="ts">
-import { getTenantThemeDraft } from '@sanvi/api-client'
+import { getTenantThemeDraft, mintThemePreviewToken } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import { currentLocale, localeOptions, t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import { Alert, Badge, Button, Cluster, Container, Field, Select, Spinner, Stack } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
+import { getAppEnv } from '../lib/env'
 import ThemeShell from '../lib/theme/ThemeShell.svelte'
 
 type ThemeDraft = components['schemas']['TenantThemeDraftView']
 
 let draft = $state<ThemeDraft | null>(null)
+let previewToken = $state<string | null>(null)
 let loading = $state(true)
 let error = $state<string | undefined>(undefined)
 
@@ -24,9 +26,13 @@ async function load(): Promise<void> {
   loading = true
   error = undefined
   try {
-    const res = await getTenantThemeDraft(apiClient)
+    const draftRes = await getTenantThemeDraft(apiClient)
     if (seq !== loadSeq) return
-    draft = res
+    draft = draftRes
+
+    const tokenRes = await mintThemePreviewToken(apiClient)
+    if (seq !== loadSeq) return
+    previewToken = tokenRes.token
   } catch {
     if (seq !== loadSeq) return
     error = t['admin.theme.gallery.error']()
@@ -40,17 +46,23 @@ $effect(() => {
   void load()
 })
 
-const previewToken = $derived(
-  draft?.theme?.theme_key
-    ? `draft-${draft.theme.theme_key}-${draft.theme.revision}`
-    : 'draft-preview',
-)
+let lastRevision = $state<number | undefined>(undefined)
+$effect(() => {
+  const rev = draft?.theme?.revision
+  if (rev !== undefined && lastRevision !== undefined && rev !== lastRevision) {
+    lastRevision = rev
+    void load()
+  } else if (rev !== undefined && lastRevision === undefined) {
+    lastRevision = rev
+  }
+})
 
-// Storefront origin (defaulting to port 4174 preview server)
-const storefrontOrigin = 'http://localhost:4174'
+const { storefrontOrigin } = getAppEnv()
 
 const previewUrl = $derived(
-  `${storefrontOrigin}/_theme-preview?token=${encodeURIComponent(previewToken)}&locale=${encodeURIComponent(selectedLocale)}&mode=${encodeURIComponent(themeMode)}`,
+  previewToken
+    ? `${storefrontOrigin}/_theme-preview?token=${encodeURIComponent(previewToken)}&locale=${encodeURIComponent(selectedLocale)}&mode=${encodeURIComponent(themeMode)}`
+    : '',
 )
 
 const localeSelectOptions = $derived(
@@ -84,7 +96,7 @@ const localeSelectOptions = $derived(
         <Alert variant="error">{error}</Alert>
       {/if}
 
-      {#if loading}
+      {#if loading || !previewToken}
         <Spinner label={t['admin.theme.gallery.loading']()} />
       {:else}
         <!-- Controls Toolbar -->

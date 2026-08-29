@@ -50,6 +50,56 @@ describe('ContactForm block', () => {
     expect(screen.getByLabelText('Name')).toBeInTheDocument()
   })
 
+  it('renders error message and does not show success when onSubmit rejects', async () => {
+    const handleSubmit = vi.fn().mockRejectedValue(new Error('Network error'))
+    render(ContactForm, {
+      props: {
+        nameLabel: 'Your Name',
+        emailLabel: 'Email',
+        messageLabel: 'Message',
+        submitButtonText: 'Send',
+        onSubmit: handleSubmit,
+      },
+    })
+
+    const nameInput = screen.getByLabelText('Your Name')
+    const emailInput = screen.getByLabelText('Email')
+    const messageInput = screen.getByLabelText('Message')
+    const submitBtn = screen.getByRole('button', { name: 'Send' })
+
+    await fireEvent.input(nameInput, { target: { value: 'Jane' } })
+    await fireEvent.input(emailInput, { target: { value: 'jane@example.com' } })
+    await fireEvent.input(messageInput, { target: { value: 'Test' } })
+    await fireEvent.click(submitBtn)
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('renders unconfigured error and does not show success when onSubmit is undefined', async () => {
+    render(ContactForm, {
+      props: {
+        nameLabel: 'Your Name',
+        emailLabel: 'Email',
+        messageLabel: 'Message',
+        submitButtonText: 'Send',
+      },
+    })
+
+    const nameInput = screen.getByLabelText('Your Name')
+    const emailInput = screen.getByLabelText('Email')
+    const messageInput = screen.getByLabelText('Message')
+    const submitBtn = screen.getByRole('button', { name: 'Send' })
+
+    await fireEvent.input(nameInput, { target: { value: 'Jane' } })
+    await fireEvent.input(emailInput, { target: { value: 'jane@example.com' } })
+    await fireEvent.input(messageInput, { target: { value: 'Test' } })
+    await fireEvent.click(submitBtn)
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
   it('has no accessibility violations', async () => {
     const { container } = render(ContactForm, {
       props: {

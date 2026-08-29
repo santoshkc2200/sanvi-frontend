@@ -3,6 +3,7 @@ export interface AppEnv {
   mediaOrigin: string | undefined
   /** Ory Kratos's public API origin — `@sanvi/auth` calls it directly from the browser. */
   kratosOrigin: string
+  storefrontOrigin: string
 }
 
 /**
@@ -20,5 +21,10 @@ export function getAppEnv(): AppEnv {
     throw new Error('VITE_KRATOS_ORIGIN is required but was not set.')
   }
 
-  return { apiOrigin, mediaOrigin: import.meta.env.VITE_MEDIA_ORIGIN || undefined, kratosOrigin }
+  return {
+    apiOrigin,
+    mediaOrigin: import.meta.env.VITE_MEDIA_ORIGIN || undefined,
+    kratosOrigin,
+    storefrontOrigin: import.meta.env.VITE_STOREFRONT_ORIGIN || 'http://localhost:4174',
+  }
 }

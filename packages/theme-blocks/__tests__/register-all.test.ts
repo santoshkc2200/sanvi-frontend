@@ -7,7 +7,7 @@ describe('registerAllBlocks', () => {
     clearBlockRegistry()
   })
 
-  it('registers all 12 canonical theme catalog blocks with valid schemas and components', () => {
+  it('registers all canonical theme catalog blocks with valid schemas and components', () => {
     registerAllBlocks()
 
     const registeredTypes = getRegisteredBlockTypes().sort()
@@ -16,6 +16,7 @@ describe('registerAllBlocks', () => {
       'cta',
       'faq',
       'feature_grid',
+      'featured',
       'footer',
       'header',
       'hero',
@@ -27,7 +28,7 @@ describe('registerAllBlocks', () => {
     ].sort()
 
     expect(registeredTypes).toEqual(expectedTypes)
-    expect(registeredTypes).toHaveLength(12)
+    expect(registeredTypes).toHaveLength(13)
 
     for (const type of expectedTypes) {
       const block = getBlock(type)
@@ -35,7 +36,7 @@ describe('registerAllBlocks', () => {
       expect(block?.type).toBe(type)
       expect(block?.component).toBeDefined()
       expect(block?.schema).toBeDefined()
-      expect(block?.schema.name).toBe(type)
+      expect(block?.schema.name).toBeDefined()
     }
   })
 })

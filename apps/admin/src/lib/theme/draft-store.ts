@@ -16,6 +16,8 @@ let baselineTheme: TenantThemeView | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let savingState = false
 let lastErrorMessage: string | null = null
+let saveSeq = 0
+let inFlightCount = 0
 
 export const themeDraft = writable<TenantThemeDraftView | null>(null)
 
@@ -43,6 +45,8 @@ export function resetDraftStore(): void {
     clearTimeout(debounceTimer)
     debounceTimer = null
   }
+  saveSeq++
+  inFlightCount = 0
   currentDraft = null
   baselineTheme = null
   savingState = false
@@ -79,7 +83,9 @@ async function executeSave(customPut?: PutDraftFn): Promise<void> {
     custom_css: currentDraft.theme.custom_css,
   }
 
+  const thisSeq = ++saveSeq
   savingState = true
+  inFlightCount++
   lastErrorMessage = null
 
   try {
@@ -87,12 +93,20 @@ async function executeSave(customPut?: PutDraftFn): Promise<void> {
       ? await customPut(cmd)
       : await putTenantThemeDraft(apiClient, cmd)
 
+    if (thisSeq !== saveSeq) {
+      return
+    }
+
     baselineTheme = structuredClone(updatedTheme)
     if (currentDraft) {
       currentDraft.theme = updatedTheme
       themeDraft.set(currentDraft)
     }
   } catch (err: unknown) {
+    if (thisSeq !== saveSeq) {
+      return
+    }
+
     // Roll back optimistic state to baseline
     if (baselineTheme && currentDraft) {
       currentDraft.theme = structuredClone(baselineTheme)
@@ -100,7 +114,10 @@ async function executeSave(customPut?: PutDraftFn): Promise<void> {
     }
     lastErrorMessage = err instanceof Error ? err.message : String(err)
   } finally {
-    savingState = false
+    inFlightCount--
+    if (inFlightCount === 0 || thisSeq === saveSeq) {
+      savingState = inFlightCount > 0
+    }
   }
 }
 

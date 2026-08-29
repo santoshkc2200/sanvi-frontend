@@ -5,6 +5,9 @@ import type { PageData } from './$types'
 let { data }: { data: PageData } = $props()
 
 $effect(() => {
+  if (data.mode) {
+    document.documentElement.setAttribute('data-theme', data.mode)
+  }
   if (data.theme) {
     applyTheme(data.theme)
   }
@@ -22,9 +25,10 @@ const previewSlots = $derived(
 </script>
 
 <svelte:head>
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
   {@html themeStyleTag(data.theme)}
   {#if data.theme?.fonts}
-    {#each data.theme.fonts as font (font.source)}
+    {#each data.theme.fonts as font (font.family)}
       <link rel="preload" as="font" type="font/woff2" crossorigin="anonymous" href={font.source} />
     {/each}
   {/if}

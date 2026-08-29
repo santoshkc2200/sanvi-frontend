@@ -4,6 +4,7 @@ import {
   getPublicTheme,
   getTenantThemeDraft,
   listAvailableThemes,
+  mintThemePreviewToken,
   previewTenantTheme,
   publishTenantTheme,
   putTenantThemeDraft,
@@ -51,13 +52,33 @@ describe('theme operations in api-client', () => {
     const { client, request } = fakeClient(mockTheme)
     const typed = createTypedApiClient(client)
 
-    const result = await getPublicTheme(typed)
+    const result = await getPublicTheme(typed, { host: 'tenant.example', locale: 'ja' })
 
     expect(request).toHaveBeenCalledWith(
       '/api/v1/public/theme',
-      expect.objectContaining({ method: 'GET' }),
+      expect.objectContaining({
+        method: 'GET',
+        query: { host: 'tenant.example', locale: 'ja' },
+      }),
     )
     expect(result).toEqual(mockTheme)
+  })
+
+  it('mintThemePreviewToken calls POST /api/v1/tenant/theme/preview-token', async () => {
+    const mockTokenView = {
+      token: 'signed-preview-token-123',
+      expires_at: '2026-08-30T10:00:00Z',
+    }
+    const { client, request } = fakeClient(mockTokenView)
+    const typed = createTypedApiClient(client)
+
+    const result = await mintThemePreviewToken(typed)
+
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tenant/theme/preview-token',
+      expect.objectContaining({ method: 'POST', body: undefined }),
+    )
+    expect(result).toEqual(mockTokenView)
   })
 
   it('listAvailableThemes calls GET /api/v1/tenant/themes/available', async () => {

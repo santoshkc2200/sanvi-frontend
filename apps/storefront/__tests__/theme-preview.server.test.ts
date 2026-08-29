@@ -107,6 +107,40 @@ describe('storefront _theme-preview/+page.server.ts', () => {
     expect(result).toEqual({
       theme: mockPreviewTheme,
       previewToken: 'valid-token-123',
+      mode: undefined,
+    })
+  })
+
+  it('passes mode to returned load data when provided in search params', async () => {
+    const setHeaders = vi.fn()
+    const locals = { tenant: TENANT, tenantResolution: 'ok' as const, locale: 'en' }
+    const mockPreviewTheme = {
+      theme_key: 'custom-preview',
+      theme_version: '1.0.0',
+      theme_api: '^1.0.0',
+      capabilities: [],
+      tokens: {},
+      css_vars: '',
+      layouts: {},
+      fonts: [],
+      theme_assets: { screenshots: [] },
+      brand_assets: {},
+      revision: 2,
+      locale: 'en',
+      etag: '"etag-preview-2"',
+    }
+    previewTenantThemeMock.mockResolvedValueOnce(mockPreviewTheme)
+
+    const result = await load({
+      url: new URL('http://acme.test/_theme-preview?token=valid-token-123&mode=dark'),
+      locals,
+      setHeaders,
+    } as never)
+
+    expect(result).toEqual({
+      theme: mockPreviewTheme,
+      previewToken: 'valid-token-123',
+      mode: 'dark',
     })
   })
 })

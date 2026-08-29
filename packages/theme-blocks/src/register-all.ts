@@ -27,6 +27,7 @@ import { testimonialsSchema } from './blocks/Testimonials.schema'
 export function registerAllBlocks(): void {
   registerBlock('hero', Hero, heroSchema)
   registerBlock('feature_grid', FeatureGrid, featureGridSchema)
+  registerBlock('featured', FeatureGrid, featureGridSchema)
   registerBlock('rich_text', RichText, richTextSchema)
   registerBlock('image_banner', ImageBanner, imageBannerSchema)
   registerBlock('product_grid', ProductGrid, productGridSchema)

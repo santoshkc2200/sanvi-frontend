@@ -5,7 +5,7 @@ import type { PageServerLoad } from './$types'
 
 export const prerender = false
 
-export const load: PageServerLoad = async ({ url, locals, setHeaders }) => {
+export const load: PageServerLoad = async ({ url, locals, setHeaders, request }) => {
   setHeaders({
     'x-robots-tag': 'noindex',
   })
@@ -16,7 +16,11 @@ export const load: PageServerLoad = async ({ url, locals, setHeaders }) => {
   }
 
   const locale = url.searchParams.get('locale') ?? locals.locale ?? 'en'
-  const host = locals.tenant?.slug ? `${locals.tenant.slug}.localhost` : undefined
+  const mode = url.searchParams.get('mode')
+  const host =
+    request?.headers?.get('host') ??
+    url.host ??
+    (locals.tenant?.slug ? `${locals.tenant.slug}.localhost` : undefined)
 
   try {
     const { apiOrigin } = getAppEnv()
@@ -36,6 +40,7 @@ export const load: PageServerLoad = async ({ url, locals, setHeaders }) => {
     return {
       theme,
       previewToken: token,
+      mode: mode === 'dark' || mode === 'light' ? mode : undefined,
     }
   } catch (err) {
     if (

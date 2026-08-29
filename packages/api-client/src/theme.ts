@@ -11,6 +11,7 @@ export type UpdateTenantThemeDraftCommand = Schemas['UpdateTenantThemeDraftComma
 export type UploadBrandAssetCommand = Schemas['UploadBrandAssetCommand']
 export type LayoutOverride = Schemas['LayoutOverride']
 export type TokenValue = Schemas['TokenValue']
+export type PreviewTokenView = Schemas['PreviewTokenView']
 
 /**
  * Theming (phase 07).
@@ -21,14 +22,22 @@ export type TokenValue = Schemas['TokenValue']
  *   - `GET /api/v1/tenant/theme/draft` — draft theme state.
  *   - `PUT /api/v1/tenant/theme/draft` — update draft theme tokens/layouts.
  *   - `POST /api/v1/tenant/theme/assets` — upload brand asset (logo, favicon, og_image).
+ *   - `POST /api/v1/tenant/theme/preview-token` — mint signed draft preview token.
  *   - `GET /api/v1/tenant/theme/preview` — preview draft theme with signed token.
  *   - `POST /api/v1/tenant/theme/publish` — publish draft theme to live.
  *   - `POST /api/v1/tenant/theme/rollback` — rollback theme to previous revision.
  */
 
 /** `GET /api/v1/public/theme` — the resolved live theme for the request host, ETag-cached. */
-export function getPublicTheme(client: TypedApiClient, signal?: AbortSignal) {
-  return client.GET('/api/v1/public/theme', signal ? { signal } : undefined)
+export function getPublicTheme(
+  client: TypedApiClient,
+  params?: { host?: string; locale?: string },
+  signal?: AbortSignal,
+) {
+  return client.GET('/api/v1/public/theme', {
+    ...(params ? { params: { query: params } } : {}),
+    ...(signal ? { signal } : {}),
+  })
 }
 
 /** `GET /api/v1/tenant/themes/available` — list available installed themes for the tenant. */
@@ -57,6 +66,15 @@ export function uploadBrandAsset(
   signal?: AbortSignal,
 ) {
   return client.POST('/api/v1/tenant/theme/assets', body, signal ? { signal } : undefined)
+}
+
+/** `POST /api/v1/tenant/theme/preview-token` — mint a signed draft preview token. */
+export function mintThemePreviewToken(client: TypedApiClient, signal?: AbortSignal) {
+  return client.POST(
+    '/api/v1/tenant/theme/preview-token',
+    undefined,
+    signal ? { signal } : undefined,
+  )
 }
 
 /** `GET /api/v1/tenant/theme/preview` — preview draft theme rendered through signed token. */

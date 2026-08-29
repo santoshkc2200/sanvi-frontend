@@ -61,9 +61,8 @@ export function getRegisteredBlockTypes(): string[] {
  */
 export function renderLayout(layout: LayoutName, data: PageData = {}): ComponentTree {
   const themeLayout = data.theme?.layouts?.[layout]
-  const isLayoutLocked =
-    LOCKED_LAYOUT_NAMES.has(layout) ||
-    Boolean(themeLayout && 'locked' in themeLayout && themeLayout.locked)
+  // Lock enforcement relies on LOCKED_LAYOUT_NAMES because the resolved payload does not carry the locked flag.
+  const isLayoutLocked = LOCKED_LAYOUT_NAMES.has(layout)
 
   // Determine slot list
   let slotNames: string[] = []
@@ -131,8 +130,11 @@ export function renderLayout(layout: LayoutName, data: PageData = {}): Component
         if (item.id) blockId = item.id
       }
 
-      // Look up block in registry
-      const registered = blockRegistry.get(blockType)
+      // Look up block in registry (normalizing hyphens to underscores as fallback)
+      const registered =
+        blockRegistry.get(blockType) ??
+        blockRegistry.get(blockType.replace(/-/g, '_')) ??
+        blockRegistry.get(blockType.replace(/_/g, '-'))
       if (!registered) {
         // Tolerates unknown block types gracefully (skip + warn, never throw)
         console.warn(

@@ -121,6 +121,7 @@ export {
   getPublicTheme,
   getTenantThemeDraft,
   listAvailableThemes,
+  mintThemePreviewToken,
   previewTenantTheme,
   publishTenantTheme,
   putTenantThemeDraft,
@@ -130,6 +131,7 @@ export {
 export type {
   AvailableThemesView,
   LayoutOverride,
+  PreviewTokenView,
   ResolvedTheme,
   TenantThemeDraftView,
   TenantThemeView,

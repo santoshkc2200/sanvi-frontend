@@ -107,7 +107,7 @@ export const resolveTheme: Handle = async ({ event, resolve }) => {
       }),
     )
 
-    const theme = await getPublicTheme(client)
+    const theme = await getPublicTheme(client, { host, locale })
     if (theme && typeof theme === 'object' && 'theme_key' in theme) {
       setCachedTheme(cacheKey, theme)
       event.locals.theme = theme
@@ -212,9 +212,9 @@ export const resolveLocale: Handle = async ({ event, resolve }) => {
 /**
  * The CSP header is *emitted* by `kit.csp` (see `svelte.config.js`): SvelteKit
  * hashes its own inline hydration scripts per request, which a static header
- * can't know. But kit freezes `connect-src` at *build* time, while the origins
- * are runtime env — so the header is rewritten here, on the way out, with the
- * runtime origins. Everything else stays as kit built it.
+ * can't know. But kit freezes `connect-src` and theme origins at *build* time,
+ * while the origins are runtime env — so the header is rewritten here, on the
+ * way out, with the runtime origins. Everything else stays as kit built it.
  */
 const CONNECT_SRC = 'connect-src'
 
@@ -230,14 +230,31 @@ export const runtimeConnectSrc: Handle = async ({ event, resolve }) => {
     themeAssetOrigin,
     kratosOrigin,
   })[CONNECT_SRC]
-  if (!runtime?.length) return response
 
   const rewritten = header
     .split(';')
     .map((directive) => {
       const trimmed = directive.trim()
-      if (!trimmed.startsWith(`${CONNECT_SRC} `) && trimmed !== CONNECT_SRC) return trimmed
-      return `${CONNECT_SRC} ${runtime.join(' ')}`
+      if (!trimmed) return ''
+
+      if (trimmed.startsWith(`${CONNECT_SRC} `) || trimmed === CONNECT_SRC) {
+        return runtime?.length ? `${CONNECT_SRC} ${runtime.join(' ')}` : trimmed
+      }
+
+      const match = /^([a-z-]+)\s+(.*)$/i.exec(trimmed)
+      if (match && themeAssetOrigin) {
+        const name = match[1]
+        const sources = match[2]
+        if (name && sources && ['style-src', 'img-src', 'font-src'].includes(name)) {
+          const sourceList = sources.split(/\s+/).filter(Boolean)
+          if (!sourceList.includes(themeAssetOrigin)) {
+            sourceList.push(themeAssetOrigin)
+          }
+          return `${name} ${sourceList.join(' ')}`
+        }
+      }
+
+      return trimmed
     })
     .filter(Boolean)
     .join('; ')
@@ -248,7 +265,7 @@ export const runtimeConnectSrc: Handle = async ({ event, resolve }) => {
 export const handle: Handle = sequence(
   resolveTenant,
   resolveAuth,
-  resolveTheme,
   resolveLocale,
+  resolveTheme,
   runtimeConnectSrc,
 )

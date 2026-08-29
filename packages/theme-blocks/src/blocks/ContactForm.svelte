@@ -10,6 +10,8 @@ interface Props {
   messageLabel?: LocalizedText
   submitButtonText?: LocalizedText
   successMessage?: LocalizedText
+  errorMessage?: LocalizedText
+  unconfiguredMessage?: LocalizedText
   onSubmit?: (data: { name: string; email: string; message: string }) => Promise<void> | void
   class?: string
 }
@@ -22,6 +24,8 @@ let {
   messageLabel,
   submitButtonText,
   successMessage,
+  errorMessage,
+  unconfiguredMessage,
   onSubmit,
   class: className = '',
 }: Props = $props()
@@ -31,6 +35,7 @@ let email = $state('')
 let message = $state('')
 let submitted = $state(false)
 let isSubmitting = $state(false)
+let submitError = $state<string | null>(null)
 
 const headingText = $derived(
   heading ? resolveText(heading) : t['themeblocks.contactForm.heading'](),
@@ -51,17 +56,31 @@ const submitText = $derived(
 const successText = $derived(
   successMessage ? resolveText(successMessage) : t['themeblocks.contactForm.successMessage'](),
 )
+const errorText = $derived(
+  errorMessage ? resolveText(errorMessage) : t['themeblocks.contactForm.errorMessage'](),
+)
+const unconfiguredText = $derived(
+  unconfiguredMessage
+    ? resolveText(unconfiguredMessage)
+    : t['themeblocks.contactForm.unconfiguredMessage'](),
+)
 
 async function handleSubmit(event: SubmitEvent) {
   event.preventDefault()
   if (isSubmitting) return
-  isSubmitting = true
+  submitError = null
 
+  if (!onSubmit) {
+    submitError = unconfiguredText
+    return
+  }
+
+  isSubmitting = true
   try {
-    if (onSubmit) {
-      await onSubmit({ name, email, message })
-    }
+    await onSubmit({ name, email, message })
     submitted = true
+  } catch {
+    submitError = errorText
   } finally {
     isSubmitting = false
   }
@@ -86,6 +105,11 @@ async function handleSubmit(event: SubmitEvent) {
         <p>{successText}</p>
       </div>
     {:else}
+      {#if submitError}
+        <div class="sanvi-block-contact-form__error" role="alert">
+          <p>{submitError}</p>
+        </div>
+      {/if}
       <form class="sanvi-block-contact-form__form" onsubmit={handleSubmit}>
         <div class="sanvi-block-contact-form__field">
           <label for="contact-name" class="sanvi-block-contact-form__label">{nameLabelText}</label>
@@ -223,5 +247,15 @@ async function handleSubmit(event: SubmitEvent) {
     border-radius: var(--sanvi-radius-lg);
     color: var(--sanvi-color-status-success);
     font-weight: var(--sanvi-font-weight-medium);
+  }
+  .sanvi-block-contact-form__error {
+    text-align: center;
+    padding: var(--sanvi-spacing-4) var(--sanvi-spacing-6);
+    margin-bottom: var(--sanvi-spacing-4);
+    background-color: var(--sanvi-color-background-secondary);
+    border: var(--sanvi-border-width-thin) solid var(--sanvi-color-status-error);
+    border-radius: var(--sanvi-radius-md);
+    color: var(--sanvi-color-status-error);
+    font-size: var(--sanvi-font-size-sm);
   }
 </style>

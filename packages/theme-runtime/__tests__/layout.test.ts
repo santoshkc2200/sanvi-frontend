@@ -188,18 +188,16 @@ describe('BlockRegistry and renderLayout', () => {
       expect(tree.slots[0]?.blocks[0]?.component).toBe(MockSummaryComponent)
     })
 
-    it('rejects attempt to override slots when theme layout spec marks locked: true', () => {
+    it('rejects attempt to override slots for locked checkout layout alias', () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       const theme = makeMockTheme({
-        'custom.locked': {
+        checkout: {
           slots: ['summary'],
-          // @ts-expect-error testing runtime locked property
-          locked: true,
         },
       })
 
-      const tree = renderLayout('custom.locked', {
+      const tree = renderLayout('checkout', {
         theme,
         slots: {
           summary: { type: 'cta' },

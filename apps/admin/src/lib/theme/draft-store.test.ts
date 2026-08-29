@@ -148,4 +148,45 @@ describe('Theme Draft Store with Autosave', () => {
       }),
     )
   })
+
+  it('ignores older in-flight save results when a newer save has dispatched', async () => {
+    const mockDraft = createMockDraft('base')
+    initDraftStore(mockDraft)
+
+    let resolveFirstPut: (val: unknown) => void
+    const firstPutPromise = new Promise((resolve) => {
+      resolveFirstPut = resolve
+    })
+
+    const putSpy = vi
+      .fn()
+      .mockImplementationOnce(() => firstPutPromise)
+      .mockResolvedValueOnce({
+        ...mockDraft.theme,
+        revision: 3,
+        token_overrides: {
+          'color.brand.primary': { $value: '#222222', $type: 'color' },
+        },
+      })
+
+    // First edit
+    updateTokenOverride('color.brand.primary', { $value: '#111111', $type: 'color' }, putSpy)
+    await vi.advanceTimersByTimeAsync(350)
+    expect(putSpy).toHaveBeenCalledTimes(1)
+
+    // Second edit while first is still in flight
+    updateTokenOverride('color.brand.primary', { $value: '#222222', $type: 'color' }, putSpy)
+    await vi.advanceTimersByTimeAsync(350)
+    expect(putSpy).toHaveBeenCalledTimes(2)
+
+    // First PUT rejects after second was dispatched
+    resolveFirstPut!(new Error('First save failed'))
+    await vi.advanceTimersByTimeAsync(50)
+
+    // Second edit must not be rolled back by the first edit's rejection
+    expect(getDraft()?.theme.token_overrides['color.brand.primary']).toEqual({
+      $value: '#222222',
+      $type: 'color',
+    })
+  })
 })

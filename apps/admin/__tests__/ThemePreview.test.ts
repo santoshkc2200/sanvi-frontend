@@ -43,6 +43,14 @@ describe('Theme Preview Route Component', () => {
         if (url.includes('/tenant/theme/draft')) {
           return Promise.resolve(jsonResponse(MOCK_DRAFT))
         }
+        if (url.includes('/tenant/theme/preview-token')) {
+          return Promise.resolve(
+            jsonResponse({
+              token: 'signed-mock-token-123',
+              expires_at: '2026-08-30T12:00:00Z',
+            }),
+          )
+        }
         return Promise.resolve(jsonResponse({}, 404))
       }),
     )

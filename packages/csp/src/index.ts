@@ -121,6 +121,7 @@ export function buildContentSecurityPolicyDirectives(
       "'self'",
       apiOrigin,
       mediaOrigin,
+      themeAssetOrigin,
       kratosOrigin,
       'https://api.stripe.com',
       'https://*.stripe.com',

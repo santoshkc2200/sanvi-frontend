@@ -39,20 +39,54 @@ $effect(() => {
   void load()
 })
 
+const HEX_REGEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
+
+function isValidHex(val: string): boolean {
+  return HEX_REGEX.test(val.trim())
+}
+
 const COLOR_FIELDS: Array<{
   path: string
-  label: string
+  labelKey: keyof typeof t
   defaultValue: string
 }> = [
-  { path: 'color.brand.primary', label: 'Brand Primary', defaultValue: '#2563eb' },
-  { path: 'color.brand.hover', label: 'Brand Hover', defaultValue: '#1d4ed8' },
-  { path: 'color.brand.contrast', label: 'Brand Contrast', defaultValue: '#ffffff' },
-  { path: 'color.text.primary', label: 'Text Primary', defaultValue: '#1a1d23' },
-  { path: 'color.text.secondary', label: 'Text Secondary', defaultValue: '#4a505c' },
-  { path: 'color.text.inverse', label: 'Text Inverse', defaultValue: '#ffffff' },
-  { path: 'color.background.primary', label: 'Background Primary', defaultValue: '#ffffff' },
-  { path: 'color.background.inverse', label: 'Background Inverse', defaultValue: '#1a1d23' },
-  { path: 'color.focus.ring', label: 'Focus Ring', defaultValue: '#1d4ed8' },
+  {
+    path: 'color.brand.primary',
+    labelKey: 'admin.theme.colors.brandPrimary',
+    defaultValue: '#2563eb',
+  },
+  { path: 'color.brand.hover', labelKey: 'admin.theme.colors.brandHover', defaultValue: '#1d4ed8' },
+  {
+    path: 'color.brand.contrast',
+    labelKey: 'admin.theme.colors.brandContrast',
+    defaultValue: '#ffffff',
+  },
+  {
+    path: 'color.text.primary',
+    labelKey: 'admin.theme.colors.textPrimary',
+    defaultValue: '#1a1d23',
+  },
+  {
+    path: 'color.text.secondary',
+    labelKey: 'admin.theme.colors.textSecondary',
+    defaultValue: '#4a505c',
+  },
+  {
+    path: 'color.text.inverse',
+    labelKey: 'admin.theme.colors.textInverse',
+    defaultValue: '#ffffff',
+  },
+  {
+    path: 'color.background.primary',
+    labelKey: 'admin.theme.colors.backgroundPrimary',
+    defaultValue: '#ffffff',
+  },
+  {
+    path: 'color.background.inverse',
+    labelKey: 'admin.theme.colors.backgroundInverse',
+    defaultValue: '#1a1d23',
+  },
+  { path: 'color.focus.ring', labelKey: 'admin.theme.colors.focusRing', defaultValue: '#1d4ed8' },
 ]
 
 function getColorValue(path: string, defaultValue: string): string {
@@ -136,19 +170,25 @@ const violations = $derived<ContrastViolation[]>(checkContrast(currentTokens))
         <Stack gap="4">
           {#each COLOR_FIELDS as field (field.path)}
             {@const value = getColorValue(field.path, field.defaultValue)}
-            <Field label={field.label}>
+            {@const label = t[field.labelKey]()}
+            <Field {label}>
               {#snippet children({ id })}
                 <Cluster gap="3" align="center">
                   <input
                     type="color"
-                    aria-label={`${field.label} picker`}
+                    aria-label={t['admin.theme.colors.pickerAriaLabel']({ label })}
                     {value}
                     onchange={(e) => handleColorChange(field.path, (e.target as HTMLInputElement).value)}
                   />
                   <Input
                     {id}
                     {value}
-                    oninput={(e) => handleColorChange(field.path, (e.target as HTMLInputElement).value)}
+                    oninput={(e) => {
+                      const val = e.currentTarget.value
+                      if (isValidHex(val)) {
+                        handleColorChange(field.path, val)
+                      }
+                    }}
                   />
                 </Cluster>
               {/snippet}
