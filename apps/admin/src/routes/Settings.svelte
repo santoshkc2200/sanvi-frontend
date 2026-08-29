@@ -1,25 +1,10 @@
 <script lang="ts">
 import { Can } from '@sanvi/auth'
 import { getTenantContext, getTenantSettings, updateTenantSettings } from '@sanvi/api-client'
+import { t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import { Alert, Button, Container, Field, Select, showToast, Spinner, Stack } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
-
-const COPY = {
-  title: 'Settings',
-  identityTitle: 'Tenant',
-  nameLabel: 'Name',
-  slugLabel: 'Slug',
-  regionLabel: 'Region',
-  localeLabel: 'Default locale',
-  localeHint: 'Changing your default locale is coming in a future release.',
-  brandingNote: 'Branding — coming in a future release.',
-  timezoneLabel: 'Timezone',
-  save: 'Save',
-  saved: 'Settings saved.',
-  loading: 'Loading',
-  genericError: 'Something went wrong. Try again in a moment.',
-}
 
 const TIMEZONE_OPTIONS = [
   { value: 'UTC', label: 'UTC' },
@@ -54,7 +39,7 @@ async function load(): Promise<void> {
     timezone = typeof storedTimezone === 'string' && storedTimezone ? storedTimezone : 'UTC'
   } catch {
     if (seq !== loadSeq) return
-    error = COPY.genericError
+    error = t['admin.settings.genericError']()
   } finally {
     if (seq === loadSeq) loading = false
   }
@@ -70,9 +55,9 @@ async function handleSave(): Promise<void> {
   saving = true
   try {
     await updateTenantSettings(apiClient, { timezone })
-    showToast({ variant: 'success', title: COPY.saved })
+    showToast({ variant: 'success', title: t['admin.settings.saved']() })
   } catch {
-    showToast({ variant: 'error', title: COPY.genericError })
+    showToast({ variant: 'error', title: t['admin.settings.genericError']() })
   } finally {
     saving = false
   }
@@ -81,37 +66,37 @@ async function handleSave(): Promise<void> {
 
 <Container size="sm" padding="6">
   <Stack gap="6">
-    <h1>{COPY.title}</h1>
+    <h1>{t['admin.settings.title']()}</h1>
 
     {#if error}
       <Alert variant="error">{error}</Alert>
     {/if}
 
     {#if loading}
-      <Spinner label={COPY.loading} />
+      <Spinner label={t['admin.settings.loading']()} />
     {:else if tenant}
-      {@const t = tenant}
+      {@const tenantView = tenant}
       <div>
-        <h2>{COPY.identityTitle}</h2>
+        <h2>{t['admin.settings.identityTitle']()}</h2>
         <Stack gap="3">
-          <Field label={COPY.nameLabel}>
+          <Field label={t['admin.settings.nameLabel']()}>
             {#snippet children({ id })}
-              <p id={id}>{t.display_name}</p>
+              <p id={id}>{tenantView.display_name}</p>
             {/snippet}
           </Field>
-          <Field label={COPY.slugLabel}>
+          <Field label={t['admin.settings.slugLabel']()}>
             {#snippet children({ id })}
-              <p id={id}>{t.slug}</p>
+              <p id={id}>{tenantView.slug}</p>
             {/snippet}
           </Field>
-          <Field label={COPY.regionLabel}>
+          <Field label={t['admin.settings.regionLabel']()}>
             {#snippet children({ id })}
-              <p id={id}>{t.region}</p>
+              <p id={id}>{tenantView.region}</p>
             {/snippet}
           </Field>
-          <Field label={COPY.localeLabel} hint={COPY.localeHint}>
+          <Field label={t['admin.settings.localeLabel']()} hint={t['admin.settings.localeHint']()}>
             {#snippet children({ id })}
-              <p id={id}>{t.default_locale}</p>
+              <p id={id}>{tenantView.default_locale}</p>
             {/snippet}
           </Field>
         </Stack>
@@ -120,20 +105,20 @@ async function handleSave(): Promise<void> {
       <Can tenantId={getActiveTenantId()} permission="tenancy.settings.update">
         {#snippet children()}
           <div>
-            <h2>{COPY.timezoneLabel}</h2>
+            <h2>{t['admin.settings.timezoneLabel']()}</h2>
             <Stack gap="3">
-              <Field label={COPY.timezoneLabel}>
+              <Field label={t['admin.settings.timezoneLabel']()}>
                 {#snippet children({ id })}
                   <Select {id} bind:value={timezone} options={TIMEZONE_OPTIONS} />
                 {/snippet}
               </Field>
-              <Button loading={saving} onclick={handleSave}>{COPY.save}</Button>
+              <Button loading={saving} onclick={handleSave}>{t['admin.settings.save']()}</Button>
             </Stack>
           </div>
         {/snippet}
       </Can>
 
-      <p class="sanvi-settings__branding-note">{COPY.brandingNote}</p>
+      <p class="sanvi-settings__branding-note">{t['admin.settings.brandingNote']()}</p>
     {/if}
   </Stack>
 </Container>

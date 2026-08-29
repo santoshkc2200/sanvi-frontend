@@ -2,19 +2,15 @@
 import { KratosForm, getFlow, logout, startFlow, submitFlow } from '@sanvi/auth'
 import type { KratosFlow, UiNode } from '@sanvi/auth'
 import { listSessions, revokeSession } from '@sanvi/api-client'
+import { t } from '@sanvi/i18n'
 import { Alert, Button, Container, Spinner, Stack } from '@sanvi/ui'
 import { apiClient, kratosClient } from '../lib/api'
 
-const COPY = {
-  title: 'Security',
-  loading: 'Loading',
-  genericError: 'Something went wrong. Try again in a moment.',
-  saved: 'Saved.',
-  sessionsTitle: 'Sessions',
-  currentSessionLabel: (methods: string[]) =>
-    `Signed in via ${methods.join(', ') || 'unknown method'}`,
-  revoke: 'Sign out this session',
-  signOutEverywhere: 'Sign out everywhere',
+/** Locale-rendered at call time from the template, so a switch re-renders. */
+function currentSessionLabel(methods: string[]): string {
+  return t['admin.settingsSecurity.currentSessionLabel']({
+    methods: methods.join(', ') || t['admin.settingsSecurity.unknownMethod'](),
+  })
 }
 
 let flow = $state<KratosFlow | undefined>(undefined)
@@ -63,7 +59,7 @@ async function handleSubmit(node: UiNode, values: Record<string, string | boolea
     }
     await loadSettingsFlow()
   } catch {
-    error = COPY.genericError
+    error = t['admin.settingsSecurity.genericError']()
   } finally {
     submitting = false
   }
@@ -77,7 +73,7 @@ async function handleRevoke(sessionId: string): Promise<void> {
   } catch {
     // Revoking the current session 401s by design (the cookie is now dead);
     // anything else is a transient failure — either way, say so.
-    error = COPY.genericError
+    error = t['admin.settingsSecurity.genericError']()
   } finally {
     revokingId = undefined
   }
@@ -89,7 +85,7 @@ async function handleSignOutEverywhere(): Promise<void> {
   } catch {
     // Building the logout URL needs Kratos reachable — say so instead of
     // rejecting unhandled under the button.
-    error = COPY.genericError
+    error = t['admin.settingsSecurity.genericError']()
   }
 }
 </script>
@@ -97,37 +93,39 @@ async function handleSignOutEverywhere(): Promise<void> {
 <Container size="sm" padding="6">
   <Stack gap="8">
     <div>
-      <h1>{COPY.title}</h1>
+      <h1>{t['admin.settingsSecurity.title']()}</h1>
       {#if error}
         <Alert variant="error">{error}</Alert>
       {:else if flow?.state === 'success'}
-        <Alert variant="success">{COPY.saved}</Alert>
+        <Alert variant="success">{t['admin.settingsSecurity.saved']()}</Alert>
       {/if}
       {#if flow}
         <KratosForm {flow} onSubmit={handleSubmit} {submitting} />
       {:else}
-        <Spinner label={COPY.loading} />
+        <Spinner label={t['admin.settingsSecurity.loading']()} />
       {/if}
     </div>
 
     <div>
-      <h2>{COPY.sessionsTitle}</h2>
+      <h2>{t['admin.settingsSecurity.sessionsTitle']()}</h2>
       <Stack gap="3">
         {#each sessions as session (session.session_id)}
           <div class="sanvi-session-row">
-            <span>{COPY.currentSessionLabel(session.methods)}</span>
+            <span>{currentSessionLabel(session.methods)}</span>
             <Button
               variant="ghost"
               size="sm"
               loading={revokingId === session.session_id}
               onclick={() => handleRevoke(session.session_id)}
             >
-              {COPY.revoke}
+              {t['admin.settingsSecurity.revoke']()}
             </Button>
           </div>
         {/each}
       </Stack>
-      <Button variant="secondary" onclick={handleSignOutEverywhere}>{COPY.signOutEverywhere}</Button>
+      <Button variant="secondary" onclick={handleSignOutEverywhere}>
+        {t['admin.settingsSecurity.signOutEverywhere']()}
+      </Button>
     </div>
   </Stack>
 </Container>

@@ -8,6 +8,7 @@ import {
   updateRole,
 } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
+import { fmt, t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import {
   Alert,
@@ -26,38 +27,6 @@ import { apiClient } from '../lib/api'
 
 type RoleRow = components['schemas']['RoleView']
 type PermissionRow = components['schemas']['PermissionView']
-
-const COPY = {
-  title: 'Roles',
-  description: 'System roles are fixed. Custom roles can only grant permissions you already hold.',
-  systemRolesTitle: 'System roles',
-  customRolesTitle: 'Custom roles',
-  newRole: 'New role',
-  newRoleTitle: 'New custom role',
-  editRoleTitle: (name: string) => `Edit ${name}`,
-  keyLabel: 'Key',
-  keyPlaceholder: 'support-lead',
-  nameLabel: 'Name',
-  namePlaceholder: 'Support lead',
-  permissionsLabel: 'Permissions',
-  save: 'Save',
-  cancel: 'Cancel',
-  edit: 'Edit',
-  deleteAction: 'Delete',
-  deleteTitle: (name: string) => `Delete ${name}`,
-  deleteConsequence: (name: string) =>
-    `${name} will be removed. Members holding only this role lose the permissions it granted.`,
-  permissionCount: (count: number) => `${count} permission${count === 1 ? '' : 's'}`,
-  loading: 'Loading',
-  genericError: 'Something went wrong. Try again in a moment.',
-  denied: "You don't have permission to manage roles.",
-  noPermissionTitle: "You don't have this permission",
-  escalationBlocked:
-    'This role contains permissions you do not hold. You cannot save it — ask an owner to drop those permissions first.',
-  roleCreated: 'Role created.',
-  roleUpdated: 'Role updated.',
-  roleDeleted: 'Role deleted.',
-}
 
 let roles = $state<RoleRow[]>([])
 let permissions = $state<PermissionRow[]>([])
@@ -81,7 +50,9 @@ const groupedPermissions = $derived.by(() => {
     const context = permission.key.split('.')[0] ?? permission.key
     groups.set(context, [...(groups.get(context) ?? []), permission])
   }
-  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))
+  // Locale-aware context ordering (kana-aware in ja) — never byte order.
+  const collator = fmt.collator()
+  return [...groups.entries()].sort(([a], [b]) => collator.compare(a, b))
 })
 
 const systemRoles = $derived(roles.filter((role) => role.is_system))
@@ -105,7 +76,7 @@ async function loadAll(): Promise<void> {
     permissions = permissionsResult
   } catch {
     if (seq !== loadSeq) return
-    error = COPY.genericError
+    error = t['admin.roles.genericError']()
   } finally {
     if (seq === loadSeq) loading = false
   }
@@ -158,15 +129,15 @@ async function handleSaveRole(): Promise<void> {
   try {
     if (formTarget) {
       await updateRole(apiClient, formTarget.id, { name: formName, permissions: formPermissions })
-      showToast({ variant: 'success', title: COPY.roleUpdated })
+      showToast({ variant: 'success', title: t['admin.roles.roleUpdated']() })
     } else {
       await createRole(apiClient, { key: formKey, name: formName, permissions: formPermissions })
-      showToast({ variant: 'success', title: COPY.roleCreated })
+      showToast({ variant: 'success', title: t['admin.roles.roleCreated']() })
     }
     formOpen = false
     await loadAll()
   } catch {
-    showToast({ variant: 'error', title: COPY.genericError })
+    showToast({ variant: 'error', title: t['admin.roles.genericError']() })
   } finally {
     saving = false
   }
@@ -187,10 +158,10 @@ async function handleConfirmDelete(): Promise<void> {
   try {
     await deleteRole(apiClient, deleteTarget.id)
     deleteOpen = false
-    showToast({ variant: 'success', title: COPY.roleDeleted })
+    showToast({ variant: 'success', title: t['admin.roles.roleDeleted']() })
     await loadAll()
   } catch {
-    showToast({ variant: 'error', title: COPY.genericError })
+    showToast({ variant: 'error', title: t['admin.roles.genericError']() })
   } finally {
     deleting = false
   }
@@ -202,12 +173,12 @@ async function handleConfirmDelete(): Promise<void> {
     <Stack gap="6">
       <div class="sanvi-roles__header">
         <div>
-          <h1>{COPY.title}</h1>
-          <p>{COPY.description}</p>
+          <h1>{t['admin.roles.title']()}</h1>
+          <p>{t['admin.roles.description']()}</p>
         </div>
         <Can permission="access.role.create" tenantId={getActiveTenantId()}>
           {#snippet children()}
-            <Button onclick={openCreate}>{COPY.newRole}</Button>
+            <Button onclick={openCreate}>{t['admin.roles.newRole']()}</Button>
           {/snippet}
         </Can>
       </div>
@@ -217,37 +188,37 @@ async function handleConfirmDelete(): Promise<void> {
       {/if}
 
       {#if loading}
-        <Spinner label={COPY.loading} />
+        <Spinner label={t['admin.roles.loading']()} />
       {:else}
         <div>
-          <h2>{COPY.systemRolesTitle}</h2>
+          <h2>{t['admin.roles.systemRolesTitle']()}</h2>
           <ul class="sanvi-roles__list">
             {#each systemRoles as role (role.id)}
               <li class="sanvi-roles__row">
                 <span class="sanvi-roles__name">{role.name}</span>
-                <Badge variant="neutral">{COPY.permissionCount(role.permissions.length)}</Badge>
+                <Badge variant="neutral">{t['admin.roles.permissionCount']({ count: role.permissions.length })}</Badge>
               </li>
             {/each}
           </ul>
         </div>
 
         <div>
-          <h2>{COPY.customRolesTitle}</h2>
+          <h2>{t['admin.roles.customRolesTitle']()}</h2>
           <ul class="sanvi-roles__list">
             {#each customRoles as role (role.id)}
               <li class="sanvi-roles__row">
                 <span class="sanvi-roles__name">{role.name}</span>
-                <Badge variant="neutral">{COPY.permissionCount(role.permissions.length)}</Badge>
+                <Badge variant="neutral">{t['admin.roles.permissionCount']({ count: role.permissions.length })}</Badge>
                 <span class="sanvi-roles__actions">
                   <Can permission="access.role.update" tenantId={getActiveTenantId()}>
                     {#snippet children()}
-                      <Button variant="ghost" size="sm" onclick={() => openEdit(role)}>{COPY.edit}</Button>
+                      <Button variant="ghost" size="sm" onclick={() => openEdit(role)}>{t['admin.roles.edit']()}</Button>
                     {/snippet}
                   </Can>
                   <Can permission="access.role.delete" tenantId={getActiveTenantId()}>
                     {#snippet children()}
                       <Button variant="ghost" size="sm" onclick={() => startDelete(role)}>
-                        {COPY.deleteAction}
+                        {t['admin.roles.deleteAction']()}
                       </Button>
                     {/snippet}
                   </Can>
@@ -260,32 +231,34 @@ async function handleConfirmDelete(): Promise<void> {
     </Stack>
   {/snippet}
   {#snippet fallback()}
-    <Alert variant="error">{COPY.denied}</Alert>
+    <Alert variant="error">{t['admin.roles.denied']()}</Alert>
   {/snippet}
 </Can>
 
 <Dialog
   bind:open={formOpen}
-  titleText={formTarget ? COPY.editRoleTitle(formTarget.name) : COPY.newRoleTitle}
+  titleText={formTarget
+    ? t['admin.roles.editRoleTitle']({ name: formTarget.name })
+    : t['admin.roles.newRoleTitle']()}
 >
   {#snippet children()}
     <Stack gap="4">
       {#if !formTarget}
-        <Field label={COPY.keyLabel} required>
+        <Field label={t['admin.roles.keyLabel']()} required>
           {#snippet children({ id })}
-            <Input {id} bind:value={formKey} placeholder={COPY.keyPlaceholder} required />
+            <Input {id} bind:value={formKey} placeholder={t['admin.roles.keyPlaceholder']()} required />
           {/snippet}
         </Field>
       {/if}
-      <Field label={COPY.nameLabel} required>
+      <Field label={t['admin.roles.nameLabel']()} required>
         {#snippet children({ id })}
-          <Input {id} bind:value={formName} placeholder={COPY.namePlaceholder} required />
+          <Input {id} bind:value={formName} placeholder={t['admin.roles.namePlaceholder']()} required />
         {/snippet}
       </Field>
       <fieldset>
-        <legend>{COPY.permissionsLabel}</legend>
+        <legend>{t['admin.roles.permissionsLabel']()}</legend>
         {#if escalatedPermissions.length > 0}
-          <Alert variant="error">{COPY.escalationBlocked}</Alert>
+          <Alert variant="error">{t['admin.roles.escalationBlocked']()}</Alert>
         {/if}
         <Stack gap="4">
           {#each groupedPermissions as [context, contextPermissions] (context)}
@@ -293,14 +266,14 @@ async function handleConfirmDelete(): Promise<void> {
               <p class="sanvi-roles__group-label">{context}</p>
               {#each contextPermissions as permission (permission.key)}
                 {@const allowed = ownPermissions.has(permission.key)}
-                <span title={allowed ? undefined : COPY.noPermissionTitle}>
+                <span title={allowed ? undefined : t['admin.roles.noPermissionTitle']()}>
                   <Checkbox
                     checked={formPermissions.includes(permission.key)}
                     disabled={!allowed}
                     onchange={(event) => togglePermission(permission.key, event.currentTarget.checked)}
                   >
                     {permission.description}{#if !allowed}
-                      <span class="sanvi-visually-hidden"> ({COPY.noPermissionTitle})</span>
+                      <span class="sanvi-visually-hidden"> ({t['admin.roles.noPermissionTitle']()})</span>
                     {/if}
                   </Checkbox>
                 </span>
@@ -312,13 +285,13 @@ async function handleConfirmDelete(): Promise<void> {
     </Stack>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (formOpen = false)}>{COPY.cancel}</Button>
+    <Button variant="ghost" onclick={() => (formOpen = false)}>{t['admin.roles.cancel']()}</Button>
     <Button
       disabled={!formName || (!formTarget && !formKey) || escalatedPermissions.length > 0}
       loading={saving}
       onclick={handleSaveRole}
     >
-      {COPY.save}
+      {t['admin.roles.save']()}
     </Button>
   {/snippet}
 </Dialog>
@@ -326,8 +299,8 @@ async function handleConfirmDelete(): Promise<void> {
 {#if deleteTarget}
   <DangerousAction
     bind:open={deleteOpen}
-    titleText={COPY.deleteTitle(deleteTarget.name)}
-    consequence={COPY.deleteConsequence(deleteTarget.name)}
+    titleText={t['admin.roles.deleteTitle']({ name: deleteTarget.name })}
+    consequence={t['admin.roles.deleteConsequence']({ name: deleteTarget.name })}
     submitting={deleting}
     onConfirm={handleConfirmDelete}
   />

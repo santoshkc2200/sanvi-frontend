@@ -8,7 +8,7 @@ import {
   provisionTenant,
 } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
-import { formatMinor } from '@sanvi/billing-elements'
+import { fmt, t } from '@sanvi/i18n'
 import { getActiveMembership, getMemberships, setMemberships, switchTenant } from '@sanvi/tenant'
 import type { TenantMembership } from '@sanvi/tenant'
 import {
@@ -27,49 +27,16 @@ import { apiClient } from '../lib/api'
 
 type PublicPlan = components['schemas']['PublicPlanView']
 
-const REGION_OPTIONS = [
-  { value: 'us', label: 'US East (North Virginia)' },
-  { value: 'eu', label: 'Europe (Frankfurt)' },
-  { value: 'ap', label: 'Asia Pacific (Tokyo)' },
-]
+const REGION_OPTIONS = $derived([
+  { value: 'us', label: t['admin.onboarding.regionOptionUs']() },
+  { value: 'eu', label: t['admin.onboarding.regionOptionEu']() },
+  { value: 'ap', label: t['admin.onboarding.regionOptionAp']() },
+])
 
-const LOCALE_OPTIONS = [
-  { value: 'en', label: 'English' },
-  { value: 'ja', label: '日本語 (Japanese)' },
-]
-
-const COPY = {
-  title: 'Set up your workspace',
-  description: 'Create your organization and configure your subscription.',
-  step1Title: '1. Organization details',
-  step2Title: '2. Confirm plan & free trial',
-  nameLabel: 'Workspace name',
-  namePlaceholder: 'Acme Academy',
-  slugLabel: 'Subdomain / Slug',
-  slugPlaceholder: 'acme',
-  slugRules: 'Use 3–32 lowercase letters, numbers, and hyphens.',
-  slugChecking: 'Checking availability...',
-  slugAvailable: 'Slug is available!',
-  slugUnavailable: 'This slug is already taken. Try one of these alternatives:',
-  regionLabel: 'Hosting region',
-  localeLabel: 'Default language',
-  continueToPlan: 'Continue to plan selection',
-  backButton: 'Back',
-  startTrialButton: 'Start 14-day free trial with Stripe',
-  trialTermsHeader: 'Trial Terms & Conditions:',
-  trialTerms1: '14 days of free access to all included features.',
-  trialTerms2: 'Cancel anytime in the billing centre before trial ends with zero charge.',
-  trialTerms3: 'Taxes are calculated at checkout based on your billing address.',
-  loadingPlans: 'Loading plans...',
-  genericError: 'Something went wrong. Please check your inputs and try again.',
-  forbiddenError:
-    'Self-serve organization creation is not available. Please contact support to provision your workspace.',
-  resumingNotice: (name: string) =>
-    `Finish setting up billing for "${name}" to activate your workspace.`,
-  monthlyInterval: 'Monthly',
-  annualInterval: 'Annual (Save up to 20%)',
-  trialBadge: (days: number) => `${days}-day free trial`,
-}
+const LOCALE_OPTIONS = $derived([
+  { value: 'en', label: t['admin.onboarding.localeOptionEn']() },
+  { value: 'ja', label: t['admin.onboarding.localeOptionJa']() },
+])
 
 const params = new URLSearchParams(window.location.search)
 const initialPlanKey = params.get('plan') ?? 'starter'
@@ -206,7 +173,7 @@ const selectedPrice = $derived(
 
 function proceedToPlan(): void {
   if (!displayName.trim() || !slug.trim()) {
-    error = 'Please provide a workspace name and slug.'
+    error = t['admin.onboarding.nameAndSlugRequired']()
     return
   }
   error = undefined
@@ -215,7 +182,7 @@ function proceedToPlan(): void {
 
 async function handleCheckout(): Promise<void> {
   if (!selectedPrice) {
-    error = 'Please select a valid plan price.'
+    error = t['admin.onboarding.priceRequired']()
     return
   }
 
@@ -252,14 +219,14 @@ async function handleCheckout(): Promise<void> {
     if (session?.url) {
       window.location.href = session.url
     } else {
-      error = COPY.genericError
+      error = t['admin.onboarding.genericError']()
       submitting = false
     }
   } catch (err: unknown) {
     if (err instanceof ApiError && err.status === 403) {
-      error = COPY.forbiddenError
+      error = t['admin.onboarding.forbiddenError']()
     } else {
-      error = COPY.genericError
+      error = t['admin.onboarding.genericError']()
     }
     submitting = false
   }
@@ -267,19 +234,19 @@ async function handleCheckout(): Promise<void> {
 </script>
 
 <svelte:head>
-  <title>{COPY.title}</title>
+  <title>{t['admin.onboarding.title']()}</title>
 </svelte:head>
 
 <Container size="sm" padding="6">
   <Stack gap="6">
     <div class="sanvi-onboarding__header">
-      <h1>{COPY.title}</h1>
-      <p>{COPY.description}</p>
+      <h1>{t['admin.onboarding.title']()}</h1>
+      <p>{t['admin.onboarding.description']()}</p>
     </div>
 
     {#if activeMembership}
       <Alert variant="info">
-        {COPY.resumingNotice(activeMembership.displayName)}
+        {t['admin.onboarding.resumingNotice']({ name: activeMembership.displayName })}
       </Alert>
     {/if}
 
@@ -291,40 +258,40 @@ async function handleCheckout(): Promise<void> {
     {#if step === 1}
       <div class="sanvi-onboarding__card">
         <Stack gap="5">
-          <h2>{COPY.step1Title}</h2>
+          <h2>{t['admin.onboarding.step1Title']()}</h2>
 
-          <Field label={COPY.nameLabel} required>
+          <Field label={t['admin.onboarding.nameLabel']()} required>
             {#snippet children(controlProps)}
               <Input
                 {...controlProps}
                 bind:value={displayName}
-                placeholder={COPY.namePlaceholder}
+                placeholder={t['admin.onboarding.namePlaceholder']()}
                 oninput={(e) => handleNameChange((e.target as HTMLInputElement).value)}
               />
             {/snippet}
           </Field>
 
           <Field
-            label={COPY.slugLabel}
-            hint={COPY.slugRules}
-            error={slugStatus === 'unavailable' ? COPY.slugUnavailable : undefined}
+            label={t['admin.onboarding.slugLabel']()}
+            hint={t['admin.onboarding.slugRules']()}
+            error={slugStatus === 'unavailable' ? t['admin.onboarding.slugUnavailable']() : undefined}
             required
           >
             {#snippet children(controlProps)}
               <Input
                 {...controlProps}
                 bind:value={slug}
-                placeholder={COPY.slugPlaceholder}
+                placeholder={t['admin.onboarding.slugPlaceholder']()}
                 oninput={(e) => handleSlugInput((e.target as HTMLInputElement).value)}
               />
             {/snippet}
           </Field>
 
           {#if slugStatus === 'checking'}
-            <p class="sanvi-onboarding__slug-status">{COPY.slugChecking}</p>
+            <p class="sanvi-onboarding__slug-status">{t['admin.onboarding.slugChecking']()}</p>
           {:else if slugStatus === 'available'}
             <p class="sanvi-onboarding__slug-status sanvi-onboarding__slug-status--ok">
-              ✓ {COPY.slugAvailable}
+              ✓ {t['admin.onboarding.slugAvailable']()}
             </p>
           {:else if slugStatus === 'unavailable' && slugSuggestions.length > 0}
             <Cluster gap="2">
@@ -342,7 +309,7 @@ async function handleCheckout(): Promise<void> {
             </Cluster>
           {/if}
 
-          <Field label={COPY.regionLabel}>
+          <Field label={t['admin.onboarding.regionLabel']()}>
             {#snippet children(controlProps)}
               <Select
                 {...controlProps}
@@ -352,7 +319,7 @@ async function handleCheckout(): Promise<void> {
             {/snippet}
           </Field>
 
-          <Field label={COPY.localeLabel}>
+          <Field label={t['admin.onboarding.localeLabel']()}>
             {#snippet children(controlProps)}
               <Select
                 {...controlProps}
@@ -367,7 +334,7 @@ async function handleCheckout(): Promise<void> {
             disabled={!displayName.trim() || !slug.trim() || slugStatus !== 'available'}
             onclick={proceedToPlan}
           >
-            {COPY.continueToPlan}
+            {t['admin.onboarding.continueToPlan']()}
           </Button>
         </Stack>
       </div>
@@ -377,16 +344,16 @@ async function handleCheckout(): Promise<void> {
       <div class="sanvi-onboarding__card">
         <Stack gap="5">
           <div class="sanvi-onboarding__plan-header">
-            <h2>{COPY.step2Title}</h2>
+            <h2>{t['admin.onboarding.step2Title']()}</h2>
             {#if !activeMembership}
               <Button variant="ghost" onclick={() => { step = 1 }}>
-                {COPY.backButton}
+                {t['admin.onboarding.backButton']()}
               </Button>
             {/if}
           </div>
 
           {#if loadingPlans}
-            <Spinner label={COPY.loadingPlans} />
+            <Spinner label={t['admin.onboarding.loadingPlans']()} />
           {:else}
             <!-- Interval Toggle -->
             <Cluster gap="2">
@@ -394,13 +361,13 @@ async function handleCheckout(): Promise<void> {
                 variant={selectedInterval === 'month' ? 'primary' : 'secondary'}
                 onclick={() => { selectedInterval = 'month' }}
               >
-                {COPY.monthlyInterval}
+                {t['admin.onboarding.monthlyInterval']()}
               </Button>
               <Button
                 variant={selectedInterval === 'year' ? 'primary' : 'secondary'}
                 onclick={() => { selectedInterval = 'year' }}
               >
-                {COPY.annualInterval}
+                {t['admin.onboarding.annualInterval']()}
               </Button>
             </Cluster>
 
@@ -419,12 +386,12 @@ async function handleCheckout(): Promise<void> {
                       <strong>{plan.name}</strong>
                       {#if price}
                         <span class="sanvi-plan-choice__price">
-                          {formatMinor(price.unit_amount_minor, price.currency)} / {price.interval}
+                          {fmt.money(price.unit_amount_minor, price.currency)} / {price.interval}
                         </span>
                       {/if}
                     </div>
                     {#if price?.trial_days}
-                      <Badge variant="info">{COPY.trialBadge(price.trial_days)}</Badge>
+                      <Badge variant="info">{t['admin.onboarding.trialBadge']({ days: price.trial_days })}</Badge>
                     {/if}
                   </Stack>
                 </button>
@@ -433,11 +400,11 @@ async function handleCheckout(): Promise<void> {
 
             <!-- Explicit Trial Terms -->
             <div class="sanvi-onboarding__terms">
-              <strong>{COPY.trialTermsHeader}</strong>
+              <strong>{t['admin.onboarding.trialTermsHeader']()}</strong>
               <ul>
-                <li>{COPY.trialTerms1}</li>
-                <li>{COPY.trialTerms2}</li>
-                <li>{COPY.trialTerms3}</li>
+                <li>{t['admin.onboarding.trialTerms1']()}</li>
+                <li>{t['admin.onboarding.trialTerms2']()}</li>
+                <li>{t['admin.onboarding.trialTerms3']()}</li>
               </ul>
             </div>
 
@@ -446,7 +413,7 @@ async function handleCheckout(): Promise<void> {
               loading={submitting}
               onclick={handleCheckout}
             >
-              {COPY.startTrialButton}
+              {t['admin.onboarding.startTrialButton']()}
             </Button>
           {/if}
         </Stack>

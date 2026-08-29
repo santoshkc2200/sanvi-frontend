@@ -7,6 +7,7 @@ import {
   listTenantEntitlements,
 } from '@sanvi/api-client'
 import { handleLinkClick } from '@sanvi/spa-router'
+import { t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import { Alert, Badge, Button, Container, EmptyState, Spinner, Stack, StatCard } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
@@ -17,20 +18,6 @@ interface ChecklistItem {
   done: boolean
   actionLabel: string
   actionHref: string
-}
-
-const COPY = {
-  title: 'Dashboard',
-  statusLabel: 'Status',
-  regionLabel: 'Region',
-  membersStat: 'Members',
-  pendingInvitesStat: 'Pending invitations',
-  checklistTitle: 'Getting started',
-  goTo: 'Go',
-  inviteTeammate: 'Invite a teammate',
-  setTimezone: 'Set your timezone',
-  loading: 'Loading',
-  genericError: 'Could not load the dashboard. Try again in a moment.',
 }
 
 let tenant = $state<Awaited<ReturnType<typeof getTenantContext>> | undefined>(undefined)
@@ -68,7 +55,7 @@ async function load(): Promise<void> {
     timezoneSet = typeof storedTimezone === 'string' && storedTimezone.length > 0
   } catch {
     if (seq !== loadSeq) return
-    error = COPY.genericError
+    error = t['admin.dashboard.genericError']()
   } finally {
     if (seq === loadSeq) loading = false
   }
@@ -87,16 +74,16 @@ $effect(() => {
 const checklist: ChecklistItem[] = $derived([
   {
     id: 'invite-teammate',
-    label: COPY.inviteTeammate,
+    label: t['admin.dashboard.inviteTeammate'](),
     done: memberCount > 1,
-    actionLabel: COPY.goTo,
+    actionLabel: t['admin.dashboard.goTo'](),
     actionHref: '/members',
   },
   {
     id: 'set-timezone',
-    label: COPY.setTimezone,
+    label: t['admin.dashboard.setTimezone'](),
     done: timezoneSet,
-    actionLabel: COPY.goTo,
+    actionLabel: t['admin.dashboard.goTo'](),
     actionHref: '/settings',
   },
 ])
@@ -104,26 +91,26 @@ const checklist: ChecklistItem[] = $derived([
 
 <Container size="lg" padding="6">
   <Stack gap="6">
-    <h1>{COPY.title}</h1>
+    <h1>{t['admin.dashboard.title']()}</h1>
 
     {#if error}
       <Alert variant="error">{error}</Alert>
     {/if}
 
     {#if loading}
-      <Spinner label={COPY.loading} />
+      <Spinner label={t['admin.dashboard.loading']()} />
     {:else if tenant}
       <div>
         <h2>{tenant.display_name}</h2>
         <p class="sanvi-dashboard__meta">
-          {COPY.statusLabel}: <Badge variant={tenant.status === 'active' ? 'success' : 'warning'}>{tenant.status}</Badge>
-          &nbsp;·&nbsp;{COPY.regionLabel}: {tenant.region}
+          {t['admin.dashboard.statusLabel']()}: <Badge variant={tenant.status === 'active' ? 'success' : 'warning'}>{tenant.status}</Badge>
+          &nbsp;·&nbsp;{t['admin.dashboard.regionLabel']()}: {tenant.region}
         </p>
       </div>
 
       <div class="sanvi-dashboard__stats">
-        <StatCard label={COPY.membersStat} value={String(memberCount)} />
-        <StatCard label={COPY.pendingInvitesStat} value={String(pendingInviteCount)} />
+        <StatCard label={t['admin.dashboard.membersStat']()} value={String(memberCount)} />
+        <StatCard label={t['admin.dashboard.pendingInvitesStat']()} value={String(pendingInviteCount)} />
         {#each quotaEntitlements as entitlement (entitlement.feature)}
           <StatCard
             label={entitlement.feature}
@@ -133,7 +120,7 @@ const checklist: ChecklistItem[] = $derived([
       </div>
 
       <div>
-        <h2>{COPY.checklistTitle}</h2>
+        <h2>{t['admin.dashboard.checklistTitle']()}</h2>
         <Stack gap="2">
           {#each checklist as item (item.id)}
             <div class="sanvi-dashboard__checklist-row">
@@ -153,7 +140,7 @@ const checklist: ChecklistItem[] = $derived([
         </Stack>
       </div>
     {:else}
-      <EmptyState title={COPY.genericError} />
+      <EmptyState title={t['admin.dashboard.genericError']()} />
     {/if}
   </Stack>
 </Container>

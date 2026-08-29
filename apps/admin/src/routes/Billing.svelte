@@ -7,7 +7,7 @@ import {
   listTenantEntitlements,
 } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
-import { formatMinor } from '@sanvi/billing-elements'
+import { fmt, t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import {
   Alert,
@@ -31,65 +31,6 @@ type Subscription = components['schemas']['SubscriptionView']
 type Invoice = components['schemas']['InvoiceView']
 type PublicPlan = components['schemas']['PublicPlanView']
 type Entitlement = components['schemas']['ResolvedEntitlementView']
-
-const COPY = {
-  pageTitle: 'Billing & Subscription',
-  pageDescription: 'Manage your plan, quotas, invoices, and payment methods.',
-  tabOverview: 'Overview',
-  tabUsage: 'Usage & Quotas',
-  tabChangePlan: 'Change Plan',
-  tabInvoices: 'Invoices',
-  tabCancel: 'Cancel Subscription',
-  loading: 'Loading billing details',
-  genericError: 'Could not load billing details. Please try again in a moment.',
-  portalError: 'Could not open the customer portal. Please try again.',
-  currentPlanTitle: 'Current Subscription',
-  planLabel: 'Plan',
-  statusLabel: 'Status',
-  intervalLabel: 'Billing interval',
-  renewalLabel: 'Renews on',
-  trialEndingNotice: (days: number, date: string) =>
-    `Your 14-day free trial has ${days} day(s) remaining and ends on ${date}.`,
-  canceledNotice: (date: string) =>
-    `Your subscription is set to cancel on ${date}. You will continue to have full access until then.`,
-  reactivateCta: 'Reactivate subscription',
-  pastDueWarning:
-    'Your latest subscription payment failed. Please update your payment method to prevent service interruption.',
-  managePaymentCta: 'Manage in Stripe',
-  paymentMethodTitle: 'Payment Method',
-  paymentMethodDesc: 'Card details and billing address are managed securely in Stripe.',
-  changePlanTitle: 'Available Plans',
-  changePlanDesc:
-    'Upgrading or downgrading prorates immediately. Differences are settled on your next invoice.',
-  currentPlanBadge: 'Current Plan',
-  selectPlanCta: 'Change to this plan',
-  invoicesTitle: 'Invoice History',
-  invoicesEmpty: 'No invoices found.',
-  invoiceNumberCol: 'Invoice #',
-  invoiceDateCol: 'Date',
-  invoiceAmountCol: 'Amount',
-  invoiceStatusCol: 'Status',
-  invoiceActionsCol: 'Actions',
-  viewInvoice: 'View',
-  downloadPdf: 'PDF',
-  cancelTitle: 'Cancel Subscription',
-  cancelWarning:
-    'Canceling your subscription will downgrade your workspace at the end of your billing period.',
-  cancelImpactHeader: 'What happens when you cancel:',
-  cancelImpact1: 'You keep access to all features until the end of your current billing period.',
-  cancelImpact2: 'After the period ends, your published courses and custom domain will be paused.',
-  cancelImpact3: 'Your student data and course content are safely stored for 30 days.',
-  cancelButton: 'Continue to cancel in Stripe',
-  cancelConfirmPrompt:
-    'You will be redirected to the Stripe Customer Portal to finalize your cancellation.',
-  noSubscription: 'No active subscription found.',
-  noSubscriptionDesc: 'Choose a plan to activate your workspace and start your 14-day free trial.',
-  choosePlanCta: 'Choose a plan',
-  quotaTitle: 'Resource Limits',
-  featuresTitle: 'Included Features',
-  enabled: 'Enabled',
-  disabled: 'Disabled',
-}
 
 let activeTab = $state<'overview' | 'usage' | 'plans' | 'invoices' | 'cancel'>('overview')
 let subscription = $state<Subscription | null | undefined>(undefined)
@@ -123,7 +64,7 @@ async function loadBillingData(): Promise<void> {
     entitlements = entResult ?? []
   } catch {
     if (seq !== loadSeq) return
-    error = COPY.genericError
+    error = t['admin.billing.genericError']()
   } finally {
     if (seq === loadSeq) loading = false
   }
@@ -144,22 +85,22 @@ async function openCustomerPortal(): Promise<void> {
     if (result?.url) {
       window.location.href = result.url
     } else {
-      portalError = COPY.portalError
+      portalError = t['admin.billing.portalError']()
     }
   } catch {
-    portalError = COPY.portalError
+    portalError = t['admin.billing.portalError']()
   } finally {
     portalLoading = false
   }
 }
 
-const TABS: DetailShellTab[] = [
-  { href: 'overview', label: COPY.tabOverview },
-  { href: 'usage', label: COPY.tabUsage },
-  { href: 'plans', label: COPY.tabChangePlan },
-  { href: 'invoices', label: COPY.tabInvoices },
-  { href: 'cancel', label: COPY.tabCancel },
-]
+const TABS: DetailShellTab[] = $derived([
+  { href: 'overview', label: t['admin.billing.tabOverview']() },
+  { href: 'usage', label: t['admin.billing.tabUsage']() },
+  { href: 'plans', label: t['admin.billing.tabChangePlan']() },
+  { href: 'invoices', label: t['admin.billing.tabInvoices']() },
+  { href: 'cancel', label: t['admin.billing.tabCancel']() },
+])
 
 function handleTabNavigate(event: MouseEvent, href: string): void {
   event.preventDefault()
@@ -178,25 +119,17 @@ const trialDaysRemaining = $derived(() => {
 
 function formatDateTime(dateStr?: string | null): string {
   if (!dateStr) return '—'
-  try {
-    return new Date(dateStr).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  } catch {
-    return dateStr
-  }
+  return fmt.date(dateStr, 'medium')
 }
 </script>
 
 <svelte:head>
-  <title>{COPY.pageTitle}</title>
+  <title>{t['admin.billing.pageTitle']()}</title>
 </svelte:head>
 
 <DetailShell
-  title={COPY.pageTitle}
-  subtitle={COPY.pageDescription}
+  title={t['admin.billing.pageTitle']()}
+  subtitle={t['admin.billing.pageDescription']()}
   tabs={TABS}
   activeHref={activeTab}
   onNavigate={handleTabNavigate}
@@ -206,13 +139,13 @@ function formatDateTime(dateStr?: string | null): string {
   {/if}
 
   {#if loading}
-    <Spinner label={COPY.loading} />
+    <Spinner label={t['admin.billing.loading']()} />
   {:else if error}
     <Alert variant="error">{error}</Alert>
   {:else if !subscription}
-    <EmptyState title={COPY.noSubscription} description={COPY.noSubscriptionDesc}>
+    <EmptyState title={t['admin.billing.noSubscription']()} description={t['admin.billing.noSubscriptionDesc']()}>
       {#snippet action()}
-        <a class="sanvi-billing__cta-link" href="/onboarding">{COPY.choosePlanCta}</a>
+        <a class="sanvi-billing__cta-link" href="/onboarding">{t['admin.billing.choosePlanCta']()}</a>
       {/snippet}
     </EmptyState>
   {:else}
@@ -220,26 +153,26 @@ function formatDateTime(dateStr?: string | null): string {
     {#if activeTab === 'overview'}
       <Stack gap="6">
         {#if subscription.collection_state === 'dunning'}
-          <Alert variant="error" title={COPY.pastDueWarning}>
+          <Alert variant="error" title={t['admin.billing.pastDueWarning']()}>
             <Button variant="danger" loading={portalLoading} onclick={openCustomerPortal}>
-              {COPY.managePaymentCta}
+              {t['admin.billing.managePaymentCta']()}
             </Button>
           </Alert>
         {/if}
 
         {#if subscription.status === 'trialing' && subscription.trial_end}
           <Alert variant="info">
-            {COPY.trialEndingNotice(trialDaysRemaining(), formatDateTime(subscription.trial_end))}
+            {t['admin.billing.trialEndingNotice']({ days: trialDaysRemaining(), date: formatDateTime(subscription.trial_end) })}
           </Alert>
         {/if}
 
         {#if subscription.cancel_at_period_end && subscription.current_period?.end}
           <Alert variant="warning">
             <Stack gap="2">
-              <p>{COPY.canceledNotice(formatDateTime(subscription.current_period.end))}</p>
+              <p>{t['admin.billing.canceledNotice']({ date: formatDateTime(subscription.current_period.end) })}</p>
               <div>
                 <Button variant="primary" loading={portalLoading} onclick={openCustomerPortal}>
-                  {COPY.reactivateCta}
+                  {t['admin.billing.reactivateCta']()}
                 </Button>
               </div>
             </Stack>
@@ -249,7 +182,7 @@ function formatDateTime(dateStr?: string | null): string {
         <div class="sanvi-billing__card">
           <Stack gap="4">
             <div class="sanvi-billing__card-header">
-              <h2>{COPY.currentPlanTitle}</h2>
+              <h2>{t['admin.billing.currentPlanTitle']()}</h2>
               <Cluster gap="2">
                 <Badge variant={subscription.status === 'active' ? 'success' : subscription.status === 'trialing' ? 'info' : 'warning'}>
                   {subscription.status}
@@ -261,9 +194,9 @@ function formatDateTime(dateStr?: string | null): string {
             </div>
 
             <div class="sanvi-billing__grid">
-              <StatCard label={COPY.planLabel} value={subscription.plan_name} />
+              <StatCard label={t['admin.billing.planLabel']()} value={subscription.plan_name} />
               <StatCard
-                label={COPY.renewalLabel}
+                label={t['admin.billing.renewalLabel']()}
                 value={formatDateTime(subscription.current_period?.end)}
               />
             </div>
@@ -272,11 +205,11 @@ function formatDateTime(dateStr?: string | null): string {
 
         <div class="sanvi-billing__card">
           <Stack gap="3">
-            <h2>{COPY.paymentMethodTitle}</h2>
-            <p class="sanvi-billing__muted">{COPY.paymentMethodDesc}</p>
+            <h2>{t['admin.billing.paymentMethodTitle']()}</h2>
+            <p class="sanvi-billing__muted">{t['admin.billing.paymentMethodDesc']()}</p>
             <div>
               <Button variant="secondary" loading={portalLoading} onclick={openCustomerPortal}>
-                {COPY.managePaymentCta}
+                {t['admin.billing.managePaymentCta']()}
               </Button>
             </div>
           </Stack>
@@ -287,25 +220,25 @@ function formatDateTime(dateStr?: string | null): string {
     {:else if activeTab === 'usage'}
       <Stack gap="6">
         <div>
-          <h2>{COPY.quotaTitle}</h2>
+          <h2>{t['admin.billing.quotaTitle']()}</h2>
           <div class="sanvi-billing__quota-grid">
             {#each quotaEntitlements as q (q.feature)}
               <StatCard
                 label={q.feature}
-                value={q.limit === null || q.limit === undefined ? 'Unlimited' : String(q.limit)}
-                description={q.source ? `Source: ${q.source}` : undefined}
+                value={q.limit === null || q.limit === undefined ? t['admin.billing.unlimited']() : String(q.limit)}
+                description={q.source ? t['admin.billing.sourceLabel']({ source: q.source }) : undefined}
               />
             {/each}
           </div>
         </div>
 
         <div>
-          <h2>{COPY.featuresTitle}</h2>
+          <h2>{t['admin.billing.featuresTitle']()}</h2>
           <Stack gap="2" align="start">
             {#each featureEntitlements as f (f.feature)}
               <div class="sanvi-billing__feature-row">
                 <Badge variant={f.enabled ? 'success' : 'neutral'}>
-                  {f.enabled ? COPY.enabled : COPY.disabled}
+                  {f.enabled ? t['admin.billing.enabled']() : t['admin.billing.disabled']()}
                 </Badge>
                 <span class="sanvi-billing__feature-name">{f.feature}</span>
                 <span class="sanvi-billing__muted">({f.source})</span>
@@ -319,8 +252,8 @@ function formatDateTime(dateStr?: string | null): string {
     {:else if activeTab === 'plans'}
       <Stack gap="6">
         <div>
-          <h2>{COPY.changePlanTitle}</h2>
-          <p class="sanvi-billing__muted">{COPY.changePlanDesc}</p>
+          <h2>{t['admin.billing.changePlanTitle']()}</h2>
+          <p class="sanvi-billing__muted">{t['admin.billing.changePlanDesc']()}</p>
         </div>
 
         <div class="sanvi-billing__plans-grid">
@@ -331,18 +264,18 @@ function formatDateTime(dateStr?: string | null): string {
                 <div class="sanvi-plan-box__header">
                   <h3>{plan.name}</h3>
                   {#if isCurrent}
-                    <Badge variant="success">{COPY.currentPlanBadge}</Badge>
+                    <Badge variant="success">{t['admin.billing.currentPlanBadge']()}</Badge>
                   {/if}
                 </div>
 
                 <div class="sanvi-plan-box__actions">
                   {#if isCurrent}
                     <Button variant="secondary" disabled>
-                      {COPY.currentPlanBadge}
+                      {t['admin.billing.currentPlanBadge']()}
                     </Button>
                   {:else}
                     <Button variant="primary" loading={portalLoading} onclick={openCustomerPortal}>
-                      {COPY.selectPlanCta}
+                      {t['admin.billing.selectPlanCta']()}
                     </Button>
                   {/if}
                 </div>
@@ -355,19 +288,19 @@ function formatDateTime(dateStr?: string | null): string {
     <!-- Tab 4: Invoices -->
     {:else if activeTab === 'invoices'}
       <Stack gap="4">
-        <h2>{COPY.invoicesTitle}</h2>
+        <h2>{t['admin.billing.invoicesTitle']()}</h2>
         {#if invoices.length === 0}
-          <EmptyState title={COPY.invoicesEmpty} />
+          <EmptyState title={t['admin.billing.invoicesEmpty']()} />
         {:else}
           <div class="sanvi-billing__table-wrapper">
             <table class="sanvi-invoices-table">
               <thead>
                 <tr>
-                  <th scope="col">{COPY.invoiceNumberCol}</th>
-                  <th scope="col">{COPY.invoiceDateCol}</th>
-                  <th scope="col">{COPY.invoiceAmountCol}</th>
-                  <th scope="col">{COPY.invoiceStatusCol}</th>
-                  <th scope="col">{COPY.invoiceActionsCol}</th>
+                  <th scope="col">{t['admin.billing.invoiceNumberCol']()}</th>
+                  <th scope="col">{t['admin.billing.invoiceDateCol']()}</th>
+                  <th scope="col">{t['admin.billing.invoiceAmountCol']()}</th>
+                  <th scope="col">{t['admin.billing.invoiceStatusCol']()}</th>
+                  <th scope="col">{t['admin.billing.invoiceActionsCol']()}</th>
                 </tr>
               </thead>
               <tbody>
@@ -375,7 +308,7 @@ function formatDateTime(dateStr?: string | null): string {
                   <tr>
                     <td><strong>{inv.number ?? inv.invoice_id.slice(0, 8)}</strong></td>
                     <td>{formatDateTime(inv.created_at)}</td>
-                    <td>{formatMinor(inv.total_minor, inv.currency)}</td>
+                    <td>{fmt.money(inv.total_minor, inv.currency)}</td>
                     <td>
                       <Badge variant={inv.status === 'paid' ? 'success' : inv.status === 'open' ? 'warning' : 'neutral'}>
                         {inv.status}
@@ -385,12 +318,12 @@ function formatDateTime(dateStr?: string | null): string {
                       <Cluster gap="2">
                         {#if inv.hosted_url}
                           <a class="sanvi-billing__table-link" href={inv.hosted_url} target="_blank" rel="noopener noreferrer">
-                            {COPY.viewInvoice}
+                            {t['admin.billing.viewInvoice']()}
                           </a>
                         {/if}
                         {#if inv.pdf_url}
                           <a class="sanvi-billing__table-link" href={inv.pdf_url} target="_blank" rel="noopener noreferrer">
-                            {COPY.downloadPdf}
+                            {t['admin.billing.downloadPdf']()}
                           </a>
                         {/if}
                       </Cluster>
@@ -407,22 +340,22 @@ function formatDateTime(dateStr?: string | null): string {
     {:else if activeTab === 'cancel'}
       <Stack gap="6">
         <div>
-          <h2>{COPY.cancelTitle}</h2>
-          <p class="sanvi-billing__muted">{COPY.cancelWarning}</p>
+          <h2>{t['admin.billing.cancelTitle']()}</h2>
+          <p class="sanvi-billing__muted">{t['admin.billing.cancelWarning']()}</p>
         </div>
 
         <div class="sanvi-billing__cancel-card">
           <Stack gap="4">
-            <h3>{COPY.cancelImpactHeader}</h3>
+            <h3>{t['admin.billing.cancelImpactHeader']()}</h3>
             <ul class="sanvi-billing__cancel-list">
-              <li>{COPY.cancelImpact1}</li>
-              <li>{COPY.cancelImpact2}</li>
-              <li>{COPY.cancelImpact3}</li>
+              <li>{t['admin.billing.cancelImpact1']()}</li>
+              <li>{t['admin.billing.cancelImpact2']()}</li>
+              <li>{t['admin.billing.cancelImpact3']()}</li>
             </ul>
 
             <div>
               <Button variant="danger" loading={portalLoading} onclick={openCustomerPortal}>
-                {COPY.cancelButton}
+                {t['admin.billing.cancelButton']()}
               </Button>
             </div>
           </Stack>

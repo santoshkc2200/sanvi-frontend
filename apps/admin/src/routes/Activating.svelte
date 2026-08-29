@@ -1,22 +1,8 @@
 <script lang="ts">
 import { getSubscription } from '@sanvi/api-client'
+import { t } from '@sanvi/i18n'
 import { Alert, Button, Container, Spinner, Stack } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
-
-const COPY = {
-  title: 'Setting up your workspace',
-  description:
-    'We are activating your subscription and provisioning your workspace features. This usually takes just a few seconds.',
-  successTitle: 'Workspace ready!',
-  successDescription: 'Your subscription is active. Taking you to your dashboard...',
-  timeoutTitle: 'Activation is taking a bit longer than usual',
-  timeoutDescription:
-    'Your payment was received, but our webhook confirmation is still processing in the background. You can refresh the status or continue to your dashboard.',
-  retryButton: 'Check again',
-  dashboardButton: 'Go to Dashboard',
-  supportPrompt: 'Need help?',
-  supportLink: 'Contact support',
-}
 
 let status = $state<'polling' | 'success' | 'timeout'>('polling')
 let attempts = $state(0)
@@ -97,17 +83,17 @@ function goToDashboard(): void {
 </script>
 
 <svelte:head>
-  <title>{COPY.title}</title>
+  <title>{t['admin.activating.title']()}</title>
 </svelte:head>
 
 <Container size="sm" padding="6">
   <div class="sanvi-activating">
     {#if status === 'polling'}
       <Stack gap="6" align="center">
-        <Spinner label={COPY.title} />
+        <Spinner label={t['admin.activating.title']()} />
         <Stack gap="2" align="center">
-          <h1 class="sanvi-activating__title">{COPY.title}</h1>
-          <p class="sanvi-activating__description">{COPY.description}</p>
+          <h1 class="sanvi-activating__title">{t['admin.activating.title']()}</h1>
+          <p class="sanvi-activating__description">{t['admin.activating.description']()}</p>
         </Stack>
       </Stack>
     {:else if status === 'success'}
@@ -115,8 +101,8 @@ function goToDashboard(): void {
         <div class="sanvi-activating__badge sanvi-activating__badge--success" aria-hidden="true">
           ✓
         </div>
-        <h1 class="sanvi-activating__title">{COPY.successTitle}</h1>
-        <p class="sanvi-activating__description">{COPY.successDescription}</p>
+        <h1 class="sanvi-activating__title">{t['admin.activating.successTitle']()}</h1>
+        <p class="sanvi-activating__description">{t['admin.activating.successDescription']()}</p>
       </Stack>
     {:else if status === 'timeout'}
       <Stack gap="6" align="center">
@@ -124,23 +110,23 @@ function goToDashboard(): void {
           !
         </div>
         <Stack gap="2" align="center">
-          <h1 class="sanvi-activating__title">{COPY.timeoutTitle}</h1>
-          <p class="sanvi-activating__description">{COPY.timeoutDescription}</p>
+          <h1 class="sanvi-activating__title">{t['admin.activating.timeoutTitle']()}</h1>
+          <p class="sanvi-activating__description">{t['admin.activating.timeoutDescription']()}</p>
         </Stack>
 
         <Stack gap="3" align="center">
           <Button variant="primary" onclick={manualRetry}>
-            {COPY.retryButton}
+            {t['admin.activating.retryButton']()}
           </Button>
           <Button variant="secondary" onclick={goToDashboard}>
-            {COPY.dashboardButton}
+            {t['admin.activating.dashboardButton']()}
           </Button>
         </Stack>
 
         <div class="sanvi-activating__support">
-          <span>{COPY.supportPrompt}</span>
+          <span>{t['admin.activating.supportPrompt']()}</span>
           <a class="sanvi-activating__link" href="mailto:support@sanvi.app">
-            {COPY.supportLink}
+            {t['admin.activating.supportLink']()}
           </a>
         </div>
       </Stack>

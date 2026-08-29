@@ -9,12 +9,15 @@ import {
 } from '@sanvi/auth'
 import { getSubscription, listTenantEntitlements } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
+import { currentLocale, localeOptions, onLocaleChange, setLocale, t } from '@sanvi/i18n'
 import { clearCache, QueryDevtools } from '@sanvi/query'
 import type { Router, RouteDefinition } from '@sanvi/spa-router'
 import { createRouter } from '@sanvi/spa-router'
 import {
   AppShell,
+  Cluster,
   ErrorView,
+  LocaleSwitcher,
   PastDueBanner,
   Spinner,
   SuspendedInterstitial,
@@ -109,6 +112,11 @@ const routes: RouteDefinition[] = [
     guard: (params) => requireSession(router)(params),
     load: () => import('./routes/Privacy.svelte'),
   },
+  {
+    path: 'settings/localization',
+    guard: (params) => requireSession(router)(params),
+    load: () => import('./routes/Localization.svelte'),
+  },
   { path: 'login', load: () => import('./routes/Login.svelte') },
   { path: 'health', load: () => import('./routes/Health.svelte') },
 ]
@@ -177,6 +185,19 @@ async function syncSubscription(): Promise<void> {
 void syncSubscription()
 onTenantSwitch(() => void syncSubscription())
 
+// Phase 06: a locale switch must refetch everything that carries
+// backend-emitted strings or locale-shaped data — same enforcement pattern
+// as the tenant switch above (clear the cache, re-sync), not a
+// "remember to invalidate" convention.
+async function switchLocale(code: string): Promise<void> {
+  await setLocale(code)
+}
+onLocaleChange(() => {
+  clearCache()
+  void syncEntitlements()
+  void syncSubscription()
+})
+
 const trialDaysRemaining = $derived(() => {
   if (!subscription?.trial_end || subscription.status !== 'trialing') return 0
   const end = new Date(subscription.trial_end).getTime()
@@ -191,35 +212,43 @@ const showPastDueBanner = $derived(subscription?.collection_state === 'dunning')
 
 const isSuspended = $derived(subscription?.collection_state === 'grace_expired')
 
-const COPY = {
-  brand: 'Sanvi Admin',
-  skipLink: 'Skip to main content',
-  primaryNav: 'Primary',
-  tenantSwitcherLabel: 'Switch tenant',
-  loadingLabel: 'Loading',
-  errorTitle: 'Something went wrong',
-  errorDescription: 'Try reloading the page.',
-  deniedTitle: 'Access denied',
-  deniedDescription: "You don't have permission to view this page.",
-  deniedDescriptionWithPermission: (permission: string) =>
-    `You don't have the "${permission}" permission. Ask a tenant owner or admin to grant it.`,
-  retry: 'Try again',
-}
+const deniedDescription = $derived(
+  getLastDeniedPermission()
+    ? t['admin.app.deniedDescriptionWithPermission']({
+        permission: getLastDeniedPermission() as string,
+      })
+    : t['admin.app.deniedDescription'](),
+)
 
-const NAV: { href: string; label: string; permission?: string }[] = [
-  { href: '/', label: 'Dashboard' },
-  { href: '/members', label: 'Members', permission: 'identity.member.read' },
-  { href: '/roles', label: 'Roles', permission: 'access.role.read' },
-  { href: '/usage', label: 'Usage' },
-  { href: '/billing', label: 'Billing', permission: 'billing.subscription.read' },
-  { href: '/payments', label: 'Payments', permission: 'payments.read' },
-  { href: '/privacy', label: 'Privacy' },
-  { href: '/settings', label: 'Settings' },
-  { href: '/settings/security', label: 'Security' },
+type NavKey =
+  | 'dashboard'
+  | 'members'
+  | 'roles'
+  | 'usage'
+  | 'billing'
+  | 'payments'
+  | 'privacy'
+  | 'settings'
+  | 'security'
+  | 'localization'
+
+const NAV: { href: string; labelKey: NavKey; permission?: string }[] = [
+  { href: '/', labelKey: 'dashboard' },
+  { href: '/members', labelKey: 'members', permission: 'identity.member.read' },
+  { href: '/roles', labelKey: 'roles', permission: 'access.role.read' },
+  { href: '/usage', labelKey: 'usage' },
+  { href: '/billing', labelKey: 'billing', permission: 'billing.subscription.read' },
+  { href: '/payments', labelKey: 'payments', permission: 'payments.read' },
+  { href: '/privacy', labelKey: 'privacy' },
+  { href: '/settings', labelKey: 'settings' },
+  { href: '/settings/security', labelKey: 'security' },
+  { href: '/settings/localization', labelKey: 'localization' },
 ]
 
 const visibleNav = $derived(
-  NAV.filter((item) => !item.permission || can(item.permission, getActiveTenantId())),
+  NAV.filter((item) => !item.permission || can(item.permission, getActiveTenantId())).map(
+    (item) => ({ href: item.href, label: t[`admin.nav.${item.labelKey}`]() }),
+  ),
 )
 
 const membershipOptions = $derived(
@@ -229,32 +258,34 @@ const membershipOptions = $derived(
   })),
 )
 
-const deniedDescription = $derived(
-  getLastDeniedPermission()
-    ? COPY.deniedDescriptionWithPermission(getLastDeniedPermission() as string)
-    : COPY.deniedDescription,
-)
-
 function retry(): void {
   router.navigate(router.pathname)
 }
 </script>
 
 <AppShell
-  brand={COPY.brand}
-  skipLinkLabel={COPY.skipLink}
-  primaryNavLabel={COPY.primaryNav}
+  brand={t['admin.app.brand']()}
+  skipLinkLabel={t['admin.app.skipLink']()}
+  primaryNavLabel={t['admin.app.primaryNav']()}
   nav={visibleNav}
   currentPath={router.pathname}
   onNavigate={router.handleLinkClick}
 >
   {#snippet headerExtra()}
-    <TenantSwitcher
-      options={membershipOptions}
-      activeTenantId={getActiveTenantId()}
-      label={COPY.tenantSwitcherLabel}
-      onSwitch={switchTenant}
-    />
+    <Cluster gap="4" align="center">
+      <LocaleSwitcher
+        options={localeOptions().map((o) => ({ code: o.code, label: o.label }))}
+        current={currentLocale()}
+        label={t['admin.nav.switchLanguage']()}
+        onSwitch={(code) => void switchLocale(code)}
+      />
+      <TenantSwitcher
+        options={membershipOptions}
+        activeTenantId={getActiveTenantId()}
+        label={t['admin.app.tenantSwitcherLabel']()}
+        onSwitch={switchTenant}
+      />
+    </Cluster>
   {/snippet}
 
   {#if isSuspended && router.pathname !== '/billing'}
@@ -272,20 +303,20 @@ function retry(): void {
 
     {#if router.error}
       <ErrorView
-        title={COPY.errorTitle}
-        description={COPY.errorDescription}
-        retryLabel={COPY.retry}
+        title={t['admin.app.errorTitle']()}
+        description={t['admin.app.errorDescription']()}
+        retryLabel={t['common.retry']()}
         onRetry={retry}
       />
     {:else if router.guardRejected}
-      <ErrorView title={COPY.deniedTitle} description={deniedDescription} />
+      <ErrorView title={t['admin.app.deniedTitle']()} description={deniedDescription} />
     {:else if router.component}
       {@const Page = router.component}
       {#key Page}
         <Page {...router.params} />
       {/key}
     {:else if router.loading}
-      <Spinner label={COPY.loadingLabel} />
+      <Spinner label={t['admin.app.loading']()} />
     {/if}
   {/if}
 </AppShell>

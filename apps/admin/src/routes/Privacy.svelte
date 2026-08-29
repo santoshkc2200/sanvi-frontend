@@ -1,6 +1,7 @@
 <script lang="ts">
 import { ApiError, extendDsr, listTenantDsrs, rejectDsr, submitTenantDsr } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
+import { fmt, normalizeEmail, t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import {
   Alert,
@@ -27,80 +28,9 @@ type DsrKind = components['schemas']['DsrKind']
 type DsrStatusValue = components['schemas']['DsrStatus']
 type SubmitResult = components['schemas']['SubmitDsrOutput']
 
-const COPY = {
-  pageTitle: 'Privacy & Data Requests',
-  pageDescription:
-    'Handle your end users\u2019 privacy requests, submit on their behalf, and review your obligations.',
-  tabRequests: 'Requests',
-  tabSubmit: 'Submit on behalf',
-  tabGuidance: 'Guidance',
-  loading: 'Loading privacy requests',
-  genericError: 'Could not load data subject requests. Please try again in a moment.',
-  forbiddenError: "You don't have permission to view this tenant's privacy requests.",
-  requestsTitle: 'Data subject requests',
-  requestsIntro:
-    'Requests submitted by or on behalf of your end users, with the response deadline for each jurisdiction.',
-  tableCaption: 'Data subject requests ledger',
-  receivedCol: 'Received',
-  kindCol: 'Kind',
-  jurisdictionCol: 'Jurisdiction',
-  statusCol: 'Status',
-  dueCol: 'Due',
-  actionsCol: 'Actions',
-  extendAction: 'Extend',
-  rejectAction: 'Reject',
-  dueBadge: (days: number) => `Due ${days}d`,
-  emptyTitle: 'No data subject requests yet.',
-  emptyDescription:
-    'When your end users ask to access, export, or delete their data, the requests appear here.',
-  extendTitle: 'Extend deadline',
-  extendIntro:
-    'This grants the one deadline extension allowed for the request. The new due date follows the jurisdiction\u2019s rules.',
-  extendDue: (date: string) => `Current due date: ${date}.`,
-  extendCta: 'Confirm extension',
-  extended: 'Deadline extended.',
-  rejectTitle: 'Reject request',
-  rejectIntro:
-    'The reason below is shown to the subject. Subjects in US jurisdictions also receive the authority complaint route with the refusal.',
-  reasonLabel: 'Reason',
-  reasonPlaceholder: 'e.g. we could not verify the requester\u2019s identity',
-  rejectCta: 'Reject request',
-  rejected: 'Request rejected.',
-  actionError: 'The action failed. Please try again.',
-  cancel: 'Cancel',
-  submitTitle: 'Submit a request on behalf of an end user',
-  submitIntro:
-    'File a privacy request for one of your end users when they contact you directly instead of using the storefront privacy centre.',
-  kindLabel: 'Request kind',
-  emailLabel: 'End-user email',
-  emailPlaceholder: 'customer@example.com',
-  noteLabel: 'Note (optional)',
-  notePlaceholder: 'Context for the reviewer, e.g. the order the request concerns.',
-  submitCta: 'Submit request',
-  submitError: 'Could not submit the request. Please try again.',
-  submitSuccessTitle: 'Request submitted.',
-  submitSuccess: (jurisdiction: string, due: string) =>
-    `Jurisdiction ${jurisdiction}. Response due by ${due}.`,
-  guidanceTitle: 'Your processor role',
-  guidanceBody:
-    'Your end users\u2019 personal data stays under your control. Sanvi processes it on your instructions as a processor or service provider \u2014 it never sells or shares it, and it answers your end users\u2019 requests only through you or through the storefront privacy centre acting on your behalf.',
-  guidanceDetail:
-    'As the controller (or business) for your end users\u2019 data, you are responsible for answering their requests within the deadline of the jurisdiction that applies. Use this console to track those deadlines, extend once where the law allows, and record refusals with a reason. Requests submitted here are filed with requester type "tenant operator" so the audit trail distinguishes them from requests your end users filed themselves.',
-}
-
-const KIND_LABELS: Partial<Record<DsrKind, string>> = {
-  access: 'Access',
-  export: 'Export',
-  erasure: 'Erasure',
-  rectification: 'Rectification',
-  opt_out_sale_or_share: 'Opt out of sale or share',
-  opt_out_targeted_advertising: 'Opt out of targeted advertising',
-  limit_sensitive_use: 'Limit sensitive use',
-}
-
 // The kinds a tenant operator can file on behalf of an end user (the
 // subject-facing self-service adds the remaining kinds itself).
-const SUBMITTABLE_KINDS: DsrKind[] = [
+const SUBMITTABLE_KINDS = [
   'access',
   'export',
   'erasure',
@@ -108,12 +38,9 @@ const SUBMITTABLE_KINDS: DsrKind[] = [
   'opt_out_sale_or_share',
   'opt_out_targeted_advertising',
   'limit_sensitive_use',
-]
+] as const
 
-const KIND_OPTIONS: SelectOption[] = SUBMITTABLE_KINDS.map((kind) => ({
-  value: kind,
-  label: KIND_LABELS[kind] ?? kind,
-}))
+type SubmittableKind = (typeof SUBMITTABLE_KINDS)[number]
 
 const STATUS_VARIANT: Record<DsrStatusValue, 'neutral' | 'info' | 'success' | 'warning' | 'error'> =
   {
@@ -142,15 +69,7 @@ function daysOverdue(dueAt: string): number {
 
 function formatDate(dateStr?: string | null): string {
   if (!dateStr) return '\u2014'
-  try {
-    return new Date(dateStr).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  } catch {
-    return dateStr
-  }
+  return fmt.date(dateStr, 'medium')
 }
 
 let activeTab = $state<'requests' | 'submit' | 'guidance'>('requests')
@@ -174,7 +93,10 @@ async function load(): Promise<void> {
     if (seq !== loadSeq) return
     // A 403 means this session's role can't see the request ledger —
     // a different message from a transport or validation failure.
-    error = err instanceof ApiError && err.status === 403 ? COPY.forbiddenError : COPY.genericError
+    error =
+      err instanceof ApiError && err.status === 403
+        ? t['admin.privacy.forbiddenError']()
+        : t['admin.privacy.genericError']()
   } finally {
     if (seq === loadSeq) loading = false
   }
@@ -186,18 +108,34 @@ $effect(() => {
   void load()
 })
 
-const TABS: DetailShellTab[] = [
-  { href: 'requests', label: COPY.tabRequests },
-  { href: 'submit', label: COPY.tabSubmit },
-  { href: 'guidance', label: COPY.tabGuidance },
-]
+// Request-kind Select options derive from the catalog so labels re-render on
+// a locale switch.
+const KIND_LABEL_KEYS = {
+  access: 'admin.privacy.kindAccess',
+  export: 'admin.privacy.kindExport',
+  erasure: 'admin.privacy.kindErasure',
+  rectification: 'admin.privacy.kindRectification',
+  opt_out_sale_or_share: 'admin.privacy.kindOptOutSaleOrShare',
+  opt_out_targeted_advertising: 'admin.privacy.kindOptOutTargetedAdvertising',
+  limit_sensitive_use: 'admin.privacy.kindLimitSensitiveUse',
+} as const
+
+const KIND_OPTIONS: SelectOption[] = $derived(
+  SUBMITTABLE_KINDS.map((kind) => ({ value: kind, label: t[KIND_LABEL_KEYS[kind]]() })),
+)
+
+const TABS: DetailShellTab[] = $derived([
+  { href: 'requests', label: t['admin.privacy.tabRequests']() },
+  { href: 'submit', label: t['admin.privacy.tabSubmit']() },
+  { href: 'guidance', label: t['admin.privacy.tabGuidance']() },
+])
 
 function handleTabNavigate(event: MouseEvent, href: string): void {
   event.preventDefault()
   activeTab = href as typeof activeTab
 }
 
-let formKind = $state<string>('access')
+let formKind = $state<SubmittableKind>('access')
 let formEmail = $state('')
 let formNote = $state('')
 let submitting = $state(false)
@@ -205,13 +143,15 @@ let submitResult = $state<SubmitResult | undefined>(undefined)
 let submitError = $state<string | undefined>(undefined)
 
 async function handleSubmit(): Promise<void> {
-  const email = formEmail.trim()
+  // NFKC-normalize what we submit (full-width ＠ etc.); the input keeps the
+  // raw text for display.
+  const email = normalizeEmail(formEmail)
   if (!email) return
   submitting = true
   submitError = undefined
   try {
     const result = await submitTenantDsr(apiClient, {
-      kind: formKind as DsrKind,
+      kind: formKind,
       requester: 'tenant_operator',
       subject: {
         kind: 'end_user',
@@ -224,7 +164,8 @@ async function handleSubmit(): Promise<void> {
     formEmail = ''
     formNote = ''
   } catch (err) {
-    submitError = err instanceof ApiError && err.detail ? err.detail : COPY.submitError
+    submitError =
+      err instanceof ApiError && err.detail ? err.detail : t['admin.privacy.submitError']()
   } finally {
     submitting = false
   }
@@ -246,12 +187,12 @@ async function handleExtend(): Promise<void> {
     await extendDsr(apiClient, extendTarget.request_id)
     extendOpen = false
     extendTarget = undefined
-    showToast({ variant: 'success', title: COPY.extended })
+    showToast({ variant: 'success', title: t['admin.privacy.extended']() })
     await load()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.actionError,
+      title: t['admin.privacy.actionError'](),
       description: err instanceof ApiError && err.detail ? err.detail : undefined,
     })
   } finally {
@@ -279,12 +220,12 @@ async function handleReject(): Promise<void> {
     await rejectDsr(apiClient, rejectTarget.request_id, { reason })
     rejectOpen = false
     rejectTarget = undefined
-    showToast({ variant: 'success', title: COPY.rejected })
+    showToast({ variant: 'success', title: t['admin.privacy.rejected']() })
     await load()
   } catch (err) {
     showToast({
       variant: 'error',
-      title: COPY.actionError,
+      title: t['admin.privacy.actionError'](),
       description: err instanceof ApiError && err.detail ? err.detail : undefined,
     })
   } finally {
@@ -294,7 +235,7 @@ async function handleReject(): Promise<void> {
 </script>
 
 <svelte:head>
-  <title>{COPY.pageTitle}</title>
+  <title>{t['admin.privacy.pageTitle']()}</title>
 </svelte:head>
 
 {#snippet receivedCell(row: DsrRow)}
@@ -309,7 +250,7 @@ async function handleReject(): Promise<void> {
   <Cluster gap="2">
     <span>{formatDate(row.due_at)}</span>
     {#if isOpen(row.status) && isOverdue(row.due_at)}
-      <Badge variant="warning">{COPY.dueBadge(daysOverdue(row.due_at))}</Badge>
+      <Badge variant="warning">{t['admin.privacy.dueBadge']({ days: daysOverdue(row.due_at) })}</Badge>
     {/if}
   </Cluster>
 {/snippet}
@@ -317,46 +258,46 @@ async function handleReject(): Promise<void> {
 {#snippet actionsCell(row: DsrRow)}
   <Cluster gap="2">
     <Button variant="secondary" size="sm" onclick={() => openExtend(row)}>
-      {COPY.extendAction}
+      {t['admin.privacy.extendAction']()}
     </Button>
     <Button variant="secondary" size="sm" onclick={() => openReject(row)}>
-      {COPY.rejectAction}
+      {t['admin.privacy.rejectAction']()}
     </Button>
   </Cluster>
 {/snippet}
 
 <DetailShell
-  title={COPY.pageTitle}
-  subtitle={COPY.pageDescription}
+  title={t['admin.privacy.pageTitle']()}
+  subtitle={t['admin.privacy.pageDescription']()}
   tabs={TABS}
   activeHref={activeTab}
   onNavigate={handleTabNavigate}
 >
   {#if loading}
-    <Spinner label={COPY.loading} />
+    <Spinner label={t['admin.privacy.loading']()} />
   {:else if error}
     <Alert variant="error">{error}</Alert>
   {:else if activeTab === 'requests'}
     <Stack gap="4">
       <div>
-        <h2>{COPY.requestsTitle}</h2>
-        <p class="sanvi-privacy__muted">{COPY.requestsIntro}</p>
+        <h2>{t['admin.privacy.requestsTitle']()}</h2>
+        <p class="sanvi-privacy__muted">{t['admin.privacy.requestsIntro']()}</p>
       </div>
 
       {#if requests.length === 0}
-        <EmptyState title={COPY.emptyTitle} description={COPY.emptyDescription} />
+        <EmptyState title={t['admin.privacy.emptyTitle']()} description={t['admin.privacy.emptyDescription']()} />
       {:else}
         <Table
-          caption={COPY.tableCaption}
+          caption={t['admin.privacy.tableCaption']()}
           rows={requests}
           getRowId={(row) => row.request_id}
           columns={[
-            { key: 'received_at', header: COPY.receivedCol, cell: receivedCell },
-            { key: 'kind', header: COPY.kindCol },
-            { key: 'jurisdiction', header: COPY.jurisdictionCol },
-            { key: 'status', header: COPY.statusCol, cell: statusCell },
-            { key: 'due_at', header: COPY.dueCol, cell: dueCell },
-            { key: 'actions', header: COPY.actionsCol, cell: actionsCell },
+            { key: 'received_at', header: t['admin.privacy.receivedCol'](), cell: receivedCell },
+            { key: 'kind', header: t['admin.privacy.kindCol']() },
+            { key: 'jurisdiction', header: t['admin.privacy.jurisdictionCol']() },
+            { key: 'status', header: t['admin.privacy.statusCol'](), cell: statusCell },
+            { key: 'due_at', header: t['admin.privacy.dueCol'](), cell: dueCell },
+            { key: 'actions', header: t['admin.privacy.actionsCol'](), cell: actionsCell },
           ]}
         />
       {/if}
@@ -365,13 +306,16 @@ async function handleReject(): Promise<void> {
   {:else if activeTab === 'submit'}
     <Stack gap="4">
       <div>
-        <h2>{COPY.submitTitle}</h2>
-        <p class="sanvi-privacy__muted">{COPY.submitIntro}</p>
+        <h2>{t['admin.privacy.submitTitle']()}</h2>
+        <p class="sanvi-privacy__muted">{t['admin.privacy.submitIntro']()}</p>
       </div>
 
       {#if submitResult}
-        <Alert variant="success" title={COPY.submitSuccessTitle}>
-          {COPY.submitSuccess(submitResult.jurisdiction, formatDate(submitResult.due_at))}
+        <Alert variant="success" title={t['admin.privacy.submitSuccessTitle']()}>
+          {t['admin.privacy.submitSuccess']({
+            jurisdiction: submitResult.jurisdiction,
+            due: formatDate(submitResult.due_at),
+          })}
         </Alert>
       {/if}
       {#if submitError}
@@ -379,30 +323,30 @@ async function handleReject(): Promise<void> {
       {/if}
 
       <Stack gap="4">
-        <Field label={COPY.kindLabel} required>
+        <Field label={t['admin.privacy.kindLabel']()} required>
           {#snippet children({ id })}
             <Select {id} bind:value={formKind} options={KIND_OPTIONS} required />
           {/snippet}
         </Field>
-        <Field label={COPY.emailLabel} required>
+        <Field label={t['admin.privacy.emailLabel']()} required>
           {#snippet children({ id })}
             <Input
               {id}
               type="email"
               bind:value={formEmail}
-              placeholder={COPY.emailPlaceholder}
+              placeholder={t['admin.privacy.emailPlaceholder']()}
               required
             />
           {/snippet}
         </Field>
-        <Field label={COPY.noteLabel}>
+        <Field label={t['admin.privacy.noteLabel']()}>
           {#snippet children({ id })}
-            <Textarea {id} bind:value={formNote} rows={3} placeholder={COPY.notePlaceholder} />
+            <Textarea {id} bind:value={formNote} rows={3} placeholder={t['admin.privacy.notePlaceholder']()} />
           {/snippet}
         </Field>
         <div>
           <Button loading={submitting} disabled={!formEmail.trim()} onclick={handleSubmit}>
-            {COPY.submitCta}
+            {t['admin.privacy.submitCta']()}
           </Button>
         </div>
       </Stack>
@@ -410,42 +354,42 @@ async function handleReject(): Promise<void> {
 
   {:else if activeTab === 'guidance'}
     <Stack gap="4">
-      <Alert variant="info" title={COPY.guidanceTitle}>
-        {COPY.guidanceBody}
+      <Alert variant="info" title={t['admin.privacy.guidanceTitle']()}>
+        {t['admin.privacy.guidanceBody']()}
       </Alert>
-      <p>{COPY.guidanceDetail}</p>
+      <p>{t['admin.privacy.guidanceDetail']()}</p>
     </Stack>
   {/if}
 </DetailShell>
 
 {#if extendTarget}
   {@const target = extendTarget}
-  <Dialog bind:open={extendOpen} titleText={COPY.extendTitle}>
+  <Dialog bind:open={extendOpen} titleText={t['admin.privacy.extendTitle']()}>
     {#snippet children()}
       <Stack gap="3">
-        <p>{COPY.extendIntro}</p>
-        <p>{COPY.extendDue(formatDate(target.due_at))}</p>
+        <p>{t['admin.privacy.extendIntro']()}</p>
+        <p>{t['admin.privacy.extendDue']({ date: formatDate(target.due_at) })}</p>
       </Stack>
     {/snippet}
     {#snippet footer()}
-      <Button variant="ghost" onclick={() => (extendOpen = false)}>{COPY.cancel}</Button>
-      <Button loading={extending} onclick={handleExtend}>{COPY.extendCta}</Button>
+      <Button variant="ghost" onclick={() => (extendOpen = false)}>{t['admin.privacy.cancel']()}</Button>
+      <Button loading={extending} onclick={handleExtend}>{t['admin.privacy.extendCta']()}</Button>
     {/snippet}
   </Dialog>
 {/if}
 
 {#if rejectTarget}
-  <Dialog bind:open={rejectOpen} titleText={COPY.rejectTitle}>
+  <Dialog bind:open={rejectOpen} titleText={t['admin.privacy.rejectTitle']()}>
     {#snippet children()}
       <Stack gap="3">
-        <p>{COPY.rejectIntro}</p>
-        <Field label={COPY.reasonLabel} required>
+        <p>{t['admin.privacy.rejectIntro']()}</p>
+        <Field label={t['admin.privacy.reasonLabel']()} required>
           {#snippet children({ id })}
             <Textarea
               {id}
               bind:value={rejectReason}
               rows={4}
-              placeholder={COPY.reasonPlaceholder}
+              placeholder={t['admin.privacy.reasonPlaceholder']()}
               required
             />
           {/snippet}
@@ -453,14 +397,14 @@ async function handleReject(): Promise<void> {
       </Stack>
     {/snippet}
     {#snippet footer()}
-      <Button variant="ghost" onclick={() => (rejectOpen = false)}>{COPY.cancel}</Button>
+      <Button variant="ghost" onclick={() => (rejectOpen = false)}>{t['admin.privacy.cancel']()}</Button>
       <Button
         variant="danger"
         disabled={!rejectReason.trim()}
         loading={rejecting}
         onclick={handleReject}
       >
-        {COPY.rejectCta}
+        {t['admin.privacy.rejectCta']()}
       </Button>
     {/snippet}
   </Dialog>

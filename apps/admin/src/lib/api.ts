@@ -1,5 +1,6 @@
 import { createApiClient, createTypedApiClient } from '@sanvi/api-client'
 import { createKratosClient, setSession } from '@sanvi/auth'
+import { currentLocale } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import { getAppEnv } from './env'
 
@@ -13,12 +14,18 @@ import { getAppEnv } from './env'
  * the backend rejects the cookie, so a session revoked underneath the tab
  * stops satisfying the route guards on the next navigation instead of
  * lingering until reload.
+ *
+ * Phase 06: `locale` reads the live runtime locale per request (phase 00's
+ * reserved slot), so every call carries `Accept-Language` — backend-emitted
+ * strings (problem details, localized fields) arrive in the UI's language,
+ * and a mid-session locale switch takes effect on the next call.
  */
 export const apiClient = createTypedApiClient(
   createApiClient({
     baseUrl: getAppEnv().apiOrigin,
     getTenantId: getActiveTenantId,
     credentials: 'include',
+    locale: () => currentLocale(),
     onUnauthorized: () => setSession(null),
   }),
 )

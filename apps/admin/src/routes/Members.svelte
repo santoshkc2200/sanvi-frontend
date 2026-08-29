@@ -10,6 +10,7 @@ import {
   revokeInvitation,
   updateMemberRoles,
 } from '@sanvi/api-client'
+import { fmt, normalizeEmail, t } from '@sanvi/i18n'
 import {
   Alert,
   Badge,
@@ -29,41 +30,6 @@ import { getActiveTenantId } from '@sanvi/tenant'
 type RoleView = Awaited<ReturnType<typeof listRolesTenant>>[number]
 type MemberRow = Awaited<ReturnType<typeof listMembers>>[number]
 type InvitationRow = Awaited<ReturnType<typeof listInvitations>>[number]
-
-const COPY = {
-  membersTitle: 'Members',
-  invitationsTitle: 'Invitations',
-  inviteTitle: 'Invite a member',
-  bulkInviteTitle: 'Bulk invite via CSV',
-  bulkInviteHint:
-    'One row per invite: email, then an optional second column of role keys separated by "|" (e.g. alice@example.com,owner|billing).',
-  bulkInviteAction: 'Upload CSV',
-  bulkInviteResult: (invited: number, failed: number) =>
-    failed > 0 ? `${invited} invited, ${failed} failed.` : `${invited} invited.`,
-  unknownRolesIgnored: (keys: string) => `Unknown role keys ignored: ${keys}`,
-  emailLabel: 'Email',
-  rolesLabel: 'Roles',
-  inviteAction: 'Send invitation',
-  removeAction: 'Remove',
-  resendAction: 'Resend',
-  revokeAction: 'Revoke',
-  changeRolesAction: 'Change roles',
-  changeRolesTitle: (email: string) => `Change roles for ${email}`,
-  save: 'Save',
-  cancel: 'Cancel',
-  statusHeader: 'Status',
-  actionsHeader: 'Actions',
-  loading: 'Loading',
-  genericError: 'Something went wrong. Try again in a moment.',
-  denied: "You don't have permission to view this tenant's members.",
-  noMembers: 'No members yet.',
-  noInvitations: 'No pending invitations.',
-  rolesUpdated: 'Roles updated.',
-  memberRemoved: 'Member removed.',
-  invitationSent: 'Invitation sent.',
-  invitationResent: 'Invitation resent.',
-  invitationRevoked: 'Invitation revoked.',
-}
 
 let members = $state<MemberRow[]>([])
 let invitations = $state<InvitationRow[]>([])
@@ -95,7 +61,7 @@ async function loadAll(): Promise<void> {
     roles = rolesResult
   } catch {
     if (seq !== loadSeq) return
-    error = COPY.genericError
+    error = t['admin.members.genericError']()
   } finally {
     if (seq === loadSeq) loading = false
   }
@@ -118,13 +84,15 @@ function toggleInviteRole(roleId: string, checked: boolean): void {
 async function handleInvite(): Promise<void> {
   inviting = true
   try {
-    await inviteMember(apiClient, { email: inviteEmail, role_ids: inviteRoleIds })
+    // NFKC-normalize what we *submit* (full-width ＠ etc.); the input keeps
+    // the raw text for display.
+    await inviteMember(apiClient, { email: normalizeEmail(inviteEmail), role_ids: inviteRoleIds })
     inviteEmail = ''
     inviteRoleIds = []
-    showToast({ variant: 'success', title: COPY.invitationSent })
+    showToast({ variant: 'success', title: t['admin.members.invitationSent']() })
     await loadAll()
   } catch {
-    showToast({ variant: 'error', title: COPY.genericError })
+    showToast({ variant: 'error', title: t['admin.members.genericError']() })
   } finally {
     inviting = false
   }
@@ -133,31 +101,31 @@ async function handleInvite(): Promise<void> {
 async function handleRemove(userId: string): Promise<void> {
   try {
     await removeMember(apiClient, userId)
-    showToast({ variant: 'success', title: COPY.memberRemoved })
+    showToast({ variant: 'success', title: t['admin.members.memberRemoved']() })
     await loadAll()
   } catch {
     // e.g. the last-owner guard rejects, or the actor lost the permission
-    showToast({ variant: 'error', title: COPY.genericError })
+    showToast({ variant: 'error', title: t['admin.members.genericError']() })
   }
 }
 
 async function handleResend(invitationId: string): Promise<void> {
   try {
     await resendInvitation(apiClient, invitationId)
-    showToast({ variant: 'success', title: COPY.invitationResent })
+    showToast({ variant: 'success', title: t['admin.members.invitationResent']() })
     await loadAll()
   } catch {
-    showToast({ variant: 'error', title: COPY.genericError })
+    showToast({ variant: 'error', title: t['admin.members.genericError']() })
   }
 }
 
 async function handleRevoke(invitationId: string): Promise<void> {
   try {
     await revokeInvitation(apiClient, invitationId)
-    showToast({ variant: 'success', title: COPY.invitationRevoked })
+    showToast({ variant: 'success', title: t['admin.members.invitationRevoked']() })
     await loadAll()
   } catch {
-    showToast({ variant: 'error', title: COPY.genericError })
+    showToast({ variant: 'error', title: t['admin.members.genericError']() })
   }
 }
 
@@ -185,10 +153,10 @@ async function handleSaveRoles(): Promise<void> {
   try {
     await updateMemberRoles(apiClient, changeRolesTarget.user_id, { role_ids: changeRolesSelected })
     changeRolesOpen = false
-    showToast({ variant: 'success', title: COPY.rolesUpdated })
+    showToast({ variant: 'success', title: t['admin.members.rolesUpdated']() })
     await loadAll()
   } catch {
-    showToast({ variant: 'error', title: COPY.genericError })
+    showToast({ variant: 'error', title: t['admin.members.genericError']() })
   } finally {
     savingRoles = false
   }
@@ -238,7 +206,9 @@ async function handleBulkInviteFile(
         else unknownRoleKeys.add(key)
       }
       try {
-        await inviteMember(apiClient, { email: row.email, role_ids: roleIds })
+        // Same NFKC normalization as the single-invite form — CSV cells pasted
+        // from CJK sources carry the same full-width hazards.
+        await inviteMember(apiClient, { email: normalizeEmail(row.email), role_ids: roleIds })
         invited += 1
       } catch {
         failed += 1
@@ -247,17 +217,22 @@ async function handleBulkInviteFile(
 
     showToast({
       variant: failed > 0 ? 'warning' : 'success',
-      title: COPY.bulkInviteResult(invited, failed),
+      title:
+        failed > 0
+          ? t['admin.members.bulkInviteResultPartial']({ invited, failed })
+          : t['admin.members.bulkInviteResultAll']({ invited }),
     })
     if (unknownRoleKeys.size > 0) {
       showToast({
         variant: 'warning',
-        title: COPY.unknownRolesIgnored([...unknownRoleKeys].sort().join(', ')),
+        title: t['admin.members.unknownRolesIgnored']({
+          keys: [...unknownRoleKeys].sort(fmt.collator().compare).join(', '),
+        }),
       })
     }
     await loadAll()
   } catch {
-    showToast({ variant: 'error', title: COPY.genericError })
+    showToast({ variant: 'error', title: t['admin.members.genericError']() })
   } finally {
     bulkInviting = false
     if (fileInput) fileInput.value = ''
@@ -274,14 +249,14 @@ async function handleBulkInviteFile(
     <Can permission="identity.member.grant" tenantId={getActiveTenantId()}>
       {#snippet children()}
         <Button variant="ghost" size="sm" onclick={() => openChangeRoles(member)}>
-          {COPY.changeRolesAction}
+          {t['admin.members.changeRolesAction']()}
         </Button>
       {/snippet}
     </Can>
     <Can permission="identity.member.remove" tenantId={getActiveTenantId()}>
       {#snippet children()}
         <Button variant="ghost" size="sm" onclick={() => handleRemove(member.user_id)}>
-          {COPY.removeAction}
+          {t['admin.members.removeAction']()}
         </Button>
       {/snippet}
     </Can>
@@ -293,10 +268,10 @@ async function handleBulkInviteFile(
     {#snippet children()}
       <Stack gap="2" align="start">
         <Button variant="ghost" size="sm" onclick={() => handleResend(invitation.invitation_id)}>
-          {COPY.resendAction}
+          {t['admin.members.resendAction']()}
         </Button>
         <Button variant="ghost" size="sm" onclick={() => handleRevoke(invitation.invitation_id)}>
-          {COPY.revokeAction}
+          {t['admin.members.revokeAction']()}
         </Button>
       </Stack>
     {/snippet}
@@ -317,39 +292,44 @@ async function handleBulkInviteFile(
       {/if}
 
       {#if loading}
-        <Spinner label={COPY.loading} />
+        <Spinner label={t['admin.members.loading']()} />
       {:else}
         <div>
-          <h1>{COPY.membersTitle}</h1>
+          <h1>{t['admin.members.membersTitle']()}</h1>
           <DataTable
             columns={[
-              { key: 'email', header: COPY.emailLabel, alwaysVisible: true },
-              { key: 'role_ids', header: COPY.rolesLabel, cell: rolesCell },
-              { key: 'status', header: COPY.statusHeader, cell: statusCell },
-              { key: 'actions', header: COPY.actionsHeader, cell: memberActionsCell, alwaysVisible: true },
+              { key: 'email', header: t['admin.members.emailLabel'](), alwaysVisible: true },
+              { key: 'role_ids', header: t['admin.members.rolesLabel'](), cell: rolesCell },
+              { key: 'status', header: t['admin.members.statusHeader'](), cell: statusCell },
+              {
+                key: 'actions',
+                header: t['admin.members.actionsHeader'](),
+                cell: memberActionsCell,
+                alwaysVisible: true,
+              },
             ]}
             rows={members}
             getRowId={(row) => row.user_id}
-            emptyMessage={COPY.noMembers}
+            emptyMessage={t['admin.members.noMembers']()}
           />
         </div>
 
         <div>
-          <h2>{COPY.invitationsTitle}</h2>
+          <h2>{t['admin.members.invitationsTitle']()}</h2>
           <DataTable
             columns={[
-              { key: 'email', header: COPY.emailLabel, alwaysVisible: true },
-              { key: 'status', header: COPY.statusHeader, cell: statusCell },
+              { key: 'email', header: t['admin.members.emailLabel'](), alwaysVisible: true },
+              { key: 'status', header: t['admin.members.statusHeader'](), cell: statusCell },
               {
                 key: 'actions',
-                header: COPY.actionsHeader,
+                header: t['admin.members.actionsHeader'](),
                 cell: invitationActionsCell,
                 alwaysVisible: true,
               },
             ]}
             rows={invitations}
             getRowId={(row) => row.invitation_id}
-            emptyMessage={COPY.noInvitations}
+            emptyMessage={t['admin.members.noInvitations']()}
           />
         </div>
 
@@ -357,15 +337,15 @@ async function handleBulkInviteFile(
           {#snippet children()}
             <Stack gap="6">
               <div>
-                <h2>{COPY.inviteTitle}</h2>
+                <h2>{t['admin.members.inviteTitle']()}</h2>
                 <Stack gap="3">
-                  <Field label={COPY.emailLabel}>
+                  <Field label={t['admin.members.emailLabel']()}>
                     {#snippet children({ id })}
                       <Input {id} type="email" bind:value={inviteEmail} required />
                     {/snippet}
                   </Field>
                   <fieldset>
-                    <legend>{COPY.rolesLabel}</legend>
+                    <legend>{t['admin.members.rolesLabel']()}</legend>
                     {#each roles as role (role.id)}
                       <Checkbox
                         checked={inviteRoleIds.includes(role.id)}
@@ -380,24 +360,24 @@ async function handleBulkInviteFile(
                     disabled={!inviteEmail || inviteRoleIds.length === 0}
                     onclick={handleInvite}
                   >
-                    {COPY.inviteAction}
+                    {t['admin.members.inviteAction']()}
                   </Button>
                 </Stack>
               </div>
 
               <div>
-                <h2>{COPY.bulkInviteTitle}</h2>
+                <h2>{t['admin.members.bulkInviteTitle']()}</h2>
                 <Stack gap="2" align="start">
-                  <p class="sanvi-members__hint">{COPY.bulkInviteHint}</p>
+                  <p class="sanvi-members__hint">{t['admin.members.bulkInviteHint']()}</p>
                   <input
                     bind:this={fileInput}
                     type="file"
                     accept=".csv"
-                    aria-label={COPY.bulkInviteAction}
+                    aria-label={t['admin.members.bulkInviteAction']()}
                     disabled={bulkInviting}
                     onchange={handleBulkInviteFile}
                   />
-                  {#if bulkInviting}<Spinner size="sm" label={COPY.loading} />{/if}
+                  {#if bulkInviting}<Spinner size="sm" label={t['admin.members.loading']()} />{/if}
                 </Stack>
               </div>
             </Stack>
@@ -407,17 +387,19 @@ async function handleBulkInviteFile(
     </Stack>
   {/snippet}
   {#snippet fallback()}
-    <Alert variant="error">{COPY.denied}</Alert>
+    <Alert variant="error">{t['admin.members.denied']()}</Alert>
   {/snippet}
 </Can>
 
 <Dialog
   bind:open={changeRolesOpen}
-  titleText={changeRolesTarget ? COPY.changeRolesTitle(changeRolesTarget.email) : COPY.changeRolesAction}
+  titleText={changeRolesTarget
+    ? t['admin.members.changeRolesTitle']({ email: changeRolesTarget.email })
+    : t['admin.members.changeRolesAction']()}
 >
   {#snippet children()}
     <fieldset>
-      <legend>{COPY.rolesLabel}</legend>
+      <legend>{t['admin.members.rolesLabel']()}</legend>
       {#each roles as role (role.id)}
         <Checkbox
           checked={changeRolesSelected.includes(role.id)}
@@ -429,8 +411,8 @@ async function handleBulkInviteFile(
     </fieldset>
   {/snippet}
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (changeRolesOpen = false)}>{COPY.cancel}</Button>
-    <Button loading={savingRoles} onclick={handleSaveRoles}>{COPY.save}</Button>
+    <Button variant="ghost" onclick={() => (changeRolesOpen = false)}>{t['admin.members.cancel']()}</Button>
+    <Button loading={savingRoles} onclick={handleSaveRoles}>{t['admin.members.save']()}</Button>
   {/snippet}
 </Dialog>
 

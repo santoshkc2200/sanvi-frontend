@@ -1,5 +1,6 @@
 <script lang="ts">
 import { ApiError, listPaymentProviders } from '@sanvi/api-client'
+import { t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import { Alert, Container, EmptyState, Spinner, Stack, UpgradePrompt } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
@@ -8,17 +9,6 @@ import { apiClient } from '../lib/api'
 // providers, and Stripe Connect isn't wired in until 09.2. This page's job
 // right now is just to prove the route is reachable and correctly gated —
 // not to render a provider list yet.
-const COPY = {
-  title: 'Payments',
-  description: 'Connect a payment provider to accept checkout on your storefront.',
-  loading: 'Loading',
-  empty: 'No payment providers connected yet.',
-  emptyDescription: 'Provider connections are coming in a later release.',
-  upgradeTitle: 'Upgrade required',
-  upgradeDescription:
-    'Accepting payments needs a plan with Stripe Connect. Ask a tenant owner to upgrade.',
-  genericError: 'Could not load payment providers. Try again in a moment.',
-}
 
 let loading = $state(true)
 let entitled = $state(true)
@@ -44,7 +34,7 @@ async function load(): Promise<void> {
     if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
       entitled = false
     } else {
-      error = COPY.genericError
+      error = t['admin.payments.genericError']()
     }
   } finally {
     if (seq === loadSeq) loading = false
@@ -61,8 +51,8 @@ $effect(() => {
 <Container size="lg" padding="6">
   <Stack gap="6">
     <div>
-      <h1>{COPY.title}</h1>
-      <p>{COPY.description}</p>
+      <h1>{t['admin.payments.title']()}</h1>
+      <p>{t['admin.payments.description']()}</p>
     </div>
 
     {#if error}
@@ -70,16 +60,16 @@ $effect(() => {
     {/if}
 
     {#if loading}
-      <Spinner label={COPY.loading} />
+      <Spinner label={t['admin.payments.loading']()} />
     {:else if !entitled}
       <UpgradePrompt
         feature="payments.stripe_connect"
-        title={COPY.upgradeTitle}
-        description={COPY.upgradeDescription}
+        title={t['admin.payments.upgradeTitle']()}
+        description={t['admin.payments.upgradeDescription']()}
         upgradeHref="/billing"
       />
     {:else if !error}
-      <EmptyState title={COPY.empty} description={COPY.emptyDescription} />
+      <EmptyState title={t['admin.payments.empty']()} description={t['admin.payments.emptyDescription']()} />
     {/if}
   </Stack>
 </Container>

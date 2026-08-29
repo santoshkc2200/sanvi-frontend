@@ -89,6 +89,7 @@ const SIGNED_IN_SESSION: Session = {
   aal: 'aal1',
   methods: ['password'],
   authenticatedAt: undefined,
+  locale: undefined,
 }
 
 // Every route but `login`/`health` is behind `requireSession` since phase
