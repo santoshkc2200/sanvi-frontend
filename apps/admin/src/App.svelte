@@ -147,6 +147,12 @@ const routes: RouteDefinition[] = [
       requirePermission(router, 'tenant.theming.write', getActiveTenantId())(params),
     load: () => import('./routes/ThemeLayout.svelte'),
   },
+  {
+    path: 'theme/publish',
+    guard: (params) =>
+      requirePermission(router, 'tenant.theming.publish', getActiveTenantId())(params),
+    load: () => import('./routes/ThemePublish.svelte'),
+  },
   { path: 'login', load: () => import('./routes/Login.svelte') },
   { path: 'health', load: () => import('./routes/Health.svelte') },
 ]
