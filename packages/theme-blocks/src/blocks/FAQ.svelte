@@ -16,7 +16,7 @@ interface Props {
 
 let { heading, subheading, items = [], class: className = '' }: Props = $props()
 
-const headingText = $derived(heading ? resolveText(heading) : t['themeBlocks.faq.heading']())
+const headingText = $derived(heading ? resolveText(heading) : t['themeblocks.faq.heading']())
 const subheadingText = $derived(resolveText(subheading))
 </script>
 

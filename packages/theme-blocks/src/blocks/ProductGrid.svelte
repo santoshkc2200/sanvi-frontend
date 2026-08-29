@@ -33,7 +33,7 @@ let {
 const headingText = $derived(resolveText(heading))
 const subheadingText = $derived(resolveText(subheading))
 const emptyText = $derived(
-  emptyMessage ? resolveText(emptyMessage) : t['themeBlocks.productGrid.emptyMessage'](),
+  emptyMessage ? resolveText(emptyMessage) : t['themeblocks.productGrid.emptyMessage'](),
 )
 const colsClass = $derived(`sanvi-block-product-grid--cols-${columns}`)
 </script>

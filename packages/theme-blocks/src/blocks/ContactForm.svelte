@@ -33,23 +33,23 @@ let submitted = $state(false)
 let isSubmitting = $state(false)
 
 const headingText = $derived(
-  heading ? resolveText(heading) : t['themeBlocks.contactForm.heading'](),
+  heading ? resolveText(heading) : t['themeblocks.contactForm.heading'](),
 )
 const descText = $derived(resolveText(description))
 const nameLabelText = $derived(
-  nameLabel ? resolveText(nameLabel) : t['themeBlocks.contactForm.nameLabel'](),
+  nameLabel ? resolveText(nameLabel) : t['themeblocks.contactForm.nameLabel'](),
 )
 const emailLabelText = $derived(
-  emailLabel ? resolveText(emailLabel) : t['themeBlocks.contactForm.emailLabel'](),
+  emailLabel ? resolveText(emailLabel) : t['themeblocks.contactForm.emailLabel'](),
 )
 const messageLabelText = $derived(
-  messageLabel ? resolveText(messageLabel) : t['themeBlocks.contactForm.messageLabel'](),
+  messageLabel ? resolveText(messageLabel) : t['themeblocks.contactForm.messageLabel'](),
 )
 const submitText = $derived(
-  submitButtonText ? resolveText(submitButtonText) : t['themeBlocks.contactForm.submitButton'](),
+  submitButtonText ? resolveText(submitButtonText) : t['themeblocks.contactForm.submitButton'](),
 )
 const successText = $derived(
-  successMessage ? resolveText(successMessage) : t['themeBlocks.contactForm.successMessage'](),
+  successMessage ? resolveText(successMessage) : t['themeblocks.contactForm.successMessage'](),
 )
 
 async function handleSubmit(event: SubmitEvent) {

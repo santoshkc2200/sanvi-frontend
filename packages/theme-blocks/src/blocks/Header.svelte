@@ -27,7 +27,7 @@ let {
 
 const brand = $derived(resolveText(brandName))
 const navLabel = $derived(
-  navAriaLabel ? resolveText(navAriaLabel) : t['themeBlocks.header.navAriaLabel'](),
+  navAriaLabel ? resolveText(navAriaLabel) : t['themeblocks.header.navAriaLabel'](),
 )
 </script>
 

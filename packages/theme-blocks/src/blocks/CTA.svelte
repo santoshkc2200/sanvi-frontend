@@ -24,10 +24,10 @@ let {
   class: className = '',
 }: Props = $props()
 
-const headingText = $derived(heading ? resolveText(heading) : t['themeBlocks.cta.heading']())
+const headingText = $derived(heading ? resolveText(heading) : t['themeblocks.cta.heading']())
 const descText = $derived(resolveText(description))
 const primaryBtnText = $derived(
-  buttonText ? resolveText(buttonText) : t['themeBlocks.cta.buttonText'](),
+  buttonText ? resolveText(buttonText) : t['themeblocks.cta.buttonText'](),
 )
 const secondaryBtnText = $derived(resolveText(secondaryButtonText))
 </script>
