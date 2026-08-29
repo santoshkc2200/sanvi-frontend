@@ -1,7 +1,15 @@
 /**
  * Minimal reset + base typography for apps consuming @sanvi/ui. Every value
  * is a token reference — this file is itself subject to `check:tokens`.
+ *
+ * Phase 06: the self-hosted Noto Sans JP faces load through the
+ * unicode-range-split CSS below — browsers only ever download the subset
+ * files that contain glyphs actually rendered, so English pages pay
+ * nothing for Japanese support. The `[lang='ja']` block applies the CJK
+ * typography rules; `<html lang>` is set server-side by the SSR apps'
+ * locale hooks (and by the SPAs' locale runtime).
  */
+@import "@fontsource-variable/noto-sans-jp";
 @import "@sanvi/design-tokens/css";
 
 *,
@@ -17,6 +25,18 @@ body {
   font-family: var(--sanvi-font-family-sans);
   font-size: var(--sanvi-font-size-md);
   line-height: var(--sanvi-line-height-normal);
+}
+
+/*
+ * CJK typography (phase 06): strict kinsoku line-breaking (no line may
+ * start with a closing bracket or end with an opening one), and break
+ * anywhere in long runs — Japanese text has no spaces to wrap on. The
+ * design-tokens `[lang='ja']` layer supplies the looser leading and the
+ * JP-first font stack; this block is the behavior, not the values.
+ */
+[lang='ja'] {
+  line-break: strict;
+  overflow-wrap: anywhere;
 }
 
 :focus-visible {
