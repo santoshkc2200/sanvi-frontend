@@ -105,6 +105,16 @@ const routes: RouteDefinition[] = [
     load: () => import('./routes/PaymentsSettings.svelte'),
   },
   {
+    path: 'domains',
+    guard: (params) => requireSession(router)(params),
+    load: () => import('./routes/Domains.svelte'),
+  },
+  {
+    path: 'domains/:id',
+    guard: (params) => requireSession(router)(params),
+    load: () => import('./routes/DomainDetail.svelte'),
+  },
+  {
     // Deliberately `requireSession`, not `requirePermission` — the access
     // catalog has no privacy key yet, so any signed-in member of the tenant
     // may read the request ledger until phase 06 adds one.
@@ -269,6 +279,7 @@ type NavKey =
   | 'usage'
   | 'billing'
   | 'payments'
+  | 'domains'
   | 'privacy'
   | 'settings'
   | 'security'
@@ -282,6 +293,7 @@ const NAV: { href: string; labelKey: NavKey; permission?: string }[] = [
   { href: '/usage', labelKey: 'usage' },
   { href: '/billing', labelKey: 'billing', permission: 'billing.subscription.read' },
   { href: '/payments', labelKey: 'payments', permission: 'payments.read' },
+  { href: '/domains', labelKey: 'domains' },
   { href: '/theme', labelKey: 'theme', permission: 'tenant.theming.read' },
   { href: '/privacy', labelKey: 'privacy' },
   { href: '/settings', labelKey: 'settings' },

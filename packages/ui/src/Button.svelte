@@ -14,6 +14,7 @@ interface Props {
   fullWidth?: boolean
   onclick?: (event: MouseEvent) => void
   class?: string
+  title?: string
   children: Snippet
 }
 
@@ -27,6 +28,7 @@ let {
   fullWidth = false,
   onclick,
   class: className = '',
+  title,
   children,
 }: Props = $props()
 
@@ -41,6 +43,7 @@ function handleClick(event: MouseEvent): void {
 
 <button
   {type}
+  {title}
   class="sanvi-button sanvi-button--{variant} sanvi-button--{size} {className}"
   class:sanvi-button--full={fullWidth}
   disabled={disabled || loading}
