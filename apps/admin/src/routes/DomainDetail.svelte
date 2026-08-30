@@ -1,7 +1,7 @@
 <script lang="ts">
-import { ApiError, listCustomDomains } from '@sanvi/api-client'
+import { ApiError, listCustomDomains, listDomainOrders, setOrderAutoRenew } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
-import { t } from '@sanvi/i18n'
+import { fmt, t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import {
   Alert,
@@ -17,6 +17,7 @@ import {
 import { apiClient } from '../lib/api'
 
 type CustomDomainView = components['schemas']['CustomDomainView']
+type OrderView = components['schemas']['OrderView']
 
 interface Props {
   id?: string
@@ -34,6 +35,9 @@ const targetId = $derived(
 let loading = $state(true)
 let error = $state<string | undefined>(undefined)
 let domain = $state<CustomDomainView | null>(null)
+let order = $state<OrderView | null>(null)
+let updatingAutoRenew = $state(false)
+let autoRenewError = $state<string | undefined>(undefined)
 
 let loadSeq = 0
 
@@ -41,15 +45,21 @@ async function load(): Promise<void> {
   const seq = ++loadSeq
   loading = true
   error = undefined
+  autoRenewError = undefined
 
   try {
-    const list = await listCustomDomains(apiClient)
+    const [list, orderList] = await Promise.all([
+      listCustomDomains(apiClient),
+      listDomainOrders(apiClient).catch(() => []),
+    ])
     if (seq !== loadSeq) return
     const match = (list ?? []).find((d) => d.id === targetId || d.hostname === targetId)
     if (match) {
       domain = match
+      order = (orderList ?? []).find((o) => o.hostname === match.hostname) ?? null
     } else {
       domain = null
+      order = null
       error = t['admin.domains.detail.notFoundTitle']()
     }
   } catch (err) {
@@ -193,6 +203,60 @@ function getStatusLabel(status: string): string {
   }
 }
 
+const failureMessage = $derived.by(() => {
+  if (!domain?.failure) return undefined
+  switch (domain.failure.code) {
+    case 'txt_missing':
+      return t['admin.domains.failure.txtMissing']()
+    case 'txt_mismatch':
+      return t['admin.domains.failure.txtMismatch']()
+    case 'routing_missing':
+      return t['admin.domains.failure.routingMissing']()
+    case 'routing_mismatch':
+      return t['admin.domains.failure.routingMismatch']()
+    case 'dns_drift':
+      return t['admin.domains.failure.dnsDrift']()
+    case 'challenge_expired':
+      return t['admin.domains.failure.challengeExpired']()
+    case 'verified_by_other_tenant':
+      return t['admin.domains.failure.verifiedByOtherTenant']()
+    case 'cert_invalid':
+      return t['admin.domains.failure.certInvalid']()
+    case 'cert_issuance_failed':
+      return t['admin.domains.failure.certIssuanceFailed']()
+    case 'propagating':
+      return t['admin.domains.failure.propagating']()
+    case 'probe_failed':
+      return t['admin.domains.failure.probeFailed']()
+    default:
+      return domain.failure.detail || t['admin.domains.failure.generic']()
+  }
+})
+
+const daysUntilExpiry = $derived.by(() => {
+  if (!order?.expires_at) return null
+  const exp = new Date(order.expires_at).getTime()
+  const now = Date.now()
+  return Math.ceil((exp - now) / (1000 * 60 * 60 * 24))
+})
+
+const isExpiringSoon = $derived(daysUntilExpiry !== null && daysUntilExpiry <= 30)
+
+async function handleToggleAutoRenew(): Promise<void> {
+  if (!order) return
+  updatingAutoRenew = true
+  autoRenewError = undefined
+  const nextVal = !order.auto_renew
+  try {
+    await setOrderAutoRenew(apiClient, order.id, nextVal)
+    order = { ...order, auto_renew: nextVal }
+  } catch {
+    autoRenewError = t['admin.domains.genericError']()
+  } finally {
+    updatingAutoRenew = false
+  }
+}
+
 const roleLabel = $derived(domain ? getRoleLabel(domain.role) : '')
 const statusLabel = $derived(domain ? getStatusLabel(domain.status) : '')
 const certBadgeLabel = $derived(
@@ -237,6 +301,19 @@ const certBadgeLabel = $derived(
                   {statusLabel}
                 {/snippet}
               </Badge>
+              {#if domain.status === 'degraded'}
+                <Badge variant="warning">
+                  {#snippet children()}
+                    {t['admin.domains.healthDegraded']()}
+                  {/snippet}
+                </Badge>
+              {:else if domain.status === 'live'}
+                <Badge variant="success">
+                  {#snippet children()}
+                    {t['admin.domains.healthHealthy']()}
+                  {/snippet}
+                </Badge>
+              {/if}
               {#if domain.detected_registrar}
                 <span class="sanvi-domain-detail__registrar">
                   {t['admin.domains.detail.detectedRegistrar']({ provider: domain.detected_registrar })}
@@ -246,6 +323,30 @@ const certBadgeLabel = $derived(
           </Stack>
         </Cluster>
       </div>
+
+      {#if domain.status === 'degraded'}
+        <Alert variant="warning">
+          <strong>{t['admin.domains.healthDegraded']()}</strong>
+          <p>{failureMessage || t['admin.domains.healthDegradedExplanation']()}</p>
+        </Alert>
+      {/if}
+
+      {#if isExpiringSoon && order?.expires_at}
+        <Alert variant="warning">
+          <strong>{t['admin.domains.expiry.warningTitle']()}</strong>
+          <p>
+            {t['admin.domains.expiry.warningMessage']({
+              date: fmt.date(order.expires_at, 'medium'),
+              days: Math.max(0, daysUntilExpiry ?? 0),
+            })}
+          </p>
+          <p>
+            {order.auto_renew
+              ? t['admin.domains.expiry.autoRenewEnabledNotice']()
+              : t['admin.domains.expiry.autoRenewDisabledNotice']()}
+          </p>
+        </Alert>
+      {/if}
 
       <!-- Status timeline (claimed -> verifying -> verified -> issuing -> live) -->
       <section class="sanvi-domain-detail__section" aria-labelledby="timeline-heading">
@@ -323,6 +424,57 @@ const certBadgeLabel = $derived(
         </div>
       </section>
 
+      <!-- Registration & Renewal info (if purchased / order exists) -->
+      {#if order}
+        <section class="sanvi-domain-detail__section" aria-labelledby="renewal-heading">
+          <h2 id="renewal-heading">{t['admin.domains.expiry.sectionTitle']()}</h2>
+          <div class="sanvi-domain-detail__card">
+            <Stack gap="4">
+              {#if autoRenewError}
+                <Alert variant="error">{autoRenewError}</Alert>
+              {/if}
+              <Cluster justify="space-between" align="center" gap="4">
+                <Stack gap="1">
+                  {#if order.expires_at}
+                    <span class="sanvi-domain-detail__meta-line">
+                      {t['admin.domains.expiry.expiresOn']({ date: fmt.date(order.expires_at, 'medium') })}
+                    </span>
+                  {/if}
+                  {#if order.registered_at}
+                    <span class="sanvi-domain-detail__meta-subtext">
+                      {t['admin.domains.expiry.registeredOn']({ date: fmt.date(order.registered_at, 'medium') })}
+                    </span>
+                  {/if}
+                </Stack>
+                <Cluster gap="3" align="center">
+                  <Badge variant={order.auto_renew ? 'success' : 'neutral'}>
+                    {#snippet children()}
+                      {order.auto_renew
+                        ? t['admin.domains.expiry.autoRenewEnabled']()
+                        : t['admin.domains.expiry.autoRenewDisabled']()}
+                    {/snippet}
+                  </Badge>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={updatingAutoRenew}
+                    loadingLabel={t['admin.domains.expiry.updatingAutoRenew']()}
+                    onclick={handleToggleAutoRenew}
+                  >
+                    {order.auto_renew
+                      ? t['admin.domains.expiry.disableAutoRenew']()
+                      : t['admin.domains.expiry.enableAutoRenew']()}
+                  </Button>
+                </Cluster>
+              </Cluster>
+              <p class="sanvi-domain-detail__section-desc">
+                {t['admin.domains.expiry.autoRenewBillingHint']()}
+              </p>
+            </Stack>
+          </div>
+        </section>
+      {/if}
+
       <!-- Danger zone -->
       <section class="sanvi-domain-detail__section sanvi-domain-detail__danger-zone" aria-labelledby="danger-heading">
         <h2 id="danger-heading">{t['admin.domains.detail.dangerTitle']()}</h2>
@@ -392,6 +544,17 @@ const certBadgeLabel = $derived(
     margin: 0;
     color: var(--sanvi-color-text-secondary);
     font-size: var(--sanvi-font-size-sm);
+  }
+
+  .sanvi-domain-detail__meta-line {
+    font-size: var(--sanvi-font-size-sm);
+    font-weight: var(--sanvi-font-weight-medium);
+    color: var(--sanvi-color-text-primary);
+  }
+
+  .sanvi-domain-detail__meta-subtext {
+    font-size: var(--sanvi-font-size-xs);
+    color: var(--sanvi-color-text-secondary);
   }
 
   .sanvi-domain-detail__card {

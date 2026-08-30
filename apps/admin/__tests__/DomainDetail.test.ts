@@ -135,6 +135,121 @@ describe('Admin DomainDetail Route Component', () => {
     expect(await axe(container)).toHaveNoViolations()
   })
 
+  it.each([
+    ['cert_invalid', 'TLS certificate issuance failed. The system will automatically retry.'],
+    [
+      'dns_drift',
+      'DNS records changed unexpectedly after verification. Please verify your DNS configuration.',
+    ],
+    [
+      'probe_failed',
+      'Health check probe failed. Storefront edge could not be reached via this domain.',
+    ],
+  ])('renders degraded health explanation for code %s', async (code, expectedText) => {
+    domainsList = [
+      makeDomain({
+        id: 'dom_degraded',
+        status: 'degraded',
+        failure: { code, detail: 'Failure detail' },
+      }),
+    ]
+
+    render(DomainDetail, { props: { id: 'dom_degraded' } })
+
+    expect(await screen.findByText(expectedText)).toBeInTheDocument()
+    expect(screen.getAllByText('Degraded').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('renders expiry warning banner and manages auto-renew for domain expiring soon', async () => {
+    const futureDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString()
+    const mockOrder = {
+      id: 'ord_123',
+      hostname: 'shop.example.com',
+      term_years: 1,
+      price_minor: 1500,
+      currency: 'USD',
+      status: 'active',
+      auto_renew: false,
+      whois_privacy: true,
+      registered_at: '2025-09-01T00:00:00Z',
+      expires_at: futureDate,
+      created_at: '2025-09-01T00:00:00Z',
+    }
+
+    let updatedAutoRenew = false
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/tenant/domains/orders/ord_123/auto-renew')) {
+          const body = JSON.parse(init?.body as string)
+          updatedAutoRenew = body.enabled
+          return Promise.resolve(jsonResponse({ ...mockOrder, auto_renew: body.enabled }))
+        }
+        if (url.includes('/tenant/domains/orders')) {
+          return Promise.resolve(jsonResponse([mockOrder]))
+        }
+        if (url.includes('/tenant/domains')) {
+          return Promise.resolve(jsonResponse(domainsList))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainDetail, { props: { id: 'dom_123' } })
+
+    expect(await screen.findByText('Domain expires soon')).toBeInTheDocument()
+    expect(screen.getByText(/15 days remaining/)).toBeInTheDocument()
+    expect(screen.getByText(/Auto-renew is disabled/)).toBeInTheDocument()
+    expect(screen.getByText('Domain Registration & Renewal')).toBeInTheDocument()
+
+    // Toggle auto-renew
+    const enableBtn = screen.getByRole('button', { name: 'Enable auto-renew' })
+    enableBtn.click()
+
+    expect(await screen.findByRole('button', { name: 'Disable auto-renew' })).toBeInTheDocument()
+    expect(updatedAutoRenew).toBe(true)
+  })
+
+  it('does not render expiry warning banner when domain is not expiring soon', async () => {
+    const futureDate = new Date(Date.now() + 300 * 24 * 60 * 60 * 1000).toISOString()
+    const mockOrder = {
+      id: 'ord_123',
+      hostname: 'shop.example.com',
+      term_years: 1,
+      price_minor: 1500,
+      currency: 'USD',
+      status: 'active',
+      auto_renew: true,
+      whois_privacy: true,
+      registered_at: '2026-01-01T00:00:00Z',
+      expires_at: futureDate,
+      created_at: '2026-01-01T00:00:00Z',
+    }
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/tenant/domains/orders')) {
+          return Promise.resolve(jsonResponse([mockOrder]))
+        }
+        if (url.includes('/tenant/domains')) {
+          return Promise.resolve(jsonResponse(domainsList))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainDetail, { props: { id: 'dom_123' } })
+
+    expect(
+      await screen.findByRole('heading', { name: 'shop.example.com', level: 1 }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Domain expires soon')).not.toBeInTheDocument()
+    expect(screen.getByText('Domain Registration & Renewal')).toBeInTheDocument()
+  })
+
   it('has no accessibility violations on live detail view', async () => {
     const { container } = render(DomainDetail, { props: { id: 'dom_123' } })
     await screen.findByRole('heading', { name: 'shop.example.com', level: 1 })

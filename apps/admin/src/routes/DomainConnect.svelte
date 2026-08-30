@@ -166,6 +166,8 @@ const failureMessage = $derived.by(() => {
       return t['admin.domains.failure.certIssuanceFailed']()
     case 'propagating':
       return t['admin.domains.failure.propagating']()
+    case 'probe_failed':
+      return t['admin.domains.failure.probeFailed']()
     default:
       return t['admin.domains.failure.generic']()
   }
