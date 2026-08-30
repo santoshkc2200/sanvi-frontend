@@ -159,6 +159,44 @@ describe('Admin DomainConnect Wizard Component', () => {
     expect(screen.queryByText(/non-Latin characters/)).not.toBeInTheDocument()
   })
 
+  it.each([
+    ['SHOP.EXAMPLE.COM', 'shop.example.com'],
+    ['shop.example.com.', 'shop.example.com'],
+    ['  shop.example.com  ', 'shop.example.com'],
+    ['https://shop.example.com/path', 'shop.example.com'],
+  ])('normalizes %s to %s before claiming', async (typed, expectedHostname) => {
+    render(DomainConnect)
+
+    const input = await screen.findByPlaceholderText('example.com or shop.example.com')
+    await fireEvent.input(input, { target: { value: typed } })
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to DNS setup' }))
+
+    await screen.findByRole('heading', {
+      name: 'Step 2: Add DNS records at your registrar',
+      level: 2,
+    })
+
+    const postCalls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(
+      ([, init]: [unknown, RequestInit | undefined]) => init?.method === 'POST',
+    )
+    const claimBody = JSON.parse(postCalls[0]![1]!.body as string)
+    expect(claimBody.hostname).toBe(expectedHostname)
+  })
+
+  it('rejects a single-label hostname (no TLD) as invalid', async () => {
+    render(DomainConnect)
+
+    const input = await screen.findByPlaceholderText('example.com or shop.example.com')
+    await fireEvent.input(input, { target: { value: 'localhost' } })
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to DNS setup' }))
+
+    expect(
+      await screen.findByText(
+        'Please enter a valid domain name (e.g. example.com or app.example.com).',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('resumes directly at Step 2 when mounted with domain in pending_setup state', async () => {
     domainsList = [
       makeDomain({ id: 'dom_resumed', status: 'pending_setup', hostname: 'store.example.com' }),
