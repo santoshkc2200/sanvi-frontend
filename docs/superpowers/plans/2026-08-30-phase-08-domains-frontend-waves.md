@@ -259,13 +259,15 @@ Depends on Wave 1 (detail screen) and touches both wizards' guide catalog.
 **Files:**
 - Modify: `apps/admin/src/routes/Domains.svelte`, `apps/admin/src/routes/DomainDetail.svelte`
 
-**Interfaces:**
-- Consumes: whatever health/expiry fields the backend's `health_job.rs`/`renewal_job.rs` actually populate onto the domain/order views — read those two files first; do not invent a health status enum that doesn't match what the backend emits.
+**Corrected against the actual contract** (read `health_job.rs`, `renewal_job.rs`, `custom_domain.rs`, and `views.rs` before writing this task):
 
-- [ ] Health badge on the list, degraded state explaining what changed and how to fix it, sourced from the real backend field.
-- [ ] Expiry warning banner on purchased domains nearing expiry (in-app; email is a backend/notifications concern, out of scope here) with an auto-renew toggle via `setOrderAutoRenew` and its billing implications stated inline.
-- [ ] Renewal failure state with a concrete recovery path (link to payment settings, or a retry action — check what the backend actually offers via `renewal_job.rs` before promising an action the UI can't fulfill).
-- [ ] Component tests for: healthy, degraded, expiring-soon, renewal-failed states.
+- Health is a real `DomainStatus` value, not a side field: the enum is `PendingSetup, Verifying, Verified, IssuingCert, Live, Degraded, Removed`. `health_job.rs`'s own doc comment: "Drift → `degraded` with the exact failure code; recovery → back to `live`." So the health badge is simply `domain.status === 'degraded'`, with `domain.failure.code` (one of `cert_invalid`, `dns_drift`, `probe_failed` — the three codes this job sets) driving the explanation text, reusing the failure-message pattern `DomainConnect.svelte` already established in Wave 2.
+- Expiry: `OrderView.expires_at` is real and usable for a proximity-based warning banner.
+- **Renewal failure has no buildable surface — do not build it, and do not invent one.** `OrderView` (`views.rs`) exposes only `id, hostname, term_years, price_minor, currency, status, auto_renew, whois_privacy, registered_at, expires_at, created_at`. `renewal_job.rs` tracks `renewal_attempts` and a failure detail internally on the `DomainOrder` aggregate, but `OrderView::of()` does not map either of them out — there is no API field indicating "a renewal attempt failed and is retrying" versus "renewal is fine." `OrderStatus` itself (`Pending/Charged/Registered/Configuring/Active/Failed/Refunded`) also has no state for an already-active order's renewal failing. Skip the "renewal failure state with a clear recovery path" deliverable entirely for this wave; note it in the wave summary as a backend gap (`OrderView` needs `renewal_attempts`/`last_renewal_error` fields before this is buildable) rather than fabricating a status the API can't actually report.
+
+- [ ] Health badge on the list and detail screens for `status === 'degraded'`, explanation text keyed off `failure.code` (cert_invalid / dns_drift / probe_failed), reusing `DomainConnect.svelte`'s failure-message-derivation pattern rather than reinventing it.
+- [ ] Expiry warning banner on purchased domains nearing expiry (in-app only — email is a backend/notifications concern, out of scope here), computed from `OrderView.expires_at`, with an auto-renew toggle via `setOrderAutoRenew` and its billing implications stated inline.
+- [ ] Component tests for: healthy, degraded (each of the 3 real failure codes), expiring-soon, not-expiring states. No "renewal-failed" test case — there is nothing to render.
 - [ ] `pnpm --filter <admin-app-name> test && check` — expect PASS.
 - [ ] Commit: `feat(admin): domain health and expiry surfaces`
 
@@ -288,13 +290,13 @@ Depends on Wave 1 (detail screen) and touches both wizards' guide catalog.
 **Files:**
 - Modify: `apps/admin/src/lib/domains/registrar-guides.ts`
 - Create: `apps/admin/src/lib/domains/guides/onamae.ts` (or matching pattern from Task 2.1)
-- Add screenshot assets per whatever asset pipeline the app already uses for images (check for an existing `assets/` or `static/` convention in `apps/admin` before choosing a location)
 
-- [ ] Add the お名前.com guide (and Value Domain if not already covered in Task 2.1).
-- [ ] Add screenshots for every guide, English and Japanese UI variants where the registrar's own console differs by locale.
-- [ ] Add the `ja` translations for every guide step's i18n key (the keys were created in Task 2.1; this task fills in `ja.json`'s values for them, since Task 2.1 deliberately deferred the Japanese guide-content translations).
+**No screenshots in this task.** `apps/admin` has no `static`/`assets`/`public` image convention at all today, and more fundamentally: an authentic screenshot of a real registrar's live console (Cloudflare, Route 53, GoDaddy, お名前.com, Value Domain) cannot be produced by a code-generation task — it requires someone to actually sign into that registrar's real UI and capture it. A fabricated placeholder image would be actively worse than the `GuideStep.screenshot` field simply staying unset, given the spec's own stated risk that "registrar guides go stale as UIs change" — a fake screenshot can't go stale correctly, it's just wrong from the start. Leave `screenshot` unset on every step; flag real screenshot capture as a follow-up for whoever owns registrar accounts.
+
+- [ ] Add the お名前.com guide as real step content (text only) in the same shape as Task 2.1's other guides — replace its current placeholder mapping to `genericGuide.steps` in `REGISTRAR_GUIDES`.
+- [ ] Add the `ja` translations for every guide step's i18n key across all guides (cloudflare, route53, godaddy, value_domain, onamae_jp, generic) — the keys were created in Task 2.1; this task fills in `ja.json`'s values for them, since Task 2.1 deliberately deferred the Japanese guide-content translations.
 - [ ] `pnpm --filter @sanvi/i18n test` (catalog parity) — expect PASS.
-- [ ] Commit: `feat(admin): japanese registrar guides and screenshots`
+- [ ] Commit: `feat(admin): onamae.com guide and japanese guide translations`
 
 **Wave 4 exit criteria:** every deliverable in the spec's "Work breakdown" list (items 1–9) is implemented and reachable in the running app; Japanese guides render correctly including registrar names. `pnpm check:quiet && pnpm test:quiet` pass.
 
