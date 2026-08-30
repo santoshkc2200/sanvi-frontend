@@ -500,7 +500,7 @@ const certBadgeLabel = $derived(
                 <Cluster gap="3" align="center">
                   <Badge variant={order.auto_renew ? 'success' : 'neutral'}>
                     {#snippet children()}
-                      {order.auto_renew
+                      {order?.auto_renew
                         ? t['admin.domains.expiry.autoRenewEnabled']()
                         : t['admin.domains.expiry.autoRenewDisabled']()}
                     {/snippet}
@@ -565,7 +565,7 @@ const certBadgeLabel = $derived(
                 {t['admin.domains.detail.promoteSeoWarning']()}
               </Alert>
               <p class="sanvi-domain-detail__dialog-text">
-                {t['admin.domains.detail.promoteUrlPreview']({ hostname: domain.hostname })}
+                {t['admin.domains.detail.promoteUrlPreview']({ hostname: domain?.hostname ?? '' })}
               </p>
               {#if promoteError}
                 <Alert variant="error">{promoteError}</Alert>
@@ -594,13 +594,13 @@ const certBadgeLabel = $derived(
           {#snippet children()}
             <Stack gap="4">
               <Alert variant="error">
-                {t['admin.domains.detail.removeConsequence']({ hostname: domain.hostname })}
+                {t['admin.domains.detail.removeConsequence']({ hostname: domain?.hostname ?? '' })}
               </Alert>
               {#if removeError}
                 <Alert variant="error">{removeError}</Alert>
               {/if}
               <Field
-                label={t['admin.domains.detail.removeConfirmPrompt']({ hostname: domain.hostname })}
+                label={t['admin.domains.detail.removeConfirmPrompt']({ hostname: domain?.hostname ?? '' })}
                 required
               >
                 {#snippet children(controlProps)}
@@ -626,7 +626,7 @@ const certBadgeLabel = $derived(
             </Button>
             <Button
               variant="danger"
-              disabled={typedHostname !== domain.hostname || removing}
+              disabled={!domain || typedHostname !== domain.hostname || removing}
               loading={removing}
               loadingLabel={t['admin.domains.detail.removing']()}
               onclick={handleRemoveDomain}
