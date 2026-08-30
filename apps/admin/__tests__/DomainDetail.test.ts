@@ -413,6 +413,144 @@ describe('Admin DomainDetail Route Component', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('renders generic error when domain detail fetch fails with 500', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/tenant/domains')) {
+          return Promise.resolve(jsonResponse({ title: 'Internal Server Error' }, 500))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainDetail, { props: { id: 'dom_123' } })
+
+    expect(
+      await screen.findByText(
+        'Could not load custom domains. Please try again in a moment.',
+        {},
+        { timeout: 4000 },
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('handles promote domain API error gracefully in dialog', async () => {
+    domainsList = [
+      makeDomain({
+        id: 'dom_alias_fail',
+        hostname: 'fail-promote.example.com',
+        role: 'alias',
+      }),
+    ]
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/tenant/domains/dom_alias_fail/promote')) {
+          return Promise.resolve(jsonResponse({ title: 'Internal Server Error' }, 500))
+        }
+        if (url.includes('/tenant/domains')) {
+          return Promise.resolve(jsonResponse(domainsList))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainDetail, { props: { id: 'dom_alias_fail' } })
+
+    const makePrimaryBtn = await screen.findByRole('button', { name: 'Set as primary domain' })
+    await fireEvent.click(makePrimaryBtn)
+
+    const confirmBtn = screen.getByRole('button', { name: 'Confirm primary switch' })
+    await fireEvent.click(confirmBtn)
+
+    expect(
+      await screen.findByText('Could not load custom domains. Please try again in a moment.'),
+    ).toBeInTheDocument()
+  })
+
+  it('handles remove domain API error gracefully in dialog', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        const method = init?.method || 'GET'
+        if (url.includes('/tenant/domains/dom_123') && method === 'DELETE') {
+          return Promise.resolve(jsonResponse({ title: 'Internal Server Error', status: 500 }, 500))
+        }
+        if (url.includes('/tenant/domains')) {
+          return Promise.resolve(jsonResponse(domainsList))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainDetail, { props: { id: 'dom_123' } })
+
+    const removeBtn = await screen.findByRole('button', { name: 'Remove domain' })
+    await fireEvent.click(removeBtn)
+
+    const input = screen.getByPlaceholderText('Type domain name to confirm')
+    await fireEvent.input(input, { target: { value: 'shop.example.com' } })
+
+    const confirmBtn = screen.getByRole('button', { name: 'I understand, remove this domain' })
+    await fireEvent.click(confirmBtn)
+
+    expect(
+      await screen.findByText(
+        'Could not load custom domains. Please try again in a moment.',
+        {},
+        { timeout: 5000 },
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('handles toggle auto-renew API error gracefully', async () => {
+    const futureDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString()
+    const mockOrder = {
+      id: 'ord_123',
+      hostname: 'shop.example.com',
+      term_years: 1,
+      price_minor: 1500,
+      currency: 'USD',
+      status: 'active',
+      auto_renew: false,
+      whois_privacy: true,
+      registered_at: '2025-09-01T00:00:00Z',
+      expires_at: futureDate,
+      created_at: '2025-09-01T00:00:00Z',
+    }
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/auto-renew')) {
+          return Promise.resolve(jsonResponse({ title: 'Internal Server Error' }, 500))
+        }
+        if (url.includes('/tenant/domains/orders')) {
+          return Promise.resolve(jsonResponse([mockOrder]))
+        }
+        if (url.includes('/tenant/domains')) {
+          return Promise.resolve(jsonResponse(domainsList))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainDetail, { props: { id: 'dom_123' } })
+
+    const enableBtn = await screen.findByRole('button', { name: 'Enable auto-renew' })
+    await fireEvent.click(enableBtn)
+
+    expect(
+      await screen.findByText('Could not load custom domains. Please try again in a moment.'),
+    ).toBeInTheDocument()
+  })
+
   it('has no accessibility violations on live detail view', async () => {
     const { container } = render(DomainDetail, { props: { id: 'dom_123' } })
     await screen.findByRole('heading', { name: 'shop.example.com', level: 1 })
