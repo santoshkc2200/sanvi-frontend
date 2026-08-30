@@ -1,6 +1,7 @@
 import { cloudflareGuide } from './guides/cloudflare'
 import { genericGuide } from './guides/generic'
 import { godaddyGuide } from './guides/godaddy'
+import { onamaeGuide } from './guides/onamae'
 import { route53Guide } from './guides/route53'
 import { valueDomainGuide } from './guides/value-domain'
 
@@ -30,6 +31,7 @@ export const REGISTRAR_GUIDES: Record<RegistrarId, RegistrarGuide> = {
   route53: route53Guide,
   godaddy: godaddyGuide,
   value_domain: valueDomainGuide,
+  onamae_jp: onamaeGuide,
   generic: genericGuide,
   namecheap: {
     id: 'namecheap',
@@ -41,11 +43,6 @@ export const REGISTRAR_GUIDES: Record<RegistrarId, RegistrarGuide> = {
     nameKey: 'admin.domains.guides.generic.name',
     steps: genericGuide.steps,
   },
-  onamae_jp: {
-    id: 'onamae_jp',
-    nameKey: 'admin.domains.guides.generic.name',
-    steps: genericGuide.steps,
-  },
 }
 
 export const ALL_GUIDES: RegistrarGuide[] = [
@@ -53,6 +50,7 @@ export const ALL_GUIDES: RegistrarGuide[] = [
   route53Guide,
   godaddyGuide,
   valueDomainGuide,
+  onamaeGuide,
   genericGuide,
 ]
 

@@ -49,7 +49,12 @@ describe('registrar-guides catalog and detection', () => {
       expect(getGuide('value_domain').nameKey).toBe('admin.domains.guides.valueDomain.name')
       expect(getGuide('value_domain').steps.length).toBeGreaterThan(0)
 
+      expect(getGuide('onamae_jp').id).toBe('onamae_jp')
+      expect(getGuide('onamae_jp').nameKey).toBe('admin.domains.guides.onamae.name')
+      expect(getGuide('onamae_jp').steps.length).toBe(4)
+
       expect(REGISTRAR_GUIDES.cloudflare.id).toBe('cloudflare')
+      expect(REGISTRAR_GUIDES.onamae_jp.id).toBe('onamae_jp')
     })
 
     it('falls back to generic guide for unknown or invalid ids', () => {
@@ -64,12 +69,13 @@ describe('registrar-guides catalog and detection', () => {
     })
 
     it('exports all guides list with expected guide instances', () => {
-      expect(ALL_GUIDES.length).toBe(5)
+      expect(ALL_GUIDES.length).toBe(6)
       expect(ALL_GUIDES.map((g) => g.id)).toEqual([
         'cloudflare',
         'route53',
         'godaddy',
         'value_domain',
+        'onamae_jp',
         'generic',
       ])
     })
