@@ -127,14 +127,11 @@ function getKindLabel(kind: string): string {
                 {t['admin.domains.connectButton']()}
               </Button>
             </a>
-            <Button
-              variant="primary"
-              disabled
-              title={t['admin.domains.purchaseDisabledTooltip']()}
-            >
-              <!-- Purchase domain wizard is wired in Wave 3 -->
-              {t['admin.domains.purchaseButton']()}
-            </Button>
+            <a class="sanvi-domains__header-action" href="/domains/purchase">
+              <Button variant="primary">
+                {t['admin.domains.purchaseButton']()}
+              </Button>
+            </a>
           </Cluster>
         {/if}
       </Cluster>
