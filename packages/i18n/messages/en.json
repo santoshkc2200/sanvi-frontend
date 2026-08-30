@@ -667,6 +667,7 @@
   "admin.domains.connect.hostnamePlaceholder": "example.com or shop.example.com",
   "admin.domains.connect.hostnameHint": "Enter an apex domain (e.g. example.com) or a subdomain (e.g. shop.example.com).",
   "admin.domains.connect.apexExplanation": "Apex domains (example.com) use an A record; subdomains (shop.example.com) use a CNAME record.",
+  "admin.domains.connect.punycodeNotice": "This contains non-Latin characters. It will be connected as its ASCII (punycode) form: {punycode}",
   "admin.domains.connect.invalidHostname": "Please enter a valid domain name (e.g. example.com or app.example.com).",
   "admin.domains.connect.submitStep1": "Continue to DNS setup",
   "admin.domains.connect.claiming": "Claiming domain…",

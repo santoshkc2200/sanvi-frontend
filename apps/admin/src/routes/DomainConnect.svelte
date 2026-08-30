@@ -70,12 +70,34 @@ const guideOptions = $derived(
   })),
 )
 
+const punycodeHostname = $derived.by(() => {
+  const normalized = normalizeHostname(rawHostname)
+  return normalized ? toPunycode(normalized) : ''
+})
+const hostnameHasUnicode = $derived(
+  punycodeHostname !== '' && punycodeHostname !== normalizeHostname(rawHostname),
+)
+
 function normalizeHostname(input: string): string {
   let h = input.trim().toLowerCase()
   h = h.replace(/^https?:\/\//, '')
   h = h.replace(/\/.*$/, '')
   h = h.replace(/\.+$/, '')
   return h
+}
+
+// Homograph-confusion protection (security section): a unicode hostname must
+// never be claimed or displayed as typed — only its punycode (ASCII) form,
+// which is what DNS and the backend's Hostname type actually operate on. The
+// URL constructor's host parser applies IDNA/ToASCII for us; no separate
+// punycode library needed. Falls back to the input unchanged if it can't be
+// parsed as a host at all (isValidHostname rejects it afterwards either way).
+function toPunycode(hostname: string): string {
+  try {
+    return new URL(`http://${hostname}`).hostname
+  } catch {
+    return hostname
+  }
 }
 
 function isValidHostname(h: string): boolean {
@@ -333,7 +355,7 @@ async function handleClaimSubmit(e?: Event): Promise<void> {
   hostnameError = undefined
   error = undefined
 
-  const normalized = normalizeHostname(rawHostname)
+  const normalized = toPunycode(normalizeHostname(rawHostname))
   if (!isValidHostname(normalized)) {
     hostnameError = t['admin.domains.connect.invalidHostname']()
     return
@@ -488,6 +510,12 @@ function handleAddedRecords(): void {
                   />
                 {/snippet}
               </Field>
+
+              {#if hostnameHasUnicode}
+                <Alert variant="info">
+                  {t['admin.domains.connect.punycodeNotice']({ punycode: punycodeHostname })}
+                </Alert>
+              {/if}
 
               <div class="sanvi-connect__explanation">
                 <p>{t['admin.domains.connect.apexExplanation']()}</p>

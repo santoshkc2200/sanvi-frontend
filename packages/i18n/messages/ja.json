@@ -667,6 +667,7 @@
   "admin.domains.connect.hostnamePlaceholder": "example.com または shop.example.com",
   "admin.domains.connect.hostnameHint": "ネイキッドドメイン（例: example.com）またはサブドメイン（例: shop.example.com）を入力してください。",
   "admin.domains.connect.apexExplanation": "ネイキッドドメイン（example.com）はAレコード、サブドメイン（shop.example.com）はCNAMEレコードを使用します。",
+  "admin.domains.connect.punycodeNotice": "非ラテン文字が含まれています。ASCII(Punycode)形式で接続されます: {punycode}",
   "admin.domains.connect.invalidHostname": "有効なドメイン名を入力してください（例: example.com または app.example.com）。",
   "admin.domains.connect.submitStep1": "DNS設定に進む",
   "admin.domains.connect.claiming": "ドメインを申請中…",
