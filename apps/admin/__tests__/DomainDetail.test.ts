@@ -1,6 +1,6 @@
 import { setMemberships, switchTenant } from '@sanvi/tenant'
 import { axe } from '@sanvi/test-config/axe'
-import { render, screen } from '@testing-library/svelte'
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import DomainDetail from '../src/routes/DomainDetail.svelte'
 
@@ -83,17 +83,13 @@ describe('Admin DomainDetail Route Component', () => {
     expect(screen.getByText('SSL/TLS Certificate')).toBeInTheDocument()
     expect(screen.getByText(/Active \(Let's Encrypt \/ Managed TLS\)/)).toBeInTheDocument()
 
-    // Danger zone with disabled action buttons
+    // Danger zone
     expect(screen.getByText('Danger Zone')).toBeInTheDocument()
     const makePrimaryBtn = screen.getByRole('button', { name: 'Set as primary domain' })
     const removeBtn = screen.getByRole('button', { name: 'Remove domain' })
     expect(makePrimaryBtn).toBeDisabled()
-    expect(removeBtn).toBeDisabled()
-    expect(makePrimaryBtn).toHaveAttribute(
-      'title',
-      'Primary domain management will be wired in Wave 4.',
-    )
-    expect(removeBtn).toHaveAttribute('title', 'Domain removal will be wired in Wave 4.')
+    expect(makePrimaryBtn).toHaveAttribute('title', 'This is already the primary domain')
+    expect(removeBtn).not.toBeDisabled()
   })
 
   it('renders not found state when domain is missing', async () => {
@@ -248,6 +244,173 @@ describe('Admin DomainDetail Route Component', () => {
     ).toBeInTheDocument()
     expect(screen.queryByText('Domain expires soon')).not.toBeInTheDocument()
     expect(screen.getByText('Domain Registration & Renewal')).toBeInTheDocument()
+  })
+
+  it('promotes an alias domain to primary domain on confirmation', async () => {
+    domainsList = [
+      makeDomain({
+        id: 'dom_alias',
+        hostname: 'blog.example.com',
+        role: 'alias',
+      }),
+    ]
+
+    let promoted = false
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/tenant/domains/dom_alias/promote')) {
+          promoted = true
+          return Promise.resolve(
+            jsonResponse(
+              makeDomain({ id: 'dom_alias', hostname: 'blog.example.com', role: 'primary' }),
+            ),
+          )
+        }
+        if (url.includes('/tenant/domains')) {
+          return Promise.resolve(jsonResponse(domainsList))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainDetail, { props: { id: 'dom_alias' } })
+
+    const makePrimaryBtn = await screen.findByRole('button', { name: 'Set as primary domain' })
+    expect(makePrimaryBtn).not.toBeDisabled()
+
+    await fireEvent.click(makePrimaryBtn)
+
+    // Promote confirmation dialog is open
+    expect(screen.getByText(/Search engines and visitors will be redirected/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Your storefront's main address will become https:\/\/blog\.example\.com/),
+    ).toBeInTheDocument()
+
+    const confirmBtn = screen.getByRole('button', { name: 'Confirm primary switch' })
+    await fireEvent.click(confirmBtn)
+
+    expect(promoted).toBe(true)
+    // After promotion, role is updated
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Set as primary domain' })).toBeDisabled()
+    })
+  })
+
+  it('cancels primary domain switch without calling API', async () => {
+    domainsList = [
+      makeDomain({
+        id: 'dom_alias',
+        hostname: 'blog.example.com',
+        role: 'alias',
+      }),
+    ]
+
+    let promoteCalled = false
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/tenant/domains/dom_alias/promote')) {
+          promoteCalled = true
+          return Promise.resolve(jsonResponse({}))
+        }
+        if (url.includes('/tenant/domains')) {
+          return Promise.resolve(jsonResponse(domainsList))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainDetail, { props: { id: 'dom_alias' } })
+
+    const makePrimaryBtn = await screen.findByRole('button', { name: 'Set as primary domain' })
+    await fireEvent.click(makePrimaryBtn)
+
+    const cancelBtn = screen.getByRole('button', { name: 'Cancel' })
+    await fireEvent.click(cancelBtn)
+
+    expect(promoteCalled).toBe(false)
+    expect(
+      screen.queryByText(/Search engines and visitors will be redirected/),
+    ).not.toBeInTheDocument()
+  })
+
+  it('requires exact typed hostname to confirm domain removal', async () => {
+    let removeCalled = false
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/tenant/domains/dom_123')) {
+          removeCalled = true
+          return Promise.resolve(jsonResponse({}))
+        }
+        if (url.includes('/tenant/domains')) {
+          return Promise.resolve(jsonResponse(domainsList))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainDetail, { props: { id: 'dom_123' } })
+
+    const removeBtn = await screen.findByRole('button', { name: 'Remove domain' })
+    await fireEvent.click(removeBtn)
+
+    // Remove dialog is open
+    expect(
+      screen.getByText(
+        /Your storefront will become completely unreachable at https:\/\/shop\.example\.com/,
+      ),
+    ).toBeInTheDocument()
+
+    const confirmBtn = screen.getByRole('button', { name: 'I understand, remove this domain' })
+    expect(confirmBtn).toBeDisabled()
+
+    // Type incorrect hostname
+    const input = screen.getByPlaceholderText('Type domain name to confirm')
+    await fireEvent.input(input, { target: { value: 'wrong.example.com' } })
+    expect(confirmBtn).toBeDisabled()
+
+    // Type exact hostname
+    await fireEvent.input(input, { target: { value: 'shop.example.com' } })
+    expect(confirmBtn).not.toBeDisabled()
+
+    await fireEvent.click(confirmBtn)
+    expect(removeCalled).toBe(true)
+  })
+
+  it('cancels domain removal without calling remove API', async () => {
+    let removeCalled = false
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/tenant/domains/dom_123')) {
+          removeCalled = true
+          return Promise.resolve(jsonResponse({}))
+        }
+        if (url.includes('/tenant/domains')) {
+          return Promise.resolve(jsonResponse(domainsList))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainDetail, { props: { id: 'dom_123' } })
+
+    const removeBtn = await screen.findByRole('button', { name: 'Remove domain' })
+    await fireEvent.click(removeBtn)
+
+    const cancelBtn = screen.getByRole('button', { name: 'Cancel' })
+    await fireEvent.click(cancelBtn)
+
+    expect(removeCalled).toBe(false)
+    expect(
+      screen.queryByText(/Your storefront will become completely unreachable/),
+    ).not.toBeInTheDocument()
   })
 
   it('has no accessibility violations on live detail view', async () => {

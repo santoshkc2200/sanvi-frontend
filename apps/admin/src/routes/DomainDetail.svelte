@@ -1,5 +1,12 @@
 <script lang="ts">
-import { ApiError, listCustomDomains, listDomainOrders, setOrderAutoRenew } from '@sanvi/api-client'
+import {
+  ApiError,
+  listCustomDomains,
+  listDomainOrders,
+  promoteDomain,
+  removeCustomDomain,
+  setOrderAutoRenew,
+} from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import { fmt, t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
@@ -9,8 +16,11 @@ import {
   Button,
   Cluster,
   Container,
+  Dialog,
   DomainRecordTable,
   type DomainRecordItem,
+  Field,
+  Input,
   Spinner,
   Stack,
 } from '@sanvi/ui'
@@ -38,6 +48,15 @@ let domain = $state<CustomDomainView | null>(null)
 let order = $state<OrderView | null>(null)
 let updatingAutoRenew = $state(false)
 let autoRenewError = $state<string | undefined>(undefined)
+
+let promoteDialogOpen = $state(false)
+let promoting = $state(false)
+let promoteError = $state<string | undefined>(undefined)
+
+let removeDialogOpen = $state(false)
+let removing = $state(false)
+let removeError = $state<string | undefined>(undefined)
+let typedHostname = $state('')
 
 let loadSeq = 0
 
@@ -254,6 +273,38 @@ async function handleToggleAutoRenew(): Promise<void> {
     autoRenewError = t['admin.domains.genericError']()
   } finally {
     updatingAutoRenew = false
+  }
+}
+
+async function handlePromoteDomain(): Promise<void> {
+  if (!domain) return
+  promoting = true
+  promoteError = undefined
+  try {
+    await promoteDomain(apiClient, domain.id)
+    domain = { ...domain, role: 'primary' }
+    promoteDialogOpen = false
+  } catch {
+    promoteError = t['admin.domains.genericError']()
+  } finally {
+    promoting = false
+  }
+}
+
+async function handleRemoveDomain(): Promise<void> {
+  if (!domain || typedHostname !== domain.hostname) return
+  removing = true
+  removeError = undefined
+  try {
+    await removeCustomDomain(apiClient, domain.id)
+    removeDialogOpen = false
+    if (typeof window !== 'undefined') {
+      window.location.href = '/domains'
+    }
+  } catch {
+    removeError = t['admin.domains.genericError']()
+  } finally {
+    removing = false
   }
 }
 
@@ -482,23 +533,109 @@ const certBadgeLabel = $derived(
           <Cluster justify="space-between" align="center" gap="4">
             <Button
               variant="secondary"
-              disabled
-              title={t['admin.domains.detail.makePrimaryDisabledTooltip']()}
+              disabled={domain.role === 'primary'}
+              title={domain.role === 'primary' ? t['admin.domains.detail.isAlreadyPrimary']() : undefined}
+              onclick={() => {
+                promoteError = undefined
+                promoteDialogOpen = true
+              }}
             >
-              <!-- Primary domain switching is wired in Wave 4 -->
               {t['admin.domains.detail.makePrimary']()}
             </Button>
             <Button
               variant="danger"
-              disabled
-              title={t['admin.domains.detail.removeDomainDisabledTooltip']()}
+              onclick={() => {
+                removeError = undefined
+                typedHostname = ''
+                removeDialogOpen = true
+              }}
             >
-              <!-- Domain removal is wired in Wave 4 -->
               {t['admin.domains.detail.removeDomain']()}
             </Button>
           </Cluster>
         </div>
       </section>
+
+      <!-- Promote Primary Confirmation Dialog -->
+      {#if promoteDialogOpen}
+        <Dialog bind:open={promoteDialogOpen} titleText={t['admin.domains.detail.promoteTitle']()}>
+          {#snippet children()}
+            <Stack gap="4">
+              <Alert variant="warning">
+                {t['admin.domains.detail.promoteSeoWarning']()}
+              </Alert>
+              <p class="sanvi-domain-detail__dialog-text">
+                {t['admin.domains.detail.promoteUrlPreview']({ hostname: domain.hostname })}
+              </p>
+              {#if promoteError}
+                <Alert variant="error">{promoteError}</Alert>
+              {/if}
+            </Stack>
+          {/snippet}
+          {#snippet footer()}
+            <Button variant="ghost" onclick={() => (promoteDialogOpen = false)}>
+              {t['admin.domains.detail.cancelButton']()}
+            </Button>
+            <Button
+              variant="primary"
+              loading={promoting}
+              loadingLabel={t['admin.domains.detail.promoting']()}
+              onclick={handlePromoteDomain}
+            >
+              {t['admin.domains.detail.promoteConfirmButton']()}
+            </Button>
+          {/snippet}
+        </Dialog>
+      {/if}
+
+      <!-- Remove Domain Typed Confirmation Dialog -->
+      {#if removeDialogOpen}
+        <Dialog bind:open={removeDialogOpen} titleText={t['admin.domains.detail.removeTitle']()}>
+          {#snippet children()}
+            <Stack gap="4">
+              <Alert variant="error">
+                {t['admin.domains.detail.removeConsequence']({ hostname: domain.hostname })}
+              </Alert>
+              {#if removeError}
+                <Alert variant="error">{removeError}</Alert>
+              {/if}
+              <Field
+                label={t['admin.domains.detail.removeConfirmPrompt']({ hostname: domain.hostname })}
+                required
+              >
+                {#snippet children(controlProps)}
+                  <Input
+                    {...controlProps}
+                    bind:value={typedHostname}
+                    placeholder={t['admin.domains.detail.removeInputPlaceholder']()}
+                    disabled={removing}
+                  />
+                {/snippet}
+              </Field>
+            </Stack>
+          {/snippet}
+          {#snippet footer()}
+            <Button
+              variant="ghost"
+              onclick={() => {
+                removeDialogOpen = false
+                typedHostname = ''
+              }}
+            >
+              {t['admin.domains.detail.cancelButton']()}
+            </Button>
+            <Button
+              variant="danger"
+              disabled={typedHostname !== domain.hostname || removing}
+              loading={removing}
+              loadingLabel={t['admin.domains.detail.removing']()}
+              onclick={handleRemoveDomain}
+            >
+              {t['admin.domains.detail.removeConfirmButton']()}
+            </Button>
+          {/snippet}
+        </Dialog>
+      {/if}
     {/if}
   </Stack>
 </Container>
@@ -555,6 +692,12 @@ const certBadgeLabel = $derived(
   .sanvi-domain-detail__meta-subtext {
     font-size: var(--sanvi-font-size-xs);
     color: var(--sanvi-color-text-secondary);
+  }
+
+  .sanvi-domain-detail__dialog-text {
+    margin: 0;
+    color: var(--sanvi-color-text-secondary);
+    font-size: var(--sanvi-font-size-sm);
   }
 
   .sanvi-domain-detail__card {
