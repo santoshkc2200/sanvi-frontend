@@ -100,8 +100,12 @@ const TERM_OPTIONS = $derived([
 
 const totalTodayFormatted = $derived.by(() => {
   if (!selectedQuote) return ''
-  const amount = selectedQuote.register_price.amount_minor * termYears
-  return fmt.money(amount, selectedQuote.register_price.currency)
+  // The backend's registrar port quotes and charges `register_price` as a flat
+  // one-time amount — it does not scale with `term_years` (see
+  // SandboxRegistrar::quote in the backend's domains context, which ignores
+  // the term_years argument entirely). Multiplying by termYears here would
+  // show the tenant a total larger than what actually gets charged.
+  return fmt.money(selectedQuote.register_price.amount_minor, selectedQuote.register_price.currency)
 })
 
 const renewPriceFormatted = $derived.by(() => {

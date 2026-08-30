@@ -384,7 +384,7 @@ describe('Admin DomainPurchase Wizard Component', () => {
     expect(await screen.findByText('Custom domains require an upgrade')).toBeInTheDocument()
   })
 
-  it('calculates multi-year term total and allows reset after failed order', async () => {
+  it("shows the flat register_price as today's total regardless of term length, and allows reset after failed order", async () => {
     render(DomainPurchase)
 
     const searchInput = await screen.findByPlaceholderText('example.com or mystore')
@@ -414,10 +414,12 @@ describe('Admin DomainPurchase Wizard Component', () => {
     })
     await fireEvent.click(screen.getByRole('button', { name: 'Continue to review & payment' }))
 
-    // Step 4: Total should be 12.99 * 2 = $25.98
+    // Step 4: register_price is a flat one-time charge the backend never scales
+    // by term_years (SandboxRegistrar::quote ignores it) — total stays $12.99
+    // even at a 2-year term, not $12.99 * 2.
     await screen.findByRole('heading', { name: 'Step 4: Review and confirm order', level: 2 })
     expect(screen.getByText('2 years')).toBeInTheDocument()
-    expect(screen.getByText('$25.98')).toBeInTheDocument()
+    expect(screen.getByText('$12.99')).toBeInTheDocument()
   })
 
   it('resets to search step when clicking try again from failed order state', async () => {
