@@ -1,6 +1,7 @@
 <script lang="ts">
 import {
   ApiError,
+  getDomainInstructions,
   listCustomDomains,
   listDomainOrders,
   promoteDomain,
@@ -8,7 +9,7 @@ import {
   setOrderAutoRenew,
 } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
-import { fmt, t } from '@sanvi/i18n'
+import { currentLocale, fmt, t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import {
   Alert,
@@ -25,8 +26,10 @@ import {
   Stack,
 } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
+import { failureMessage as failureMessageFor, toRecordItems } from '../lib/domains/records'
 
 type CustomDomainView = components['schemas']['CustomDomainView']
+type InstructionsView = components['schemas']['InstructionsView']
 type OrderView = components['schemas']['OrderView']
 
 interface Props {
@@ -46,6 +49,7 @@ let loading = $state(true)
 let error = $state<string | undefined>(undefined)
 let domain = $state<CustomDomainView | null>(null)
 let order = $state<OrderView | null>(null)
+let instructions = $state<InstructionsView | null>(null)
 let updatingAutoRenew = $state(false)
 let autoRenewError = $state<string | undefined>(undefined)
 
@@ -76,9 +80,16 @@ async function load(): Promise<void> {
     if (match) {
       domain = match
       order = (orderList ?? []).find((o) => o.hostname === match.hostname) ?? null
+      // The expected-vs-observed table is the page's whole point, so its
+      // expected side comes from the backend rather than being guessed here.
+      instructions = await getDomainInstructions(apiClient, match.id, {
+        locale: currentLocale(),
+      }).catch(() => null)
+      if (seq !== loadSeq) return
     } else {
       domain = null
       order = null
+      instructions = null
       error = t['admin.domains.detail.notFoundTitle']()
     }
   } catch (err) {
@@ -119,62 +130,7 @@ const currentStep = $derived.by(() => {
   }
 })
 
-const domainRecords = $derived.by<DomainRecordItem[]>(() => {
-  if (!domain) return []
-  const items: DomainRecordItem[] = []
-
-  const txtName = domain.challenge?.txt_name || `_sanvi-challenge.${domain.hostname}`
-  const txtValue =
-    domain.challenge?.txt_value ||
-    (domain.challenge?.token
-      ? `sanvi-verification=${domain.challenge.token}`
-      : `sanvi-verification=${domain.id}`)
-
-  let txtObserved: DomainRecordItem['observed'] = 'pending'
-  if (['live', 'verified', 'issuing_cert'].includes(domain.status)) {
-    txtObserved = 'matched'
-  } else if (
-    domain.failure?.code === 'txt_missing' ||
-    domain.failure?.code === 'challenge_expired'
-  ) {
-    txtObserved = 'not_found'
-  } else if (domain.failure?.code === 'dns_drift' || domain.failure?.code === 'txt_mismatch') {
-    txtObserved = 'mismatch'
-  }
-
-  items.push({
-    type: 'TXT',
-    name: txtName,
-    expected: txtValue,
-    observed: txtObserved,
-  })
-
-  const isSubdomain = domain.hostname.split('.').length > 2
-  const routingType = isSubdomain ? 'CNAME' : 'A'
-  const routingTarget = isSubdomain ? 'edge.sanvi.app' : '192.0.2.1'
-
-  let routingObserved: DomainRecordItem['observed'] = 'pending'
-  if (
-    domain.status === 'live' ||
-    domain.status === 'verified' ||
-    domain.status === 'issuing_cert'
-  ) {
-    routingObserved = 'matched'
-  } else if (domain.failure?.code === 'routing_missing') {
-    routingObserved = 'not_found'
-  } else if (domain.failure?.code === 'routing_mismatch') {
-    routingObserved = 'mismatch'
-  }
-
-  items.push({
-    type: routingType,
-    name: domain.hostname,
-    expected: routingTarget,
-    observed: routingObserved,
-  })
-
-  return items
-})
+const domainRecords = $derived<DomainRecordItem[]>(toRecordItems(instructions, domain))
 
 function getRoleLabel(role: string): string {
   switch (role) {
@@ -222,35 +178,7 @@ function getStatusLabel(status: string): string {
   }
 }
 
-const failureMessage = $derived.by(() => {
-  if (!domain?.failure) return undefined
-  switch (domain.failure.code) {
-    case 'txt_missing':
-      return t['admin.domains.failure.txtMissing']()
-    case 'txt_mismatch':
-      return t['admin.domains.failure.txtMismatch']()
-    case 'routing_missing':
-      return t['admin.domains.failure.routingMissing']()
-    case 'routing_mismatch':
-      return t['admin.domains.failure.routingMismatch']()
-    case 'dns_drift':
-      return t['admin.domains.failure.dnsDrift']()
-    case 'challenge_expired':
-      return t['admin.domains.failure.challengeExpired']()
-    case 'verified_by_other_tenant':
-      return t['admin.domains.failure.verifiedByOtherTenant']()
-    case 'cert_invalid':
-      return t['admin.domains.failure.certInvalid']()
-    case 'cert_issuance_failed':
-      return t['admin.domains.failure.certIssuanceFailed']()
-    case 'propagating':
-      return t['admin.domains.failure.propagating']()
-    case 'probe_failed':
-      return t['admin.domains.failure.probeFailed']()
-    default:
-      return domain.failure.detail || t['admin.domains.failure.generic']()
-  }
-})
+const failureMessage = $derived(failureMessageFor(domain?.failure))
 
 const daysUntilExpiry = $derived.by(() => {
   if (!order?.expires_at) return null
@@ -282,8 +210,10 @@ async function handlePromoteDomain(): Promise<void> {
   promoteError = undefined
   try {
     await promoteDomain(apiClient, domain.id)
-    domain = { ...domain, role: 'primary' }
     promoteDialogOpen = false
+    // Promotion demotes whichever domain was primary before, so re-read rather
+    // than patching this one's role and leaving the other stale.
+    await load()
   } catch {
     promoteError = t['admin.domains.genericError']()
   } finally {
@@ -436,6 +366,7 @@ const certBadgeLabel = $derived(
           typeHeader={t['admin.domains.detail.recordsTypeHeader']()}
           nameHeader={t['admin.domains.detail.recordsNameHeader']()}
           expectedHeader={t['admin.domains.detail.recordsValueHeader']()}
+          ttlHeader={t['admin.domains.detail.recordsTtlHeader']()}
           statusHeader={t['admin.domains.detail.recordsStatusHeader']()}
           actionsHeader={t['admin.domains.detail.recordsActionsHeader']()}
           copyLabel={t['admin.domains.detail.copy']()}

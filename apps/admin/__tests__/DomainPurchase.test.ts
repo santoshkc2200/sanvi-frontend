@@ -384,7 +384,7 @@ describe('Admin DomainPurchase Wizard Component', () => {
     expect(await screen.findByText('Custom domains require an upgrade')).toBeInTheDocument()
   })
 
-  it("shows the flat register_price as today's total regardless of term length, and allows reset after failed order", async () => {
+  it('registers for a one-year term and charges exactly the quoted register_price', async () => {
     render(DomainPurchase)
 
     const searchInput = await screen.findByPlaceholderText('example.com or mystore')
@@ -394,10 +394,11 @@ describe('Admin DomainPurchase Wizard Component', () => {
     await fireEvent.click(selectBtns[0]!)
     await fireEvent.click(screen.getByRole('button', { name: 'Continue to options' }))
 
-    // Step 2: Select 2 years term
+    // Step 2: the term is stated, not chosen — the search quote has no term
+    // dimension, so a picker here could only misprice the order.
     await screen.findByRole('heading', { name: 'Step 2: Domain options', level: 2 })
-    const termSelect = screen.getByRole('combobox')
-    await fireEvent.change(termSelect, { target: { value: '2' } })
+    expect(screen.getByText('1 year')).toBeInTheDocument()
+    expect(screen.getByText(/Domains are registered for one year/)).toBeInTheDocument()
 
     await fireEvent.click(screen.getByRole('button', { name: 'Continue to registrant details' }))
 
@@ -414,11 +415,7 @@ describe('Admin DomainPurchase Wizard Component', () => {
     })
     await fireEvent.click(screen.getByRole('button', { name: 'Continue to review & payment' }))
 
-    // Step 4: register_price is a flat one-time charge the backend never scales
-    // by term_years (SandboxRegistrar::quote ignores it) — total stays $12.99
-    // even at a 2-year term, not $12.99 * 2.
     await screen.findByRole('heading', { name: 'Step 4: Review and confirm order', level: 2 })
-    expect(screen.getByText('2 years')).toBeInTheDocument()
     expect(screen.getByText('$12.99')).toBeInTheDocument()
   })
 
@@ -440,6 +437,246 @@ describe('Admin DomainPurchase Wizard Component', () => {
       await screen.findByRole('heading', { name: 'Step 1: Search for a domain', level: 2 }),
     ).toBeInTheDocument()
   })
+
+  it('handles search API failure with error alert', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/tenant/domains/search')) {
+          return Promise.resolve(jsonResponse({ title: 'Internal Error' }, 500))
+        }
+        if (url.includes('/tenant/domains/orders')) {
+          return Promise.resolve(jsonResponse([]))
+        }
+        if (url.includes('/tenant/domains')) {
+          return Promise.resolve(jsonResponse([]))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainPurchase)
+
+    const searchInput = await screen.findByPlaceholderText('example.com or mystore')
+    await fireEvent.input(searchInput, { target: { value: 'errorquery' } })
+
+    expect(
+      await screen.findByText(
+        'Could not search domain availability. Please try again.',
+        {},
+        { timeout: 4000 },
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('supports back navigation between wizard steps', async () => {
+    render(DomainPurchase)
+
+    const searchInput = await screen.findByPlaceholderText('example.com or mystore')
+    await fireEvent.input(searchInput, { target: { value: 'freshstore' } })
+
+    const selectBtns = await screen.findAllByRole('button', { name: 'Select' })
+    await fireEvent.click(selectBtns[0]!)
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to options' }))
+
+    // In Step 2 -> Go back to Step 1
+    await screen.findByRole('heading', { name: 'Step 2: Domain options', level: 2 })
+    await fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Step 1: Search for a domain', level: 2 }),
+    ).toBeInTheDocument()
+
+    // Go back to Step 2 -> Step 3
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to options' }))
+    await screen.findByRole('heading', { name: 'Step 2: Domain options', level: 2 })
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to registrant details' }))
+
+    // In Step 3 -> Go back to Step 2
+    await screen.findByRole('heading', { name: 'Step 3: Registrant contact details', level: 2 })
+    await fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Step 2: Domain options', level: 2 }),
+    ).toBeInTheDocument()
+
+    // Back to Step 3 -> fill details -> Step 4
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to registrant details' }))
+    await screen.findByRole('heading', { name: 'Step 3: Registrant contact details', level: 2 })
+
+    // Test invalid email format validation
+    await fireEvent.input(screen.getByPlaceholderText('Jane Doe'), { target: { value: 'Jane' } })
+    await fireEvent.input(screen.getByPlaceholderText('owner@example.com'), {
+      target: { value: 'invalid-email-format' },
+    })
+    await fireEvent.input(screen.getByPlaceholderText('+1.5551234567 or +81-3-1234-5678'), {
+      target: { value: '+1.5551234567' },
+    })
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to review & payment' }))
+    expect(await screen.findByText('Please enter a valid email address.')).toBeInTheDocument()
+
+    // Fix email -> advance to Step 4
+    await fireEvent.input(screen.getByPlaceholderText('owner@example.com'), {
+      target: { value: 'jane@example.com' },
+    })
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to review & payment' }))
+
+    // In Step 4 -> Go back to Step 3
+    await screen.findByRole('heading', { name: 'Step 4: Review and confirm order', level: 2 })
+    await fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Step 3: Registrant contact details', level: 2 }),
+    ).toBeInTheDocument()
+  })
+
+  it('handles order placement API 500 error in Step 4', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        const method = init?.method || 'GET'
+        if (url.includes('/tenant/domains/search')) {
+          return Promise.resolve(
+            jsonResponse({
+              query: 'freshstore',
+              registrar_id: 'enom',
+              results: searchResultsList,
+            }),
+          )
+        }
+        if (url.includes('/tenant/domains/orders') && method === 'POST') {
+          return Promise.resolve(jsonResponse({ title: 'Internal Server Error', status: 500 }, 500))
+        }
+        if (url.includes('/tenant/domains/orders') && method === 'GET') {
+          return Promise.resolve(jsonResponse([]))
+        }
+        if (url.includes('/tenant/domains') && method === 'GET') {
+          return Promise.resolve(jsonResponse([]))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainPurchase)
+
+    const searchInput = await screen.findByPlaceholderText('example.com or mystore')
+    await fireEvent.input(searchInput, { target: { value: 'freshstore' } })
+
+    const selectBtns = await screen.findAllByRole('button', { name: 'Select' })
+    await fireEvent.click(selectBtns[0]!)
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to options' }))
+
+    await screen.findByRole('heading', { name: 'Step 2: Domain options', level: 2 })
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to registrant details' }))
+
+    await screen.findByRole('heading', { name: 'Step 3: Registrant contact details', level: 2 })
+    await fireEvent.input(screen.getByPlaceholderText('Jane Doe'), { target: { value: 'Jane' } })
+    await fireEvent.input(screen.getByPlaceholderText('owner@example.com'), {
+      target: { value: 'jane@example.com' },
+    })
+    await fireEvent.input(screen.getByPlaceholderText('+1.5551234567 or +81-3-1234-5678'), {
+      target: { value: '+1.5551234567' },
+    })
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to review & payment' }))
+
+    await screen.findByRole('heading', { name: 'Step 4: Review and confirm order', level: 2 })
+    await fireEvent.click(screen.getByRole('button', { name: 'Confirm & place order' }))
+
+    expect(
+      await screen.findByText('Could not load custom domains. Please try again in a moment.'),
+    ).toBeInTheDocument()
+  })
+
+  it('handles order placement 403 entitlement error in Step 4', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        const method = init?.method || 'GET'
+        if (url.includes('/tenant/domains/search')) {
+          return Promise.resolve(
+            jsonResponse({
+              query: 'freshstore',
+              registrar_id: 'enom',
+              results: searchResultsList,
+            }),
+          )
+        }
+        if (url.includes('/tenant/domains/orders') && method === 'POST') {
+          return Promise.resolve(
+            jsonResponse({ title: 'Forbidden', status: 403, detail: 'Not entitled' }, 403),
+          )
+        }
+        if (url.includes('/tenant/domains/orders') && method === 'GET') {
+          return Promise.resolve(jsonResponse([]))
+        }
+        if (url.includes('/tenant/domains') && method === 'GET') {
+          return Promise.resolve(jsonResponse([]))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainPurchase)
+
+    const searchInput = await screen.findByPlaceholderText('example.com or mystore')
+    await fireEvent.input(searchInput, { target: { value: 'freshstore' } })
+
+    const selectBtns = await screen.findAllByRole('button', { name: 'Select' })
+    await fireEvent.click(selectBtns[0]!)
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to options' }))
+
+    await screen.findByRole('heading', { name: 'Step 2: Domain options', level: 2 })
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to registrant details' }))
+
+    await screen.findByRole('heading', { name: 'Step 3: Registrant contact details', level: 2 })
+    await fireEvent.input(screen.getByPlaceholderText('Jane Doe'), { target: { value: 'Jane' } })
+    await fireEvent.input(screen.getByPlaceholderText('owner@example.com'), {
+      target: { value: 'jane@example.com' },
+    })
+    await fireEvent.input(screen.getByPlaceholderText('+1.5551234567 or +81-3-1234-5678'), {
+      target: { value: '+1.5551234567' },
+    })
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to review & payment' }))
+
+    await screen.findByRole('heading', { name: 'Step 4: Review and confirm order', level: 2 })
+    await fireEvent.click(screen.getByRole('button', { name: 'Confirm & place order' }))
+
+    expect(await screen.findByText('Custom domains require an upgrade')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['registered', undefined, 'Registering domain with registrar…'],
+    ['configuring', undefined, 'Applying DNS and routing configuration…'],
+    ['active', 'verifying', 'Verifying DNS propagation…'],
+    ['active', 'issuing_cert', 'Issuing automated SSL/TLS certificate…'],
+  ])(
+    'renders provisioning sub-state for order status %s and domain status %s',
+    async (orderStatus, domainStatus, expectedText) => {
+      ordersList = [
+        makeOrder({
+          id: 'ord_substate',
+          hostname: 'substatestore.com',
+          status: orderStatus,
+        }),
+      ]
+      if (domainStatus) {
+        customDomainsList = [
+          makeCustomDomain({
+            id: 'dom_substate',
+            hostname: 'substatestore.com',
+            status: domainStatus,
+          }),
+        ]
+      }
+
+      render(DomainPurchase, { props: { orderId: 'ord_substate' } })
+
+      expect(
+        await screen.findByRole('heading', { name: 'Step 5: Provisioning your domain', level: 2 }),
+      ).toBeInTheDocument()
+      expect(screen.getAllByText(expectedText).length).toBeGreaterThanOrEqual(1)
+    },
+  )
 
   it('has no accessibility violations across wizard initial step', async () => {
     const { container } = render(DomainPurchase)

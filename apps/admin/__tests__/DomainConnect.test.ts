@@ -1,6 +1,6 @@
 import { setMemberships, switchTenant } from '@sanvi/tenant'
 import { axe } from '@sanvi/test-config/axe'
-import { fireEvent, render, screen } from '@testing-library/svelte'
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import DomainConnect from '../src/routes/DomainConnect.svelte'
 
@@ -33,6 +33,37 @@ function makeDomain(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function makeInstructions(hostname: string, domainId = 'dom_conn123') {
+  return {
+    domain_id: domainId,
+    hostname,
+    kind: 'connected',
+    role: 'primary',
+    status: 'pending_setup',
+    guide: {
+      id: 'guide_cloudflare',
+      title: 'Cloudflare DNS setup',
+      steps: ['Open the Cloudflare dashboard', 'Add the records below', 'Save'],
+    },
+    records: [
+      {
+        record_type: 'TXT',
+        name: `_sanvi-challenge.${hostname}`,
+        value: 'sanvi-verification=tok_conn123',
+        ttl: 300,
+        explanation: 'Proves you control this domain.',
+      },
+      {
+        record_type: 'CNAME',
+        name: hostname,
+        value: 'edge.sanvi-cdn.test',
+        ttl: 300,
+        explanation: 'Routes visitors to your storefront.',
+      },
+    ],
+  }
+}
+
 describe('Admin DomainConnect Wizard Component', () => {
   let domainsList: ReturnType<typeof makeDomain>[] = []
 
@@ -49,6 +80,13 @@ describe('Admin DomainConnect Wizard Component', () => {
       vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
         const url = typeof input === 'string' ? input : input.toString()
         const method = init?.method || 'GET'
+
+        if (url.includes('/instructions') && method === 'GET') {
+          const target = domainsList[0]
+          return Promise.resolve(
+            jsonResponse(makeInstructions(target?.hostname ?? 'custom.example.com', target?.id)),
+          )
+        }
 
         if (url.includes('/tenant/domains') && method === 'GET') {
           return Promise.resolve(jsonResponse(domainsList))
@@ -123,6 +161,80 @@ describe('Admin DomainConnect Wizard Component', () => {
     expect(screen.getByRole('button', { name: "I've added these records" })).toBeInTheDocument()
   })
 
+  it('shows the punycode equivalent for a unicode hostname and claims the ASCII form (homograph protection)', async () => {
+    render(DomainConnect)
+
+    const input = await screen.findByPlaceholderText('example.com or shop.example.com')
+    await fireEvent.input(input, { target: { value: '日本語.jp' } })
+
+    expect(
+      await screen.findByText(
+        'This contains non-Latin characters. It will be connected as its ASCII (punycode) form: xn--wgv71a119e.jp',
+      ),
+    ).toBeInTheDocument()
+
+    const submitBtn = screen.getByRole('button', { name: 'Continue to DNS setup' })
+    await fireEvent.click(submitBtn)
+
+    await screen.findByRole('heading', {
+      name: 'Step 2: Add DNS records at your registrar',
+      level: 2,
+    })
+
+    const postCalls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(
+      ([, init]: [unknown, RequestInit | undefined]) => init?.method === 'POST',
+    )
+    const claimBody = JSON.parse(postCalls[0]![1]!.body as string)
+    expect(claimBody.hostname).toBe('xn--wgv71a119e.jp')
+  })
+
+  it('does not show a punycode notice for an ordinary ASCII hostname', async () => {
+    render(DomainConnect)
+
+    const input = await screen.findByPlaceholderText('example.com or shop.example.com')
+    await fireEvent.input(input, { target: { value: 'shop.example.com' } })
+
+    expect(screen.queryByText(/non-Latin characters/)).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['SHOP.EXAMPLE.COM', 'shop.example.com'],
+    ['shop.example.com.', 'shop.example.com'],
+    ['  shop.example.com  ', 'shop.example.com'],
+    ['https://shop.example.com/path', 'shop.example.com'],
+  ])('normalizes %s to %s before claiming', async (typed, expectedHostname) => {
+    render(DomainConnect)
+
+    const input = await screen.findByPlaceholderText('example.com or shop.example.com')
+    await fireEvent.input(input, { target: { value: typed } })
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to DNS setup' }))
+
+    await screen.findByRole('heading', {
+      name: 'Step 2: Add DNS records at your registrar',
+      level: 2,
+    })
+
+    const postCalls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(
+      ([, init]: [unknown, RequestInit | undefined]) => init?.method === 'POST',
+    )
+    const claimBody = JSON.parse(postCalls[0]![1]!.body as string)
+    expect(claimBody.hostname).toBe(expectedHostname)
+  })
+
+  it('rejects a single-label hostname (no TLD) as invalid', async () => {
+    render(DomainConnect)
+
+    const input = await screen.findByPlaceholderText('example.com or shop.example.com')
+    await fireEvent.input(input, { target: { value: 'localhost' } })
+    await fireEvent.click(screen.getByRole('button', { name: 'Continue to DNS setup' }))
+
+    expect(
+      await screen.findByText(
+        'Please enter a valid domain name (e.g. example.com or app.example.com).',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('resumes directly at Step 2 when mounted with domain in pending_setup state', async () => {
     domainsList = [
       makeDomain({ id: 'dom_resumed', status: 'pending_setup', hostname: 'store.example.com' }),
@@ -134,7 +246,10 @@ describe('Admin DomainConnect Wizard Component', () => {
       await screen.findByText('Resuming domain setup for store.example.com'),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { name: 'Step 2: Add DNS records at your registrar', level: 2 }),
+      await screen.findByRole('heading', {
+        name: 'Step 2: Add DNS records at your registrar',
+        level: 2,
+      }),
     ).toBeInTheDocument()
     expect(screen.getByText('_sanvi-challenge.store.example.com')).toBeInTheDocument()
   })
@@ -245,6 +360,157 @@ describe('Admin DomainConnect Wizard Component', () => {
       'href',
       '/domains/dom_live',
     )
+  })
+
+  it('handles changing registrar guide selection in Step 2', async () => {
+    domainsList = [
+      makeDomain({ id: 'dom_guide_test', status: 'pending_setup', hostname: 'guide.example.com' }),
+    ]
+
+    render(DomainConnect, { props: { id: 'dom_guide_test' } })
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Step 2: Add DNS records at your registrar',
+        level: 2,
+      }),
+    ).toBeInTheDocument()
+
+    const select = screen.getByRole('combobox', { name: 'Registrar guide' })
+    expect(select).toHaveValue('cloudflare')
+    // Until the tenant overrides the detected registrar, the guide that ships
+    // with the backend's instructions response is the one rendered.
+    expect(screen.getByRole('heading', { name: 'Cloudflare DNS setup' })).toBeInTheDocument()
+    expect(screen.getByText('Open the Cloudflare dashboard')).toBeInTheDocument()
+
+    await fireEvent.change(select, { target: { value: 'route53' } })
+    expect(
+      screen.getByText(/Open the Amazon Route 53 console and navigate to Hosted zones/),
+    ).toBeInTheDocument()
+
+    await fireEvent.change(select, { target: { value: 'onamae_jp' } })
+    expect(screen.getByText(/Log in to the Onamae Navi/)).toBeInTheDocument()
+  })
+
+  it('handles API 400 validation error on Step 1 claim submission', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        const method = init?.method || 'GET'
+        if (url.includes('/tenant/domains') && method === 'GET') {
+          return Promise.resolve(jsonResponse([]))
+        }
+        if (url.includes('/tenant/domains') && method === 'POST') {
+          return Promise.resolve(
+            jsonResponse({ title: 'Bad Request', status: 400, detail: 'Invalid domain' }, 400),
+          )
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainConnect)
+
+    const input = await screen.findByPlaceholderText('example.com or shop.example.com')
+    await fireEvent.input(input, { target: { value: 'bad-hostname.com' } })
+    const submitBtn = screen.getByRole('button', { name: 'Continue to DNS setup' })
+    await fireEvent.click(submitBtn)
+
+    expect(
+      await screen.findByText(
+        'Please enter a valid domain name (e.g. example.com or app.example.com).',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('handles API 500 error on Step 1 claim submission', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        const method = init?.method || 'GET'
+        if (url.includes('/tenant/domains') && method === 'GET') {
+          return Promise.resolve(jsonResponse([]))
+        }
+        if (url.includes('/tenant/domains') && method === 'POST') {
+          return Promise.resolve(jsonResponse({ title: 'Internal Server Error', status: 500 }, 500))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainConnect)
+
+    const input = await screen.findByPlaceholderText('example.com or shop.example.com')
+    await fireEvent.input(input, { target: { value: 'server-error.com' } })
+    const submitBtn = screen.getByRole('button', { name: 'Continue to DNS setup' })
+    await fireEvent.click(submitBtn)
+
+    expect(
+      await screen.findByText('Could not load custom domains. Please try again in a moment.'),
+    ).toBeInTheDocument()
+  })
+
+  it('handles generic failure code fallback in Step 3', async () => {
+    domainsList = [
+      makeDomain({
+        id: 'dom_fail_unknown',
+        status: 'verifying',
+        failure: { code: 'some_future_code', detail: 'Unknown error detail' },
+      }),
+    ]
+
+    render(DomainConnect, { props: { id: 'dom_fail_unknown' } })
+
+    expect(
+      await screen.findByRole('heading', { name: 'Step 3: Verifying DNS records', level: 2 }),
+    ).toBeInTheDocument()
+    // An unmapped code falls back to the backend's own detail before the
+    // generic message, so a new failure still says something specific.
+    expect(screen.getByText('Unknown error detail')).toBeInTheDocument()
+  })
+
+  it('handles check now verification API failure gracefully in Step 3', async () => {
+    domainsList = [
+      makeDomain({
+        id: 'dom_check_err',
+        status: 'verifying',
+      }),
+    ]
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        const method = init?.method || 'GET'
+        if (url.includes('/verify') && method === 'POST') {
+          return Promise.resolve(jsonResponse({ title: 'Internal Error', status: 500 }, 500))
+        }
+        if (url.includes('/instructions') && method === 'GET') {
+          return Promise.resolve(
+            jsonResponse(makeInstructions('custom.example.com', 'dom_check_err')),
+          )
+        }
+        if (url.includes('/tenant/domains') && method === 'GET') {
+          return Promise.resolve(jsonResponse(domainsList))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(DomainConnect, { props: { id: 'dom_check_err' } })
+
+    const checkBtn = await screen.findByRole('button', { name: 'Check again' })
+    await fireEvent.click(checkBtn)
+
+    // Should remain in Step 3 without throwing
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Check again' })).toBeInTheDocument()
+    })
+    expect(
+      screen.getByRole('heading', { name: 'Step 3: Verifying DNS records', level: 2 }),
+    ).toBeInTheDocument()
   })
 
   it('renders upgrade prompt when tenant lacks domains.custom entitlement', async () => {

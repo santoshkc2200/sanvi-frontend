@@ -8,7 +8,7 @@ import {
   requestDomainVerification,
 } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
-import { t } from '@sanvi/i18n'
+import { currentLocale, t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import {
   Alert,
@@ -33,8 +33,10 @@ import {
   type RegistrarId,
 } from '../lib/domains/registrar-guides'
 import { pollWithBackoff, type Poller } from '../lib/domains/poll'
+import { failureMessage as failureMessageFor, toRecordItems } from '../lib/domains/records'
 
 type CustomDomainView = components['schemas']['CustomDomainView']
+type InstructionsView = components['schemas']['InstructionsView']
 
 interface Props {
   id?: string
@@ -46,7 +48,12 @@ let { id: propId }: Props = $props()
 let step = $state<1 | 2 | 3 | 4 | 5>(1)
 let rawHostname = $state('')
 let domain = $state<CustomDomainView | null>(null)
+let instructions = $state<InstructionsView | null>(null)
 let selectedRegistrarId = $state<RegistrarId>('generic')
+// Until the tenant overrides the registrar the backend detected from the zone's
+// NS records, the guide shipped with the instructions response wins: it is the
+// one with a named owner and a review date.
+let registrarOverridden = $state(false)
 
 let loading = $state(true)
 let submitting = $state(false)
@@ -63,11 +70,47 @@ let poller: Poller<CustomDomainView[]> | undefined
 
 const selectedGuide = $derived(getGuide(selectedRegistrarId))
 
+function guideName(guide: { id: string; nameKey: string }): string {
+  const message = t[guide.nameKey as keyof typeof t]
+  return message ? message() : guide.id
+}
+
 const guideOptions = $derived(
   ALL_GUIDES.map((g) => ({
     value: g.id,
-    label: t[g.nameKey as keyof typeof t] ? t[g.nameKey as keyof typeof t]() : g.id,
+    label: guideName(g),
   })),
+)
+
+const selectedGuideName = $derived(guideName(selectedGuide))
+
+/**
+ * Guide steps as plain strings. The backend's guide is authoritative for the
+ * registrar it detected; the local catalog covers the case where detection was
+ * wrong and the tenant picks their registrar by hand.
+ */
+const guideSteps = $derived.by<string[]>(() => {
+  if (!registrarOverridden && instructions?.guide) {
+    return instructions.guide.steps
+  }
+  return selectedGuide.steps.map((gStep) => {
+    const message = t[gStep.textKey as keyof typeof t]
+    return message ? message() : gStep.textKey
+  })
+})
+
+const guideTitle = $derived(
+  !registrarOverridden && instructions?.guide
+    ? instructions.guide.title
+    : t['admin.domains.connect.instructionsTitle']({ registrar: selectedGuideName }),
+)
+
+const punycodeHostname = $derived.by(() => {
+  const normalized = normalizeHostname(rawHostname)
+  return normalized ? toPunycode(normalized) : ''
+})
+const hostnameHasUnicode = $derived(
+  punycodeHostname !== '' && punycodeHostname !== normalizeHostname(rawHostname),
 )
 
 function normalizeHostname(input: string): string {
@@ -78,99 +121,65 @@ function normalizeHostname(input: string): string {
   return h
 }
 
+// Homograph-confusion protection (security section): a unicode hostname must
+// never be claimed or displayed as typed — only its punycode (ASCII) form,
+// which is what DNS and the backend's Hostname type actually operate on. The
+// URL constructor's host parser applies IDNA/ToASCII for us; no separate
+// punycode library needed. Falls back to the input unchanged if it can't be
+// parsed as a host at all (isValidHostname rejects it afterwards either way).
+function toPunycode(hostname: string): string {
+  try {
+    return new URL(`http://${hostname}`).hostname
+  } catch {
+    return hostname
+  }
+}
+
 function isValidHostname(h: string): boolean {
   if (!h || h.length < 3 || h.length > 253) return false
   const parts = h.split('.')
   if (parts.length < 2) return false
-  const domainPattern = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
-  return parts.every((part) => domainPattern.test(part))
+  const labelPattern = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/
+  if (!parts.every((part) => labelPattern.test(part))) return false
+  // A TLD is never all digits — that shape is an IP address typed into a field
+  // that wants a hostname, and the registrar would reject it far later.
+  return /[a-z]/.test(parts[parts.length - 1] ?? '')
 }
 
-const domainRecords = $derived.by<DomainRecordItem[]>(() => {
-  if (!domain) return []
-  const items: DomainRecordItem[] = []
+const domainRecords = $derived<DomainRecordItem[]>(toRecordItems(instructions, domain))
 
-  const txtName = domain.challenge?.txt_name || `_sanvi-challenge.${domain.hostname}`
-  const txtValue =
-    domain.challenge?.txt_value ||
-    (domain.challenge?.token
-      ? `sanvi-verification=${domain.challenge.token}`
-      : `sanvi-verification=${domain.id}`)
+const failureMessage = $derived(failureMessageFor(domain?.failure))
 
-  let txtObserved: DomainRecordItem['observed'] = 'pending'
-  if (['live', 'verified', 'issuing_cert'].includes(domain.status)) {
-    txtObserved = 'matched'
-  } else if (
-    domain.failure?.code === 'txt_missing' ||
-    domain.failure?.code === 'challenge_expired'
-  ) {
-    txtObserved = 'not_found'
-  } else if (domain.failure?.code === 'dns_drift' || domain.failure?.code === 'txt_mismatch') {
-    txtObserved = 'mismatch'
+const recordStatusLabels: Record<DomainRecordItem['observed'], () => string> = {
+  matched: () => t['admin.domains.detail.recordMatched'](),
+  pending: () => t['admin.domains.detail.recordPending'](),
+  mismatch: () => t['admin.domains.detail.recordMismatch'](),
+  not_found: () => t['admin.domains.detail.recordNotFound'](),
+}
+
+/**
+ * What a screen reader hears when the poller advances the wizard. A live region
+ * only announces content that changes inside it, so this is one region outside
+ * the step branches rather than an `aria-live` on each step's static heading.
+ *
+ * Failures are deliberately absent: `Alert` is already a `role="status"` live
+ * region, and repeating its text here would announce every failure twice.
+ */
+const progressAnnouncement = $derived.by(() => {
+  if (!domain) return ''
+  const parts = [t[`admin.domains.connect.step${step}Title` as keyof typeof t]()]
+  if (step === 3) {
+    for (const record of domainRecords) {
+      parts.push(
+        t['admin.domains.connect.recordStatusAnnouncement']({
+          type: record.type,
+          name: record.name,
+          status: recordStatusLabels[record.observed](),
+        }),
+      )
+    }
   }
-
-  items.push({
-    type: 'TXT',
-    name: txtName,
-    expected: txtValue,
-    observed: txtObserved,
-  })
-
-  const isSubdomain = domain.hostname.split('.').length > 2
-  const routingType = isSubdomain ? 'CNAME' : 'A'
-  const routingTarget = isSubdomain ? 'edge.sanvi.app' : '192.0.2.1'
-
-  let routingObserved: DomainRecordItem['observed'] = 'pending'
-  if (
-    domain.status === 'live' ||
-    domain.status === 'verified' ||
-    domain.status === 'issuing_cert'
-  ) {
-    routingObserved = 'matched'
-  } else if (domain.failure?.code === 'routing_missing') {
-    routingObserved = 'not_found'
-  } else if (domain.failure?.code === 'routing_mismatch') {
-    routingObserved = 'mismatch'
-  }
-
-  items.push({
-    type: routingType,
-    name: domain.hostname,
-    expected: routingTarget,
-    observed: routingObserved,
-  })
-
-  return items
-})
-
-const failureMessage = $derived.by(() => {
-  if (!domain?.failure) return undefined
-  switch (domain.failure.code) {
-    case 'txt_missing':
-      return t['admin.domains.failure.txtMissing']()
-    case 'txt_mismatch':
-      return t['admin.domains.failure.txtMismatch']()
-    case 'routing_missing':
-      return t['admin.domains.failure.routingMissing']()
-    case 'routing_mismatch':
-      return t['admin.domains.failure.routingMismatch']()
-    case 'dns_drift':
-      return t['admin.domains.failure.dnsDrift']()
-    case 'challenge_expired':
-      return t['admin.domains.failure.challengeExpired']()
-    case 'verified_by_other_tenant':
-      return t['admin.domains.failure.verifiedByOtherTenant']()
-    case 'cert_invalid':
-      return t['admin.domains.failure.certInvalid']()
-    case 'cert_issuance_failed':
-      return t['admin.domains.failure.certIssuanceFailed']()
-    case 'propagating':
-      return t['admin.domains.failure.propagating']()
-    case 'probe_failed':
-      return t['admin.domains.failure.probeFailed']()
-    default:
-      return t['admin.domains.failure.generic']()
-  }
+  return parts.join('. ')
 })
 
 function deriveStepFromDomain(d: CustomDomainView): 1 | 2 | 3 | 4 | 5 {
@@ -192,9 +201,22 @@ function deriveStepFromDomain(d: CustomDomainView): 1 | 2 | 3 | 4 | 5 {
   }
 }
 
+/**
+ * Seconds this domain has been waiting, counted from when the backend last
+ * moved it — not from when this tab opened. Resuming after a multi-hour DNS
+ * delay must not claim the wait has just started.
+ */
+function elapsedSinceServer(d: CustomDomainView | null): number {
+  const since = d?.updated_at ?? d?.created_at
+  if (!since) return 0
+  const started = new Date(since).getTime()
+  if (Number.isNaN(started)) return 0
+  return Math.max(0, Math.floor((Date.now() - started) / 1000))
+}
+
 function startElapsedTimer(): void {
   if (elapsedTimer) clearInterval(elapsedTimer)
-  elapsedTimeSec = 0
+  elapsedTimeSec = elapsedSinceServer(domain)
   elapsedTimer = setInterval(() => {
     elapsedTimeSec += 1
   }, 1000)
@@ -208,10 +230,32 @@ function stopElapsedTimer(): void {
 }
 
 function formatElapsedTime(seconds: number): string {
-  const m = Math.floor(seconds / 60)
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
   const s = seconds % 60
-  if (m === 0) return `${s}s`
-  return `${m}m ${s}s`
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m ${s}s`
+  return `${s}s`
+}
+
+/**
+ * Load the exact records the backend expects for this claim. These are
+ * deployment facts (edge address, challenge host, TTLs) that only the backend
+ * knows; the wizard shows nothing to copy until they arrive.
+ */
+async function loadInstructions(domainId: string): Promise<void> {
+  try {
+    instructions = await getDomainInstructions(apiClient, domainId, { locale: currentLocale() })
+  } catch {
+    instructions = null
+    error = t['admin.domains.connect.instructionsUnavailable']()
+  }
+}
+
+function applyDetectedRegistrar(d: CustomDomainView): void {
+  if (registrarOverridden) return
+  const detected = detectRegistrar(d.detected_registrar)
+  selectedRegistrarId = detected === 'unknown' ? 'generic' : detected
 }
 
 function syncPolledDomain(list: CustomDomainView[]): void {
@@ -287,9 +331,9 @@ async function init(): Promise<void> {
         domain = found
         rawHostname = found.hostname
         resumedDomainName = found.hostname
-        const detected = detectRegistrar(found.detected_registrar)
-        selectedRegistrarId = detected === 'unknown' ? 'generic' : detected
+        applyDetectedRegistrar(found)
         step = deriveStepFromDomain(found)
+        await loadInstructions(found.id)
 
         if (step === 3 || step === 4) {
           startElapsedTimer()
@@ -333,7 +377,7 @@ async function handleClaimSubmit(e?: Event): Promise<void> {
   hostnameError = undefined
   error = undefined
 
-  const normalized = normalizeHostname(rawHostname)
+  const normalized = toPunycode(normalizeHostname(rawHostname))
   if (!isValidHostname(normalized)) {
     hostnameError = t['admin.domains.connect.invalidHostname']()
     return
@@ -344,8 +388,8 @@ async function handleClaimSubmit(e?: Event): Promise<void> {
     const res = await claimCustomDomain(apiClient, normalized, 'primary')
     if (res) {
       domain = res
-      const detected = detectRegistrar(res.detected_registrar)
-      selectedRegistrarId = detected === 'unknown' ? 'generic' : detected
+      applyDetectedRegistrar(res)
+      await loadInstructions(res.id)
       step = 2
 
       if (typeof window !== 'undefined' && window.history) {
@@ -423,6 +467,7 @@ function handleAddedRecords(): void {
           <li
             class="sanvi-connect-stepper__item"
             class:sanvi-connect-stepper__item--active={step === 1}
+            aria-current={step === 1 ? 'step' : undefined}
             class:sanvi-connect-stepper__item--complete={step > 1}
           >
             <span class="sanvi-connect-stepper__num">1</span>
@@ -431,6 +476,7 @@ function handleAddedRecords(): void {
           <li
             class="sanvi-connect-stepper__item"
             class:sanvi-connect-stepper__item--active={step === 2}
+            aria-current={step === 2 ? 'step' : undefined}
             class:sanvi-connect-stepper__item--complete={step > 2}
           >
             <span class="sanvi-connect-stepper__num">2</span>
@@ -439,6 +485,7 @@ function handleAddedRecords(): void {
           <li
             class="sanvi-connect-stepper__item"
             class:sanvi-connect-stepper__item--active={step === 3}
+            aria-current={step === 3 ? 'step' : undefined}
             class:sanvi-connect-stepper__item--complete={step > 3}
           >
             <span class="sanvi-connect-stepper__num">3</span>
@@ -447,6 +494,7 @@ function handleAddedRecords(): void {
           <li
             class="sanvi-connect-stepper__item"
             class:sanvi-connect-stepper__item--active={step === 4}
+            aria-current={step === 4 ? 'step' : undefined}
             class:sanvi-connect-stepper__item--complete={step > 4}
           >
             <span class="sanvi-connect-stepper__num">4</span>
@@ -455,6 +503,7 @@ function handleAddedRecords(): void {
           <li
             class="sanvi-connect-stepper__item"
             class:sanvi-connect-stepper__item--active={step === 5}
+            aria-current={step === 5 ? 'step' : undefined}
             class:sanvi-connect-stepper__item--complete={step === 5}
           >
             <span class="sanvi-connect-stepper__num">5</span>
@@ -462,6 +511,10 @@ function handleAddedRecords(): void {
           </li>
         </ol>
       </nav>
+
+      <div class="sanvi-visually-hidden" role="status" aria-live="polite">
+        {progressAnnouncement}
+      </div>
 
       <!-- Step 1: Enter Domain -->
       {#if step === 1}
@@ -488,6 +541,12 @@ function handleAddedRecords(): void {
                   />
                 {/snippet}
               </Field>
+
+              {#if hostnameHasUnicode}
+                <Alert variant="info">
+                  {t['admin.domains.connect.punycodeNotice']({ punycode: punycodeHostname })}
+                </Alert>
+              {/if}
 
               <div class="sanvi-connect__explanation">
                 <p>{t['admin.domains.connect.apexExplanation']()}</p>
@@ -521,6 +580,7 @@ function handleAddedRecords(): void {
               typeHeader={t['admin.domains.detail.recordsTypeHeader']()}
               nameHeader={t['admin.domains.detail.recordsNameHeader']()}
               expectedHeader={t['admin.domains.detail.recordsValueHeader']()}
+              ttlHeader={t['admin.domains.detail.recordsTtlHeader']()}
               statusHeader={t['admin.domains.detail.recordsStatusHeader']()}
               actionsHeader={t['admin.domains.detail.recordsActionsHeader']()}
               copyLabel={t['admin.domains.detail.copy']()}
@@ -537,7 +597,7 @@ function handleAddedRecords(): void {
             <!-- Registrar Guide Selection & Steps -->
             <section class="sanvi-connect__guide-section" aria-label={t['admin.domains.connect.guideSectionAriaLabel']()}>
               <Cluster justify="space-between" align="center" gap="4">
-                <h3>{t['admin.domains.connect.instructionsTitle']({ registrar: selectedGuide.id })}</h3>
+                <h3>{guideTitle}</h3>
                 <div class="sanvi-connect__guide-select">
                   <Field label={t['admin.domains.connect.selectGuideLabel']()}>
                     {#snippet children(controlProps)}
@@ -545,6 +605,9 @@ function handleAddedRecords(): void {
                         {...controlProps}
                         options={guideOptions}
                         bind:value={selectedRegistrarId}
+                        onchange={() => {
+                          registrarOverridden = true
+                        }}
                       />
                     {/snippet}
                   </Field>
@@ -552,12 +615,10 @@ function handleAddedRecords(): void {
               </Cluster>
 
               <ol class="sanvi-connect__guide-steps">
-                {#each selectedGuide.steps as gStep, idx}
+                {#each guideSteps as gStep, idx}
                   <li class="sanvi-connect__guide-step">
                     <span class="sanvi-connect__guide-step-num">{idx + 1}</span>
-                    <p class="sanvi-connect__guide-step-text">
-                      {t[gStep.textKey as keyof typeof t] ? t[gStep.textKey as keyof typeof t]() : gStep.textKey}
-                    </p>
+                    <p class="sanvi-connect__guide-step-text">{gStep}</p>
                   </li>
                 {/each}
               </ol>
@@ -586,7 +647,7 @@ function handleAddedRecords(): void {
       {:else if step === 3 && domain}
         <div class="sanvi-connect__card">
           <Stack gap="5">
-            <div class="sanvi-connect__status-header" aria-live="polite">
+            <div class="sanvi-connect__status-header">
               <h2>{t['admin.domains.connect.step3Title']()}</h2>
               <p class="sanvi-connect__card-desc">{t['admin.domains.connect.step3Description']()}</p>
             </div>
@@ -603,6 +664,7 @@ function handleAddedRecords(): void {
               typeHeader={t['admin.domains.detail.recordsTypeHeader']()}
               nameHeader={t['admin.domains.detail.recordsNameHeader']()}
               expectedHeader={t['admin.domains.detail.recordsValueHeader']()}
+              ttlHeader={t['admin.domains.detail.recordsTtlHeader']()}
               statusHeader={t['admin.domains.detail.recordsStatusHeader']()}
               actionsHeader={t['admin.domains.detail.recordsActionsHeader']()}
               copyLabel={t['admin.domains.detail.copy']()}
@@ -643,7 +705,7 @@ function handleAddedRecords(): void {
       {:else if step === 4 && domain}
         <div class="sanvi-connect__card">
           <Stack gap="5" align="center">
-            <div class="sanvi-connect__status-header" aria-live="polite">
+            <div class="sanvi-connect__status-header">
               <h2>{t['admin.domains.connect.step4Title']()}</h2>
               <p class="sanvi-connect__card-desc">{t['admin.domains.connect.step4Description']()}</p>
             </div>
@@ -663,7 +725,7 @@ function handleAddedRecords(): void {
       {:else if step === 5 && domain}
         <div class="sanvi-connect__card">
           <Stack gap="5">
-            <div class="sanvi-connect__live-header" aria-live="polite">
+            <div class="sanvi-connect__live-header">
               <Badge variant="success">
                 {#snippet children()}
                   {t['admin.domains.statusLive']()}
@@ -680,6 +742,7 @@ function handleAddedRecords(): void {
               <h3>{t['admin.domains.connect.nextStepsTitle']()}</h3>
               <ul>
                 <li>{t['admin.domains.connect.nextStepPrimary']()}</li>
+                <li>{t['admin.domains.connect.nextStepWww']()}</li>
               </ul>
             </div>
 
@@ -712,6 +775,18 @@ function handleAddedRecords(): void {
 </Container>
 
 <style>
+  .sanvi-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   .sanvi-connect__back-link {
     color: var(--sanvi-color-solid-primary-base);
     text-decoration: none;
