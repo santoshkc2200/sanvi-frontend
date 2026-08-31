@@ -188,19 +188,22 @@ Depends on Wave 1's API module and primitives. Independent of Wave 3.
 
 Depends on Wave 1. Reuses `pollWithBackoff` from Wave 2 (Task 2.3) — sequence Wave 3 after Task 2.3 lands even if the rest of Wave 2 is still in flight, or duplicate-then-consolidate if running fully in parallel; don't block Wave 3 entirely on all of Wave 2.
 
-### Task 3.1: Registrant details — locale-aware address input
+### Task 3.1: Registrant details — contact form
+
+**Corrected against the actual contract** (checked directly in `packages/api-client/src/generated/types.ts` before writing this task): `PlaceDomainOrderCommand.registrant_contact` is a `RegistrantContact` — `{ name: string; email: string; phone: string; country_code: string; organization?: string | null }`. There is no street address, city, prefecture, or postal code field anywhere in this schema. The spec's "locale-aware address input (phase 06)" does not apply here — the backend collects a minimal contact, not a mailing address, and no such phase-06 component exists in `packages/ui` anyway (confirmed absent). Building a full address form would collect data the backend has nowhere to put, which also cuts against this phase's own security principle of minimal-fields collection.
 
 **Files:**
-- Create: `packages/ui/src/AddressFields.svelte`, `packages/ui/__tests__/AddressFields.test.ts`, `packages/ui/src/AddressFields.stories.svelte`
-
-No existing locale-aware address component was found in `packages/ui` or either app despite the spec citing "phase 06" for this — phase 06's frontend work has not shipped an address component as of this wave. Build the minimum this wizard needs (name, address lines, city, region/prefecture, postal code, country, phone) using existing `Field`/`Input`/`Select` primitives, with a `locale` prop that reorders/relabels fields for `ja` (prefecture before city, postal-code format hint) vs the generic order for everything else. Do not attempt to build a general N-country address system — that's out of scope; this is the registrant form's input surface only.
+- No new `packages/ui` component. Build the form inline in `DomainPurchase.svelte` (Task 3.2) using existing `Field`/`Input`/`Select` primitives: name, organization (optional), email, phone, country select.
 
 **Interfaces:**
-- Props: `{ locale: string; value: RegistrantAddress; onChange: (value: RegistrantAddress) => void }` where `RegistrantAddress` is the shape `placeDomainOrder`'s `registrant` parameter expects — read the actual generated type for `place_domain_order`'s request body in `types.ts` and use that type directly rather than inventing a parallel one.
+- The form's local state is typed directly as `components['schemas']['RegistrantContact']` from `@sanvi/api-client` — do not declare a parallel type.
+- A `country_code` `Select` populated from a small static ISO list is sufficient; no per-country field reshaping is needed since the schema has no address fields to reshape.
 
-- [ ] Build `AddressFields.svelte` per the `packages/ui` component checklist (runes, tokens, i18n-prop strings, axe test, stories).
-- [ ] `pnpm --filter @sanvi/ui test && check` — expect PASS.
-- [ ] Commit: `feat(ui): AddressFields component for domain registrant details`
+- [ ] Skip — folded into Task 3.2, no standalone component to build or test here.
+
+### Task 3.1 (superseded)
+
+The task above replaces the originally planned `AddressFields.svelte` component. Wave 3 execution should treat 3.1 as done once the registrant contact fields land as part of Task 3.2.
 
 ### Task 3.2: `DomainPurchase.svelte` — steps 1–3 (search, select, registrant)
 
@@ -208,12 +211,13 @@ No existing locale-aware address component was found in `packages/ui` or either 
 - Create: `apps/admin/src/routes/DomainPurchase.svelte`
 
 **Interfaces:**
-- Consumes: `searchDomains` (Task 1.1), `AddressFields` (Task 3.1).
+- Consumes: `searchDomains` (Task 1.1) — its response is `DomainSearchView { query, registrar_id, results: DomainQuote[] }` where each `DomainQuote` is `{ hostname, tld, available, premium, register_price: Money, renew_price: Money, registrar_id }`. Both prices are present per result, so the renewal price shown in step 1 and the year-two total shown in step 4 both come straight off the search result the tenant picked — carry the selected `DomainQuote` in wizard state rather than re-fetching it later.
+- Registrant fields are typed as `components['schemas']['RegistrantContact']` (Task 3.1's correction above) — `{ name, email, phone, country_code, organization? }`.
 - Produces: same resumable `$state` step-machine convention as `DomainConnect.svelte` (steps 1–6 per spec).
 
-- [ ] Step 1: search input, debounced (match `Onboarding.svelte`'s slug-check debounce pattern), rendering availability + price-per-year + renewal price + suggestions per result.
-- [ ] Step 2: term length, auto-renew toggle, WHOIS privacy toggle (default on where the backend indicates it's allowed — check `search_domains`'/`place_domain_order`'s response for a privacy-availability flag before assuming it's always offered).
-- [ ] Step 3: `AddressFields` plus the plain-language "what is sent to the registrar and why" statement — this is a required, real sentence of copy, not a placeholder; write the actual disclosure text referencing the registrar sub-processor by role (per the security section: name the sub-processor at the point of collection).
+- [ ] Step 1: search input, debounced (match `Onboarding.svelte`'s slug-check debounce pattern), rendering availability + `register_price` + `renew_price` + suggestions per result.
+- [ ] Step 2: term length, auto-renew toggle, WHOIS privacy toggle. There is no per-TLD privacy-availability field anywhere in the contract (`DomainQuote` and `PlaceDomainOrderCommand` both lack one) — offer the toggle unconditionally, defaulted on, per `PlaceDomainOrderCommand.whois_privacy`'s own doc comment ("default true where supported"); the backend silently no-ops it where unsupported, the UI doesn't need to predict that.
+- [ ] Step 3: the registrant contact form (name, organization, email, phone, country) plus the plain-language "what is sent to the registrar and why" statement — this is a required, real sentence of copy, not a placeholder; write the actual disclosure text referencing the registrar sub-processor by role (per the security section: name the sub-processor at the point of collection).
 - [ ] Component tests: empty search, results with mixed availability, term/privacy selection persisted across steps, registrant validation errors.
 - [ ] `pnpm --filter <admin-app-name> test && check` — expect PASS.
 - [ ] Commit: `feat(admin): purchase wizard steps 1-3`
@@ -225,11 +229,11 @@ No existing locale-aware address component was found in `packages/ui` or either 
 
 **Interfaces:**
 - Consumes: `placeDomainOrder` (Task 1.1), `pollWithBackoff` (Task 2.3) for the provisioning step, the existing checkout/payment handoff pattern already used in `Onboarding.svelte`/`PaymentsSettings.svelte` (`createCheckoutSession` or whatever billing-elements flow those already use — reuse it, don't build a second payment integration).
-
-- [ ] Step 4: total including year-two renewal price, non-refundability notice, explicit confirm action.
-- [ ] Step 5: provisioning progress broken into its own sub-states (registration → DNS configuration → verification → certificate) each independently rendered, polling via `pollWithBackoff`.
+- The real `OrderStatus` enum (`crates/contexts/domains/src/domain/order.rs` in the sibling backend repo) is `Pending → Charged → Registered → Configuring → Active → Failed | Refunded`. Step 5's sub-states map to this directly: Pending/Charged = "processing payment", Registered = "registering with the registrar", Configuring = "applying DNS", Active = the point where a `CustomDomain` now exists for this hostname and flows through the *same* verification/cert pipeline `DomainConnect.svelte` already polls — once `Active`, switch polling to `listCustomDomains`/the domain's own status (reuse Task 2.3's derivation logic, don't reimplement it) for the remaining verification→cert→live progress. Failed and Refunded are the two terminal failure states.
+- [ ] Step 4: total including year-two renewal price (from the carried `DomainQuote.renew_price`, Task 3.2), non-refundability notice, explicit confirm action.
+- [ ] Step 5: provisioning progress: poll the placed order's status through the `Pending/Charged/Registered/Configuring` states, then once `Active`, switch to polling the resulting custom domain's status (reusing `DomainConnect.svelte`'s status→progress rendering) through verification and certificate issuance to live. Use `pollWithBackoff` for both phases.
 - [ ] Step 6: live state with domain-management entry points linking back to `DomainDetail.svelte`.
-- [ ] Component tests: happy path; registration failing after payment (must render the refund-messaging copy from the spec, sourced from an actual backend failure state — check `crates/contexts/domains/src/application/orders_job.rs` for the failure shape it can report before writing this copy).
+- [ ] Component tests: happy path; order lands in `Failed` or `Refunded` (must render refund-messaging copy appropriate to each — a `Failed` order before any charge succeeded needs no refund language, only a `Refunded` order does; conflating the two would tell a never-charged tenant they're getting a refund they were never owed).
 - [ ] `pnpm --filter <admin-app-name> test && check` — expect PASS.
 - [ ] Commit: `feat(admin): purchase wizard payment, provisioning, and live steps`
 
@@ -255,13 +259,15 @@ Depends on Wave 1 (detail screen) and touches both wizards' guide catalog.
 **Files:**
 - Modify: `apps/admin/src/routes/Domains.svelte`, `apps/admin/src/routes/DomainDetail.svelte`
 
-**Interfaces:**
-- Consumes: whatever health/expiry fields the backend's `health_job.rs`/`renewal_job.rs` actually populate onto the domain/order views — read those two files first; do not invent a health status enum that doesn't match what the backend emits.
+**Corrected against the actual contract** (read `health_job.rs`, `renewal_job.rs`, `custom_domain.rs`, and `views.rs` before writing this task):
 
-- [ ] Health badge on the list, degraded state explaining what changed and how to fix it, sourced from the real backend field.
-- [ ] Expiry warning banner on purchased domains nearing expiry (in-app; email is a backend/notifications concern, out of scope here) with an auto-renew toggle via `setOrderAutoRenew` and its billing implications stated inline.
-- [ ] Renewal failure state with a concrete recovery path (link to payment settings, or a retry action — check what the backend actually offers via `renewal_job.rs` before promising an action the UI can't fulfill).
-- [ ] Component tests for: healthy, degraded, expiring-soon, renewal-failed states.
+- Health is a real `DomainStatus` value, not a side field: the enum is `PendingSetup, Verifying, Verified, IssuingCert, Live, Degraded, Removed`. `health_job.rs`'s own doc comment: "Drift → `degraded` with the exact failure code; recovery → back to `live`." So the health badge is simply `domain.status === 'degraded'`, with `domain.failure.code` (one of `cert_invalid`, `dns_drift`, `probe_failed` — the three codes this job sets) driving the explanation text, reusing the failure-message pattern `DomainConnect.svelte` already established in Wave 2.
+- Expiry: `OrderView.expires_at` is real and usable for a proximity-based warning banner.
+- **Renewal failure has no buildable surface — do not build it, and do not invent one.** `OrderView` (`views.rs`) exposes only `id, hostname, term_years, price_minor, currency, status, auto_renew, whois_privacy, registered_at, expires_at, created_at`. `renewal_job.rs` tracks `renewal_attempts` and a failure detail internally on the `DomainOrder` aggregate, but `OrderView::of()` does not map either of them out — there is no API field indicating "a renewal attempt failed and is retrying" versus "renewal is fine." `OrderStatus` itself (`Pending/Charged/Registered/Configuring/Active/Failed/Refunded`) also has no state for an already-active order's renewal failing. Skip the "renewal failure state with a clear recovery path" deliverable entirely for this wave; note it in the wave summary as a backend gap (`OrderView` needs `renewal_attempts`/`last_renewal_error` fields before this is buildable) rather than fabricating a status the API can't actually report.
+
+- [ ] Health badge on the list and detail screens for `status === 'degraded'`, explanation text keyed off `failure.code` (cert_invalid / dns_drift / probe_failed), reusing `DomainConnect.svelte`'s failure-message-derivation pattern rather than reinventing it.
+- [ ] Expiry warning banner on purchased domains nearing expiry (in-app only — email is a backend/notifications concern, out of scope here), computed from `OrderView.expires_at`, with an auto-renew toggle via `setOrderAutoRenew` and its billing implications stated inline.
+- [ ] Component tests for: healthy, degraded (each of the 3 real failure codes), expiring-soon, not-expiring states. No "renewal-failed" test case — there is nothing to render.
 - [ ] `pnpm --filter <admin-app-name> test && check` — expect PASS.
 - [ ] Commit: `feat(admin): domain health and expiry surfaces`
 
@@ -284,13 +290,13 @@ Depends on Wave 1 (detail screen) and touches both wizards' guide catalog.
 **Files:**
 - Modify: `apps/admin/src/lib/domains/registrar-guides.ts`
 - Create: `apps/admin/src/lib/domains/guides/onamae.ts` (or matching pattern from Task 2.1)
-- Add screenshot assets per whatever asset pipeline the app already uses for images (check for an existing `assets/` or `static/` convention in `apps/admin` before choosing a location)
 
-- [ ] Add the お名前.com guide (and Value Domain if not already covered in Task 2.1).
-- [ ] Add screenshots for every guide, English and Japanese UI variants where the registrar's own console differs by locale.
-- [ ] Add the `ja` translations for every guide step's i18n key (the keys were created in Task 2.1; this task fills in `ja.json`'s values for them, since Task 2.1 deliberately deferred the Japanese guide-content translations).
+**No screenshots in this task.** `apps/admin` has no `static`/`assets`/`public` image convention at all today, and more fundamentally: an authentic screenshot of a real registrar's live console (Cloudflare, Route 53, GoDaddy, お名前.com, Value Domain) cannot be produced by a code-generation task — it requires someone to actually sign into that registrar's real UI and capture it. A fabricated placeholder image would be actively worse than the `GuideStep.screenshot` field simply staying unset, given the spec's own stated risk that "registrar guides go stale as UIs change" — a fake screenshot can't go stale correctly, it's just wrong from the start. Leave `screenshot` unset on every step; flag real screenshot capture as a follow-up for whoever owns registrar accounts.
+
+- [ ] Add the お名前.com guide as real step content (text only) in the same shape as Task 2.1's other guides — replace its current placeholder mapping to `genericGuide.steps` in `REGISTRAR_GUIDES`.
+- [ ] Add the `ja` translations for every guide step's i18n key across all guides (cloudflare, route53, godaddy, value_domain, onamae_jp, generic) — the keys were created in Task 2.1; this task fills in `ja.json`'s values for them, since Task 2.1 deliberately deferred the Japanese guide-content translations.
 - [ ] `pnpm --filter @sanvi/i18n test` (catalog parity) — expect PASS.
-- [ ] Commit: `feat(admin): japanese registrar guides and screenshots`
+- [ ] Commit: `feat(admin): onamae.com guide and japanese guide translations`
 
 **Wave 4 exit criteria:** every deliverable in the spec's "Work breakdown" list (items 1–9) is implemented and reachable in the running app; Japanese guides render correctly including registrar names. `pnpm check:quiet && pnpm test:quiet` pass.
 
@@ -362,4 +368,4 @@ Run through every checkbox in the spec's "Acceptance criteria" section against t
 
 - **Spec coverage:** all 10 "Work breakdown" items map to a task (1→Wave1/1.4, 2→Wave2/2.2-2.3, 3→Wave2/2.1+Wave4/4.3, 4→Wave1/1.2, 5→Wave2/2.3, 6→Wave2/2.3, 7→Wave3, 8→Wave4/4.1, 9→Wave4/4.2, 10→Wave5/5.3). Testing section → Wave 5. Security section → Wave 5/5.5 plus constraints called out per-wave. Acceptance criteria → Wave 5/5.6.
 - **Contract gaps:** flagged explicitly rather than papered over (see "Known contract gaps" above) — Wave 1's detail table and Wave 4's health surfaces must be built against the real view schema, not the spec's idealized description, and any real gap gets called out in review rather than faked.
-- **Type consistency:** `RegistrantAddress` (Task 3.1) is defined as "whatever `place_domain_order`'s generated request type says," not re-declared — avoids the classic drift between a hand-rolled type and the generated one.
+- **Type consistency:** the registrant contact form (Task 3.1/3.2) is typed directly as the generated `RegistrantContact` schema, not re-declared — avoids the classic drift between a hand-rolled type and the generated one. (Correction made 2026-08-30 before Wave 3 kickoff: the originally planned `AddressFields` component assumed a full postal address; the real schema has no address fields at all, only `name/email/phone/country_code/organization`.)

@@ -115,6 +115,11 @@ const routes: RouteDefinition[] = [
     load: () => import('./routes/DomainConnect.svelte'),
   },
   {
+    path: 'domains/purchase',
+    guard: (params) => requireSession(router)(params),
+    load: () => import('./routes/DomainPurchase.svelte'),
+  },
+  {
     path: 'domains/:id',
     guard: (params) => requireSession(router)(params),
     load: () => import('./routes/DomainDetail.svelte'),
