@@ -392,11 +392,18 @@ const certBadgeLabel = $derived(
         <h2 id="cert-heading">{t['admin.domains.detail.certTitle']()}</h2>
         <div class="sanvi-domain-detail__card">
           <Cluster justify="space-between" align="center">
-            <span>
-              {domain.status === 'live'
-                ? t['admin.domains.detail.certLive']()
-                : t['admin.domains.detail.certPending']()}
-            </span>
+            <Stack gap="1">
+              <span>
+                {domain.status === 'live'
+                  ? t['admin.domains.detail.certLive']()
+                  : t['admin.domains.detail.certPending']()}
+              </span>
+              {#if domain.cert_expires_at}
+                <span class="sanvi-domain-detail__meta-subtext">
+                  {t['admin.domains.certExpiresOn']({ date: fmt.date(domain.cert_expires_at, 'medium') })}
+                </span>
+              {/if}
+            </Stack>
             <Badge variant={domain.status === 'live' ? 'success' : 'info'}>
               {#snippet children()}
                 {certBadgeLabel}

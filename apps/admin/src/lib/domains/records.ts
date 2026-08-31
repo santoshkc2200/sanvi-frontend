@@ -34,10 +34,18 @@ function observedFor(
 ): DomainRecordItem['observed'] {
   if (CONFIRMED_STATUSES.includes(domain.status)) return 'matched'
 
+  const isChallenge = record.record_type.toUpperCase() === 'TXT'
+
+  // The backend now reports each check independently (`txt_ok`/`routing_ok`)
+  // on verification failures, so a record whose own check passed shows as
+  // matched even while the domain is still `verifying` overall.
+  const ok = isChallenge ? domain.failure?.txt_ok : domain.failure?.routing_ok
+  if (ok !== undefined && ok !== null) return ok ? 'matched' : 'not_found'
+
+  // Health-monitor failures (e.g. `dns_drift` on an already-live domain)
+  // don't carry per-check booleans — fall back to the failure code.
   const code = domain.failure?.code
   if (!code) return 'pending'
-
-  const isChallenge = record.record_type.toUpperCase() === 'TXT'
   const table = isChallenge ? TXT_FAILURE_CODES : ROUTING_FAILURE_CODES
   return table[code] ?? 'pending'
 }
@@ -49,8 +57,10 @@ function observedFor(
  * The record set — names, values, types and TTLs — is never derived here: the
  * edge address and challenge host are deployment facts the backend owns, and a
  * client-side guess would have tenants publishing records that route nowhere.
- * Only the observed column is inferred, because `CustomDomainView` reports a
- * single failure code rather than a per-record probe result.
+ * The observed column comes straight from the backend's per-check result
+ * (`failure.txt_ok` / `failure.routing_ok`) when the domain is mid-verification;
+ * only the health monitor's `dns_drift` case (no per-check split) still falls
+ * back to a failure-code guess.
  */
 export function toRecordItems(
   instructions: InstructionsView | null | undefined,

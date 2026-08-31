@@ -555,6 +555,95 @@
         "required": ["width_px", "height_px", "file_size_bytes", "is_video", "aspect_ratio"],
         "type": "object"
       },
+      "Audience": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "external_ref": {
+            "type": ["string", "null"]
+          },
+          "id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "included_identifiers": {
+            "items": {
+              "$ref": "#/components/schemas/HashedIdentifier"
+            },
+            "type": "array"
+          },
+          "last_synced_at": {
+            "format": "date-time",
+            "type": ["string", "null"]
+          },
+          "name": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/PlatformKey"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AudienceStatus"
+          },
+          "tenant_id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenant_id",
+          "platform",
+          "name",
+          "status",
+          "included_identifiers",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "AudienceStatus": {
+        "oneOf": [
+          {
+            "properties": {
+              "status": {
+                "enum": ["building"],
+                "type": "string"
+              }
+            },
+            "required": ["status"],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "status": {
+                "enum": ["active"],
+                "type": "string"
+              }
+            },
+            "required": ["status"],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "status": {
+                "enum": ["failed"],
+                "type": "string"
+              }
+            },
+            "required": ["reason", "status"],
+            "type": "object"
+          }
+        ]
+      },
       "AuditEntry": {
         "description": "A chained audit entry.\n\n`seq` is the chain's ordering authority (assigned by the database on\nINSERT); it is deliberately *not* covered by the hash because the\ndatabase assigns it after the hash is computed. Ordering integrity comes\nfrom the append-only grants + trigger; content and link integrity from\nthe hash chain.",
         "properties": {
@@ -1407,6 +1496,33 @@
         },
         "type": "object"
       },
+      "ConnectionFreshnessView": {
+        "properties": {
+          "connection_id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "lag_hours": {
+            "format": "double",
+            "type": ["number", "null"]
+          },
+          "last_ingested_at": {
+            "format": "date-time",
+            "type": ["string", "null"]
+          },
+          "platform": {
+            "type": "string"
+          },
+          "stalled": {
+            "description": "Ingestion is older than the configured freshness threshold — the\ndashboard's \"sync failed\" / \"still updating\" state, never presented\nas current.",
+            "type": "boolean"
+          }
+        },
+        "required": ["connection_id", "platform", "stalled"],
+        "type": "object"
+      },
       "ConnectionHealthView": {
         "properties": {
           "can_sync": {
@@ -1824,6 +1940,18 @@
         "required": ["creative", "landing_url"],
         "type": "object"
       },
+      "CreateAudienceRequest": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/PlatformKey"
+          }
+        },
+        "required": ["name", "platform"],
+        "type": "object"
+      },
       "CreateCampaignRequest": {
         "properties": {
           "budget": {
@@ -2210,6 +2338,11 @@
       },
       "CustomDomainView": {
         "properties": {
+          "cert_expires_at": {
+            "description": "The active certificate's expiry, when one has been issued. `None`\nwhile the domain has no active cert (not yet issued, or removed).",
+            "format": "date-time",
+            "type": ["string", "null"]
+          },
           "challenge": {
             "oneOf": [
               {
@@ -2490,6 +2623,14 @@
           },
           "detail": {
             "type": "string"
+          },
+          "routing_ok": {
+            "description": "Same as `txt_ok`, for the routing (CNAME/A) check.",
+            "type": ["boolean", "null"]
+          },
+          "txt_ok": {
+            "description": "The last verification attempt's independent TXT-ownership result.\n`None` when this failure isn't a verification failure, or the check\ndidn't run that attempt (not \"passed\").",
+            "type": ["boolean", "null"]
           }
         },
         "required": ["code", "detail"],
@@ -3497,7 +3638,7 @@
         "type": "object"
       },
       "MetricPoint": {
-        "description": "One daily chart rollup. The grain is `(tenant, platform, campaign, date)`;\ntenant is supplied by the authenticated route scope.",
+        "description": "One rollup row (TASK-016, slice 10.7). The grain depends on the\nrequest's `group_by`: `campaign` populates both `platform` and\n`campaign_id`; `platform` populates only `platform`; `tenant` leaves\nboth `None`. Tenant is supplied by the authenticated route scope.\n\n`conversion_value` (the platform's own attribution) and `sanvi_revenue`\n(Sanvi's order-based view) are always both present, always labelled\nseparately — never blended into one number (NFR-1006). Same for\n`roas_platform`/`roas_sanvi`: each is `null` on zero spend, never `∞`.",
         "properties": {
           "campaign_id": {
             "examples": ["873698342314721281"],
@@ -3510,7 +3651,12 @@
             "type": "integer"
           },
           "conversion_value": {
-            "$ref": "#/components/schemas/MoneyView"
+            "$ref": "#/components/schemas/MoneyView",
+            "description": "Platform-reported conversion value — attribution the ad platform's\nown model made."
+          },
+          "conversions": {
+            "format": "double",
+            "type": "number"
           },
           "date": {
             "example": "2026-08-24",
@@ -3523,7 +3669,7 @@
           },
           "platform": {
             "example": "google_ads",
-            "type": "string"
+            "type": ["string", "null"]
           },
           "rendered_spend": {
             "oneOf": [
@@ -3535,18 +3681,129 @@
               }
             ]
           },
+          "restating": {
+            "description": "Still inside the platform's restatement window — this day's numbers\nmay still change on a later ingest.",
+            "type": "boolean"
+          },
+          "roas_platform": {
+            "format": "double",
+            "type": ["number", "null"]
+          },
+          "roas_sanvi": {
+            "format": "double",
+            "type": ["number", "null"]
+          },
+          "sanvi_revenue": {
+            "$ref": "#/components/schemas/MoneyView",
+            "description": "Sanvi's own order-based revenue view. Never summed with\n`conversion_value` — see the type's doc comment."
+          },
           "spend": {
             "$ref": "#/components/schemas/MoneyView"
           }
         },
         "required": [
-          "platform",
-          "campaign_id",
           "date",
           "impressions",
           "clicks",
           "spend",
-          "conversion_value"
+          "conversions",
+          "conversion_value",
+          "sanvi_revenue",
+          "restating"
+        ],
+        "type": "object"
+      },
+      "MetricsFreshnessView": {
+        "properties": {
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionFreshnessView"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["connections"],
+        "type": "object"
+      },
+      "MetricsQueryResponse": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/MetricPoint"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["rows"],
+        "type": "object"
+      },
+      "MetricsSummaryResponse": {
+        "properties": {
+          "compared": {
+            "items": {
+              "$ref": "#/components/schemas/MetricsSummaryRow"
+            },
+            "type": ["array", "null"]
+          },
+          "current": {
+            "items": {
+              "$ref": "#/components/schemas/MetricsSummaryRow"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["current"],
+        "type": "object"
+      },
+      "MetricsSummaryRow": {
+        "description": "One currency's totals across the whole requested range — the range\nitself collapsed, so unlike [`MetricPoint`] there is one row per\ncurrency, not per day.",
+        "properties": {
+          "clicks": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "conversion_value": {
+            "$ref": "#/components/schemas/MoneyView"
+          },
+          "conversions": {
+            "format": "double",
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "impressions": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "restating": {
+            "description": "`true` if any day in the range is still inside its platform's\nrestatement window.",
+            "type": "boolean"
+          },
+          "roas_platform": {
+            "format": "double",
+            "type": ["number", "null"]
+          },
+          "roas_sanvi": {
+            "format": "double",
+            "type": ["number", "null"]
+          },
+          "sanvi_revenue": {
+            "$ref": "#/components/schemas/MoneyView"
+          },
+          "spend": {
+            "$ref": "#/components/schemas/MoneyView"
+          }
+        },
+        "required": [
+          "currency",
+          "impressions",
+          "clicks",
+          "spend",
+          "conversions",
+          "conversion_value",
+          "sanvi_revenue",
+          "restating"
         ],
         "type": "object"
       },
@@ -11159,6 +11416,19 @@
       "get": {
         "operationId": "list_audiences",
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Audience"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Every audience owned by the tenant"
+          },
           "403": {
             "content": {
               "application/json": {
@@ -11168,8 +11438,34 @@
               }
             },
             "description": "Missing advertising.read permission"
+          }
+        },
+        "tags": ["advertising"]
+      },
+      "post": {
+        "operationId": "create_audience",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAudienceRequest"
+              }
+            }
           },
-          "501": {
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Audience"
+                }
+              }
+            },
+            "description": "Draft audience created"
+          },
+          "400": {
             "content": {
               "application/json": {
                 "schema": {
@@ -11177,14 +11473,50 @@
                 }
               }
             },
-            "description": "Audience sync is not implemented yet"
+            "description": "Invalid audience parameters"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing advertising.campaign.write permission"
           }
         },
         "tags": ["advertising"]
-      },
+      }
+    },
+    "/api/v1/tenant/ads/audiences/{id}/refresh": {
       "post": {
-        "operationId": "create_audience",
+        "operationId": "refresh_audience",
+        "parameters": [
+          {
+            "description": "The audience ID to refresh",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "examples": ["873698342314721281"],
+              "format": "snowflake-id",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Audience"
+                }
+              }
+            },
+            "description": "Audience refreshed"
+          },
           "403": {
             "content": {
               "application/json": {
@@ -11195,7 +11527,7 @@
             },
             "description": "Missing advertising.campaign.write permission"
           },
-          "501": {
+          "404": {
             "content": {
               "application/json": {
                 "schema": {
@@ -11203,7 +11535,7 @@
                 }
               }
             },
-            "description": "Audience sync is not implemented yet"
+            "description": "Audience not found"
           }
         },
         "tags": ["advertising"]
@@ -13137,6 +13469,278 @@
               }
             },
             "description": "Creative not found"
+          }
+        },
+        "tags": ["advertising"]
+      }
+    },
+    "/api/v1/tenant/ads/metrics": {
+      "get": {
+        "operationId": "get_ads_metrics",
+        "parameters": [
+          {
+            "description": "Inclusive range start, `YYYY-MM-DD`.",
+            "example": "2026-08-01",
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive range end, `YYYY-MM-DD`.",
+            "example": "2026-08-24",
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "`campaign` (default), `platform`, or `tenant`.",
+            "example": "campaign",
+            "in": "query",
+            "name": "group_by",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "example": "google_ads",
+            "in": "query",
+            "name": "platform",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "campaign_id",
+            "required": false,
+            "schema": {
+              "examples": ["873698342314721281"],
+              "format": "snowflake-id",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsQueryResponse"
+                }
+              }
+            },
+            "description": "Rollup rows for the requested range and grain, both ROAS numbers labelled separately"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Invalid date range, unknown group_by, or a span exceeding the configured maximum"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing advertising.metrics.read permission"
+          }
+        },
+        "tags": ["advertising"]
+      }
+    },
+    "/api/v1/tenant/ads/metrics/export": {
+      "get": {
+        "operationId": "get_ads_metrics_export",
+        "parameters": [
+          {
+            "description": "Inclusive range start, `YYYY-MM-DD`.",
+            "example": "2026-08-01",
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive range end, `YYYY-MM-DD`.",
+            "example": "2026-08-24",
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "`campaign` (default), `platform`, or `tenant`.",
+            "example": "campaign",
+            "in": "query",
+            "name": "group_by",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "example": "google_ads",
+            "in": "query",
+            "name": "platform",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "campaign_id",
+            "required": false,
+            "schema": {
+              "examples": ["873698342314721281"],
+              "format": "snowflake-id",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {}
+            },
+            "description": "The same labelled columns as /ads/metrics, streamed as CSV — no blended ROAS column"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Invalid date range, unknown group_by, or a span exceeding the configured maximum"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing advertising.metrics.read permission"
+          }
+        },
+        "tags": ["advertising"]
+      }
+    },
+    "/api/v1/tenant/ads/metrics/freshness": {
+      "get": {
+        "operationId": "get_ads_metrics_freshness",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsFreshnessView"
+                }
+              }
+            },
+            "description": "Per-connection last-ingested-at and lag — what a stalled sync looks like, not a guess based on the clock"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing advertising.metrics.read permission"
+          }
+        },
+        "tags": ["advertising"]
+      }
+    },
+    "/api/v1/tenant/ads/metrics/summary": {
+      "get": {
+        "operationId": "get_ads_metrics_summary",
+        "parameters": [
+          {
+            "example": "2026-08-01",
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "example": "2026-08-24",
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Start date of an equal-length prior period to compare against\n(`YYYY-MM-DD`). Omit for no comparison.",
+            "example": "2026-07-01",
+            "in": "query",
+            "name": "compare_to",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsSummaryResponse"
+                }
+              }
+            },
+            "description": "Whole-range totals per currency, with an optional prior-period comparison"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Invalid date range or a span exceeding the configured maximum"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing advertising.metrics.read permission"
           }
         },
         "tags": ["advertising"]

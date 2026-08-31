@@ -1464,6 +1464,22 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/tenant/ads/audiences/{id}/refresh': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['refresh_audience']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/tenant/ads/campaigns': {
     parameters: {
       query?: never
@@ -1813,6 +1829,70 @@ export interface paths {
       cookie?: never
     }
     get: operations['get_creative_previews']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/metrics': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_ads_metrics']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/metrics/export': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_ads_metrics_export']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/metrics/freshness': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_ads_metrics_freshness']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/metrics/summary': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_ads_metrics_summary']
     put?: never
     post?: never
     delete?: never
@@ -3113,6 +3193,41 @@ export interface components {
       /** Format: int32 */
       width_px: number
     }
+    Audience: {
+      /** Format: date-time */
+      created_at: string
+      external_ref?: string | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      included_identifiers: components['schemas']['HashedIdentifier'][]
+      /** Format: date-time */
+      last_synced_at?: string | null
+      name: string
+      platform: components['schemas']['PlatformKey']
+      status: components['schemas']['AudienceStatus']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id: string
+    }
+    AudienceStatus:
+      | {
+          /** @enum {string} */
+          status: 'building'
+        }
+      | {
+          /** @enum {string} */
+          status: 'active'
+        }
+      | {
+          reason: string
+          /** @enum {string} */
+          status: 'failed'
+        }
     /**
      * @description A chained audit entry.
      *
@@ -3509,6 +3624,24 @@ export interface components {
       /** @example 64-hex-chars */
       nonce?: string | null
     }
+    ConnectionFreshnessView: {
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      connection_id: string
+      /** Format: double */
+      lag_hours?: number | null
+      /** Format: date-time */
+      last_ingested_at?: string | null
+      platform: string
+      /**
+       * @description Ingestion is older than the configured freshness threshold — the
+       *     dashboard's "sync failed" / "still updating" state, never presented
+       *     as current.
+       */
+      stalled: boolean
+    }
     ConnectionHealthView: {
       can_sync: boolean
       can_upload_conversions: boolean
@@ -3673,6 +3806,10 @@ export interface components {
       creative: components['schemas']['Creative']
       landing_url: string
       tracking_template?: string | null
+    }
+    CreateAudienceRequest: {
+      name: string
+      platform: components['schemas']['PlatformKey']
     }
     CreateCampaignRequest: {
       budget: components['schemas']['Budget']
@@ -3846,6 +3983,12 @@ export interface components {
       creatives: components['schemas']['CreativeView'][]
     }
     CustomDomainView: {
+      /**
+       * Format: date-time
+       * @description The active certificate's expiry, when one has been issued. `None`
+       *     while the domain has no active cert (not yet issued, or removed).
+       */
+      cert_expires_at?: string | null
       challenge?: null | components['schemas']['ChallengeView']
       /** Format: date-time */
       created_at: string
@@ -3975,6 +4118,14 @@ export interface components {
     DomainFailure: {
       code: string
       detail: string
+      /** @description Same as `txt_ok`, for the routing (CNAME/A) check. */
+      routing_ok?: boolean | null
+      /**
+       * @description The last verification attempt's independent TXT-ownership result.
+       *     `None` when this failure isn't a verification failure, or the check
+       *     didn't run that attempt (not "passed").
+       */
+      txt_ok?: boolean | null
     }
     /** @description One search hit: a hostname candidate with normalized pricing. */
     DomainQuote: {
@@ -4415,18 +4566,31 @@ export interface components {
       tenant_slug: string
     }
     /**
-     * @description One daily chart rollup. The grain is `(tenant, platform, campaign, date)`;
-     *     tenant is supplied by the authenticated route scope.
+     * @description One rollup row (TASK-016, slice 10.7). The grain depends on the
+     *     request's `group_by`: `campaign` populates both `platform` and
+     *     `campaign_id`; `platform` populates only `platform`; `tenant` leaves
+     *     both `None`. Tenant is supplied by the authenticated route scope.
+     *
+     *     `conversion_value` (the platform's own attribution) and `sanvi_revenue`
+     *     (Sanvi's order-based view) are always both present, always labelled
+     *     separately — never blended into one number (NFR-1006). Same for
+     *     `roas_platform`/`roas_sanvi`: each is `null` on zero spend, never `∞`.
      */
     MetricPoint: {
       /**
        * Format: snowflake-id
        * @example 873698342314721281
        */
-      campaign_id: string
+      campaign_id?: string
       /** Format: int64 */
       clicks: number
+      /**
+       * @description Platform-reported conversion value — attribution the ad platform's
+       *     own model made.
+       */
       conversion_value: components['schemas']['MoneyView']
+      /** Format: double */
+      conversions: number
       /**
        * Format: date
        * @example 2026-08-24
@@ -4435,8 +4599,58 @@ export interface components {
       /** Format: int64 */
       impressions: number
       /** @example google_ads */
-      platform: string
+      platform?: string | null
       rendered_spend?: null | components['schemas']['RenderedMoneyView']
+      /**
+       * @description Still inside the platform's restatement window — this day's numbers
+       *     may still change on a later ingest.
+       */
+      restating: boolean
+      /** Format: double */
+      roas_platform?: number | null
+      /** Format: double */
+      roas_sanvi?: number | null
+      /**
+       * @description Sanvi's own order-based revenue view. Never summed with
+       *     `conversion_value` — see the type's doc comment.
+       */
+      sanvi_revenue: components['schemas']['MoneyView']
+      spend: components['schemas']['MoneyView']
+    }
+    MetricsFreshnessView: {
+      connections: components['schemas']['ConnectionFreshnessView'][]
+    }
+    MetricsQueryResponse: {
+      rows: components['schemas']['MetricPoint'][]
+    }
+    MetricsSummaryResponse: {
+      compared?: components['schemas']['MetricsSummaryRow'][] | null
+      current: components['schemas']['MetricsSummaryRow'][]
+    }
+    /**
+     * @description One currency's totals across the whole requested range — the range
+     *     itself collapsed, so unlike [`MetricPoint`] there is one row per
+     *     currency, not per day.
+     */
+    MetricsSummaryRow: {
+      /** Format: int64 */
+      clicks: number
+      conversion_value: components['schemas']['MoneyView']
+      /** Format: double */
+      conversions: number
+      currency: string
+      /** Format: int64 */
+      impressions: number
+      /**
+       * @description `true` if any day in the range is still inside its platform's
+       *     restatement window.
+       */
+      restating: boolean
+      /** Format: double */
+      roas_platform?: number | null
+      /** Format: double */
+      roas_sanvi?: number | null
+      sanvi_revenue: components['schemas']['MoneyView']
       spend: components['schemas']['MoneyView']
     }
     Money: {
@@ -9209,17 +9423,17 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Missing advertising.read permission */
-      403: {
+      /** @description Every audience owned by the tenant */
+      200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ProblemDetail']
+          'application/json': components['schemas']['Audience'][]
         }
       }
-      /** @description Audience sync is not implemented yet */
-      501: {
+      /** @description Missing advertising.read permission */
+      403: {
         headers: {
           [name: string]: unknown
         }
@@ -9236,8 +9450,30 @@ export interface operations {
       path?: never
       cookie?: never
     }
-    requestBody?: never
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateAudienceRequest']
+      }
+    }
     responses: {
+      /** @description Draft audience created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Audience']
+        }
+      }
+      /** @description Invalid audience parameters */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
       /** @description Missing advertising.campaign.write permission */
       403: {
         headers: {
@@ -9247,8 +9483,40 @@ export interface operations {
           'application/json': components['schemas']['ProblemDetail']
         }
       }
-      /** @description Audience sync is not implemented yet */
-      501: {
+    }
+  }
+  refresh_audience: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description The audience ID to refresh */
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Audience refreshed */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Audience']
+        }
+      }
+      /** @description Missing advertising.campaign.write permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Audience not found */
+      404: {
         headers: {
           [name: string]: unknown
         }
@@ -10706,6 +10974,198 @@ export interface operations {
       }
       /** @description Creative not found */
       404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_ads_metrics: {
+    parameters: {
+      query: {
+        /**
+         * @description Inclusive range start, `YYYY-MM-DD`.
+         * @example 2026-08-01
+         */
+        from: string
+        /**
+         * @description Inclusive range end, `YYYY-MM-DD`.
+         * @example 2026-08-24
+         */
+        to: string
+        /**
+         * @description `campaign` (default), `platform`, or `tenant`.
+         * @example campaign
+         */
+        group_by?: string
+        /** @example google_ads */
+        platform?: string
+        campaign_id?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Rollup rows for the requested range and grain, both ROAS numbers labelled separately */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['MetricsQueryResponse']
+        }
+      }
+      /** @description Invalid date range, unknown group_by, or a span exceeding the configured maximum */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.metrics.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_ads_metrics_export: {
+    parameters: {
+      query: {
+        /**
+         * @description Inclusive range start, `YYYY-MM-DD`.
+         * @example 2026-08-01
+         */
+        from: string
+        /**
+         * @description Inclusive range end, `YYYY-MM-DD`.
+         * @example 2026-08-24
+         */
+        to: string
+        /**
+         * @description `campaign` (default), `platform`, or `tenant`.
+         * @example campaign
+         */
+        group_by?: string
+        /** @example google_ads */
+        platform?: string
+        campaign_id?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The same labelled columns as /ads/metrics, streamed as CSV — no blended ROAS column */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'text/csv': unknown
+        }
+      }
+      /** @description Invalid date range, unknown group_by, or a span exceeding the configured maximum */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.metrics.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_ads_metrics_freshness: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Per-connection last-ingested-at and lag — what a stalled sync looks like, not a guess based on the clock */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['MetricsFreshnessView']
+        }
+      }
+      /** @description Missing advertising.metrics.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_ads_metrics_summary: {
+    parameters: {
+      query: {
+        /** @example 2026-08-01 */
+        from: string
+        /** @example 2026-08-24 */
+        to: string
+        /**
+         * @description Start date of an equal-length prior period to compare against
+         *     (`YYYY-MM-DD`). Omit for no comparison.
+         * @example 2026-07-01
+         */
+        compare_to?: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Whole-range totals per currency, with an optional prior-period comparison */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['MetricsSummaryResponse']
+        }
+      }
+      /** @description Invalid date range or a span exceeding the configured maximum */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.metrics.read permission */
+      403: {
         headers: {
           [name: string]: unknown
         }

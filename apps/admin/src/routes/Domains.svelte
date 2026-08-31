@@ -1,7 +1,7 @@
 <script lang="ts">
 import { ApiError, listCustomDomains } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
-import { t } from '@sanvi/i18n'
+import { fmt, t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import {
   Alert,
@@ -106,6 +106,11 @@ function getKindLabel(kind: string): string {
       return t['admin.domains.kindConnected']()
   }
 }
+
+function certExpiryLabel(domain: CustomDomainView): string {
+  if (!domain.cert_expires_at) return t['admin.domains.certExpiryNone']()
+  return t['admin.domains.certExpiresOn']({ date: fmt.date(domain.cert_expires_at, 'medium') })
+}
 </script>
 
 <svelte:head>
@@ -164,6 +169,7 @@ function getKindLabel(kind: string): string {
               <th scope="col">{t['admin.domains.colRole']()}</th>
               <th scope="col">{t['admin.domains.colKind']()}</th>
               <th scope="col">{t['admin.domains.colStatus']()}</th>
+              <th scope="col">{t['admin.domains.colCertExpiry']()}</th>
               <th scope="col">{t['admin.domains.colHealth']()}</th>
               <th scope="col" class="sanvi-domains__th--actions">{t['admin.domains.colActions']()}</th>
             </tr>
@@ -184,7 +190,7 @@ function getKindLabel(kind: string): string {
                   </Badge>
                 </td>
                 <td>
-                  <span class="sanvi-domains__kind">{getKindLabel(domain.kind)}</span>
+                  <span class="sanvi-domains__muted">{getKindLabel(domain.kind)}</span>
                 </td>
                 <td>
                   <Badge variant={getStatusVariant(domain.status)}>
@@ -192,6 +198,9 @@ function getKindLabel(kind: string): string {
                       {getStatusLabel(domain.status)}
                     {/snippet}
                   </Badge>
+                </td>
+                <td>
+                  <span class="sanvi-domains__muted">{certExpiryLabel(domain)}</span>
                 </td>
                 <td>
                   {#if domain.status === 'degraded' || Boolean(domain.failure)}
@@ -297,7 +306,7 @@ function getKindLabel(kind: string): string {
     text-decoration: underline;
   }
 
-  .sanvi-domains__kind {
+  .sanvi-domains__muted {
     color: var(--sanvi-color-text-secondary);
   }
 
