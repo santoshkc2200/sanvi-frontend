@@ -384,7 +384,7 @@ describe('Admin DomainPurchase Wizard Component', () => {
     expect(await screen.findByText('Custom domains require an upgrade')).toBeInTheDocument()
   })
 
-  it("shows the flat register_price as today's total regardless of term length, and allows reset after failed order", async () => {
+  it('registers for a one-year term and charges exactly the quoted register_price', async () => {
     render(DomainPurchase)
 
     const searchInput = await screen.findByPlaceholderText('example.com or mystore')
@@ -394,10 +394,11 @@ describe('Admin DomainPurchase Wizard Component', () => {
     await fireEvent.click(selectBtns[0]!)
     await fireEvent.click(screen.getByRole('button', { name: 'Continue to options' }))
 
-    // Step 2: Select 2 years term
+    // Step 2: the term is stated, not chosen — the search quote has no term
+    // dimension, so a picker here could only misprice the order.
     await screen.findByRole('heading', { name: 'Step 2: Domain options', level: 2 })
-    const termSelect = screen.getByRole('combobox')
-    await fireEvent.change(termSelect, { target: { value: '2' } })
+    expect(screen.getByText('1 year')).toBeInTheDocument()
+    expect(screen.getByText(/Domains are registered for one year/)).toBeInTheDocument()
 
     await fireEvent.click(screen.getByRole('button', { name: 'Continue to registrant details' }))
 
@@ -414,11 +415,7 @@ describe('Admin DomainPurchase Wizard Component', () => {
     })
     await fireEvent.click(screen.getByRole('button', { name: 'Continue to review & payment' }))
 
-    // Step 4: register_price is a flat one-time charge the backend never scales
-    // by term_years (SandboxRegistrar::quote ignores it) — total stays $12.99
-    // even at a 2-year term, not $12.99 * 2.
     await screen.findByRole('heading', { name: 'Step 4: Review and confirm order', level: 2 })
-    expect(screen.getByText('2 years')).toBeInTheDocument()
     expect(screen.getByText('$12.99')).toBeInTheDocument()
   })
 

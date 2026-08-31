@@ -81,6 +81,47 @@ export function mockDomainsBackend(page: Page): DomainsFixtureState {
       return
     }
 
+    if (url.includes('/instructions')) {
+      const id = url.match(/\/tenant\/domains\/([^/?]+)\/instructions/)?.[1]
+      const domain = state.domains.find((d) => d.id === id) ?? state.domains[0]
+      const hostname = (domain?.hostname as string) ?? 'example.com'
+      await route.fulfill({
+        json: {
+          domain_id: domain?.id ?? id,
+          hostname,
+          kind: domain?.kind ?? 'connected',
+          role: domain?.role ?? 'primary',
+          status: domain?.status ?? 'pending_setup',
+          guide: {
+            id: 'guide_cloudflare',
+            title: 'Cloudflare DNS setup',
+            steps: [
+              'Open the Cloudflare dashboard and pick this domain.',
+              'Open the DNS tab and add the records below.',
+              'Save — propagation usually takes 5-30 minutes.',
+            ],
+          },
+          records: [
+            {
+              record_type: 'TXT',
+              name: `_sanvi-challenge.${hostname}`,
+              value: 'sanvi-verification=tok_e2e_1',
+              ttl: 300,
+              explanation: 'Proves you control this domain.',
+            },
+            {
+              record_type: 'CNAME',
+              name: hostname,
+              value: 'edge.sanvi-cdn.test',
+              ttl: 300,
+              explanation: 'Routes visitors to your storefront.',
+            },
+          ],
+        },
+      })
+      return
+    }
+
     if (url.includes('/promote')) {
       const id = url.match(/\/tenant\/domains\/([^/?]+)\/promote/)?.[1]
       const domain = state.domains.find((d) => d.id === id)

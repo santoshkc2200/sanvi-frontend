@@ -33,6 +33,37 @@ function makeDomain(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function makeInstructions(hostname: string, domainId = 'dom_conn123') {
+  return {
+    domain_id: domainId,
+    hostname,
+    kind: 'connected',
+    role: 'primary',
+    status: 'pending_setup',
+    guide: {
+      id: 'guide_cloudflare',
+      title: 'Cloudflare DNS setup',
+      steps: ['Open the Cloudflare dashboard', 'Add the records below', 'Save'],
+    },
+    records: [
+      {
+        record_type: 'TXT',
+        name: `_sanvi-challenge.${hostname}`,
+        value: 'sanvi-verification=tok_conn123',
+        ttl: 300,
+        explanation: 'Proves you control this domain.',
+      },
+      {
+        record_type: 'CNAME',
+        name: hostname,
+        value: 'edge.sanvi-cdn.test',
+        ttl: 300,
+        explanation: 'Routes visitors to your storefront.',
+      },
+    ],
+  }
+}
+
 describe('Admin DomainConnect Wizard Component', () => {
   let domainsList: ReturnType<typeof makeDomain>[] = []
 
@@ -49,6 +80,13 @@ describe('Admin DomainConnect Wizard Component', () => {
       vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
         const url = typeof input === 'string' ? input : input.toString()
         const method = init?.method || 'GET'
+
+        if (url.includes('/instructions') && method === 'GET') {
+          const target = domainsList[0]
+          return Promise.resolve(
+            jsonResponse(makeInstructions(target?.hostname ?? 'custom.example.com', target?.id)),
+          )
+        }
 
         if (url.includes('/tenant/domains') && method === 'GET') {
           return Promise.resolve(jsonResponse(domainsList))
@@ -208,7 +246,10 @@ describe('Admin DomainConnect Wizard Component', () => {
       await screen.findByText('Resuming domain setup for store.example.com'),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { name: 'Step 2: Add DNS records at your registrar', level: 2 }),
+      await screen.findByRole('heading', {
+        name: 'Step 2: Add DNS records at your registrar',
+        level: 2,
+      }),
     ).toBeInTheDocument()
     expect(screen.getByText('_sanvi-challenge.store.example.com')).toBeInTheDocument()
   })
@@ -337,7 +378,10 @@ describe('Admin DomainConnect Wizard Component', () => {
 
     const select = screen.getByRole('combobox', { name: 'Registrar guide' })
     expect(select).toHaveValue('cloudflare')
-    expect(screen.getByText(/Log in to the Cloudflare dashboard/)).toBeInTheDocument()
+    // Until the tenant overrides the detected registrar, the guide that ships
+    // with the backend's instructions response is the one rendered.
+    expect(screen.getByRole('heading', { name: 'Cloudflare DNS setup' })).toBeInTheDocument()
+    expect(screen.getByText('Open the Cloudflare dashboard')).toBeInTheDocument()
 
     await fireEvent.change(select, { target: { value: 'route53' } })
     expect(
@@ -422,9 +466,9 @@ describe('Admin DomainConnect Wizard Component', () => {
     expect(
       await screen.findByRole('heading', { name: 'Step 3: Verifying DNS records', level: 2 }),
     ).toBeInTheDocument()
-    expect(
-      screen.getByText('Verification check failed. Please check your DNS records.'),
-    ).toBeInTheDocument()
+    // An unmapped code falls back to the backend's own detail before the
+    // generic message, so a new failure still says something specific.
+    expect(screen.getByText('Unknown error detail')).toBeInTheDocument()
   })
 
   it('handles check now verification API failure gracefully in Step 3', async () => {
@@ -442,6 +486,11 @@ describe('Admin DomainConnect Wizard Component', () => {
         const method = init?.method || 'GET'
         if (url.includes('/verify') && method === 'POST') {
           return Promise.resolve(jsonResponse({ title: 'Internal Error', status: 500 }, 500))
+        }
+        if (url.includes('/instructions') && method === 'GET') {
+          return Promise.resolve(
+            jsonResponse(makeInstructions('custom.example.com', 'dom_check_err')),
+          )
         }
         if (url.includes('/tenant/domains') && method === 'GET') {
           return Promise.resolve(jsonResponse(domainsList))

@@ -33,6 +33,37 @@ function makeDomain(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function makeInstructions(hostname = 'shop.example.com', domainId = 'dom_123') {
+  return {
+    domain_id: domainId,
+    hostname,
+    kind: 'connected',
+    role: 'primary',
+    status: 'live',
+    guide: {
+      id: 'guide_cloudflare',
+      title: 'Cloudflare DNS setup',
+      steps: ['Open the Cloudflare dashboard', 'Add the records below', 'Save'],
+    },
+    records: [
+      {
+        record_type: 'TXT',
+        name: `_sanvi-challenge.${hostname}`,
+        value: 'sanvi-verification=tok_abc123',
+        ttl: 300,
+        explanation: 'Proves you control this domain.',
+      },
+      {
+        record_type: 'CNAME',
+        name: hostname,
+        value: 'edge.sanvi-cdn.test',
+        ttl: 300,
+        explanation: 'Routes visitors to your storefront.',
+      },
+    ],
+  }
+}
+
 describe('Admin DomainDetail Route Component', () => {
   let domainsList: ReturnType<typeof makeDomain>[] = []
 
@@ -45,6 +76,10 @@ describe('Admin DomainDetail Route Component', () => {
       'fetch',
       vi.fn((input: RequestInfo | URL) => {
         const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/instructions')) {
+          const target = domainsList[0]
+          return Promise.resolve(jsonResponse(makeInstructions(target?.hostname, target?.id)))
+        }
         if (url.includes('/tenant/domains')) {
           return Promise.resolve(jsonResponse(domainsList))
         }
@@ -262,11 +297,13 @@ describe('Admin DomainDetail Route Component', () => {
         const url = typeof input === 'string' ? input : input.toString()
         if (url.includes('/tenant/domains/dom_alias/promote')) {
           promoted = true
-          return Promise.resolve(
-            jsonResponse(
-              makeDomain({ id: 'dom_alias', hostname: 'blog.example.com', role: 'primary' }),
-            ),
-          )
+          const promotedDomain = makeDomain({
+            id: 'dom_alias',
+            hostname: 'blog.example.com',
+            role: 'primary',
+          })
+          domainsList = [promotedDomain]
+          return Promise.resolve(jsonResponse(promotedDomain))
         }
         if (url.includes('/tenant/domains')) {
           return Promise.resolve(jsonResponse(domainsList))
@@ -341,9 +378,9 @@ describe('Admin DomainDetail Route Component', () => {
     let removeCalled = false
     vi.stubGlobal(
       'fetch',
-      vi.fn((input: RequestInfo | URL) => {
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
         const url = typeof input === 'string' ? input : input.toString()
-        if (url.includes('/tenant/domains/dom_123')) {
+        if (url.includes('/tenant/domains/dom_123') && init?.method === 'DELETE') {
           removeCalled = true
           return Promise.resolve(jsonResponse({}))
         }
@@ -386,9 +423,9 @@ describe('Admin DomainDetail Route Component', () => {
     let removeCalled = false
     vi.stubGlobal(
       'fetch',
-      vi.fn((input: RequestInfo | URL) => {
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
         const url = typeof input === 'string' ? input : input.toString()
-        if (url.includes('/tenant/domains/dom_123')) {
+        if (url.includes('/tenant/domains/dom_123') && init?.method === 'DELETE') {
           removeCalled = true
           return Promise.resolve(jsonResponse({}))
         }

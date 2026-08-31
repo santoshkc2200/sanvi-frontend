@@ -8,7 +8,7 @@ import {
   searchDomains,
 } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
-import { fmt, t } from '@sanvi/i18n'
+import { currentLocale, fmt, t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import {
   Alert,
@@ -25,6 +25,7 @@ import {
   UpgradePrompt,
 } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
+import { countryOptions } from '../lib/domains/countries'
 import { pollWithBackoff, type Poller } from '../lib/domains/poll'
 
 type CustomDomainView = components['schemas']['CustomDomainView']
@@ -57,8 +58,16 @@ let searchTimer: ReturnType<typeof setTimeout> | undefined
 let searchSeq = 0
 let searchAbortController: AbortController | undefined
 
-// Step 2: Options State
-let termYears = $state(1)
+// Step 2: Options State.
+//
+// The term is fixed at one year because nothing in the API can price a longer
+// one: `GET /domains/search` takes only `q` and returns a single
+// `register_price`, with no term dimension. Offering a term picker against that
+// quote either understates the charge (a term-aware registrar bills per year)
+// or overstates it (the current sandbox registrar ignores the term) — both are
+// the surprise pricing this flow exists to avoid. Restore the picker when the
+// search endpoint quotes per term.
+const termYears = 1
 let autoRenew = $state(true)
 let whoisPrivacy = $state(true)
 
@@ -78,33 +87,10 @@ let domainPoller: Poller<CustomDomainView[]> | undefined
 let elapsedTimeSec = $state(0)
 let elapsedTimer: ReturnType<typeof setInterval> | undefined
 
-const COUNTRY_OPTIONS = $derived([
-  { value: 'US', label: t['admin.domains.purchase.countryUS']() },
-  { value: 'JP', label: t['admin.domains.purchase.countryJP']() },
-  { value: 'GB', label: t['admin.domains.purchase.countryGB']() },
-  { value: 'CA', label: t['admin.domains.purchase.countryCA']() },
-  { value: 'AU', label: t['admin.domains.purchase.countryAU']() },
-  { value: 'DE', label: t['admin.domains.purchase.countryDE']() },
-  { value: 'FR', label: t['admin.domains.purchase.countryFR']() },
-  { value: 'SG', label: t['admin.domains.purchase.countrySG']() },
-  { value: 'NZ', label: t['admin.domains.purchase.countryNZ']() },
-  { value: 'NL', label: t['admin.domains.purchase.countryNL']() },
-])
-
-const TERM_OPTIONS = $derived([
-  { value: '1', label: t['admin.domains.purchase.termYear1']() },
-  { value: '2', label: t['admin.domains.purchase.termYear2']() },
-  { value: '3', label: t['admin.domains.purchase.termYear3']() },
-  { value: '5', label: t['admin.domains.purchase.termYear5']() },
-])
+const COUNTRY_OPTIONS = $derived(countryOptions(currentLocale()))
 
 const totalTodayFormatted = $derived.by(() => {
   if (!selectedQuote) return ''
-  // The backend's registrar port quotes and charges `register_price` as a flat
-  // one-time amount — it does not scale with `term_years` (see
-  // SandboxRegistrar::quote in the backend's domains context, which ignores
-  // the term_years argument entirely). Multiplying by termYears here would
-  // show the tenant a total larger than what actually gets charged.
   return fmt.money(selectedQuote.register_price.amount_minor, selectedQuote.register_price.currency)
 })
 
@@ -222,7 +208,9 @@ function validateRegistrant(): boolean {
     registrantError = t['admin.domains.purchase.requiredFieldsError']()
     return false
   }
-  if (!registrantEmail.includes('@') || !registrantEmail.includes('.')) {
+  // The registrar bounces a malformed registrant address after the charge, so
+  // reject the shapes that are definitely wrong before taking payment.
+  if (!/^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(registrantEmail.trim())) {
     registrantError = t['admin.domains.purchase.invalidEmail']()
     return false
   }
@@ -746,18 +734,11 @@ onDestroy(() => {
               </span>
             </div>
 
-            <Field label={t['admin.domains.purchase.termLabel']()} required>
-              {#snippet children(controlProps)}
-                <Select
-                  {...controlProps}
-                  options={TERM_OPTIONS}
-                  value={String(termYears)}
-                  onchange={(e) => {
-                    termYears = Number((e.target as HTMLSelectElement).value) || 1
-                  }}
-                />
-              {/snippet}
-            </Field>
+            <div class="sanvi-purchase__term-panel">
+              <span class="sanvi-purchase__term-label">{t['admin.domains.purchase.termLabel']()}</span>
+              <strong>{t['admin.domains.purchase.termYear1']()}</strong>
+              <p class="sanvi-purchase__toggle-hint">{t['admin.domains.purchase.termFixedHint']()}</p>
+            </div>
 
             <div class="sanvi-purchase__toggle-group">
               <Checkbox bind:checked={autoRenew}>
@@ -897,17 +878,7 @@ onDestroy(() => {
                 </div>
                 <div class="sanvi-purchase__summary-row">
                   <dt>{t['admin.domains.purchase.summaryTerm']()}</dt>
-                  <dd>
-                    {#if termYears === 1}
-                      {t['admin.domains.purchase.termYear1']()}
-                    {:else if termYears === 2}
-                      {t['admin.domains.purchase.termYear2']()}
-                    {:else if termYears === 3}
-                      {t['admin.domains.purchase.termYear3']()}
-                    {:else if termYears === 5}
-                      {t['admin.domains.purchase.termYear5']()}
-                    {/if}
-                  </dd>
+                  <dd>{t['admin.domains.purchase.termYear1']()}</dd>
                 </div>
                 <div class="sanvi-purchase__summary-row">
                   <dt>{t['admin.domains.purchase.summaryAutoRenew']()}</dt>
@@ -1276,6 +1247,18 @@ onDestroy(() => {
     padding: var(--sanvi-spacing-3);
     border-radius: var(--sanvi-radius-md);
     background: var(--sanvi-color-background-secondary);
+  }
+
+  .sanvi-purchase__term-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sanvi-spacing-1);
+  }
+
+  .sanvi-purchase__term-label {
+    font-size: var(--sanvi-font-size-sm);
+    font-weight: var(--sanvi-font-weight-medium);
+    color: var(--sanvi-color-text-secondary);
   }
 
   .sanvi-purchase__toggle-hint {

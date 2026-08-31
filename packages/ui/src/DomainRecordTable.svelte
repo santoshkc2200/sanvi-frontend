@@ -7,6 +7,10 @@ export interface DomainRecordItem {
   name: string
   expected: string
   observed: 'pending' | 'matched' | 'mismatch' | 'not_found'
+  /** TTL in seconds, as required by the registrar. Omitted when unspecified. */
+  ttl?: number
+  /** Plain-language reason this record exists, shown beneath its name. */
+  explanation?: string
 }
 
 interface Props {
@@ -14,6 +18,7 @@ interface Props {
   typeHeader?: string
   nameHeader?: string
   expectedHeader?: string
+  ttlHeader?: string
   statusHeader?: string
   actionsHeader?: string
   copyLabel?: string
@@ -33,6 +38,7 @@ let {
   typeHeader = 'Type',
   nameHeader = 'Host / Name',
   expectedHeader = 'Value / Target',
+  ttlHeader = 'TTL',
   statusHeader = 'Status',
   actionsHeader = 'Actions',
   copyLabel = 'Copy',
@@ -47,7 +53,13 @@ let {
   class: className = '',
 }: Props = $props()
 
-const copyAllValue = $derived(records.map((r) => `${r.type}\t${r.name}\t${r.expected}`).join('\n'))
+const copyAllValue = $derived(
+  records
+    .map((r) =>
+      [r.type, r.name, r.expected, r.ttl != null ? String(r.ttl) : ''].join('\t').trimEnd(),
+    )
+    .join('\n'),
+)
 
 function getStatusVariant(
   observed: DomainRecordItem['observed'],
@@ -98,6 +110,7 @@ function getStatusLabel(observed: DomainRecordItem['observed']): string {
           <th scope="col" class="sanvi-domain-records__th sanvi-domain-records__th--type">{typeHeader}</th>
           <th scope="col" class="sanvi-domain-records__th">{nameHeader}</th>
           <th scope="col" class="sanvi-domain-records__th">{expectedHeader}</th>
+          <th scope="col" class="sanvi-domain-records__th sanvi-domain-records__th--ttl">{ttlHeader}</th>
           <th scope="col" class="sanvi-domain-records__th sanvi-domain-records__th--status">{statusHeader}</th>
           <th scope="col" class="sanvi-domain-records__th sanvi-domain-records__th--actions">{actionsHeader}</th>
         </tr>
@@ -110,9 +123,17 @@ function getStatusLabel(observed: DomainRecordItem['observed']): string {
             </td>
             <td class="sanvi-domain-records__td sanvi-domain-records__td--mono">
               <code>{record.name}</code>
+              {#if record.explanation}
+                <p class="sanvi-domain-records__explanation">{record.explanation}</p>
+              {/if}
             </td>
             <td class="sanvi-domain-records__td sanvi-domain-records__td--mono">
               <code>{record.expected}</code>
+            </td>
+            <td class="sanvi-domain-records__td sanvi-domain-records__td--ttl">
+              {#if record.ttl != null}
+                <code>{record.ttl}</code>
+              {/if}
             </td>
             <td class="sanvi-domain-records__td">
               <Badge variant={getStatusVariant(record.observed)}>
@@ -133,7 +154,7 @@ function getStatusLabel(observed: DomainRecordItem['observed']): string {
           </tr>
         {:else}
           <tr>
-            <td class="sanvi-domain-records__empty" colspan={5}>
+            <td class="sanvi-domain-records__empty" colspan={6}>
               {emptyMessage}
             </td>
           </tr>
@@ -185,6 +206,19 @@ function getStatusLabel(observed: DomainRecordItem['observed']): string {
 
   .sanvi-domain-records__th--status {
     width: var(--sanvi-spacing-24);
+  }
+
+  .sanvi-domain-records__th--ttl,
+  .sanvi-domain-records__td--ttl {
+    width: var(--sanvi-spacing-16);
+  }
+
+  .sanvi-domain-records__explanation {
+    margin: var(--sanvi-spacing-1) 0 0;
+    font-family: var(--sanvi-font-family-sans);
+    font-size: var(--sanvi-font-size-xs);
+    color: var(--sanvi-color-text-secondary);
+    white-space: normal;
   }
 
   .sanvi-domain-records__th--actions {

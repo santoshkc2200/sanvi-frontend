@@ -63,6 +63,31 @@ test.describe('domain connect wizard', () => {
     ).toBeVisible({ timeout: 10000 })
   })
 
+  test('wrong record value: the routing record resolves to something else', async ({ page }) => {
+    const state = mockDomainsBackend(page)
+
+    await page.goto('/domains/connect')
+    await page.getByPlaceholder('example.com or shop.example.com').fill('typo.example.com')
+    await page.getByRole('button', { name: 'Continue to DNS setup' }).click()
+
+    // The expected value comes from the backend's instructions response, never
+    // from a client-side guess about the edge address.
+    await expect(page.getByText('edge.sanvi-cdn.test')).toBeVisible()
+
+    await page.getByRole('button', { name: "I've added these records" }).click()
+
+    state.domains[0]!.status = 'verifying'
+    state.domains[0]!.failure = { code: 'routing_mismatch', detail: 'points elsewhere' }
+
+    await expect(
+      page.getByText(
+        'Routing record found, but points to a different destination or conflicting host.',
+      ),
+    ).toBeVisible({ timeout: 10000 })
+    // Only the routing row is flagged; the ownership record keeps its own status.
+    await expect(page.getByRole('row', { name: /CNAME/ }).getByText('Wrong value')).toBeVisible()
+  })
+
   test('verification timeout: the challenge expires before DNS propagates', async ({ page }) => {
     const state = mockDomainsBackend(page)
 
