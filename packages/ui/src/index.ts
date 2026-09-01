@@ -56,6 +56,7 @@ export { default as TenantSwitcher, type TenantSwitcherOption } from './TenantSw
 export { default as Textarea } from './Textarea.svelte'
 export { default as ToastViewport } from './ToastViewport.svelte'
 export { default as TrialBanner } from './TrialBanner.svelte'
+export { default as PaymentProviderCard } from './PaymentProviderCard.svelte'
 export { default as UpgradePrompt } from './UpgradePrompt.svelte'
 export type { DataTableBulkActionArgs, TableColumn } from './table-types'
 // Toast store (used with ToastViewport)
