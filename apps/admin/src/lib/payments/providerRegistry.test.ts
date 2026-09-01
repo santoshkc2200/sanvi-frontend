@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  getFallbackProviderViews,
-  getProviderAdapter,
-  hasProviderAdapter,
-  registerProviderAdapter,
-} from './providerRegistry'
+import { getProviderAdapter, hasProviderAdapter, registerProviderAdapter } from './providerRegistry'
 
 describe('payment provider registry', () => {
   it('returns stripe and fake adapters for known kinds', () => {
@@ -28,19 +23,13 @@ describe('payment provider registry', () => {
     const custom = {
       kind: 'custom_provider',
       connect: async () => {},
-      status: () => 'custom-status',
+      status: () => ({ connected: true, detail: 'custom-status' }),
       manage: async () => {},
     }
     registerProviderAdapter(custom)
     expect(hasProviderAdapter('custom_provider')).toBe(true)
     const retrieved = getProviderAdapter('custom_provider')
     expect(retrieved.kind).toBe('custom_provider')
-    expect(retrieved.status({} as never)).toBe('custom-status')
-  })
-
-  it('exposes fallback provider views without branching outside registry', () => {
-    const views = getFallbackProviderViews()
-    expect(views.length).toBeGreaterThanOrEqual(2)
-    expect(views.some((v) => v.kind === 'stripe_connect')).toBe(true)
+    expect(retrieved.status({} as never)).toEqual({ connected: true, detail: 'custom-status' })
   })
 })

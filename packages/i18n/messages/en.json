@@ -530,6 +530,7 @@
   "admin.payments.explainerTitle": "What happens when you connect",
   "admin.payments.explainerBody": "Stripe collects your business details to verify your account. Payouts go directly to your own bank account — Sanvi never holds your money.",
   "admin.payments.connectCta": "Connect",
+  "admin.payments.connectDisabledReason": "Connecting is not available yet.",
   "admin.payments.unavailableTitle": "Unavailable in your region",
   "admin.payments.unavailableDescription": "This provider is not available in your country.",
   "admin.payments.supportedCountriesLabel": "Supported countries",

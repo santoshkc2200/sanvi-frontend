@@ -106,6 +106,53 @@ describe('PaymentProviderCard', () => {
     expect(screen.getByRole('button', { name: 'Custom Connect' })).toBeInTheDocument()
   })
 
+  it('renders an inert connect CTA described by its reason when connectDisabled is true', async () => {
+    const onConnect = vi.fn()
+    render(PaymentProviderCard, {
+      props: {
+        provider: STRIPE_PROVIDER,
+        entitled: true,
+        connectDisabled: true,
+        connectDisabledReason: 'Custom disabled reason',
+        onConnect,
+      },
+    })
+
+    const button = screen.getByRole('button', { name: 'Connect' })
+    // aria-disabled, not the native attribute: the button must stay focusable so a
+    // keyboard user reaches it and hears the reason.
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).not.toBeDisabled()
+
+    const reason = screen.getByText('Custom disabled reason')
+    expect(button).toHaveAttribute('aria-describedby', reason.id)
+    expect(reason.id).not.toBe('')
+
+    await fireEvent.click(button)
+    expect(onConnect).not.toHaveBeenCalled()
+  })
+
+  it('renders default disabled reason when connectDisabled is true and no reason prop is passed', () => {
+    render(PaymentProviderCard, {
+      props: {
+        provider: STRIPE_PROVIDER,
+        entitled: true,
+        connectDisabled: true,
+      },
+    })
+
+    const button = screen.getByRole('button', { name: 'Connect' })
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByText('Connecting is not available yet.')).toBeInTheDocument()
+  })
+
+  it('has no accessibility violations when disabled', async () => {
+    const { container } = render(PaymentProviderCard, {
+      props: { provider: STRIPE_PROVIDER, entitled: true, connectDisabled: true },
+    })
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
   it('has no accessibility violations when available', async () => {
     const { container } = render(PaymentProviderCard, {
       props: { provider: STRIPE_PROVIDER, entitled: true },

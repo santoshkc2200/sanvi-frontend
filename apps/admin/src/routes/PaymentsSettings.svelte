@@ -3,18 +3,30 @@ import { ApiError, listPaymentProviders } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import { t } from '@sanvi/i18n'
 import { getActiveTenantId, hasFeature } from '@sanvi/tenant'
-import { Alert, Container, EmptyState, PaymentProviderCard, Spinner, Stack } from '@sanvi/ui'
+import {
+  Alert,
+  Container,
+  EmptyState,
+  PaymentProviderCard,
+  Spinner,
+  Stack,
+  UpgradePrompt,
+} from '@sanvi/ui'
 import { apiClient } from '../lib/api'
 import { EXPLAINER_BODY_KEY, EXPLAINER_TITLE_KEY } from '../lib/payments/explainerCopy'
-import { getFallbackProviderViews, getProviderAdapter } from '../lib/payments/providerRegistry'
+import { getProviderAdapter } from '../lib/payments/providerRegistry'
 
 type ProviderView = components['schemas']['ProviderView']
 
+// Connecting is wired up in TASK-003 (Connect.js loader + account session). Until
+// then the CTA renders inert with a reason rather than as a button that silently
+// does nothing. Flipping this to `true` is TASK-003's single switch.
+const CONNECT_IMPLEMENTED = false
+
 let loading = $state(true)
+let entitled = $state(true)
 let error = $state<string | undefined>(undefined)
 let providers = $state<ProviderView[]>([])
-
-let entitled = $derived(hasFeature('payments.stripe_connect'))
 
 // Sequencing token — a tenant switch re-runs the load effect, and a slow
 // response for the previous tenant must never overwrite the new tenant's data.
@@ -24,32 +36,19 @@ async function load(): Promise<void> {
   const seq = ++loadSeq
   loading = true
   error = undefined
+  entitled = true
   try {
     const result = await listPaymentProviders(apiClient)
     if (seq !== loadSeq) return
-    const fetched = result?.providers ?? []
-    // When not entitled we still show a preview of what they'd get, but the
-    // API-derived list is the truth when it succeeds — fallback only when
-    // the catalog is empty while unentitled.
-    if (fetched.length === 0 && !hasFeature('payments.stripe_connect')) {
-      providers = getFallbackProviderViews()
-    } else {
-      providers = fetched
-    }
+    providers = result?.providers ?? []
   } catch (err) {
     if (seq !== loadSeq) return
     if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
-      // 403 with the entitlement key named (never a bare 404) is how the
-      // backend tells us to render the upgrade prompt instead of an error —
-      // a 404 means the `payments.enabled` phase flag itself is off.
-      // For the 09.1 gating change the card list stays visible even when
-      // not entitled, so a 403 when unentitled shows the preview cards
-      // with the CTA replaced, not a full-page error.
-      if (!hasFeature('payments.stripe_connect')) {
-        providers = getFallbackProviderViews()
-      } else {
-        error = t['admin.payments.genericError']()
-      }
+      // 403 names the entitlement; 404 means the `payments.enabled` phase
+      // flag is off in that deployment. Both read to a tenant admin as
+      // "not available yet", and neither is an error banner.
+      entitled = false
+      providers = []
     } else {
       error = t['admin.payments.genericError']()
     }
@@ -60,15 +59,14 @@ async function load(): Promise<void> {
 
 function handleConnect(provider: ProviderView): void {
   const adapter = getProviderAdapter(provider.kind)
-  void adapter.connect(provider)
+  adapter.connect(provider).catch(() => {
+    error = t['admin.payments.genericError']()
+  })
 }
 
 $effect(() => {
   // Reading the active tenant makes the effect re-run (and refetch) on switch.
-  // hasFeature is also reactive via the tenant store, so an entitlement
-  // sync that flips the flag re-renders the CTA without a refetch.
   void getActiveTenantId()
-  void hasFeature('payments.stripe_connect')
   void load()
 })
 </script>
@@ -86,6 +84,13 @@ $effect(() => {
 
     {#if loading}
       <Spinner label={t['admin.payments.loading']()} />
+    {:else if !entitled}
+      <UpgradePrompt
+        feature="payments.stripe_connect"
+        title={t['admin.payments.upgradeTitle']()}
+        description={t['admin.payments.upgradeDescription']()}
+        upgradeHref="/billing"
+      />
     {:else if providers.length === 0 && !error}
       <EmptyState title={t['admin.payments.empty']()} description={t['admin.payments.emptyDescription']()} />
     {:else if !error}
@@ -108,7 +113,9 @@ $effect(() => {
           {#each providers as provider (provider.kind)}
             <PaymentProviderCard
               provider={provider}
-              entitled={entitled}
+              entitled={hasFeature('payments.stripe_connect')}
+              connectDisabled={!CONNECT_IMPLEMENTED}
+              connectDisabledReason={t['admin.payments.connectDisabledReason']()}
               labels={{
                 connectCta: t['admin.payments.connectCta'](),
                 unavailableTitle: t['admin.payments.unavailableTitle'](),

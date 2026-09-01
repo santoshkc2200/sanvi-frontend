@@ -141,6 +141,65 @@ describe('Admin PaymentsSettings Route Component', () => {
     )
   })
 
+  it('renders upgrade prompt and no error alert when catalog returns 403', async () => {
+    switchTenant('dev-unentitled')
+    setEntitlements([])
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/tenant/payments/providers')) {
+          return Promise.resolve(jsonResponse({ message: 'Forbidden' }, 403))
+        }
+        if (url.includes('/tenant/entitlements')) {
+          return Promise.resolve(jsonResponse([]))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(PaymentsSettings)
+
+    expect(await screen.findByText('Upgrade required')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Accepting payments needs a plan with Stripe Connect. Ask a tenant owner to upgrade.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('Could not load payment providers. Try again in a moment.'),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('Stripe')).not.toBeInTheDocument()
+  })
+
+  it('renders upgrade prompt and no error alert when catalog returns 404 even with client entitlement active', async () => {
+    switchTenant('dev-acme')
+    setEntitlements([{ feature: 'payments.stripe_connect', enabled: true }])
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/tenant/payments/providers')) {
+          return Promise.resolve(jsonResponse({ message: 'Not found' }, 404))
+        }
+        if (url.includes('/tenant/entitlements')) {
+          return Promise.resolve(
+            jsonResponse([{ feature: 'payments.stripe_connect', enabled: true }]),
+          )
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(PaymentsSettings)
+
+    expect(await screen.findByText('Upgrade required')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Could not load payment providers. Try again in a moment.'),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('Stripe')).not.toBeInTheDocument()
+  })
+
   it('renders error alert when loading fails with 500', async () => {
     switchTenant('dev-error')
     vi.stubGlobal(

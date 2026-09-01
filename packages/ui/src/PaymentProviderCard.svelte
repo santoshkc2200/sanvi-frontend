@@ -20,11 +20,14 @@ interface Labels {
   upgradeTitle?: string
   upgradeDescription?: string
   upgradeCtaLabel?: string
+  connectDisabledReason?: string
 }
 
 interface Props {
   provider: ProviderView
   entitled?: boolean
+  connectDisabled?: boolean
+  connectDisabledReason?: string
   labels?: Labels
   upgradeHref?: string
   onConnect?: (provider: ProviderView) => void
@@ -35,6 +38,8 @@ interface Props {
 let {
   provider,
   entitled = true,
+  connectDisabled = false,
+  connectDisabledReason,
   labels = {},
   upgradeHref = '/billing',
   onConnect,
@@ -51,6 +56,7 @@ const COPY = {
   upgradeDescription:
     'Accepting payments needs a plan with Stripe Connect. Ask a tenant owner to upgrade.',
   upgradeCtaLabel: 'View plans & upgrade',
+  connectDisabledReason: 'Connecting is not available yet.',
 }
 
 const displayConnectCta = $derived(labels.connectCta ?? COPY.connectCta)
@@ -64,8 +70,17 @@ const displaySupportedCountriesLabel = $derived(
 const displayUpgradeTitle = $derived(labels.upgradeTitle ?? COPY.upgradeTitle)
 const displayUpgradeDescription = $derived(labels.upgradeDescription ?? COPY.upgradeDescription)
 const displayUpgradeCta = $derived(labels.upgradeCtaLabel ?? COPY.upgradeCtaLabel)
+const displayConnectDisabledReason = $derived(
+  connectDisabledReason ??
+    labels.connectDisabledReason ??
+    (connectDisabled ? COPY.connectDisabledReason : undefined),
+)
 
 const supportedCountriesText = $derived(provider.supported_countries.join(', '))
+
+// Kinds are unique within a catalog (the list is keyed by kind), so this is a
+// stable per-card id for `aria-describedby`.
+const disabledReasonId = $derived(`sanvi-payment-provider-card__reason--${provider.kind}`)
 
 function handleConnect(): void {
   onConnect?.(provider)
@@ -111,9 +126,23 @@ function handleConnect(): void {
     </div>
   {:else}
     <div class="sanvi-payment-provider-card__action">
-      <Button variant="primary" onclick={handleConnect}>
+      <!-- `ariaDisabled`, not `disabled`: the button stays focusable so a keyboard
+           or screen-reader user reaches it and hears the reason it is inert. -->
+      <Button
+        variant="primary"
+        ariaDisabled={connectDisabled}
+        ariaDescribedby={connectDisabled && displayConnectDisabledReason
+          ? disabledReasonId
+          : undefined}
+        onclick={handleConnect}
+      >
         {displayConnectCta}
       </Button>
+      {#if connectDisabled && displayConnectDisabledReason}
+        <p id={disabledReasonId} class="sanvi-payment-provider-card__disabled-reason">
+          {displayConnectDisabledReason}
+        </p>
+      {/if}
     </div>
   {/if}
 </article>
@@ -174,5 +203,14 @@ function handleConnect(): void {
 
   .sanvi-payment-provider-card__action {
     display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sanvi-spacing-2);
+  }
+
+  .sanvi-payment-provider-card__disabled-reason {
+    margin: 0;
+    font-size: var(--sanvi-font-size-xs);
+    color: var(--sanvi-color-text-secondary);
   }
 </style>

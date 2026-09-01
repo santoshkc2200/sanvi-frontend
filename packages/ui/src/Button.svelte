@@ -11,6 +11,15 @@ interface Props {
   loading?: boolean
   /** Visually hidden text announced instead of the label while `loading` is true. */
   loadingLabel?: string
+  /**
+   * Inert but focusable: sets `aria-disabled` and ignores clicks without the native
+   * `disabled` attribute. Prefer this over `disabled` whenever the reason is explained
+   * elsewhere on screen — a natively disabled button is skipped by keyboard navigation,
+   * so a screen-reader user never reaches the explanation.
+   */
+  ariaDisabled?: boolean
+  /** Id of the element describing this button, e.g. the text explaining why it is inert. */
+  ariaDescribedby?: string
   fullWidth?: boolean
   onclick?: (event: MouseEvent) => void
   class?: string
@@ -25,6 +34,8 @@ let {
   disabled = false,
   loading = false,
   loadingLabel = 'Loading',
+  ariaDisabled = false,
+  ariaDescribedby,
   fullWidth = false,
   onclick,
   class: className = '',
@@ -33,7 +44,7 @@ let {
 }: Props = $props()
 
 function handleClick(event: MouseEvent): void {
-  if (loading) {
+  if (loading || ariaDisabled) {
     event.preventDefault()
     return
   }
@@ -46,8 +57,11 @@ function handleClick(event: MouseEvent): void {
   {title}
   class="sanvi-button sanvi-button--{variant} sanvi-button--{size} {className}"
   class:sanvi-button--full={fullWidth}
+  class:sanvi-button--inert={ariaDisabled}
   disabled={disabled || loading}
   aria-busy={loading || undefined}
+  aria-disabled={ariaDisabled || undefined}
+  aria-describedby={ariaDescribedby}
   onclick={handleClick}
 >
   {#if loading}
@@ -73,7 +87,8 @@ function handleClick(event: MouseEvent): void {
     transition: background-color 0.12s ease;
   }
 
-  .sanvi-button:disabled {
+  .sanvi-button:disabled,
+  .sanvi-button--inert {
     cursor: not-allowed;
     opacity: 0.6;
   }
@@ -101,7 +116,7 @@ function handleClick(event: MouseEvent): void {
     background: var(--sanvi-color-solid-primary-base);
     color: var(--sanvi-color-text-inverse);
   }
-  .sanvi-button--primary:not(:disabled):hover {
+  .sanvi-button--primary:not(:disabled):not(.sanvi-button--inert):hover {
     background: var(--sanvi-color-solid-primary-hover);
   }
 
@@ -109,7 +124,7 @@ function handleClick(event: MouseEvent): void {
     background: var(--sanvi-color-solid-secondary-base);
     color: var(--sanvi-color-text-inverse);
   }
-  .sanvi-button--secondary:not(:disabled):hover {
+  .sanvi-button--secondary:not(:disabled):not(.sanvi-button--inert):hover {
     background: var(--sanvi-color-solid-secondary-hover);
   }
 
@@ -117,7 +132,7 @@ function handleClick(event: MouseEvent): void {
     background: var(--sanvi-color-solid-danger-base);
     color: var(--sanvi-color-text-inverse);
   }
-  .sanvi-button--danger:not(:disabled):hover {
+  .sanvi-button--danger:not(:disabled):not(.sanvi-button--inert):hover {
     background: var(--sanvi-color-solid-danger-hover);
   }
 
@@ -126,7 +141,7 @@ function handleClick(event: MouseEvent): void {
     color: var(--sanvi-color-text-primary);
     border-color: var(--sanvi-color-border-default);
   }
-  .sanvi-button--ghost:not(:disabled):hover {
+  .sanvi-button--ghost:not(:disabled):not(.sanvi-button--inert):hover {
     background: var(--sanvi-color-background-secondary);
   }
 

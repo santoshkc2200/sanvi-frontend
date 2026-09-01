@@ -530,6 +530,7 @@
   "admin.payments.explainerTitle": "接続するとどうなりますか",
   "admin.payments.explainerBody": "Stripe がアカウント確認のためビジネス情報を収集します。売上は直接あなたの銀行口座に入金され、Sanvi が資金を預かることはありません。",
   "admin.payments.connectCta": "接続する",
+  "admin.payments.connectDisabledReason": "接続はまだ利用できません。",
   "admin.payments.unavailableTitle": "お住まいの地域では利用できません",
   "admin.payments.unavailableDescription": "このプロバイダはお住まいの国では利用できません。",
   "admin.payments.supportedCountriesLabel": "対応国",
