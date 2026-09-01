@@ -50,15 +50,16 @@ Statuses: `todo` · `in-progress` · `blocked` · `done`
 | TASK-016 | 10 | 10.7 Chart primitives & ROAS dashboard | todo | TASK-012, TASK-015 | |
 | TASK-017 | 10 | 10.8 Budget cap configuration & alert surfaces | todo | TASK-016 | |
 | TASK-018 | 10 | 10.9 A11y, visual, export hardening & e2e consolidation | todo | TASK-013, TASK-015, TASK-017 | |
-| TASK-019 | 11 | 11.0 Field collection, CI budget harness & baseline capture | todo | phase 10 | |
-| TASK-020 | 11 | 11.1 Error tracking, RUM segmentation & user-facing diagnostics | todo | TASK-019 | |
-| TASK-021 | 11 | 11.2 Harness re-run & client call-pattern audit | todo | TASK-020 | |
-| TASK-022 | 11 | 11.3 Bundles, fonts, images, streaming SSR & INP | todo | TASK-020 | |
-| TASK-023 | 11 | 11.4 Error boundaries, outage UX, retry & offline | todo | TASK-021 | |
-| TASK-024 | 11 | 11.5 Auth surface review, CSP tightening & bundle secret gate | todo | TASK-019 | |
-| TASK-025 | 11 | 11.6 Status page, degraded banners & restore-in-progress | todo | TASK-023 | |
-| TASK-026 | 11 | 11.7 429 handling, quota & usage surfaces | todo | TASK-023 | |
-| TASK-027 | 11 | 11.8 Accessibility sweep, manual passes & external audit | todo | TASK-022 | |
-| TASK-028 | 11 | 11.9 Offboarding, retention & archived-range surfaces | todo | TASK-021 | |
-| TASK-029 | 11 | 11.10 Privacy centre re-verification & evidence access | todo | TASK-027, TASK-028 | |
-| TASK-030 | 11 | 11.11 E2E completion, browser matrix, visual baseline & rollout | todo | TASK-024, TASK-025, TASK-026, TASK-027, TASK-029 | |
+| TASK-019 | 11 | 11.0 Telemetry package, release stamping & baseline | todo | TASK-031 | gate half; rewritten 2026-09-01 — live RUM and four-week field p75s parked (docs/release/needs-humans.md), collector still built directive-gated |
+| TASK-020 | 11 | 11.1 Error tracking, trace id & user-facing diagnostics | todo | TASK-019 | gate half; RUM segmentation querying parked, dimensions still collected |
+| TASK-021 | 11 | 11.2 Harness re-run & client call-pattern audit | todo | TASK-020, phases 09+10 shipped | GA half |
+| TASK-022 | 11 | 11.3 Bundles, fonts, images, streaming SSR & long tasks | todo | TASK-021, phases 09+10 shipped | GA half; field p75 targets became pinned-profile lab targets, INP asserted as Total Blocking Time |
+| TASK-023 | 11 | 11.4 Error boundaries, outage UX, retry & offline | todo | TASK-021, phases 09+10 shipped | GA half |
+| TASK-024 | 11 | 11.5 Auth surface review, CSP tightening & bundle secret gate | todo | TASK-031 | gate half; pen-test remediation parked |
+| TASK-025 | 11 | 11.6 Status page, degraded banners & restore-in-progress | todo | TASK-023, phases 09+10 shipped | GA half; out-of-perimeter hosting parked, limitation documented on the page |
+| TASK-026 | 11 | 11.7 429 handling, quota & usage surfaces | todo | TASK-023, phases 09+10 shipped | GA half; the phase's only new user-facing capability |
+| TASK-027 | 11 | 11.8 Accessibility sweep, manual passes & statement | todo | TASK-022, phases 09+10 shipped | GA half; external audit and NVDA/JAWS parked, statement describes method rather than claiming conformance |
+| TASK-028 | 11 | 11.9 Offboarding, retention & archived-range surfaces | todo | TASK-021, phases 09+10 shipped | GA half; two-person purge confirmation became a typed confirmation |
+| TASK-029 | 11 | 11.10 Privacy centre re-verification & evidence access | todo | TASK-027, TASK-028, phases 09+10 shipped | GA half |
+| TASK-030 | 11 | 11.11 E2E completion, browser matrix, visual baseline & documentation | todo | TASK-024, TASK-025, TASK-026, TASK-027, TASK-029, phases 09+10 shipped | GA half; matrix is engine coverage not vendor builds; unblocks the backend's v1.0.0 tag |
+| TASK-031 | 11 | 11.a CI harness truth & pinned profiles | todo | none | gate half; Lighthouse CI, per-route budgets and the axe job do not exist yet — startable today, independent of phases 09 and 10 |
