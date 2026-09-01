@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_MEDIA_ORIGIN?: string
   readonly VITE_KRATOS_ORIGIN: string
   readonly VITE_STOREFRONT_ORIGIN?: string
+  readonly VITE_STRIPE_PUBLISHABLE_KEY?: string
 }
 
 interface ImportMeta {

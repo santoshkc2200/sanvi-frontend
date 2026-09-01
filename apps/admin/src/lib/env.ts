@@ -4,6 +4,14 @@ export interface AppEnv {
   /** Ory Kratos's public API origin — `@sanvi/auth` calls it directly from the browser. */
   kratosOrigin: string
   storefrontOrigin: string
+  /**
+   * Stripe publishable key for Connect embedded components (pk_…).
+   * Build-time public env, never a secret key; empty in dev when the fake
+   * provider is used, required in production when the real Stripe account
+   * exists. Mirrors the VITE_ pattern every other public runtime value in
+   * this SPA uses.
+   */
+  stripePublishableKey: string | undefined
 }
 
 /**
@@ -26,5 +34,6 @@ export function getAppEnv(): AppEnv {
     mediaOrigin: import.meta.env.VITE_MEDIA_ORIGIN || undefined,
     kratosOrigin,
     storefrontOrigin: import.meta.env.VITE_STOREFRONT_ORIGIN || 'http://localhost:4174',
+    stripePublishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || undefined,
   }
 }

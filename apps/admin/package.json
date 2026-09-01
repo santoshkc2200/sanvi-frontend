@@ -1,7 +1,7 @@
 {
   "name": "@sanvi/admin",
   "version": "0.1.0",
-  "description": "Sanvi tenant admin console \u2014 Svelte SPA behind auth.",
+  "description": "Sanvi tenant admin console — Svelte SPA behind auth.",
   "private": true,
   "type": "module",
   "scripts": {
@@ -26,6 +26,7 @@
     "@sanvi/csp": "workspace:*",
     "@sanvi/design-tokens": "workspace:*",
     "@sanvi/i18n": "workspace:*",
+    "@sanvi/payments-connect": "workspace:*",
     "@sanvi/query": "workspace:*",
     "@sanvi/spa-router": "workspace:*",
     "@sanvi/tenant": "workspace:*",
@@ -37,6 +38,7 @@
     "@sanvi/lint-gates": "workspace:*",
     "@sanvi/test-config": "workspace:*",
     "@sanvi/ts-config": "workspace:*",
+    "@stripe/connect-js": "catalog:",
     "@sveltejs/vite-plugin-svelte": "catalog:",
     "@testing-library/svelte": "catalog:",
     "@types/node": "catalog:",

@@ -10,7 +10,8 @@
     "PUBLIC_SITE_ORIGIN",
     "VITE_API_ORIGIN",
     "VITE_MEDIA_ORIGIN",
-    "VITE_KRATOS_ORIGIN"
+    "VITE_KRATOS_ORIGIN",
+    "VITE_STRIPE_PUBLISHABLE_KEY"
   ],
   "tasks": {
     "build": {

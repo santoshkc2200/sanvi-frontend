@@ -1,6 +1,37 @@
-import type { components } from '@sanvi/api-client'
+import type { components, PaymentConnectionView } from '@sanvi/api-client'
+import { createPaymentConnection } from '@sanvi/api-client'
+import { getActiveTenantId } from '@sanvi/tenant'
+import { apiClient } from '../api'
 
 type ProviderView = components['schemas']['ProviderView']
+
+let lastCreatedConnection: PaymentConnectionView | null = null
+
+export function getLastCreatedPaymentConnection(): PaymentConnectionView | null {
+  return lastCreatedConnection
+}
+
+export function clearLastCreatedPaymentConnection(): void {
+  lastCreatedConnection = null
+}
+
+function persistConnectionId(tenantId: string | undefined, connectionId: string): void {
+  if (!tenantId) return
+  try {
+    localStorage.setItem(`sanvi:payments:connection:${tenantId}`, connectionId)
+  } catch {
+    // ignore storage errors (e.g., SSR or quota)
+  }
+}
+
+export function readPersistedConnectionId(tenantId: string | undefined): string | null {
+  if (!tenantId) return null
+  try {
+    return localStorage.getItem(`sanvi:payments:connection:${tenantId}`)
+  } catch {
+    return null
+  }
+}
 
 export interface ProviderStatus {
   connected: boolean
@@ -25,8 +56,15 @@ export interface PaymentProviderAdapter {
  */
 const stripeAdapter: PaymentProviderAdapter = {
   kind: 'stripe_connect',
-  async connect(_provider: ProviderView): Promise<void> {
-    // TASK-003 will wire Connect.js + account session creation here.
+  async connect(provider: ProviderView): Promise<void> {
+    const idempotencyKey = crypto.randomUUID()
+    const connection = await createPaymentConnection(
+      apiClient,
+      { provider: provider.kind },
+      idempotencyKey,
+    )
+    lastCreatedConnection = connection
+    persistConnectionId(getActiveTenantId() ?? undefined, connection.id)
   },
   status(_provider: ProviderView): ProviderStatus | null {
     return null
@@ -38,8 +76,15 @@ const stripeAdapter: PaymentProviderAdapter = {
 
 const fakeAdapter: PaymentProviderAdapter = {
   kind: 'fake',
-  async connect(_provider: ProviderView): Promise<void> {
-    // Built against the backend fake provider; no Stripe credentials required.
+  async connect(provider: ProviderView): Promise<void> {
+    const idempotencyKey = crypto.randomUUID()
+    const connection = await createPaymentConnection(
+      apiClient,
+      { provider: provider.kind },
+      idempotencyKey,
+    )
+    lastCreatedConnection = connection
+    persistConnectionId(getActiveTenantId() ?? undefined, connection.id)
   },
   status(_provider: ProviderView): ProviderStatus | null {
     return null

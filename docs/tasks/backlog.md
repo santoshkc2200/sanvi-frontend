@@ -34,7 +34,7 @@ Statuses: `todo` · `in-progress` · `blocked` · `done`
 |---|---|---|---|---|---|
 | TASK-001 | 09 | 09.0 Generated client, CSP & settings shell | done | phase 08 | shipped: api-client/payments.ts, csp Stripe preset, PaymentsSettings shell |
 | TASK-002 | 09 | 09.1 Provider catalog & provider-card adapter shape | done | TASK-001 | feat(payments): provider catalog & card adapter shape |
-| TASK-003 | 09 | 09.2 Connect.js loader & embedded onboarding | todo | TASK-002 | |
+| TASK-003 | 09 | 09.2 Connect.js loader & embedded onboarding | done | TASK-002 | feat(payments): connect.js loader & embedded onboarding |
 | TASK-004 | 09 | 09.3 Status, requirements & embedded banner | todo | TASK-003 | |
 | TASK-005 | 09 | 09.4 Storefront checkout journey | todo | TASK-004 | |
 | TASK-006 | 09 | 09.5 Payments list, detail, refunds & disputes | todo | TASK-005 | |

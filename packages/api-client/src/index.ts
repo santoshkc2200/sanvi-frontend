@@ -61,7 +61,13 @@ export {
   updatePlatformTranslations,
 } from './localization'
 export { createImpersonation, listImpersonations, revokeImpersonation } from './impersonation'
-export { listPaymentProviders } from './payments'
+export {
+  createPaymentConnection,
+  createPaymentConnectionSession,
+  getPaymentConnection,
+  listPaymentProviders,
+} from './payments'
+export type { CreatePaymentConnectionRequest, PaymentConnectionView } from './payments'
 export {
   activateTenant,
   applySubscriptionOverride,

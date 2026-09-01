@@ -1,7 +1,7 @@
 # TASK-003: 09.2 Connect.js loader & embedded onboarding
 
 **Phase:** 09
-**Status:** todo
+**Status:** done
 **Requirement(s):** FR-902, NFR-901, NFR-907
 **Depends on:** TASK-002
 **Created:** 2026-08-20
@@ -20,35 +20,35 @@ Status shown here is still thin — it becomes truthful in TASK-004 when webhook
 
 ## What to do
 
-- [ ] **Connect.js loader** — a small wrapper package (`packages/payments-connect`) exposing an
+- [x] **Connect.js loader** — a small wrapper package (`packages/payments-connect`) exposing an
       initializer that fetches the account session from
       `POST /api/v1/tenant/payments/connections/{id}/session` and returns the Connect instance.
       Pinned Connect.js version; loaded **only** on pages that need it, never in the storefront
       bundle. `billing-elements` stays the Stripe **Elements** package for platform billing — do not
       conflate the two.
-- [ ] **Pre-connect explainer** — the TASK-002 copy, plus what Stripe will ask for and roughly how
+- [x] **Pre-connect explainer** — the TASK-002 copy, plus what Stripe will ask for and roughly how
       long it takes. A tenant who understands the flow finishes it.
-- [ ] **Embedded `account_onboarding`** in `PaymentsSettings.svelte`, mounted after the connection is
+- [x] **Embedded `account_onboarding`** in `PaymentsSettings.svelte`, mounted after the connection is
       created, with appearance options mapped from our design tokens where the component API allows.
       The settings surface uses the **admin** theme, not the tenant storefront theme.
-- [ ] **Resumability** — closing the tab and returning re-fetches a fresh session and re-mounts at the
+- [x] **Resumability** — closing the tab and returning re-fetches a fresh session and re-mounts at the
       same place; the page never asks a tenant to start over. A session-fetch failure shows a retry,
       not a blank iframe.
-- [ ] **Loading & failure states** — component load failure (CSP, network, Stripe outage) gets a
+- [x] **Loading & failure states** — component load failure (CSP, network, Stripe outage) gets a
       specific message with a retry and a support path, never a silent empty box.
 
 ## Acceptance criteria
 
-- [ ] E2E: connect → the embedded onboarding component renders → close the tab → return → the flow
+- [x] E2E: connect → the embedded onboarding component renders → close the tab → return → the flow
       resumes where it was, with no "start over".
-- [ ] Onboarding renders under the **production** CSP from TASK-001, not a relaxed dev policy.
-- [ ] The account session client secret is fetched per render and never written to `localStorage`,
+- [x] Onboarding renders under the **production** CSP from TASK-001, not a relaxed dev policy.
+- [x] The account session client secret is fetched per render and never written to `localStorage`,
       `sessionStorage`, a cookie, or the console — asserted by a test.
-- [ ] A forced session-fetch failure renders a retry affordance rather than an empty iframe.
-- [ ] Connect.js appears in the admin bundle only; a bundle assertion proves it is absent from the
+- [x] A forced session-fetch failure renders a retry affordance rather than an empty iframe.
+- [x] Connect.js appears in the admin bundle only; a bundle assertion proves it is absent from the
       storefront.
-- [ ] `pnpm check:i18n` passes for every new string, in `en` and `ja`.
-- [ ] `pnpm check:budget` still passes for both apps.
+- [x] `pnpm check:i18n` passes for every new string, in `en` and `ja`.
+- [x] `pnpm check:budget` still passes for both apps.
 
 ## Verification
 
