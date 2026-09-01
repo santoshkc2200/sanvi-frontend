@@ -64,10 +64,17 @@ export { createImpersonation, listImpersonations, revokeImpersonation } from './
 export {
   createPaymentConnection,
   createPaymentConnectionSession,
+  createTenantCheckout,
   getPaymentConnection,
+  getTenantCheckout,
   listPaymentProviders,
 } from './payments'
-export type { CreatePaymentConnectionRequest, PaymentConnectionView } from './payments'
+export type {
+  CheckoutView,
+  CreateCheckoutRequest,
+  CreatePaymentConnectionRequest,
+  PaymentConnectionView,
+} from './payments'
 export {
   activateTenant,
   applySubscriptionOverride,
