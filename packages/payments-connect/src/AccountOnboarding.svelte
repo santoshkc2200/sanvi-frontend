@@ -1,4 +1,5 @@
 <script lang="ts">
+import type { ConnectHTMLElementRecord } from '@stripe/connect-js'
 import { onDestroy, onMount } from 'svelte'
 import { initializePaymentsConnect } from './loader'
 
@@ -6,9 +7,10 @@ interface Props {
   publishableKey: string
   fetchClientSecret: () => Promise<string>
   locale?: string
+  theme?: 'light' | 'dark'
   onExit?: () => void
   onLoadError?: (error: { type: string; message: string }) => void
-  onRetry?: () => void
+  onRetry: () => void
   labels: {
     loading: string
     loadErrorTitle: string
@@ -17,27 +19,27 @@ interface Props {
     sessionErrorBody: string
     retry: string
     support: string
+    /** Localized prefix marking the provider's raw message as technical detail. */
+    technicalDetail: string
   }
 }
 
-let { publishableKey, fetchClientSecret, locale, onExit, onLoadError, onRetry, labels }: Props =
-  $props()
+let {
+  publishableKey,
+  fetchClientSecret,
+  locale,
+  theme,
+  onExit,
+  onLoadError,
+  onRetry,
+  labels,
+}: Props = $props()
 
 let container: HTMLDivElement | undefined = $state(undefined)
 let viewState: 'loading' | 'ready' | 'loadError' | 'sessionError' = $state('loading')
 let errorMessage: string | undefined = $state(undefined)
 let connectInstance: Awaited<ReturnType<typeof initializePaymentsConnect>> | undefined
-let onboardingEl: HTMLElement | undefined
-let mounted = $state(false)
-
-// Per-render fetch wrapper that never stores the secret — the test
-// asserts no localStorage/sessionStorage/cookie write and no console log.
-async function wrappedFetch(): Promise<string> {
-  const secret = await fetchClientSecret()
-  return secret
-}
-
-let initFailed = false
+let onboardingEl: ConnectHTMLElementRecord['account-onboarding'] | undefined
 
 onMount(() => {
   let cancelled = false
@@ -46,53 +48,40 @@ onMount(() => {
     try {
       connectInstance = await initializePaymentsConnect({
         publishableKey,
-        fetchClientSecret: wrappedFetch,
+        fetchClientSecret,
         locale,
+        theme,
       })
       if (cancelled) return
 
-      onboardingEl = (
-        connectInstance.instance as unknown as { create: (name: string) => HTMLElement }
-      ).create('account-onboarding')
+      onboardingEl = connectInstance.instance.create('account-onboarding')
 
       if (onExit) {
-        ;(onboardingEl as unknown as { setOnExit: (cb: () => void) => void }).setOnExit(() =>
-          onExit(),
-        )
+        onboardingEl.setOnExit(() => onExit())
       }
       // Loader success vs failure: onLoaderStart means Stripe rendered
       // something (even a spinner) → hide our loading UI. onLoadError
       // fires for CSP block, network, or Stripe outage — specific message,
       // retry affordance, support path, never a silent empty box.
-      ;(
-        onboardingEl as unknown as { setOnLoaderStart: (cb: (e: unknown) => void) => void }
-      ).setOnLoaderStart(() => {
+      onboardingEl.setOnLoaderStart(() => {
         if (!cancelled) viewState = 'ready'
       })
-      ;(
-        onboardingEl as unknown as {
-          setOnLoadError: (cb: (e: { error: { type: string; message: string } }) => void) => void
-        }
-      ).setOnLoadError((event: { error: { type: string; message: string } }) => {
+      onboardingEl.setOnLoadError((event) => {
         if (cancelled) return
         errorMessage = event.error.message
         viewState =
           event.error.type === 'account_session_create_error' ? 'sessionError' : 'loadError'
-        onLoadError?.(event.error)
+        onLoadError?.({
+          type: event.error.type,
+          message: event.error.message ?? '',
+        })
       })
 
       if (container && onboardingEl) {
         container.appendChild(onboardingEl)
-        mounted = true
-        setTimeout(() => {
-          if (!cancelled && viewState === 'loading' && !mounted) {
-            // still loading, keep spinner — not an error yet
-          }
-        }, 8000)
       }
     } catch (err) {
       if (cancelled) return
-      initFailed = true
       errorMessage = err instanceof Error ? err.message : undefined
       const msg = err instanceof Error ? err.message : ''
       const isSession =
@@ -120,17 +109,6 @@ onDestroy(() => {
       // ignore
     }
   }
-  onboardingEl = undefined
-  mounted = false
-})
-
-function retry(): void {
-  if (onRetry) {
-    onRetry()
-    return
-  }
-  viewState = 'loading'
-  errorMessage = undefined
   if (connectInstance) {
     try {
       connectInstance.logout()
@@ -138,9 +116,11 @@ function retry(): void {
       // ignore
     }
   }
-  setTimeout(() => {
-    viewState = 'loading'
-  }, 0)
+  onboardingEl = undefined
+})
+
+function retry(): void {
+  onRetry()
 }
 </script>
 
@@ -168,7 +148,9 @@ function retry(): void {
         {viewState === 'sessionError' ? labels.sessionErrorBody : labels.loadErrorBody}
       </p>
       {#if errorMessage}
-        <p class="sanvi-payments-connect__error-detail">{errorMessage}</p>
+        <p class="sanvi-payments-connect__error-detail">
+          {labels.technicalDetail}: {errorMessage}
+        </p>
       {/if}
       <div class="sanvi-payments-connect__error-actions">
         <button type="button" class="sanvi-payments-connect__retry" onclick={retry}>

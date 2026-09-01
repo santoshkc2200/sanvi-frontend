@@ -47,6 +47,7 @@ const labels = {
   sessionErrorBody: 'We could not create a secure session.',
   retry: 'Try again',
   support: 'Need help? Contact support.',
+  technicalDetail: 'Technical detail',
 }
 
 describe('AccountOnboarding', () => {
@@ -56,6 +57,7 @@ describe('AccountOnboarding', () => {
         publishableKey: 'pk_test_123',
         fetchClientSecret: async () => 'secret_123',
         labels,
+        onRetry: vi.fn(),
       },
     })
     expect(screen.getByText(labels.loading)).toBeInTheDocument()
@@ -68,6 +70,7 @@ describe('AccountOnboarding', () => {
         publishableKey: 'pk_test_123',
         fetchClientSecret: fetchSpy,
         labels,
+        onRetry: vi.fn(),
       },
     })
     // fetchClientSecret should be called during initialization
@@ -90,6 +93,7 @@ describe('AccountOnboarding', () => {
           throw new Error('should not be called when loader fails')
         },
         labels,
+        onRetry: vi.fn(),
       },
     })
 
@@ -131,6 +135,7 @@ describe('AccountOnboarding', () => {
           throw new Error('403 payments/manage')
         },
         labels,
+        onRetry: vi.fn(),
       },
     })
 

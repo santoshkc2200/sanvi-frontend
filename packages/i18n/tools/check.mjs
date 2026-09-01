@@ -234,7 +234,8 @@ export function collectProblems(catalogs, manifest = {}) {
 // ── CLI ──
 
 if (isMainEntryPoint(import.meta.url)) {
-  const readCatalog = (locale) => JSON.parse(readFileSync(join(MESSAGES_DIR, `${locale}.json`), 'utf8'))
+  const readCatalog = (locale) =>
+    JSON.parse(readFileSync(join(MESSAGES_DIR, `${locale}.json`), 'utf8'))
   let manifest = {}
   try {
     manifest = JSON.parse(readFileSync(join(MESSAGES_DIR, 'manifest.json'), 'utf8'))

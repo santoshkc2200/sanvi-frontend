@@ -36,4 +36,3 @@ test('SSR HTML contains inlined theme style tag with zero flash', async ({ reque
   const body = await response.text()
   expect(body).toContain('<style id="sanvi-theme">')
 })
-

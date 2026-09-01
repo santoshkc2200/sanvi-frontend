@@ -84,7 +84,7 @@ test.describe('Payments onboarding (09.2)', () => {
       await r.fulfill({
         status: 201,
         json: {
-          client_secret: 'secret_e2e_' + Date.now(),
+          client_secret: `secret_e2e_${Date.now()}`,
           components: ['account_onboarding'],
           connection_id: connectionId,
           expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
@@ -97,23 +97,43 @@ test.describe('Payments onboarding (09.2)', () => {
     await page.route('https://connect-js.stripe.com/**', (r) =>
       r.fulfill({
         body: `
+          class StripeConnectAccountOnboarding extends HTMLElement {
+            setConnector(connector) {}
+            setOnExitInternalOnly(cb) { this._onExit = cb; }
+            setOnLoaderStartInternalOnly(cb) { this._onLoaderStart = cb; }
+            setOnLoadErrorInternalOnly(cb) { this._onLoadError = cb; }
+          }
+          if (!customElements.get('stripe-connect-account-onboarding')) {
+            customElements.define('stripe-connect-account-onboarding', StripeConnectAccountOnboarding);
+          }
+
           window.StripeConnect = window.StripeConnect || {};
           window.StripeConnect.init = function(opts) {
+            var secretPromise = (opts.metaOptions && opts.metaOptions.eagerClientSecretPromise) ||
+              (typeof opts.fetchClientSecret === 'function' ? opts.fetchClientSecret() : Promise.resolve('mock_secret'));
+
+            secretPromise.then(function() {
+              setTimeout(function() {
+                var els = document.querySelectorAll('stripe-connect-account-onboarding');
+                els.forEach(function(el) {
+                  if (el._onLoaderStart) el._onLoaderStart({ elementTagName: 'account-onboarding' });
+                });
+              }, 10);
+            }).catch(function(err) {
+              setTimeout(function() {
+                var els = document.querySelectorAll('stripe-connect-account-onboarding');
+                els.forEach(function(el) {
+                  if (el._onLoadError) {
+                    el._onLoadError({ error: { type: 'account_session_create_error', message: err.message || String(err) } });
+                  }
+                });
+              }, 10);
+            });
+
             return {
-              create: function(name) {
-                var el = document.createElement('div');
-                el.setOnExit = function(cb) { el._onExit = cb; };
-                el.setOnLoaderStart = function(cb) { setTimeout(function(){ cb({ elementTagName: name }); }, 0); };
-                el.setOnLoadError = function(cb) {
-                  el._onLoadError = cb;
-                  opts.fetchClientSecret().catch(function(err){
-                    setTimeout(function(){ cb({ error: { type: 'account_session_create_error', message: err.message || String(err) } }); }, 0);
-                  });
-                };
-                return el;
-              },
-              logout: function(){},
-              update: function(){}
+              connect: function() {},
+              logout: function() {},
+              update: function() {},
             };
           };
         `,
@@ -133,10 +153,12 @@ test.describe('Payments onboarding (09.2)', () => {
     await expect(page.getByText('What Stripe will ask for')).toBeVisible()
     await page.getByRole('button', { name: 'Connect' }).click()
     await expect(page.getByText('Complete your Stripe setup')).toBeVisible()
+    await expect(page.locator('stripe-connect-account-onboarding')).toBeAttached()
     // Resumability: reload the page (localStorage persists the connection id)
     await page.reload()
     await expect(page.getByText('Complete your Stripe setup')).toBeVisible()
     await expect(page.getByText('What Stripe will ask for')).toBeVisible()
+    await expect(page.locator('stripe-connect-account-onboarding')).toBeAttached()
   })
 
   test('session fetch failure shows retry, not blank iframe', async ({ page }) => {
@@ -150,10 +172,8 @@ test.describe('Payments onboarding (09.2)', () => {
     await page.goto('/payments')
     await page.getByRole('button', { name: 'Connect' }).click()
     await expect(page.getByText('Complete your Stripe setup')).toBeVisible()
-    await page.waitForTimeout(1500)
-    const body = await page.locator('body').textContent()
-    expect(body).not.toBe('')
-    expect(body).toContain('Complete your Stripe setup')
+    await expect(page.getByText('Could not start onboarding')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible()
   })
 
   test('renders under production CSP (no unsafe-inline relaxation)', async ({ page }) => {
@@ -161,10 +181,34 @@ test.describe('Payments onboarding (09.2)', () => {
     const csp = await page
       .locator('meta[http-equiv="Content-Security-Policy"]')
       .getAttribute('content')
-    expect(csp).toContain('https://js.stripe.com')
-    expect(csp).toContain('https://*.stripe.com')
-    // Production CSP must not contain unsafe-inline in script-src (admin uses meta)
-    // The check here is that frame-src includes stripe (required for Connect.js iframe)
-    expect(csp).toContain('frame-src')
+    expect(csp).toBeTruthy()
+
+    const directives = Object.fromEntries(
+      (csp ?? '')
+        .split(';')
+        .map((d) => d.trim())
+        .filter(Boolean)
+        .map((d) => {
+          const [name, ...values] = d.split(/\s+/)
+          return [name, values.join(' ')]
+        }),
+    )
+
+    // Production CSP must not contain unsafe-inline or unsafe-eval in script-src
+    expect(directives['script-src']).toBeDefined()
+    expect(directives['script-src']).not.toContain("'unsafe-inline'")
+    expect(directives['script-src']).not.toContain("'unsafe-eval'")
+    expect(directives['script-src']).toContain('https://js.stripe.com')
+    expect(directives['script-src']).toContain('https://*.stripe.com')
+
+    // frame-src must allow Stripe iframe embedding for Connect.js
+    expect(directives['frame-src']).toBeDefined()
+    expect(directives['frame-src']).toContain('https://js.stripe.com')
+    expect(directives['frame-src']).toContain('https://*.stripe.com')
+
+    // connect-src must allow Stripe API calls
+    expect(directives['connect-src']).toBeDefined()
+    expect(directives['connect-src']).toContain('https://api.stripe.com')
+    expect(directives['connect-src']).toContain('https://*.stripe.com')
   })
 })

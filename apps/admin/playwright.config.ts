@@ -14,7 +14,10 @@ export default defineConfig({
     command: 'pnpm build && pnpm preview',
     url: 'http://localhost:4175',
     reuseExistingServer: !process.env.CI,
-    env: { VITE_API_ORIGIN: 'http://localhost:8080' },
+    env: {
+      VITE_API_ORIGIN: 'http://localhost:8080',
+      VITE_STRIPE_PUBLISHABLE_KEY: 'pk_test_e2e_fake_key',
+    },
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

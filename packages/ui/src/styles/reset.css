@@ -34,7 +34,7 @@ body {
  * design-tokens `[lang='ja']` layer supplies the looser leading and the
  * JP-first font stack; this block is the behavior, not the values.
  */
-[lang='ja'] {
+[lang="ja"] {
   line-break: strict;
   overflow-wrap: anywhere;
 }

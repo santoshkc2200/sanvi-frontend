@@ -13,6 +13,8 @@ export interface PaymentsConnectInitOptions {
   fetchClientSecret: () => Promise<string>
   /** Locale for the embedded component, e.g. "en" or "ja". */
   locale?: string
+  /** Theme mode for appearance tokens ('light' or 'dark'). Defaults to detecting from data-theme or 'light'. */
+  theme?: 'light' | 'dark'
 }
 
 export interface PaymentsConnectInstance {
@@ -27,12 +29,12 @@ export interface PaymentsConnectInstance {
  *
  * Loaded only by the admin app — never imported by storefront — so the
  * 40 KB+ Connect.js bundle is absent from the shopper bundle (proved by
- * `scripts/assert-connect-not-in-storefront.mjs` and the bundle test).
+ * `scripts/assert-connect-js-bundle.mjs` and the bundle test).
  */
 export async function initializePaymentsConnect(
   options: PaymentsConnectInitOptions,
 ): Promise<PaymentsConnectInstance> {
-  const { publishableKey, fetchClientSecret, locale } = options
+  const { publishableKey, fetchClientSecret, locale, theme: explicitTheme } = options
 
   if (!publishableKey) {
     throw new Error('VITE_STRIPE_PUBLISHABLE_KEY is not configured')
@@ -42,7 +44,13 @@ export async function initializePaymentsConnect(
   }
 
   const { loadConnectAndInitialize } = await import('@stripe/connect-js')
-  const appearance = getConnectAppearance()
+  const theme =
+    explicitTheme ??
+    (typeof document !== 'undefined' &&
+    document.documentElement.getAttribute('data-theme') === 'dark'
+      ? 'dark'
+      : 'light')
+  const appearance = getConnectAppearance(theme)
 
   const instance = await loadConnectAndInitialize({
     publishableKey,

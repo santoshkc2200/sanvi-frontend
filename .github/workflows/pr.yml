@@ -37,6 +37,9 @@ jobs:
           node scripts/check-no-secret-keys-in-bundle.mjs --self-test
           node scripts/check-no-secret-keys-in-bundle.mjs
 
+      - name: check:connect-bundle
+        run: pnpm check:connect-bundle
+
       - name: check:i18n
         run: pnpm turbo run check:i18n
 

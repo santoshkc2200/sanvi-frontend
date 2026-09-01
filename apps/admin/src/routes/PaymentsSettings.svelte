@@ -16,6 +16,8 @@ import { apiClient } from '../lib/api'
 import { getAppEnv } from '../lib/env'
 import { EXPLAINER_BODY_KEY, EXPLAINER_TITLE_KEY } from '../lib/payments/explainerCopy'
 import {
+  clearLastCreatedPaymentConnection,
+  clearPersistedConnectionId,
   getLastCreatedPaymentConnection,
   getProviderAdapter,
   readPersistedConnectionId,
@@ -34,6 +36,8 @@ let onboardingKey = $state(0)
 let creating = $state(false)
 let createError = $state<string | undefined>(undefined)
 
+// Sequencing token — a tenant switch re-runs the load effect, and a slow
+// response for the previous tenant must never overwrite the new tenant's data.
 let loadSeq = 0
 
 async function load(): Promise<void> {
@@ -41,14 +45,19 @@ async function load(): Promise<void> {
   loading = true
   error = undefined
   entitled = true
+  clearLastCreatedPaymentConnection()
+  onboardingConnectionId = null
+  restoreOnboardingIfPersisted()
   try {
     const result = await listPaymentProviders(apiClient)
     if (seq !== loadSeq) return
     providers = result?.providers ?? []
-    restoreOnboardingIfPersisted()
   } catch (err) {
     if (seq !== loadSeq) return
     if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+      // 403 names the entitlement; 404 means the `payments.enabled` phase
+      // flag is off in that deployment. Both read to a tenant admin as
+      // "not available yet", and neither is an error banner.
       entitled = false
       providers = []
     } else {
@@ -60,13 +69,17 @@ async function load(): Promise<void> {
 }
 
 function restoreOnboardingIfPersisted(): void {
-  if (!hasFeature('payments.stripe_connect')) return
-  if (onboardingConnectionId) return
+  if (!hasFeature('payments.stripe_connect')) {
+    onboardingConnectionId = null
+    return
+  }
   const tenantId = getActiveTenantId()
   const stored = readPersistedConnectionId(tenantId ?? undefined)
   if (stored) {
     onboardingConnectionId = stored
     onboardingKey = 0
+  } else {
+    onboardingConnectionId = null
   }
 }
 
@@ -96,16 +109,16 @@ async function handleConnect(provider: ProviderView): Promise<void> {
     if (err instanceof ApiError) {
       if (err.status === 403) {
         createError = t['admin.payments.createConnectionForbidden']()
+      } else if (err.status === 404) {
+        clearPersistedConnectionId(getActiveTenantId() ?? undefined)
+        onboardingConnectionId = null
+        createError = t['admin.payments.createConnectionError']()
       } else if (err.status === 409) {
-        const tid = getActiveTenantId()
-        const stored = readPersistedConnectionId(tid ?? undefined)
-        if (stored) {
-          onboardingConnectionId = stored
-          onboardingKey += 1
-          createError = t['admin.payments.createConnectionExists']()
-        } else {
-          createError = t['admin.payments.createConnectionExists']()
-        }
+        // TODO(TASK-004): The backend has no GET /api/v1/tenant/payments/connections endpoint
+        // and the 409 ProblemDetail carries no connection id, so a tenant without a persisted
+        // connection id cannot recover or resume here until the backend provides a list endpoint
+        // or returns the existing connection id in the 409 response.
+        createError = t['admin.payments.createConnectionExists']()
       } else if (err.status === 502) {
         createError = t['admin.payments.createConnectionUnavailable']()
       } else {
@@ -122,8 +135,20 @@ async function handleConnect(provider: ProviderView): Promise<void> {
 async function fetchClientSecret(): Promise<string> {
   if (!onboardingConnectionId) throw new Error('No onboarding connection')
   const key = crypto.randomUUID()
-  const session = await createPaymentConnectionSession(apiClient, onboardingConnectionId, key)
-  return session.client_secret
+  try {
+    const session = await createPaymentConnectionSession(apiClient, onboardingConnectionId, key)
+    return session.client_secret
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) {
+      clearPersistedConnectionId(getActiveTenantId() ?? undefined)
+      onboardingConnectionId = null
+    }
+    // AccountOnboarding heuristics look for "session" in the message to
+    // differentiate from Connect.js script load errors.
+    throw new Error(
+      `Failed to create connection session: ${err instanceof Error ? err.message : 'Unknown'}`,
+    )
+  }
 }
 
 function handleOnboardingExit(): void {
@@ -143,17 +168,9 @@ let locale = $derived(currentLocale())
 let isStripeEnabled = $derived(hasFeature('payments.stripe_connect'))
 
 $effect(() => {
+  // Reading the active tenant makes the effect re-run (and refetch) on switch.
   void getActiveTenantId()
   void load()
-})
-
-$effect(() => {
-  void getActiveTenantId()
-  if (!isStripeEnabled) {
-    onboardingConnectionId = null
-  } else {
-    restoreOnboardingIfPersisted()
-  }
 })
 </script>
 
@@ -252,6 +269,7 @@ $effect(() => {
                       sessionErrorBody: t['admin.payments.onboardingSessionErrorBody'](),
                       retry: t['admin.payments.onboardingRetry'](),
                       support: t['admin.payments.onboardingSupport'](),
+                      technicalDetail: t['admin.payments.onboardingTechnicalDetail'](),
                     }}
                   />
                 {:catch err}
@@ -272,19 +290,22 @@ $effect(() => {
               {/key}
             {/if}
           </section>
-        {:else}
-          <div class="sanvi-payments__grid">
-            {#each providers as provider (provider.kind)}
-              <PaymentProviderCard
-                provider={provider}
-                entitled={hasFeature('payments.stripe_connect')}
-                connectDisabled={!CONNECT_IMPLEMENTED || creating}
-                connectDisabledReason={creating
-                  ? t['admin.payments.onboardingLoading']()
+        {/if}
+
+        <div class="sanvi-payments__grid">
+          {#each providers as provider (provider.kind)}
+            <PaymentProviderCard
+              provider={provider}
+              entitled={hasFeature('payments.stripe_connect')}
+              connectDisabled={!CONNECT_IMPLEMENTED || creating || onboardingConnectionId !== null}
+              connectDisabledReason={creating
+                ? t['admin.payments.onboardingLoading']()
+                : onboardingConnectionId !== null
+                  ? t['admin.payments.connectAlreadyStarted']()
                   : t['admin.payments.connectDisabledReason']()}
-                labels={{
-                  connectCta: t['admin.payments.connectCta'](),
-                  unavailableTitle: t['admin.payments.unavailableTitle'](),
+              labels={{
+                connectCta: t['admin.payments.connectCta'](),
+                unavailableTitle: t['admin.payments.unavailableTitle'](),
                   unavailableDescription: t['admin.payments.unavailableDescription'](),
                   supportedCountriesLabel: t['admin.payments.supportedCountriesLabel'](),
                   upgradeTitle: t['admin.payments.upgradeTitle'](),
@@ -299,7 +320,6 @@ $effect(() => {
               </PaymentProviderCard>
             {/each}
           </div>
-        {/if}
       </section>
     {/if}
   </Stack>

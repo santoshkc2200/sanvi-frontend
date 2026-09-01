@@ -33,6 +33,26 @@ export function readPersistedConnectionId(tenantId: string | undefined): string 
   }
 }
 
+export function clearPersistedConnectionId(tenantId: string | undefined): void {
+  if (!tenantId) return
+  try {
+    localStorage.removeItem(`sanvi:payments:connection:${tenantId}`)
+  } catch {
+    // ignore
+  }
+}
+
+async function sharedConnect(provider: ProviderView): Promise<void> {
+  const idempotencyKey = crypto.randomUUID()
+  const connection = await createPaymentConnection(
+    apiClient,
+    { provider: provider.kind },
+    idempotencyKey,
+  )
+  lastCreatedConnection = connection
+  persistConnectionId(getActiveTenantId() ?? undefined, connection.id)
+}
+
 export interface ProviderStatus {
   connected: boolean
   detail?: string
@@ -56,16 +76,7 @@ export interface PaymentProviderAdapter {
  */
 const stripeAdapter: PaymentProviderAdapter = {
   kind: 'stripe_connect',
-  async connect(provider: ProviderView): Promise<void> {
-    const idempotencyKey = crypto.randomUUID()
-    const connection = await createPaymentConnection(
-      apiClient,
-      { provider: provider.kind },
-      idempotencyKey,
-    )
-    lastCreatedConnection = connection
-    persistConnectionId(getActiveTenantId() ?? undefined, connection.id)
-  },
+  connect: sharedConnect,
   status(_provider: ProviderView): ProviderStatus | null {
     return null
   },
@@ -76,16 +87,7 @@ const stripeAdapter: PaymentProviderAdapter = {
 
 const fakeAdapter: PaymentProviderAdapter = {
   kind: 'fake',
-  async connect(provider: ProviderView): Promise<void> {
-    const idempotencyKey = crypto.randomUUID()
-    const connection = await createPaymentConnection(
-      apiClient,
-      { provider: provider.kind },
-      idempotencyKey,
-    )
-    lastCreatedConnection = connection
-    persistConnectionId(getActiveTenantId() ?? undefined, connection.id)
-  },
+  connect: sharedConnect,
   status(_provider: ProviderView): ProviderStatus | null {
     return null
   },

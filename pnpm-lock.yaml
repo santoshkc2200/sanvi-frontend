@@ -697,6 +697,9 @@ importers:
 
   packages/payments-connect:
     dependencies:
+      '@sanvi/design-tokens':
+        specifier: workspace:*
+        version: link:../design-tokens
       '@stripe/connect-js':
         specifier: 'catalog:'
         version: 3.4.6

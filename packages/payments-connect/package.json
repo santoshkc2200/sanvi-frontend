@@ -25,6 +25,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@sanvi/design-tokens": "workspace:*",
     "@stripe/connect-js": "catalog:"
   },
   "peerDependencies": {

@@ -16,9 +16,10 @@
 
 /* [lang='ja'] deliberately ties `:root`'s specificity (0,1,0) and wins by
    bundle order — a `:where()` wrapper (0,0,0) would lose to `:root` entirely. */
-[lang='ja'] {
-  --sanvi-font-family-sans: 'Noto Sans JP Variable', 'Hiragino Kaku Gothic ProN',
-    'Hiragino Sans', 'Yu Gothic', 'Meiryo', system-ui, sans-serif;
+[lang="ja"] {
+  --sanvi-font-family-sans:
+    "Noto Sans JP Variable", "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Meiryo",
+    system-ui, sans-serif;
   --sanvi-line-height-tight: 1.4;
   --sanvi-line-height-normal: 1.7;
   --sanvi-line-height-relaxed: 1.9;

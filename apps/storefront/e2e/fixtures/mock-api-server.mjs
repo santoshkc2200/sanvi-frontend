@@ -233,8 +233,24 @@ const SUBPROCESSORS = [
 ]
 
 const METRICS = [
-  { jurisdiction: 'eu', kind: 'export', received: 12, complied: 11, denied: 1, median_days: 6.5, year: 2025 },
-  { jurisdiction: 'us-ca', kind: 'erasure', received: 7, complied: 7, denied: 0, median_days: 4, year: 2025 },
+  {
+    jurisdiction: 'eu',
+    kind: 'export',
+    received: 12,
+    complied: 11,
+    denied: 1,
+    median_days: 6.5,
+    year: 2025,
+  },
+  {
+    jurisdiction: 'us-ca',
+    kind: 'erasure',
+    received: 7,
+    complied: 7,
+    denied: 0,
+    median_days: 4,
+    year: 2025,
+  },
 ]
 
 /** All consentable purposes except the sale/share family — EU defaults deny everything. */
@@ -338,7 +354,10 @@ const PREVIEW_ORIGIN = 'http://localhost:4174'
 function cors(req, res) {
   res.setHeader('access-control-allow-origin', req.headers.origin ?? PREVIEW_ORIGIN)
   res.setHeader('access-control-allow-credentials', 'true')
-  res.setHeader('access-control-allow-headers', 'content-type, x-tenant-id, accept-language, idempotency-key, authorization, x-request-id')
+  res.setHeader(
+    'access-control-allow-headers',
+    'content-type, x-tenant-id, accept-language, idempotency-key, authorization, x-request-id',
+  )
   res.setHeader('access-control-allow-methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
 }
 
@@ -414,7 +433,12 @@ const server = createServer(async (req, res) => {
   if (path === '/api/v1/public/tenant-context') {
     const tenant = req.headers.host ? TENANTS[req.headers.host] : undefined
     if (!tenant) {
-      json(req, res, 404, { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Unknown host' })
+      json(req, res, 404, {
+        type: 'about:blank',
+        title: 'Not Found',
+        status: 404,
+        detail: 'Unknown host',
+      })
       return
     }
     json(req, res, 200, tenant)
@@ -461,10 +485,18 @@ const server = createServer(async (req, res) => {
     const state = getThemeState(req)
     const token = url.searchParams.get('token')
     if (!token || token === 'invalid') {
-      json(req, res, 403, { type: 'about:blank', title: 'Forbidden', status: 403, detail: 'Invalid or expired preview token' })
+      json(req, res, 403, {
+        type: 'about:blank',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Invalid or expired preview token',
+      })
       return
     }
-    const brandColor = state.currentDraft.theme.token_overrides?.['color.brand.primary']?.$value ?? state.currentTheme.tokens['color.brand.primary']?.$value ?? '#0066cc'
+    const brandColor =
+      state.currentDraft.theme.token_overrides?.['color.brand.primary']?.$value ??
+      state.currentTheme.tokens['color.brand.primary']?.$value ??
+      '#0066cc'
     const previewTheme = {
       ...state.currentTheme,
       tokens: {
@@ -484,7 +516,10 @@ const server = createServer(async (req, res) => {
     const state = getThemeState(req)
     state.previousTheme = { ...state.currentTheme, tokens: { ...state.currentTheme.tokens } }
     state.themeRevision += 1
-    const brandColor = state.currentDraft.theme.token_overrides?.['color.brand.primary']?.$value ?? state.currentTheme.tokens['color.brand.primary']?.$value ?? '#0066cc'
+    const brandColor =
+      state.currentDraft.theme.token_overrides?.['color.brand.primary']?.$value ??
+      state.currentTheme.tokens['color.brand.primary']?.$value ??
+      '#0066cc'
     state.currentTheme = {
       ...state.currentTheme,
       tokens: {
@@ -506,7 +541,12 @@ const server = createServer(async (req, res) => {
   if (path === '/api/v1/tenant/theme/rollback' && req.method === 'POST') {
     const state = getThemeState(req)
     if (!state.previousTheme) {
-      json(req, res, 409, { type: 'about:blank', title: 'Conflict', status: 409, detail: 'No previous revision to rollback to' })
+      json(req, res, 409, {
+        type: 'about:blank',
+        title: 'Conflict',
+        status: 409,
+        detail: 'No previous revision to rollback to',
+      })
       return
     }
     state.themeRevision += 1
@@ -692,7 +732,11 @@ const server = createServer(async (req, res) => {
       }
       record.status = 'in_progress'
       record.acknowledged_at = new Date().toISOString()
-      json(req, res, 200, { request_id: record.request_id, status: record.status, due_at: record.due_at })
+      json(req, res, 200, {
+        request_id: record.request_id,
+        status: record.status,
+        due_at: record.due_at,
+      })
       return
     }
 

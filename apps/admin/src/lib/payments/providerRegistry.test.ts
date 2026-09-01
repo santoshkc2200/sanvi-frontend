@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { getProviderAdapter, hasProviderAdapter, registerProviderAdapter } from './providerRegistry'
+import {
+  clearLastCreatedPaymentConnection,
+  clearPersistedConnectionId,
+  getLastCreatedPaymentConnection,
+  getProviderAdapter,
+  hasProviderAdapter,
+  readPersistedConnectionId,
+  registerProviderAdapter,
+} from './providerRegistry'
 
 describe('payment provider registry', () => {
   it('returns stripe and fake adapters for known kinds', () => {
@@ -31,5 +39,18 @@ describe('payment provider registry', () => {
     const retrieved = getProviderAdapter('custom_provider')
     expect(retrieved.kind).toBe('custom_provider')
     expect(retrieved.status({} as never)).toEqual({ connected: true, detail: 'custom-status' })
+  })
+  it('manages persisted connection id per tenant and clears it', () => {
+    localStorage.setItem('sanvi:payments:connection:tenant-1', 'conn-1')
+    expect(readPersistedConnectionId('tenant-1')).toBe('conn-1')
+    expect(readPersistedConnectionId('tenant-2')).toBeNull()
+
+    clearPersistedConnectionId('tenant-1')
+    expect(readPersistedConnectionId('tenant-1')).toBeNull()
+  })
+
+  it('manages lastCreatedConnection singleton and clears it', () => {
+    clearLastCreatedPaymentConnection()
+    expect(getLastCreatedPaymentConnection()).toBeNull()
   })
 })

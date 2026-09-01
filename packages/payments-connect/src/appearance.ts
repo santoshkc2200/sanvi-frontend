@@ -11,6 +11,8 @@
  * hardcoding a CSS var that the iframe cannot read.
  */
 
+import { DarkTokensObj, LightTokensObj, PrimitivesTokensObj } from '@sanvi/design-tokens'
+
 export interface ConnectAppearance {
   variables: {
     colorPrimary: string
@@ -28,35 +30,25 @@ export interface ConnectAppearance {
 }
 
 /**
- * The admin theme, not the tenant storefront theme (implementation-plan
- * §Risks: settings surface uses our own theme).
+ * The admin theme, not the tenant storefront theme.
  *
- * Values resolve from:
- * - `color.primary.base` → primitive.blue.600 #2563eb
- * - `color.background.primary` → primitive.gray.0 #ffffff
- * - `color.text.primary` → primitive.gray.900 #0f172a
- * - `color.text.secondary` → primitive.gray.600 #475569
- * - `color.border.default` → primitive.gray.200 #e2e8f0
- * - `color.status.error` → primitive.red.600 #dc2626
- * - `primitive.font-family.sans`
- * - `primitive.radius.md` 0.375rem
- * - `primitive.radius.lg` 0.5rem (button)
- * - `primitive.spacing.1` 0.25rem
+ * Resolves from @sanvi/design-tokens objects.
  */
-export function getConnectAppearance(): ConnectAppearance {
+export function getConnectAppearance(theme: 'light' | 'dark' = 'light'): ConnectAppearance {
+  const colors = theme === 'dark' ? DarkTokensObj : LightTokensObj
+
   return {
     variables: {
-      colorPrimary: '#2563eb',
-      colorBackground: '#ffffff',
-      colorText: '#0f172a',
-      colorSecondaryText: '#475569',
-      colorBorder: '#e2e8f0',
-      colorDanger: '#dc2626',
-      fontFamily:
-        "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-      borderRadius: '0.375rem',
-      spacingUnit: '0.25rem',
-      buttonBorderRadius: '0.5rem',
+      colorPrimary: colors.sanviColorPrimaryBase,
+      colorBackground: colors.sanviColorBackgroundPrimary,
+      colorText: colors.sanviColorTextPrimary,
+      colorSecondaryText: colors.sanviColorTextSecondary,
+      colorBorder: colors.sanviColorBorderDefault,
+      colorDanger: colors.sanviColorStatusError,
+      fontFamily: PrimitivesTokensObj['sanviFont-familySans'],
+      borderRadius: PrimitivesTokensObj.sanviRadiusMd,
+      spacingUnit: PrimitivesTokensObj.sanviSpacing1,
+      buttonBorderRadius: PrimitivesTokensObj.sanviRadiusLg,
     },
     overlays: 'dialog',
   }

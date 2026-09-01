@@ -24,7 +24,12 @@ function walk(dir, out = []) {
 }
 
 function containsConnect(jsFiles) {
-  const markers = ['connect-js', 'loadConnectAndInitialize', 'account_onboarding', '@stripe/connect-js']
+  const markers = [
+    'connect-js',
+    'loadConnectAndInitialize',
+    'account_onboarding',
+    '@stripe/connect-js',
+  ]
   let hits = 0
   for (const file of jsFiles) {
     const content = readFileSync(file, 'utf8')
@@ -43,18 +48,31 @@ if (adminFiles.length === 0) {
   process.exit(1)
 }
 
+if (storefrontFiles.length === 0) {
+  console.error(
+    'assert-connect-js-bundle: apps/storefront/build/client not found — run pnpm build first',
+  )
+  process.exit(1)
+}
+
 const adminHits = containsConnect(adminFiles)
-const storefrontHits = storefrontDir && existsSync(storefrontDir) ? containsConnect(storefrontFiles) : 0
+const storefrontHits = containsConnect(storefrontFiles)
 
 console.log(`assert-connect-js-bundle: admin hits=${adminHits} files=${adminFiles.length}`)
-console.log(`assert-connect-js-bundle: storefront hits=${storefrontHits} files=${storefrontFiles.length}`)
+console.log(
+  `assert-connect-js-bundle: storefront hits=${storefrontHits} files=${storefrontFiles.length}`,
+)
 
 if (adminHits === 0) {
-  console.error('FAIL: Connect.js not found in admin/dist — expected at least one JS chunk to contain Stripe Connect')
+  console.error(
+    'FAIL: Connect.js not found in admin/dist — expected at least one JS chunk to contain Stripe Connect',
+  )
   process.exit(1)
 }
 if (storefrontHits !== 0) {
-  console.error(`FAIL: Connect.js found in storefront/build/client (${storefrontHits} files) — must be admin-only`)
+  console.error(
+    `FAIL: Connect.js found in storefront/build/client (${storefrontHits} files) — must be admin-only`,
+  )
   process.exit(1)
 }
 console.log('assert-connect-js-bundle: OK — Connect.js in admin only')

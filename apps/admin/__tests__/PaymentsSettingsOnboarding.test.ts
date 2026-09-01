@@ -233,7 +233,8 @@ describe('PaymentsSettings onboarding (09.2)', () => {
     })
     render(PaymentsSettings)
     expect(await screen.findByText('Complete your Stripe setup')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Connect' })).not.toBeInTheDocument()
+    // Finding 2: The provider catalog is rendered in addition to the onboarding section, not replaced by it
+    expect(screen.getByRole('button', { name: 'Connect' })).toBeInTheDocument()
   })
 
   it('session fetch failure renders retry affordance, not blank iframe', async () => {
@@ -262,6 +263,51 @@ describe('PaymentsSettings onboarding (09.2)', () => {
     expect(await screen.findByText('Could not start onboarding')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
     expect(container.textContent).not.toBe('')
+  })
+
+  it('session fetch 404 clears persisted connection id and recovers to catalog', async () => {
+    const { ApiError, createPaymentConnectionSession } = await import('@sanvi/api-client')
+    localStorage.setItem('sanvi:payments:connection:dev-acme', 'conn_deleted')
+    vi.mocked(createPaymentConnectionSession).mockRejectedValue(
+      new ApiError(404, { title: 'Not found', status: 404, type: 'about:blank' }, undefined),
+    )
+
+    render(PaymentsSettings)
+    await screen.findByText('Payment providers')
+    // Storage should be cleared on 404
+    await waitFor(() => {
+      expect(localStorage.getItem('sanvi:payments:connection:dev-acme')).toBeNull()
+    })
+  })
+
+  it('tenant switch resets onboarding and loads new tenant state without cross-tenant leak', async () => {
+    setMemberships([
+      { tenantId: 'dev-acme', slug: 'acme', displayName: 'Acme', role: 'owner' },
+      { tenantId: 'dev-other', slug: 'other', displayName: 'Other Corp', role: 'owner' },
+    ])
+    localStorage.setItem('sanvi:payments:connection:dev-acme', 'conn_acme')
+    const { createPaymentConnectionSession } = await import('@sanvi/api-client')
+    const requestedIds: string[] = []
+    vi.mocked(createPaymentConnectionSession).mockImplementation(async (_client, id) => {
+      requestedIds.push(id)
+      return {
+        client_secret: `secret_${id}`,
+        components: ['account_onboarding'],
+        connection_id: id,
+        expires_at: new Date().toISOString(),
+        provider: 'stripe_connect',
+      } as unknown as never
+    })
+
+    const { unmount } = render(PaymentsSettings)
+    expect(await screen.findByText('Complete your Stripe setup')).toBeInTheDocument()
+    unmount()
+
+    // Switch to dev-other (which has no stored connection)
+    switchTenant('dev-other')
+    render(PaymentsSettings)
+    await screen.findByText('Payment providers')
+    expect(screen.queryByText('Complete your Stripe setup')).not.toBeInTheDocument()
   })
 
   it('never writes client_secret to storage', async () => {
