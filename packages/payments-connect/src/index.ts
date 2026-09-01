@@ -5,3 +5,5 @@ export {
   type PaymentsConnectInstance,
 } from './loader'
 export { default as AccountOnboarding } from './AccountOnboarding.svelte'
+export { default as NotificationBanner } from './NotificationBanner.svelte'
+export { default as AccountManagement } from './AccountManagement.svelte'

@@ -98,6 +98,23 @@ function mockFetchSuccess() {
         ),
       )
     }
+    if (url.includes('/tenant/payments/connections') && method === 'GET') {
+      return Promise.resolve(
+        jsonResponse({
+          id: 'conn_123',
+          provider: 'stripe_connect',
+          status: 'pending',
+          capabilities: {},
+          requirements: { currently_due: [], eventually_due: [], past_due: [], deadline: null },
+          blockers: [],
+          country: 'US',
+          default_currency: 'USD',
+          connected_at: null,
+          last_synced_at: null,
+          can_accept_payments: false,
+        }),
+      )
+    }
     if (url.includes('/tenant/payments/connections') && method === 'POST') {
       return Promise.resolve(
         jsonResponse(
@@ -141,12 +158,29 @@ beforeEach(async () => {
   setEntitlements([{ feature: 'payments.stripe_connect', enabled: true }])
   localStorage.clear()
   setFetchMock(mockFetchSuccess() as unknown as typeof fetch)
-  const { listPaymentProviders, createPaymentConnection, createPaymentConnectionSession } =
-    await import('@sanvi/api-client')
+  const {
+    listPaymentProviders,
+    createPaymentConnection,
+    createPaymentConnectionSession,
+    getPaymentConnection,
+  } = await import('@sanvi/api-client')
   vi.mocked(listPaymentProviders).mockResolvedValue({
     providers: [STRIPE_PROVIDER],
   } as unknown as never)
   vi.mocked(createPaymentConnection).mockResolvedValue({
+    id: 'conn_123',
+    provider: 'stripe_connect',
+    status: 'pending',
+    capabilities: {},
+    requirements: { currently_due: [], eventually_due: [], past_due: [], deadline: null },
+    blockers: [],
+    country: 'US',
+    default_currency: 'USD',
+    connected_at: null,
+    last_synced_at: null,
+    can_accept_payments: false,
+  } as unknown as never)
+  vi.mocked(getPaymentConnection).mockResolvedValue({
     id: 'conn_123',
     provider: 'stripe_connect',
     status: 'pending',
@@ -253,7 +287,7 @@ describe('PaymentsSettings onboarding (09.2)', () => {
       can_accept_payments: false,
     } as unknown as never)
     const { loadConnectAndInitialize } = await import('@stripe/connect-js')
-    vi.mocked(loadConnectAndInitialize).mockRejectedValueOnce(
+    vi.mocked(loadConnectAndInitialize).mockRejectedValue(
       new Error('account_session_create_error: Provider unavailable'),
     )
 
@@ -312,7 +346,7 @@ describe('PaymentsSettings onboarding (09.2)', () => {
 
   it('never writes client_secret to storage', async () => {
     const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
-    render(PaymentsSettings)
+    const { unmount } = render(PaymentsSettings)
     await screen.findByText('Payment providers')
     await fireEvent.click(await screen.findByRole('button', { name: 'Connect' }))
     await screen.findByText('Complete your Stripe setup')
@@ -322,5 +356,6 @@ describe('PaymentsSettings onboarding (09.2)', () => {
       const value = call[1] as string
       expect(value).not.toContain('secret')
     }
+    unmount()
   })
 })
