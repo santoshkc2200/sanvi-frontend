@@ -297,7 +297,7 @@ $effect(() => {
                   loadErrorBody: t['admin.payments.notificationBannerLoadErrorBody'](),
                   sessionErrorTitle: t['admin.payments.notificationBannerSessionErrorTitle'](),
                   sessionErrorBody: t['admin.payments.notificationBannerSessionErrorBody'](),
-                  retry: t['admin.payments.onboardingRetry'](),
+                  retry: t['admin.payments.notificationBannerRetry'](),
                   support: t['admin.payments.onboardingSupport'](),
                   technicalDetail: t['admin.payments.onboardingTechnicalDetail'](),
                 }}
@@ -369,7 +369,7 @@ $effect(() => {
                   loadErrorBody: t['admin.payments.accountManagementLoadErrorBody'](),
                   sessionErrorTitle: t['admin.payments.accountManagementSessionErrorTitle'](),
                   sessionErrorBody: t['admin.payments.accountManagementSessionErrorBody'](),
-                  retry: t['admin.payments.onboardingRetry'](),
+                  retry: t['admin.payments.accountManagementRetry'](),
                   support: t['admin.payments.onboardingSupport'](),
                   technicalDetail: t['admin.payments.onboardingTechnicalDetail'](),
                 }}

@@ -213,11 +213,12 @@ afterEach(() => {
 
 describe('PaymentsSettings onboarding (09.2)', () => {
   it('renders pre-connect explainer with what to expect and time estimate', async () => {
-    render(PaymentsSettings)
+    const { unmount } = render(PaymentsSettings)
     expect(await screen.findByText('What Stripe will ask for')).toBeInTheDocument()
     expect(screen.getByText(/Business details, a representative/)).toBeInTheDocument()
     expect(screen.getByText('How long it takes')).toBeInTheDocument()
     expect(screen.getByText(/Most accounts finish in 5–10 minutes/)).toBeInTheDocument()
+    unmount()
   })
 
   it('after Connect, mounts onboarding with per-render session fetch', async () => {
@@ -234,7 +235,7 @@ describe('PaymentsSettings onboarding (09.2)', () => {
       } as unknown as never
     })
 
-    render(PaymentsSettings)
+    const { unmount } = render(PaymentsSettings)
     await screen.findByText('Payment providers')
     const connectBtn = await screen.findByRole('button', { name: 'Connect' })
     await fireEvent.click(connectBtn)
@@ -242,6 +243,7 @@ describe('PaymentsSettings onboarding (09.2)', () => {
     expect(await screen.findByText('Complete your Stripe setup')).toBeInTheDocument()
     expect(screen.getByText(/Finish the steps below/)).toBeInTheDocument()
     await waitFor(() => expect(sessionCalls).toBeGreaterThan(0))
+    unmount()
   })
 
   it('resumability: stored connection id remounts onboarding without clicking Connect', async () => {
@@ -265,10 +267,11 @@ describe('PaymentsSettings onboarding (09.2)', () => {
         provider: 'stripe_connect',
       } as unknown as never
     })
-    render(PaymentsSettings)
+    const { unmount } = render(PaymentsSettings)
     expect(await screen.findByText('Complete your Stripe setup')).toBeInTheDocument()
     // Finding 2: The provider catalog is rendered in addition to the onboarding section, not replaced by it
     expect(screen.getByRole('button', { name: 'Connect' })).toBeInTheDocument()
+    unmount()
   })
 
   it('session fetch failure renders retry affordance, not blank iframe', async () => {
@@ -291,12 +294,13 @@ describe('PaymentsSettings onboarding (09.2)', () => {
       new Error('account_session_create_error: Provider unavailable'),
     )
 
-    const { container } = render(PaymentsSettings)
+    const { container, unmount } = render(PaymentsSettings)
     await screen.findByText('Payment providers')
     await fireEvent.click(await screen.findByRole('button', { name: 'Connect' }))
     expect(await screen.findByText('Could not start onboarding')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
     expect(container.textContent).not.toBe('')
+    unmount()
   })
 
   it('session fetch 404 clears persisted connection id and recovers to catalog', async () => {
@@ -306,12 +310,13 @@ describe('PaymentsSettings onboarding (09.2)', () => {
       new ApiError(404, { title: 'Not found', status: 404, type: 'about:blank' }, undefined),
     )
 
-    render(PaymentsSettings)
+    const { unmount } = render(PaymentsSettings)
     await screen.findByText('Payment providers')
     // Storage should be cleared on 404
     await waitFor(() => {
       expect(localStorage.getItem('sanvi:payments:connection:dev-acme')).toBeNull()
     })
+    unmount()
   })
 
   it('tenant switch resets onboarding and loads new tenant state without cross-tenant leak', async () => {

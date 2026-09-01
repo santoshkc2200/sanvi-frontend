@@ -1,4 +1,4 @@
-import type { StripeConnectInstance } from '@stripe/connect-js'
+import { loadConnectAndInitialize, type StripeConnectInstance } from '@stripe/connect-js'
 import { getConnectAppearance } from './appearance'
 
 export interface PaymentsConnectInitOptions {
@@ -43,7 +43,6 @@ export async function initializePaymentsConnect(
     throw new Error('publishableKey must start with pk_')
   }
 
-  const { loadConnectAndInitialize } = await import('@stripe/connect-js')
   const theme =
     explicitTheme ??
     (typeof document !== 'undefined' &&
