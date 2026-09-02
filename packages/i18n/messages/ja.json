@@ -574,6 +574,7 @@
   "admin.payments.statusOnboarding": "セットアップ中",
   "admin.payments.statusPending": "セットアップ待ち",
   "admin.payments.statusRestricted": "制限中",
+  "admin.payments.statusRejected": "却下",
   "admin.payments.statusDisconnected": "未接続",
   "admin.payments.verdictCanAcceptPayments": "決済を受け付けられます",
   "admin.payments.verdictCannotAcceptPayments": "まだ決済を受け付けられません",

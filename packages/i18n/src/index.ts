@@ -37,4 +37,4 @@ export {
   stripLocalePrefix,
   withLocalePrefix,
 } from './routing'
-export { t, translate, type Messages } from './translate'
+export { hasMessage, t, translate, type Messages } from './translate'

@@ -574,6 +574,7 @@
   "admin.payments.statusOnboarding": "Setup in progress",
   "admin.payments.statusPending": "Pending setup",
   "admin.payments.statusRestricted": "Restricted",
+  "admin.payments.statusRejected": "Rejected",
   "admin.payments.statusDisconnected": "Disconnected",
   "admin.payments.verdictCanAcceptPayments": "You can accept payments",
   "admin.payments.verdictCannotAcceptPayments": "You cannot accept payments yet",

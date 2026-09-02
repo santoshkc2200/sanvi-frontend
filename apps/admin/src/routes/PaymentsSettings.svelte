@@ -6,7 +6,7 @@ import {
   listPaymentProviders,
 } from '@sanvi/api-client'
 import type { components, PaymentConnectionView } from '@sanvi/api-client'
-import { currentLocale, t } from '@sanvi/i18n'
+import { currentLocale, fmt, t } from '@sanvi/i18n'
 import { getActiveTenantId, hasFeature } from '@sanvi/tenant'
 import {
   Alert,
@@ -67,11 +67,15 @@ function startPollingConnection(connId: string): void {
   stopPoller()
   poller = pollPaymentConnection(
     (signal) => getPaymentConnection(apiClient, connId, signal),
-    (res) => res.status === 'active',
+    (res) => res.status === 'active' || res.status === 'rejected' || res.status === 'disconnected',
     {
       onUpdate: (updated) => {
         connection = updated
-        if (updated.status === 'active') {
+        if (
+          updated.status === 'active' ||
+          updated.status === 'rejected' ||
+          updated.status === 'disconnected'
+        ) {
           onboardingConnectionId = null
         }
       },
@@ -122,6 +126,7 @@ async function load(): Promise<void> {
             onboardingConnectionId = null
           }
         } catch (connErr) {
+          if (seq !== loadSeq) return
           if (connErr instanceof ApiError && connErr.status === 404) {
             clearPersistedConnectionId(tenantId ?? undefined)
             connection = null
@@ -318,6 +323,7 @@ $effect(() => {
             statusOnboarding: t['admin.payments.statusOnboarding'](),
             statusPending: t['admin.payments.statusPending'](),
             statusRestricted: t['admin.payments.statusRestricted'](),
+            statusRejected: t['admin.payments.statusRejected'](),
             statusDisconnected: t['admin.payments.statusDisconnected'](),
             verdictCanAcceptPayments: t['admin.payments.verdictCanAcceptPayments'](),
             verdictCannotAcceptPayments: t['admin.payments.verdictCannotAcceptPayments'](),
@@ -334,7 +340,11 @@ $effect(() => {
             requirementsPastDueTitle: t['admin.payments.requirementsPastDueTitle'](),
             requirementsCurrentlyDueTitle: t['admin.payments.requirementsCurrentlyDueTitle'](),
             requirementsEventuallyDueTitle: t['admin.payments.requirementsEventuallyDueTitle'](),
-            requirementsDeadline: t['admin.payments.requirementsDeadline']({ deadline: '{deadline}' }),
+            requirementsDeadline: connection.requirements.deadline
+              ? t['admin.payments.requirementsDeadline']({
+                  deadline: fmt.date(connection.requirements.deadline, 'medium'),
+                })
+              : '',
             stripeHelpLink: t['admin.payments.stripeHelpLink'](),
             openStripeDashboard: t['admin.payments.openStripeDashboard'](),
           }}
@@ -486,13 +496,20 @@ $effect(() => {
 
         <div class="sanvi-payments__grid">
           {#each providers as provider (provider.kind)}
+            {@const isConnectActive =
+              onboardingConnectionId !== null ||
+              (connection !== null &&
+                (connection.status === 'pending' ||
+                  connection.status === 'onboarding' ||
+                  connection.status === 'active' ||
+                  connection.status === 'restricted'))}
             <PaymentProviderCard
               provider={provider}
               entitled={hasFeature('payments.stripe_connect')}
-              connectDisabled={!CONNECT_IMPLEMENTED || creating || onboardingConnectionId !== null || connection !== null}
+              connectDisabled={!CONNECT_IMPLEMENTED || creating || isConnectActive}
               connectDisabledReason={creating
                 ? t['admin.payments.onboardingLoading']()
-                : (onboardingConnectionId !== null || connection !== null)
+                : isConnectActive
                   ? t['admin.payments.connectAlreadyStarted']()
                   : t['admin.payments.connectDisabledReason']()}
               labels={{
@@ -508,12 +525,24 @@ $effect(() => {
             >
               {#snippet status()}
                 {#if connection && connection.provider === provider.kind}
-                  <Badge variant={connection.status === 'active' ? 'success' : connection.status === 'restricted' ? 'error' : 'warning'}>
+                  <Badge
+                    variant={connection.status === 'active'
+                      ? 'success'
+                      : connection.status === 'restricted' || connection.status === 'rejected'
+                        ? 'error'
+                        : connection.status === 'disconnected'
+                          ? 'neutral'
+                          : 'warning'}
+                  >
                     {#snippet children()}
                       {#if connection?.status === 'active'}
                         <span>✓ {t['admin.payments.statusActive']()}</span>
                       {:else if connection?.status === 'restricted'}
                         <span>⚠ {t['admin.payments.statusRestricted']()}</span>
+                      {:else if connection?.status === 'rejected'}
+                        <span>⚠ {t['admin.payments.statusRejected']()}</span>
+                      {:else if connection?.status === 'disconnected'}
+                        <span>○ {t['admin.payments.statusDisconnected']()}</span>
                       {:else if connection?.status === 'onboarding'}
                         <span>⏳ {t['admin.payments.statusOnboarding']()}</span>
                       {:else}
