@@ -74,10 +74,16 @@ export {
   listDisputes,
   listPaymentProviders,
   listPayments,
+  listPayouts,
   listTenantDisputes,
   listTenantPayments,
+  listTenantPayouts,
   refundPayment,
   refundTenantPayment,
+  getTaxSettings,
+  getTenantTaxSettings,
+  updateTaxSettings,
+  updateTenantTaxSettings,
 } from './payments'
 export type {
   CheckoutView,
@@ -92,10 +98,16 @@ export type {
   PaymentDetailView,
   PaymentListView,
   PaymentView,
+  PayoutsListView,
+  PayoutView,
+  PlatformFeeDisclosure,
   RefundAmount,
   RefundRequest,
   RefundView,
+  TaxSettingsView,
+  TaxWarningView,
   TimelineEntry,
+  UpdateTaxSettingsRequest,
 } from './payments'
 export {
   activateTenant,

@@ -6,12 +6,18 @@ import {
   createTenantCheckout,
   exportTenantPayments,
   getPaymentConnection,
+  getTaxSettings,
   getTenantCheckout,
   getTenantPayment,
+  getTenantTaxSettings,
   listPaymentProviders,
+  listPayouts,
   listTenantDisputes,
   listTenantPayments,
+  listTenantPayouts,
   refundTenantPayment,
+  updateTaxSettings,
+  updateTenantTaxSettings,
 } from '../src/payments'
 import { createTypedApiClient } from '../src/typed'
 
@@ -188,7 +194,7 @@ describe('payments api functions', () => {
     )
   })
 
-  it('exportTenantPayments calls GET /api/v1/tenant/payments/export with filters', async () => {
+  it('exportTenantPayments calls GET /api/v1/tenant/payments/export with query filters', async () => {
     const { client, request } = fakeClient()
     const typed = createTypedApiClient(client)
 
@@ -201,6 +207,62 @@ describe('payments api functions', () => {
         method: 'GET',
         query,
       }),
+    )
+  })
+
+  it('listTenantPayouts calls GET /api/v1/tenant/payments/payouts', async () => {
+    const { client, request } = fakeClient()
+    const typed = createTypedApiClient(client)
+
+    await listTenantPayouts(typed)
+
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tenant/payments/payouts',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('getTenantTaxSettings calls GET /api/v1/tenant/payments/tax-settings', async () => {
+    const { client, request } = fakeClient()
+    const typed = createTypedApiClient(client)
+
+    await getTenantTaxSettings(typed)
+
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tenant/payments/tax-settings',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('updateTenantTaxSettings calls PUT /api/v1/tenant/payments/tax-settings with request body', async () => {
+    const { client, request } = fakeClient()
+    const typed = createTypedApiClient(client)
+
+    await updateTenantTaxSettings(typed, { enabled: true })
+
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tenant/payments/tax-settings',
+      expect.objectContaining({
+        method: 'PUT',
+        body: { enabled: true },
+      }),
+    )
+  })
+
+  it('aliases listPayouts, getTaxSettings, and updateTaxSettings work identically', async () => {
+    const { client, request } = fakeClient()
+    const typed = createTypedApiClient(client)
+
+    await listPayouts(typed)
+    expect(request).toHaveBeenCalledWith('/api/v1/tenant/payments/payouts', expect.anything())
+
+    await getTaxSettings(typed)
+    expect(request).toHaveBeenCalledWith('/api/v1/tenant/payments/tax-settings', expect.anything())
+
+    await updateTaxSettings(typed, { enabled: false })
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tenant/payments/tax-settings',
+      expect.objectContaining({ body: { enabled: false } }),
     )
   })
 })

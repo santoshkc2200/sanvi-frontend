@@ -42,13 +42,21 @@ let hasConnection = $state<boolean | null>(null)
 
 // Filter states
 let filterStatus = $state('')
+let filterPayoutStatus = $state('')
 let filterCurrency = $state('')
 let filterCustomer = $state('')
 let filterDateFrom = $state('')
 let filterDateTo = $state('')
 
 const isFiltered = $derived(
-  Boolean(filterStatus || filterCurrency || filterCustomer || filterDateFrom || filterDateTo),
+  Boolean(
+    filterStatus ||
+      filterPayoutStatus ||
+      filterCurrency ||
+      filterCustomer ||
+      filterDateFrom ||
+      filterDateTo,
+  ),
 )
 
 let loadSeq = 0
@@ -65,6 +73,7 @@ async function load(): Promise<void> {
     cursor: currentCursor,
   }
   if (filterStatus) query['status'] = filterStatus
+  if (filterPayoutStatus) query['payout_status'] = filterPayoutStatus
   if (filterCurrency) query['currency'] = filterCurrency
   if (filterCustomer) query['customer'] = filterCustomer
   if (filterDateFrom) query['date_from'] = new Date(filterDateFrom).toISOString()
@@ -122,6 +131,7 @@ function handleFilterChange(): void {
 
 function clearFilters(): void {
   filterStatus = ''
+  filterPayoutStatus = ''
   filterCurrency = ''
   filterCustomer = ''
   filterDateFrom = ''
@@ -155,6 +165,7 @@ async function handleExportCsv(): Promise<void> {
   exportError = undefined
   const query: Record<string, string | undefined> = {}
   if (filterStatus) query['status'] = filterStatus
+  if (filterPayoutStatus) query['payout_status'] = filterPayoutStatus
   if (filterCurrency) query['currency'] = filterCurrency
   if (filterCustomer) query['customer'] = filterCustomer
   if (filterDateFrom) query['date_from'] = new Date(filterDateFrom).toISOString()
@@ -228,6 +239,21 @@ function getPayoutStatusLabel(payoutStatus?: string | null): string {
   }
 }
 
+function getPayoutStatusVariant(
+  payoutStatus?: string | null,
+): 'success' | 'error' | 'warning' | 'info' | 'neutral' {
+  switch (payoutStatus) {
+    case 'paid':
+      return 'success'
+    case 'failed':
+      return 'error'
+    case 'pending':
+      return 'warning'
+    default:
+      return 'neutral'
+  }
+}
+
 const statusFilterOptions = $derived([
   { value: 'succeeded', label: t['admin.payments.list.statusSucceeded']() },
   { value: 'refunded', label: t['admin.payments.list.statusRefunded']() },
@@ -236,6 +262,12 @@ const statusFilterOptions = $derived([
   { value: 'failed', label: t['admin.payments.list.statusFailed']() },
   { value: 'pending', label: t['admin.payments.list.statusPending']() },
   { value: 'canceled', label: t['admin.payments.list.statusCanceled']() },
+])
+
+const payoutStatusFilterOptions = $derived([
+  { value: 'paid', label: t['admin.payments.list.payoutPaid']() },
+  { value: 'pending', label: t['admin.payments.list.payoutPending']() },
+  { value: 'failed', label: t['admin.payments.list.payoutFailed']() },
 ])
 
 const currencyFilterOptions = [
@@ -338,6 +370,19 @@ const currencyFilterOptions = [
                 bind:value={filterStatus}
                 options={statusFilterOptions}
                 placeholder={t['admin.payments.list.filterStatusAll']()}
+                clearable
+                onchange={handleFilterChange}
+              />
+            {/snippet}
+          </Field>
+
+          <Field label={t['admin.payments.list.filterPayoutStatus']()}>
+            {#snippet children(controlProps)}
+              <Select
+                {...controlProps}
+                bind:value={filterPayoutStatus}
+                options={payoutStatusFilterOptions}
+                placeholder={t['admin.payments.list.filterPayoutStatusAll']()}
                 clearable
                 onchange={handleFilterChange}
               />
@@ -447,9 +492,17 @@ const currencyFilterOptions = [
                     </span>
                   </td>
                   <td>
-                    <span class="sanvi-payments-list__muted">
-                      {getPayoutStatusLabel(payment.payout_status)}
-                    </span>
+                    {#if payment.payout_status}
+                      <Badge variant={getPayoutStatusVariant(payment.payout_status)}>
+                        {#snippet children()}
+                          {getPayoutStatusLabel(payment.payout_status)}
+                        {/snippet}
+                      </Badge>
+                    {:else}
+                      <span class="sanvi-payments-list__muted">
+                        —
+                      </span>
+                    {/if}
                   </td>
                   <td class="sanvi-payments-list__td--actions">
                     <a class="sanvi-payments-list__action-link" href={`/payments/${payment.id}`}>

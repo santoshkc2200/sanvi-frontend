@@ -25,6 +25,9 @@ vi.mock('@sanvi/api-client', async () => {
     createPaymentConnection: vi.fn(),
     createPaymentConnectionSession: vi.fn(),
     getPaymentConnection: vi.fn(),
+    listTenantPayouts: vi.fn().mockResolvedValue({ payouts: [] }),
+    getTenantTaxSettings: vi.fn().mockResolvedValue(null),
+    updateTenantTaxSettings: vi.fn(),
   }
 })
 
