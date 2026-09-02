@@ -1,7 +1,7 @@
 # TASK-004: 09.3 Status, requirements & embedded banner
 
 **Phase:** 09
-**Status:** todo
+**Status:** done — 0e2b538 (feat), 2fde99b (fix: flaky embedded-component tests, distinct retry labels)
 **Requirement(s):** FR-903, FR-904, NFR-905
 **Depends on:** TASK-003
 **Created:** 2026-08-20
@@ -20,35 +20,35 @@ from capability strings — one definition, one place.
 
 ## What to do
 
-- [ ] **Status section** — capability states, the plain-language requirement list with deadlines, and
+- [x] **Status section** — capability states, the plain-language requirement list with deadlines, and
       an explicit verdict banner: *you can accept payments* / *you cannot accept payments yet,
       because …*. Requirement text comes from the `summary_key` the API returns; an unmapped code
       falls back to the raw code plus a Stripe help link rather than breaking the page.
-- [ ] **`notification_banner` embedded component** — always rendered on the payments settings page.
+- [x] **`notification_banner` embedded component** — always rendered on the payments settings page.
       It is how evolving Stripe requirements reach the tenant without us building a notification
       pipeline.
-- [ ] **`account_management` embedded component** plus a link to the tenant's real Stripe Dashboard.
+- [x] **`account_management` embedded component** plus a link to the tenant's real Stripe Dashboard.
       They have `dashboard: "full"`; do not reimplement Stripe.
-- [ ] **Live-ish updates** — poll `GET /api/v1/tenant/payments/connections/{id}` while onboarding is in
+- [x] **Live-ish updates** — poll `GET /api/v1/tenant/payments/connections/{id}` while onboarding is in
       progress, with backoff, stopping when active or when the tab is hidden. Webhook lag means "just
       finished at Stripe" and "active here" are seconds apart, so the UI says *checking with Stripe*
       rather than showing a stale *pending*.
-- [ ] **Restricted state** — a distinct, prominent treatment with the reason and the remediation path,
+- [x] **Restricted state** — a distinct, prominent treatment with the reason and the remediation path,
       not a variant of pending. A restricted account mid-trading is the tenant's emergency.
 
 ## Acceptance criteria
 
-- [ ] Component tests render the restricted, pending-verification and active states correctly from
+- [x] Component tests render the restricted, pending-verification and active states correctly from
       fixture payloads, including deadlines where Stripe gives one.
-- [ ] An unmapped requirement code degrades to the raw code plus a help link, with no crash and no
+- [x] An unmapped requirement code degrades to the raw code plus a help link, with no crash and no
       blank section.
-- [ ] Every outstanding requirement renders in both `en` and `ja`.
-- [ ] The `notification_banner` renders on the payments settings page in every connection state.
-- [ ] No status is conveyed by colour alone — each state carries an icon and text; the axe check
+- [x] Every outstanding requirement renders in both `en` and `ja`.
+- [x] The `notification_banner` renders on the payments settings page in every connection state.
+- [x] No status is conveyed by colour alone — each state carries an icon and text; the axe check
       passes on the page.
-- [ ] Polling backs off, stops when the connection is active, and stops when the tab is hidden —
+- [x] Polling backs off, stops when the connection is active, and stops when the tab is hidden —
       asserted by a test, not by inspection.
-- [ ] `can_accept_payments` is read from the API; a grep test confirms the frontend never derives
+- [x] `can_accept_payments` is read from the API; a grep test confirms the frontend never derives
       readiness from a capability string.
 
 ## Verification

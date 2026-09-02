@@ -12,7 +12,9 @@
       "svelte": "./src/index.ts",
       "default": "./src/index.ts"
     },
-    "./AccountOnboarding.svelte": "./src/AccountOnboarding.svelte"
+    "./AccountOnboarding.svelte": "./src/AccountOnboarding.svelte",
+    "./NotificationBanner.svelte": "./src/NotificationBanner.svelte",
+    "./AccountManagement.svelte": "./src/AccountManagement.svelte"
   },
   "sideEffects": false,
   "scripts": {

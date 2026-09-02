@@ -1,10 +1,16 @@
 <script lang="ts">
-import { ApiError, createPaymentConnectionSession, listPaymentProviders } from '@sanvi/api-client'
-import type { components } from '@sanvi/api-client'
-import { currentLocale, t } from '@sanvi/i18n'
+import {
+  ApiError,
+  createPaymentConnectionSession,
+  getPaymentConnection,
+  listPaymentProviders,
+} from '@sanvi/api-client'
+import type { components, PaymentConnectionView } from '@sanvi/api-client'
+import { currentLocale, fmt, t } from '@sanvi/i18n'
 import { getActiveTenantId, hasFeature } from '@sanvi/tenant'
 import {
   Alert,
+  Badge,
   Container,
   EmptyState,
   PaymentProviderCard,
@@ -12,9 +18,12 @@ import {
   Stack,
   UpgradePrompt,
 } from '@sanvi/ui'
+import { onDestroy } from 'svelte'
 import { apiClient } from '../lib/api'
 import { getAppEnv } from '../lib/env'
 import { EXPLAINER_BODY_KEY, EXPLAINER_TITLE_KEY } from '../lib/payments/explainerCopy'
+import PaymentConnectionStatus from '../lib/payments/PaymentConnectionStatus.svelte'
+import { pollPaymentConnection, type Poller } from '../lib/payments/poll'
 import {
   clearLastCreatedPaymentConnection,
   clearPersistedConnectionId,
@@ -31,14 +40,60 @@ let loading = $state(true)
 let entitled = $state(true)
 let error = $state<string | undefined>(undefined)
 let providers = $state<ProviderView[]>([])
+let connection = $state<PaymentConnectionView | null>(null)
 let onboardingConnectionId = $state<string | null>(null)
 let onboardingKey = $state(0)
+let bannerKey = $state(0)
+let managementKey = $state(0)
 let creating = $state(false)
 let createError = $state<string | undefined>(undefined)
+let isCheckingWithStripe = $state(false)
+
+let poller: Poller<PaymentConnectionView> | undefined
 
 // Sequencing token — a tenant switch re-runs the load effect, and a slow
 // response for the previous tenant must never overwrite the new tenant's data.
 let loadSeq = 0
+
+function stopPoller(): void {
+  if (poller) {
+    poller.stop()
+    poller = undefined
+  }
+  isCheckingWithStripe = false
+}
+
+function startPollingConnection(connId: string): void {
+  stopPoller()
+  poller = pollPaymentConnection(
+    (signal) => getPaymentConnection(apiClient, connId, signal),
+    (res) => res.status === 'active' || res.status === 'rejected' || res.status === 'disconnected',
+    {
+      onUpdate: (updated) => {
+        connection = updated
+        if (
+          updated.status === 'active' ||
+          updated.status === 'rejected' ||
+          updated.status === 'disconnected'
+        ) {
+          onboardingConnectionId = null
+        }
+      },
+      onError: (err) => {
+        if (err instanceof ApiError && err.status === 404) {
+          clearPersistedConnectionId(getActiveTenantId() ?? undefined)
+          connection = null
+          onboardingConnectionId = null
+          stopPoller()
+        }
+      },
+      onPollStateChange: (checking) => {
+        isCheckingWithStripe = checking
+      },
+    },
+  )
+  poller.start()
+}
 
 async function load(): Promise<void> {
   const seq = ++loadSeq
@@ -46,18 +101,43 @@ async function load(): Promise<void> {
   error = undefined
   entitled = true
   clearLastCreatedPaymentConnection()
+  connection = null
   onboardingConnectionId = null
-  restoreOnboardingIfPersisted()
+  stopPoller()
+
   try {
     const result = await listPaymentProviders(apiClient)
     if (seq !== loadSeq) return
     providers = result?.providers ?? []
+
+    if (hasFeature('payments.stripe_connect')) {
+      const tenantId = getActiveTenantId()
+      const stored = readPersistedConnectionId(tenantId ?? undefined)
+      if (stored) {
+        try {
+          const conn = await getPaymentConnection(apiClient, stored)
+          if (seq !== loadSeq) return
+          connection = conn
+          if (conn.status === 'pending' || conn.status === 'onboarding') {
+            onboardingConnectionId = stored
+            onboardingKey = 0
+            startPollingConnection(stored)
+          } else {
+            onboardingConnectionId = null
+          }
+        } catch (connErr) {
+          if (seq !== loadSeq) return
+          if (connErr instanceof ApiError && connErr.status === 404) {
+            clearPersistedConnectionId(tenantId ?? undefined)
+            connection = null
+            onboardingConnectionId = null
+          }
+        }
+      }
+    }
   } catch (err) {
     if (seq !== loadSeq) return
     if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
-      // 403 names the entitlement; 404 means the `payments.enabled` phase
-      // flag is off in that deployment. Both read to a tenant admin as
-      // "not available yet", and neither is an error banner.
       entitled = false
       providers = []
     } else {
@@ -65,21 +145,6 @@ async function load(): Promise<void> {
     }
   } finally {
     if (seq === loadSeq) loading = false
-  }
-}
-
-function restoreOnboardingIfPersisted(): void {
-  if (!hasFeature('payments.stripe_connect')) {
-    onboardingConnectionId = null
-    return
-  }
-  const tenantId = getActiveTenantId()
-  const stored = readPersistedConnectionId(tenantId ?? undefined)
-  if (stored) {
-    onboardingConnectionId = stored
-    onboardingKey = 0
-  } else {
-    onboardingConnectionId = null
   }
 }
 
@@ -93,14 +158,24 @@ async function handleConnect(provider: ProviderView): Promise<void> {
     await adapter.connect(provider)
     const conn = getLastCreatedPaymentConnection()
     if (conn) {
+      connection = conn
       onboardingConnectionId = conn.id
       onboardingKey += 1
+      if (conn.status === 'pending' || conn.status === 'onboarding') {
+        startPollingConnection(conn.id)
+      }
     } else {
       const tid = getActiveTenantId()
       const stored = readPersistedConnectionId(tid ?? undefined)
       if (stored) {
         onboardingConnectionId = stored
         onboardingKey += 1
+        try {
+          connection = await getPaymentConnection(apiClient, stored)
+        } catch {
+          // ignore
+        }
+        startPollingConnection(stored)
       } else {
         createError = t['admin.payments.createConnectionError']()
       }
@@ -111,13 +186,11 @@ async function handleConnect(provider: ProviderView): Promise<void> {
         createError = t['admin.payments.createConnectionForbidden']()
       } else if (err.status === 404) {
         clearPersistedConnectionId(getActiveTenantId() ?? undefined)
+        connection = null
         onboardingConnectionId = null
+        stopPoller()
         createError = t['admin.payments.createConnectionError']()
       } else if (err.status === 409) {
-        // TODO(TASK-004): The backend has no GET /api/v1/tenant/payments/connections endpoint
-        // and the 409 ProblemDetail carries no connection id, so a tenant without a persisted
-        // connection id cannot recover or resume here until the backend provides a list endpoint
-        // or returns the existing connection id in the 409 response.
         createError = t['admin.payments.createConnectionExists']()
       } else if (err.status === 502) {
         createError = t['admin.payments.createConnectionUnavailable']()
@@ -133,18 +206,19 @@ async function handleConnect(provider: ProviderView): Promise<void> {
 }
 
 async function fetchClientSecret(): Promise<string> {
-  if (!onboardingConnectionId) throw new Error('No onboarding connection')
+  const connId = connection?.id ?? onboardingConnectionId
+  if (!connId) throw new Error('No onboarding connection')
   const key = crypto.randomUUID()
   try {
-    const session = await createPaymentConnectionSession(apiClient, onboardingConnectionId, key)
+    const session = await createPaymentConnectionSession(apiClient, connId, key)
     return session.client_secret
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
       clearPersistedConnectionId(getActiveTenantId() ?? undefined)
+      connection = null
       onboardingConnectionId = null
+      stopPoller()
     }
-    // AccountOnboarding heuristics look for "session" in the message to
-    // differentiate from Connect.js script load errors.
     throw new Error(
       `Failed to create connection session: ${err instanceof Error ? err.message : 'Unknown'}`,
     )
@@ -163,12 +237,23 @@ function handleSessionRetry(): void {
   onboardingKey += 1
 }
 
+function handleBannerRetry(): void {
+  bannerKey += 1
+}
+
+function handleManagementRetry(): void {
+  managementKey += 1
+}
+
+onDestroy(() => {
+  stopPoller()
+})
+
 let publishableKey = $derived(getAppEnv().stripePublishableKey)
 let locale = $derived(currentLocale())
 let isStripeEnabled = $derived(hasFeature('payments.stripe_connect'))
 
 $effect(() => {
-  // Reading the active tenant makes the effect re-run (and refetch) on switch.
   void getActiveTenantId()
   void load()
 })
@@ -198,9 +283,126 @@ $effect(() => {
         description={t['admin.payments.upgradeDescription']()}
         upgradeHref="/billing"
       />
-    {:else if providers.length === 0 && !error && !onboardingConnectionId}
+    {:else if providers.length === 0 && !error && !onboardingConnectionId && !connection}
       <EmptyState title={t['admin.payments.empty']()} description={t['admin.payments.emptyDescription']()} />
     {:else if !error}
+      {#if connection && isStripeEnabled && publishableKey}
+        <div class="sanvi-payments__notification-banner-slot">
+          {#key bannerKey}
+            {#await import('@sanvi/payments-connect/NotificationBanner.svelte') then mod}
+              {@const NotificationBanner = mod.default}
+              <NotificationBanner
+                publishableKey={publishableKey}
+                fetchClientSecret={fetchClientSecret}
+                locale={locale}
+                onRetry={handleBannerRetry}
+                labels={{
+                  loading: t['admin.payments.notificationBannerLoading'](),
+                  loadErrorTitle: t['admin.payments.notificationBannerLoadErrorTitle'](),
+                  loadErrorBody: t['admin.payments.notificationBannerLoadErrorBody'](),
+                  sessionErrorTitle: t['admin.payments.notificationBannerSessionErrorTitle'](),
+                  sessionErrorBody: t['admin.payments.notificationBannerSessionErrorBody'](),
+                  retry: t['admin.payments.notificationBannerRetry'](),
+                  support: t['admin.payments.onboardingSupport'](),
+                  technicalDetail: t['admin.payments.onboardingTechnicalDetail'](),
+                }}
+              />
+            {:catch}
+              <!-- Silent fallback if notification banner module fails to load -->
+            {/await}
+          {/key}
+        </div>
+
+        <PaymentConnectionStatus
+          connection={connection}
+          isChecking={isCheckingWithStripe}
+          labels={{
+            statusSectionTitle: t['admin.payments.statusSectionTitle'](),
+            statusCheckingWithStripe: t['admin.payments.statusCheckingWithStripe'](),
+            statusActive: t['admin.payments.statusActive'](),
+            statusOnboarding: t['admin.payments.statusOnboarding'](),
+            statusPending: t['admin.payments.statusPending'](),
+            statusRestricted: t['admin.payments.statusRestricted'](),
+            statusRejected: t['admin.payments.statusRejected'](),
+            statusDisconnected: t['admin.payments.statusDisconnected'](),
+            verdictCanAcceptPayments: t['admin.payments.verdictCanAcceptPayments'](),
+            verdictCannotAcceptPayments: t['admin.payments.verdictCannotAcceptPayments'](),
+            verdictRestrictedTitle: t['admin.payments.verdictRestrictedTitle'](),
+            verdictRestrictedBody: t['admin.payments.verdictRestrictedBody'](),
+            capabilitiesTitle: t['admin.payments.capabilitiesTitle'](),
+            capabilityCardPayments: t['admin.payments.capabilityCardPayments'](),
+            capabilityTransfers: t['admin.payments.capabilityTransfers'](),
+            capabilityActive: t['admin.payments.capabilityActive'](),
+            capabilityInactive: t['admin.payments.capabilityInactive'](),
+            capabilityPending: t['admin.payments.capabilityPending'](),
+            requirementsTitle: t['admin.payments.requirementsTitle'](),
+            requirementsEmpty: t['admin.payments.requirementsEmpty'](),
+            requirementsPastDueTitle: t['admin.payments.requirementsPastDueTitle'](),
+            requirementsCurrentlyDueTitle: t['admin.payments.requirementsCurrentlyDueTitle'](),
+            requirementsEventuallyDueTitle: t['admin.payments.requirementsEventuallyDueTitle'](),
+            requirementsDeadline: connection.requirements.deadline
+              ? t['admin.payments.requirementsDeadline']({
+                  deadline: fmt.date(connection.requirements.deadline, 'medium'),
+                })
+              : '',
+            stripeHelpLink: t['admin.payments.stripeHelpLink'](),
+            openStripeDashboard: t['admin.payments.openStripeDashboard'](),
+          }}
+        />
+      {/if}
+
+      {#if connection && isStripeEnabled && (connection.status === 'active' || connection.status === 'restricted') && publishableKey}
+        <section
+          class="sanvi-payments__management"
+          aria-labelledby="sanvi-payments-management-heading"
+        >
+          <div class="sanvi-payments__management-header">
+            <h2 id="sanvi-payments-management-heading" class="sanvi-payments__management-title">
+              {t['admin.payments.accountManagementTitle']()}
+            </h2>
+            <p class="sanvi-payments__management-description">
+              {t['admin.payments.accountManagementDescription']()}
+            </p>
+          </div>
+
+          {#key managementKey}
+            {#await import('@sanvi/payments-connect/AccountManagement.svelte') then mod}
+              {@const AccountManagement = mod.default}
+              <AccountManagement
+                publishableKey={publishableKey}
+                fetchClientSecret={fetchClientSecret}
+                locale={locale}
+                onRetry={handleManagementRetry}
+                labels={{
+                  loading: t['admin.payments.accountManagementLoading'](),
+                  loadErrorTitle: t['admin.payments.accountManagementLoadErrorTitle'](),
+                  loadErrorBody: t['admin.payments.accountManagementLoadErrorBody'](),
+                  sessionErrorTitle: t['admin.payments.accountManagementSessionErrorTitle'](),
+                  sessionErrorBody: t['admin.payments.accountManagementSessionErrorBody'](),
+                  retry: t['admin.payments.accountManagementRetry'](),
+                  support: t['admin.payments.onboardingSupport'](),
+                  technicalDetail: t['admin.payments.onboardingTechnicalDetail'](),
+                }}
+              />
+            {:catch}
+              <div role="alert" class="sanvi-payments__onboarding-error">
+                <p>{t['admin.payments.accountManagementLoadErrorBody']()}</p>
+                <button
+                  type="button"
+                  class="sanvi-payments__retry-button"
+                  onclick={handleManagementRetry}
+                >
+                  {t['admin.payments.onboardingRetry']()}
+                </button>
+                <span class="sanvi-payments__support-text"
+                  >{t['admin.payments.onboardingSupport']()}</span
+                >
+              </div>
+            {/await}
+          {/key}
+        </section>
+      {/if}
+
       <section class="sanvi-payments__providers" aria-labelledby="sanvi-payments-providers-heading">
         <div class="sanvi-payments__providers-header">
           <h2 id="sanvi-payments-providers-heading" class="sanvi-payments__providers-title">
@@ -241,9 +443,9 @@ $effect(() => {
             aria-labelledby="sanvi-payments-onboarding-heading"
           >
             <div class="sanvi-payments__onboarding-header">
-              <h3 id="sanvi-payments-onboarding-heading" class="sanvi-payments__onboarding-title">
+              <h2 id="sanvi-payments-onboarding-heading" class="sanvi-payments__onboarding-title">
                 {t['admin.payments.onboardingTitle']()}
-              </h3>
+              </h2>
               <p class="sanvi-payments__onboarding-description">
                 {t['admin.payments.onboardingDescription']()}
               </p>
@@ -272,7 +474,7 @@ $effect(() => {
                       technicalDetail: t['admin.payments.onboardingTechnicalDetail'](),
                     }}
                   />
-                {:catch err}
+                {:catch}
                   <div role="alert" class="sanvi-payments__onboarding-error">
                     <p>{t['admin.payments.onboardingLoadErrorBody']()}</p>
                     <button
@@ -294,38 +496,77 @@ $effect(() => {
 
         <div class="sanvi-payments__grid">
           {#each providers as provider (provider.kind)}
+            {@const isConnectActive =
+              onboardingConnectionId !== null ||
+              (connection !== null &&
+                (connection.status === 'pending' ||
+                  connection.status === 'onboarding' ||
+                  connection.status === 'active' ||
+                  connection.status === 'restricted'))}
             <PaymentProviderCard
               provider={provider}
               entitled={hasFeature('payments.stripe_connect')}
-              connectDisabled={!CONNECT_IMPLEMENTED || creating || onboardingConnectionId !== null}
+              connectDisabled={!CONNECT_IMPLEMENTED || creating || isConnectActive}
               connectDisabledReason={creating
                 ? t['admin.payments.onboardingLoading']()
-                : onboardingConnectionId !== null
+                : isConnectActive
                   ? t['admin.payments.connectAlreadyStarted']()
                   : t['admin.payments.connectDisabledReason']()}
               labels={{
                 connectCta: t['admin.payments.connectCta'](),
                 unavailableTitle: t['admin.payments.unavailableTitle'](),
-                  unavailableDescription: t['admin.payments.unavailableDescription'](),
-                  supportedCountriesLabel: t['admin.payments.supportedCountriesLabel'](),
-                  upgradeTitle: t['admin.payments.upgradeTitle'](),
-                  upgradeDescription: t['admin.payments.upgradeDescription'](),
-                }}
-                upgradeHref="/billing"
-                onConnect={handleConnect}
-              >
-                {#snippet status()}
-                  <!-- TASK-004 fills the status/requirements slot here -->
-                {/snippet}
-              </PaymentProviderCard>
-            {/each}
-          </div>
+                unavailableDescription: t['admin.payments.unavailableDescription'](),
+                supportedCountriesLabel: t['admin.payments.supportedCountriesLabel'](),
+                upgradeTitle: t['admin.payments.upgradeTitle'](),
+                upgradeDescription: t['admin.payments.upgradeDescription'](),
+              }}
+              upgradeHref="/billing"
+              onConnect={handleConnect}
+            >
+              {#snippet status()}
+                {#if connection && connection.provider === provider.kind}
+                  <Badge
+                    variant={connection.status === 'active'
+                      ? 'success'
+                      : connection.status === 'restricted' || connection.status === 'rejected'
+                        ? 'error'
+                        : connection.status === 'disconnected'
+                          ? 'neutral'
+                          : 'warning'}
+                  >
+                    {#snippet children()}
+                      {#if connection?.status === 'active'}
+                        <span>✓ {t['admin.payments.statusActive']()}</span>
+                      {:else if connection?.status === 'restricted'}
+                        <span>⚠ {t['admin.payments.statusRestricted']()}</span>
+                      {:else if connection?.status === 'rejected'}
+                        <span>⚠ {t['admin.payments.statusRejected']()}</span>
+                      {:else if connection?.status === 'disconnected'}
+                        <span>○ {t['admin.payments.statusDisconnected']()}</span>
+                      {:else if connection?.status === 'onboarding'}
+                        <span>⏳ {t['admin.payments.statusOnboarding']()}</span>
+                      {:else}
+                        <span>⏳ {t['admin.payments.statusPending']()}</span>
+                      {/if}
+                    {/snippet}
+                  </Badge>
+                {/if}
+              {/snippet}
+            </PaymentProviderCard>
+          {/each}
+        </div>
       </section>
     {/if}
   </Stack>
 </Container>
 
 <style>
+  .sanvi-payments__notification-banner-slot {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
   .sanvi-payments__providers {
     display: flex;
     flex-direction: column;
@@ -404,7 +645,8 @@ $effect(() => {
     gap: var(--sanvi-spacing-6);
   }
 
-  .sanvi-payments__onboarding {
+  .sanvi-payments__onboarding,
+  .sanvi-payments__management {
     display: flex;
     flex-direction: column;
     gap: var(--sanvi-spacing-4);
@@ -414,14 +656,16 @@ $effect(() => {
     background: var(--sanvi-color-background-primary);
   }
 
-  .sanvi-payments__onboarding-title {
+  .sanvi-payments__onboarding-title,
+  .sanvi-payments__management-title {
     margin: 0;
     font-size: var(--sanvi-font-size-lg);
     font-weight: var(--sanvi-font-weight-semibold);
     color: var(--sanvi-color-text-primary);
   }
 
-  .sanvi-payments__onboarding-description {
+  .sanvi-payments__onboarding-description,
+  .sanvi-payments__management-description {
     margin: var(--sanvi-spacing-1) 0 0;
     font-size: var(--sanvi-font-size-sm);
     color: var(--sanvi-color-text-secondary);
