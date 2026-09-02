@@ -4,9 +4,14 @@ import {
   createPaymentConnection,
   createPaymentConnectionSession,
   createTenantCheckout,
+  exportTenantPayments,
   getPaymentConnection,
   getTenantCheckout,
+  getTenantPayment,
   listPaymentProviders,
+  listTenantDisputes,
+  listTenantPayments,
+  refundTenantPayment,
 } from '../src/payments'
 import { createTypedApiClient } from '../src/typed'
 
@@ -115,6 +120,87 @@ describe('payments api functions', () => {
     expect(request).toHaveBeenCalledWith(
       '/api/v1/tenant/checkout/chk-abc',
       expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('listTenantPayments calls GET /api/v1/tenant/payments with query filters', async () => {
+    const { client, request } = fakeClient()
+    const typed = createTypedApiClient(client)
+
+    const query = { status: 'succeeded', currency: 'USD', customer: 'cus_123' }
+    await listTenantPayments(typed, query)
+
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tenant/payments',
+      expect.objectContaining({
+        method: 'GET',
+        query,
+      }),
+    )
+  })
+
+  it('getTenantPayment calls GET /api/v1/tenant/payments/{id}', async () => {
+    const { client, request } = fakeClient()
+    const typed = createTypedApiClient(client)
+
+    await getTenantPayment(typed, 'pay-123')
+
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tenant/payments/pay-123',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('refundTenantPayment calls POST /api/v1/tenant/payments/{id}/refund with idempotency key', async () => {
+    const { client, request } = fakeClient()
+    const typed = createTypedApiClient(client)
+
+    const body = {
+      amount: { currency: 'USD', minor_units: 500 },
+      reason: 'requested_by_customer',
+      note: 'Customer requested refund',
+    }
+    await refundTenantPayment(typed, 'pay-123', body, 'idemp-uuid-456')
+
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tenant/payments/pay-123/refund',
+      expect.objectContaining({
+        method: 'POST',
+        body,
+        idempotencyKey: 'idemp-uuid-456',
+      }),
+    )
+  })
+
+  it('listTenantDisputes calls GET /api/v1/tenant/payments/disputes', async () => {
+    const { client, request } = fakeClient()
+    const typed = createTypedApiClient(client)
+
+    const query = { status: 'needs_response' }
+    await listTenantDisputes(typed, query)
+
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tenant/payments/disputes',
+      expect.objectContaining({
+        method: 'GET',
+        query,
+      }),
+    )
+  })
+
+  it('exportTenantPayments calls GET /api/v1/tenant/payments/export with filters', async () => {
+    const { client, request } = fakeClient()
+    const typed = createTypedApiClient(client)
+
+    const query = { status: 'succeeded' }
+    await exportTenantPayments(typed, query)
+
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tenant/payments/export',
+      expect.objectContaining({
+        method: 'GET',
+        query,
+      }),
     )
   })
 })

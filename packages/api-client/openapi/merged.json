@@ -100,6 +100,26 @@
         "required": ["stripe_price_id", "currency", "interval", "unit_amount_minor"],
         "type": "object"
       },
+      "AdsFreshnessSummaryView": {
+        "properties": {
+          "stalled_connections": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total_connections": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "worst_lag_hours": {
+            "format": "double",
+            "type": ["number", "null"]
+          }
+        },
+        "required": ["total_connections", "stalled_connections"],
+        "type": "object"
+      },
       "AdvertisingProblemType": {
         "description": "Stable RFC-7807 suffixes emitted by future advertising endpoints.",
         "enum": [
@@ -161,6 +181,17 @@
         },
         "required": ["agent_name", "authorization_evidence"],
         "type": "object"
+      },
+      "AlertCondition": {
+        "enum": [
+          "settled_breach",
+          "provisional_lower_bound_breach",
+          "provisional_warning",
+          "stale_data_warning",
+          "spend_anomaly",
+          "threshold80"
+        ],
+        "type": "string"
       },
       "ApiError": {
         "description": "Application-level API error.\n\nContexts map their domain errors into these at the adapter boundary; the\nHTTP status lives in exactly one place (here), never scattered across\nhandlers.",
@@ -1019,6 +1050,198 @@
         "required": ["kind", "amount"],
         "type": "object"
       },
+      "BudgetActionsConfigured": {
+        "properties": {
+          "auto_pause": {
+            "type": "boolean"
+          },
+          "auto_resume_on_rollover": {
+            "type": "boolean"
+          },
+          "threshold_100": {
+            "type": "string"
+          },
+          "threshold_80": {
+            "type": "string"
+          }
+        },
+        "required": ["threshold_80", "threshold_100", "auto_pause", "auto_resume_on_rollover"],
+        "type": "object"
+      },
+      "BudgetAlert": {
+        "properties": {
+          "acknowledged_at": {
+            "format": "date-time",
+            "type": ["string", "null"]
+          },
+          "acknowledged_by": {
+            "type": ["string", "null"]
+          },
+          "auto_paused": {
+            "type": "boolean"
+          },
+          "campaign_id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "cap_amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "cap_id": {
+            "type": ["string", "null"]
+          },
+          "condition": {
+            "$ref": "#/components/schemas/AlertCondition"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "data_freshness": {
+            "$ref": "#/components/schemas/DataFreshness"
+          },
+          "id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "period": {
+            "$ref": "#/components/schemas/BudgetPeriod"
+          },
+          "period_start": {
+            "format": "date",
+            "type": "string"
+          },
+          "spend": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "tenant_id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "threshold": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "tenant_id",
+          "period",
+          "period_start",
+          "threshold",
+          "condition",
+          "spend",
+          "cap_amount",
+          "data_freshness",
+          "auto_paused",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "BudgetAlertsView": {
+        "properties": {
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetAlert"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["alerts"],
+        "type": "object"
+      },
+      "BudgetCap": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "auto_pause": {
+            "type": "boolean"
+          },
+          "auto_resume_on_rollover": {
+            "type": "boolean"
+          },
+          "campaign_id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "declared_fx_basis": {
+            "type": ["string", "null"]
+          },
+          "effective_currency": {
+            "type": "string"
+          },
+          "fx_rate_date": {
+            "format": "date",
+            "type": ["string", "null"]
+          },
+          "id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "period": {
+            "$ref": "#/components/schemas/BudgetPeriod"
+          },
+          "tenant_id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "tenant_id",
+          "period",
+          "amount",
+          "effective_currency",
+          "auto_pause",
+          "auto_resume_on_rollover",
+          "version",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "BudgetCapsView": {
+        "properties": {
+          "caps": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetCap"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["caps"],
+        "type": "object"
+      },
+      "BudgetPeriod": {
+        "enum": ["daily", "monthly"],
+        "type": "string"
+      },
       "BudgetType": {
         "enum": ["daily", "lifetime"],
         "type": "string"
@@ -1109,6 +1332,9 @@
           "after_state": {
             "$ref": "#/components/schemas/Campaign"
           },
+          "attribution": {
+            "type": ["string", "null"]
+          },
           "before_state": {
             "$ref": "#/components/schemas/Campaign"
           },
@@ -1134,6 +1360,7 @@
             "pattern": "^[1-9][0-9]{0,18}$",
             "type": "string"
           },
+          "metadata": {},
           "mutation_id": {
             "format": "uuid",
             "type": ["string", "null"]
@@ -1494,6 +1721,53 @@
             "type": ["string", "null"]
           }
         },
+        "type": "object"
+      },
+      "ConnectionAttentionView": {
+        "properties": {
+          "connection_id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "last_error": {
+            "type": ["string", "null"]
+          },
+          "platform": {
+            "type": "string"
+          },
+          "reconnect_required": {
+            "type": "boolean"
+          },
+          "scopes_missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "stalled": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "connection_id",
+          "platform",
+          "status",
+          "reconnect_required",
+          "scopes_missing",
+          "stalled"
+        ],
         "type": "object"
       },
       "ConnectionFreshnessView": {
@@ -2418,9 +2692,31 @@
           "request_record",
           "advertising_conversion_event",
           "advertising_metric",
-          "advertising_campaign_change"
+          "advertising_campaign_change",
+          "advertising_budget_cap",
+          "advertising_budget_alert"
         ],
         "type": "string"
+      },
+      "DataFreshness": {
+        "properties": {
+          "is_settled": {
+            "type": "boolean"
+          },
+          "is_stale": {
+            "type": "boolean"
+          },
+          "lag_hours": {
+            "format": "double",
+            "type": ["number", "null"]
+          },
+          "last_synced_at": {
+            "format": "date-time",
+            "type": ["string", "null"]
+          }
+        },
+        "required": ["is_settled", "is_stale"],
+        "type": "object"
       },
       "DecideAppealOutput": {
         "properties": {
@@ -2707,6 +3003,50 @@
           }
         },
         "required": ["drifted", "changed_fields"],
+        "type": "object"
+      },
+      "DryRunEvaluationResult": {
+        "properties": {
+          "cap_amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "condition": {
+            "type": "string"
+          },
+          "current_spend": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "percentage": {
+            "format": "double",
+            "type": "number"
+          },
+          "period": {
+            "$ref": "#/components/schemas/BudgetPeriod"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "would_auto_pause": {
+            "type": "boolean"
+          },
+          "would_breach_100": {
+            "type": "boolean"
+          },
+          "would_breach_80": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "scope",
+          "period",
+          "cap_amount",
+          "current_spend",
+          "percentage",
+          "would_breach_80",
+          "would_breach_100",
+          "would_auto_pause",
+          "condition"
+        ],
         "type": "object"
       },
       "DsrKind": {
@@ -4516,6 +4856,61 @@
         "enum": ["public", "hidden"],
         "type": "string"
       },
+      "PlatformAdsHealthReport": {
+        "properties": {
+          "connections_needing_attention": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionAttentionView"
+            },
+            "type": "array"
+          },
+          "freshness_summary": {
+            "$ref": "#/components/schemas/AdsFreshnessSummaryView"
+          },
+          "platform_counts": {
+            "items": {
+              "$ref": "#/components/schemas/PlatformConnectionCountView"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["platform_counts", "connections_needing_attention", "freshness_summary"],
+        "type": "object"
+      },
+      "PlatformConnectionCountView": {
+        "properties": {
+          "active": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "disconnected": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "expired": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "pending": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "total": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": ["platform", "active", "pending", "disconnected", "expired", "total"],
+        "type": "object"
+      },
       "PlatformFeeDisclosure": {
         "description": "The platform's fee disclosure for this tenant (their payment settings).\nA platform fee the merchant cannot see is not acceptable, whatever the\ncontract says.",
         "properties": {
@@ -4957,6 +5352,47 @@
         },
         "required": ["purpose", "state", "source", "jurisdiction", "effective_at"],
         "type": "object"
+      },
+      "PutBudgetCapRequest": {
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "auto_pause": {
+            "type": ["boolean", "null"]
+          },
+          "auto_resume_on_rollover": {
+            "type": ["boolean", "null"]
+          },
+          "confirm_below_current_spend": {
+            "type": ["boolean", "null"]
+          },
+          "declared_fx_basis": {
+            "type": ["string", "null"]
+          },
+          "dry_run": {
+            "type": ["boolean", "null"]
+          },
+          "fx_rate_date": {
+            "format": "date",
+            "type": ["string", "null"]
+          },
+          "period": {
+            "$ref": "#/components/schemas/BudgetPeriod"
+          }
+        },
+        "required": ["period", "amount"],
+        "type": "object"
+      },
+      "PutBudgetCapResponse": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/BudgetCap"
+          },
+          {
+            "$ref": "#/components/schemas/DryRunEvaluationResult"
+          }
+        ]
       },
       "Readiness": {
         "description": "Aggregate readiness answer: every dependency's status plus the verdict.",
@@ -5790,6 +6226,93 @@
         "format": "snowflake-id",
         "pattern": "^[1-9][0-9]{0,18}$",
         "type": "string"
+      },
+      "SpendStatusItem": {
+        "properties": {
+          "actions_configured": {
+            "$ref": "#/components/schemas/BudgetActionsConfigured"
+          },
+          "campaign_id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "cap": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BudgetCap"
+              }
+            ]
+          },
+          "data_freshness": {
+            "$ref": "#/components/schemas/DataFreshness"
+          },
+          "percentage": {
+            "format": "double",
+            "type": ["number", "null"]
+          },
+          "period": {
+            "$ref": "#/components/schemas/BudgetPeriod"
+          },
+          "projected_spend": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "provisional_lower_bound": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ]
+          },
+          "provisional_spend": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "settled_spend": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "spend_to_date": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "scope",
+          "period",
+          "spend_to_date",
+          "settled_spend",
+          "provisional_spend",
+          "projected_spend",
+          "data_freshness",
+          "actions_configured"
+        ],
+        "type": "object"
+      },
+      "SpendStatusReport": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SpendStatusItem"
+            },
+            "type": "array"
+          },
+          "tenant_id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          }
+        },
+        "required": ["tenant_id", "items"],
+        "type": "object"
       },
       "StartLinkChallengeCommand": {
         "properties": {
@@ -7866,6 +8389,34 @@
         },
         "summary": "`GET /api/v1/platform/admin/tenants/{id}` — one tenant admin view.",
         "tags": ["platform_admin"]
+      }
+    },
+    "/api/v1/platform/ads/health": {
+      "get": {
+        "operationId": "get_platform_ads_health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformAdsHealthReport"
+                }
+              }
+            },
+            "description": "Cross-tenant advertising connection health and freshness overview"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing platform.tenant.read permission"
+          }
+        },
+        "tags": ["advertising"]
       }
     },
     "/api/v1/platform/approvals": {
@@ -11541,6 +12092,187 @@
         "tags": ["advertising"]
       }
     },
+    "/api/v1/tenant/ads/budget-alerts": {
+      "get": {
+        "operationId": "get_budget_alerts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "examples": ["873698342314721281"],
+              "format": "snowflake-id",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "unacknowledged_only",
+            "required": true,
+            "schema": {
+              "type": ["boolean", "null"]
+            }
+          },
+          {
+            "in": "path",
+            "name": "limit",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": ["integer", "null"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetAlertsView"
+                }
+              }
+            },
+            "description": "Budget alerts history"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing advertising.read permission"
+          }
+        },
+        "tags": ["advertising"]
+      }
+    },
+    "/api/v1/tenant/ads/budget-alerts/{alert_id}/acknowledge": {
+      "post": {
+        "operationId": "acknowledge_budget_alert",
+        "parameters": [
+          {
+            "description": "Target budget alert ID",
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetAlert"
+                }
+              }
+            },
+            "description": "Acknowledged budget alert"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing advertising.budget.manage permission"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Budget alert not found"
+          }
+        },
+        "tags": ["advertising"]
+      }
+    },
+    "/api/v1/tenant/ads/budget-caps": {
+      "get": {
+        "operationId": "get_budget_caps",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetCapsView"
+                }
+              }
+            },
+            "description": "All budget caps defined for this tenant"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing advertising.read permission"
+          }
+        },
+        "tags": ["advertising"]
+      },
+      "put": {
+        "operationId": "put_budget_cap",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutBudgetCapRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PutBudgetCapResponse"
+                }
+              }
+            },
+            "description": "Budget cap created or updated, or dry-run simulation result"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing advertising.budget.manage permission"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "New cap is below current period spend and confirmation is required"
+          }
+        },
+        "tags": ["advertising"]
+      }
+    },
     "/api/v1/tenant/ads/campaigns": {
       "get": {
         "operationId": "list_campaigns",
@@ -12295,6 +13027,133 @@
               }
             },
             "description": "Platform adapter unavailable"
+          }
+        },
+        "tags": ["advertising"]
+      }
+    },
+    "/api/v1/tenant/ads/campaigns/{campaign_id}/budget-cap": {
+      "get": {
+        "operationId": "get_campaign_budget_cap",
+        "parameters": [
+          {
+            "description": "Target campaign ID",
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "examples": ["873698342314721281"],
+              "format": "snowflake-id",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "period",
+            "required": true,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/BudgetPeriod"
+                }
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetCap"
+                }
+              }
+            },
+            "description": "Campaign budget cap"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing advertising.read permission"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No budget cap found for this campaign and period"
+          }
+        },
+        "tags": ["advertising"]
+      },
+      "put": {
+        "operationId": "put_campaign_budget_cap",
+        "parameters": [
+          {
+            "description": "Target campaign ID",
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "examples": ["873698342314721281"],
+              "format": "snowflake-id",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutBudgetCapRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PutBudgetCapResponse"
+                }
+              }
+            },
+            "description": "Campaign budget cap created/updated or dry run result"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing advertising.budget.manage permission"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "New cap is below current period spend and confirmation is required"
           }
         },
         "tags": ["advertising"]
@@ -13769,6 +14628,51 @@
               }
             },
             "description": "Missing advertising.read permission or both advertising platform entitlements"
+          }
+        },
+        "tags": ["advertising"]
+      }
+    },
+    "/api/v1/tenant/ads/spend-status": {
+      "get": {
+        "operationId": "get_spend_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "period",
+            "required": true,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/BudgetPeriod"
+                }
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendStatusReport"
+                }
+              }
+            },
+            "description": "Spend status and run-rate projection across tenant and campaign scopes"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing advertising.read permission"
           }
         },
         "tags": ["advertising"]
@@ -15909,7 +16813,7 @@
     },
     "/api/v1/tenant/payments/providers": {
       "get": {
-        "description": "Gated two ways: the `payments.enabled` phase flag (route absent when off)\nand `payments.read` (permission extractor). Deliberately **not** gated on\nthe `payments.stripe_connect` entitlement, unlike every other payments\nroute — the catalog is how an un-entitled tenant learns which providers\nexist and therefore what upgrading would buy; the admin renders the cards\nwith the connect CTA replaced by an upgrade prompt. Connecting\n(`POST /payments/connections`) keeps the entitlement.\n\nA 403 here therefore means the caller lacks `payments.read` — a\npermission problem, not a plan problem. The frontend must not answer it\nwith an upgrade prompt.\n\nThe response is derived from the provider registry — the handler adds\nnothing provider-specific. The tenant's country (from the tenant\ncontext's region, when it parses as ISO-3166-1 alpha-2) decides\nper-tenant availability; an unparseable region leaves the provider\navailable rather than locking the tenant out.",
+        "description": "Gated three ways: the `payments.enabled` phase flag (route absent when\noff), `payments.read` (permission extractor), and the\n`payments.stripe_connect` entitlement (`RequiredFeature` — 403, never\n404, so the frontend can render an upgrade prompt instead of a dead\nend).\n\nThe response is derived from the provider registry — the handler adds\nnothing provider-specific. The tenant's country (from the tenant\ncontext's region, when it parses as ISO-3166-1 alpha-2) decides\nper-tenant availability; an unparseable region leaves the provider\navailable rather than locking the tenant out.",
         "operationId": "list_payment_providers",
         "responses": {
           "200": {
@@ -15930,7 +16834,7 @@
                 }
               }
             },
-            "description": "Missing payments.read permission (the catalog is not entitlement-gated)"
+            "description": "Missing payments.read permission or the payments.stripe_connect entitlement"
           }
         },
         "summary": "`GET /api/v1/tenant/payments/providers`.",

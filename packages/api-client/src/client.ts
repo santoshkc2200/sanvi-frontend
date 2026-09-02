@@ -291,6 +291,9 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         // a raw SyntaxError that escapes the ApiError/NetworkError typing.
         if (response.status === 204) return undefined as T
         const contentType = response.headers.get('content-type') ?? ''
+        if (contentType.includes('text/csv') || contentType.includes('text/plain')) {
+          return (await response.text()) as T
+        }
         if (!contentType.includes('json')) return undefined as T
         try {
           return (await response.json()) as T
@@ -365,7 +368,13 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
   ): Promise<RawResponse<T>> {
     const response = await doFetch(path, options)
     const contentType = response.headers.get('content-type') ?? ''
-    if (response.status === 204 || !contentType.includes('json')) {
+    if (response.status === 204) {
+      return { status: response.status, body: undefined }
+    }
+    if (contentType.includes('text/csv') || contentType.includes('text/plain')) {
+      return { status: response.status, body: (await response.text()) as T }
+    }
+    if (!contentType.includes('json')) {
       return { status: response.status, body: undefined }
     }
     try {
