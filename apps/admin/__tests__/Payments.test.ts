@@ -209,6 +209,33 @@ describe('Admin Payments Route Component', () => {
     )
   })
 
+  it('renders payout status column with badges for paid and pending and dash for null', async () => {
+    render(Payments)
+
+    await screen.findByText('chk_123')
+
+    // Table header
+    expect(screen.getByRole('columnheader', { name: 'Payout status' })).toBeInTheDocument()
+
+    // Status badges
+    expect(screen.getAllByText('Paid').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Pending').length).toBeGreaterThan(0)
+    expect(screen.getByText('—')).toBeInTheDocument()
+  })
+
+  it('filters by payout status', async () => {
+    render(Payments)
+    await screen.findByText('chk_123')
+
+    const payoutStatusSelect = screen.getByRole('combobox', { name: 'Payout status' })
+    await fireEvent.change(payoutStatusSelect, { target: { value: 'failed' } })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('payout_status=failed'),
+      expect.anything(),
+    )
+  })
+
   it('has no accessibility violations', async () => {
     const { container } = render(Payments)
     await screen.findByText('chk_123')

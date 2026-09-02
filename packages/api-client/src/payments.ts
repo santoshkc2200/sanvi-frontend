@@ -255,8 +255,51 @@ export function exportTenantPayments(
   }) as unknown as Promise<string>
 }
 
+export type PayoutsListView = components['schemas']['PayoutsListView']
+export type PayoutView = components['schemas']['PayoutView']
+export type TaxSettingsView = components['schemas']['TaxSettingsView']
+export type TaxWarningView = components['schemas']['TaxWarningView']
+export type PlatformFeeDisclosure = components['schemas']['PlatformFeeDisclosure']
+export type UpdateTaxSettingsRequest = components['schemas']['UpdateTaxSettingsRequest']
+
+/**
+ * `GET /api/v1/tenant/payments/payouts` — the connected account's payout
+ * history (schedule, next payout, recent history), read live over the
+ * connected account.
+ */
+export function listTenantPayouts(
+  client: TypedApiClient,
+  signal?: AbortSignal,
+): Promise<PayoutsListView> {
+  return client.GET('/api/v1/tenant/payments/payouts', signal ? { signal } : undefined)
+}
+
+/**
+ * `GET /api/v1/tenant/payments/tax-settings` — automatic-tax settings and preflight.
+ */
+export function getTenantTaxSettings(
+  client: TypedApiClient,
+  signal?: AbortSignal,
+): Promise<TaxSettingsView> {
+  return client.GET('/api/v1/tenant/payments/tax-settings', signal ? { signal } : undefined)
+}
+
+/**
+ * `PUT /api/v1/tenant/payments/tax-settings` — enable/disable automatic tax.
+ */
+export function updateTenantTaxSettings(
+  client: TypedApiClient,
+  body: UpdateTaxSettingsRequest,
+  signal?: AbortSignal,
+): Promise<TaxSettingsView> {
+  return client.PUT('/api/v1/tenant/payments/tax-settings', body, signal ? { signal } : undefined)
+}
+
 export const listPayments = listTenantPayments
 export const getPayment = getTenantPayment
 export const refundPayment = refundTenantPayment
 export const listDisputes = listTenantDisputes
 export const exportPayments = exportTenantPayments
+export const listPayouts = listTenantPayouts
+export const getTaxSettings = getTenantTaxSettings
+export const updateTaxSettings = updateTenantTaxSettings

@@ -19,6 +19,7 @@ interface Props {
   cannotAcceptReason?: string
   canceled?: boolean
   reference?: string
+  taxEnabled?: boolean
   onInitiateCheckout?: (idempotencyKey: string) => Promise<void> | void
 }
 
@@ -29,6 +30,7 @@ let {
   cannotAcceptReason,
   canceled = false,
   reference: explicitReference,
+  taxEnabled = true,
   onInitiateCheckout,
 }: Props = $props()
 
@@ -184,8 +186,17 @@ async function handleCheckout() {
         </table>
       </div>
 
-      <aside class="sanvi-checkout-tax-note" aria-label={t['storefront.checkout.taxNote']()}>
-        <p>{t['storefront.checkout.taxNote']()}</p>
+      <aside
+        class="sanvi-checkout-tax-note"
+        aria-label={taxEnabled
+          ? t['storefront.checkout.taxNote']()
+          : t['storefront.checkout.taxNoteDisabled']()}
+      >
+        <p>
+          {taxEnabled
+            ? t['storefront.checkout.taxNote']()
+            : t['storefront.checkout.taxNoteDisabled']()}
+        </p>
       </aside>
       {/if}
 
