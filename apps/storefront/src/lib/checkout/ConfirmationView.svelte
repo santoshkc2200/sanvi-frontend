@@ -4,7 +4,7 @@ import { fmt, t } from '@sanvi/i18n'
 import { Alert, Button, Container, Stack } from '@sanvi/ui'
 import { localePath } from '$lib/links'
 import { recordConversionOnce } from './conversion'
-import { getCartItems } from './cart.svelte'
+import { calculateCartTotal } from './cart.svelte'
 import type { CheckoutView, OrderItem } from './types'
 
 interface Props {
@@ -13,13 +13,17 @@ interface Props {
   onConversionReported?: (conversionEventId: string) => void
 }
 
-let { checkout, items = getCartItems(), onConversionReported }: Props = $props()
+let { checkout, items, onConversionReported }: Props = $props()
 
 onMount(() => {
   if (checkout.conversion_event_id) {
     recordConversionOnce(checkout.conversion_event_id, onConversionReported)
   }
 })
+
+const hasMatchingItems = $derived(
+  Boolean(items && items.length > 0 && calculateCartTotal(items) === checkout.amount_minor),
+)
 
 const returnHomeHref = $derived(localePath('/'))
 </script>
@@ -51,33 +55,42 @@ const returnHomeHref = $derived(localePath('/'))
 
     <div class="sanvi-confirmation-details" role="region" aria-label={t['storefront.checkout.title']()}>
       <table class="sanvi-confirmation-table">
-        <thead>
-          <tr>
-            <th scope="col">{t['storefront.checkout.item']()}</th>
-            <th scope="col" class="sanvi-confirmation-th-qty">{t['storefront.checkout.quantity']()}</th>
-            <th scope="col" class="sanvi-confirmation-th-price">{t['storefront.checkout.price']()}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each items as item (item.id)}
+        {#if hasMatchingItems && items}
+          <thead>
             <tr>
-              <td>
-                <div class="sanvi-item-name">{item.name}</div>
-                {#if item.description}
-                  <div class="sanvi-item-desc">{item.description}</div>
-                {/if}
-              </td>
-              <td class="sanvi-confirmation-td-qty">{item.quantity}</td>
-              <td class="sanvi-confirmation-td-price">{fmt.money(item.amount_minor * item.quantity, checkout.currency)}</td>
+              <th scope="col">{t['storefront.checkout.item']()}</th>
+              <th scope="col" class="sanvi-confirmation-th-qty">{t['storefront.checkout.quantity']()}</th>
+              <th scope="col" class="sanvi-confirmation-th-price">{t['storefront.checkout.price']()}</th>
             </tr>
-          {/each}
-        </tbody>
-        <tfoot>
-          <tr class="sanvi-confirmation-total-row">
-            <td colspan={2}>{t['storefront.checkout.confirmation.amountPaid']()}</td>
-            <td class="sanvi-confirmation-td-price">{fmt.money(checkout.amount_minor, checkout.currency)}</td>
-          </tr>
-        </tfoot>
+          </thead>
+          <tbody>
+            {#each items as item (item.id)}
+              <tr>
+                <td>
+                  <div class="sanvi-item-name">{item.name}</div>
+                  {#if item.description}
+                    <div class="sanvi-item-desc">{item.description}</div>
+                  {/if}
+                </td>
+                <td class="sanvi-confirmation-td-qty">{item.quantity}</td>
+                <td class="sanvi-confirmation-td-price">{fmt.money(item.amount_minor * item.quantity, checkout.currency)}</td>
+              </tr>
+            {/each}
+          </tbody>
+          <tfoot>
+            <tr class="sanvi-confirmation-total-row">
+              <td colspan={2}>{t['storefront.checkout.confirmation.amountPaid']()}</td>
+              <td class="sanvi-confirmation-td-price">{fmt.money(checkout.amount_minor, checkout.currency)}</td>
+            </tr>
+          </tfoot>
+        {:else}
+          <tfoot>
+            <tr class="sanvi-confirmation-total-row">
+              <td>{t['storefront.checkout.confirmation.amountPaid']()}</td>
+              <td class="sanvi-confirmation-td-price">{fmt.money(checkout.amount_minor, checkout.currency)}</td>
+            </tr>
+          </tfoot>
+        {/if}
       </table>
     </div>
 

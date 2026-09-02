@@ -1,4 +1,5 @@
 const memoryReportedEvents = new Set<string>()
+const inFlightEvents = new Set<string>()
 const STORAGE_PREFIX = 'sanvi_conversion_reported_'
 
 function isReportedInStorage(id: string): boolean {
@@ -28,31 +29,65 @@ function markReportedInStorage(id: string): void {
  */
 export function recordConversionOnce(
   conversionEventId: string | undefined | null,
-  reporter?: (id: string) => void,
+  reporter?: (id: string) => void | Promise<void>,
 ): boolean {
   if (!conversionEventId) return false
 
-  if (memoryReportedEvents.has(conversionEventId) || isReportedInStorage(conversionEventId)) {
+  if (
+    memoryReportedEvents.has(conversionEventId) ||
+    isReportedInStorage(conversionEventId) ||
+    inFlightEvents.has(conversionEventId)
+  ) {
     return false
   }
 
-  memoryReportedEvents.add(conversionEventId)
-  markReportedInStorage(conversionEventId)
+  inFlightEvents.add(conversionEventId)
 
   try {
-    reporter?.(conversionEventId)
-  } catch (error) {
-    console.error('Failed to report conversion event:', error)
-  }
+    const result = reporter?.(conversionEventId)
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      ;(result as Promise<void>)
+        .then(() => {
+          memoryReportedEvents.add(conversionEventId)
+          markReportedInStorage(conversionEventId)
+        })
+        .catch((error) => {
+          console.error('Failed to report conversion event:', error)
+        })
+        .finally(() => {
+          inFlightEvents.delete(conversionEventId)
+        })
+      return true
+    }
 
-  return true
+    memoryReportedEvents.add(conversionEventId)
+    markReportedInStorage(conversionEventId)
+    inFlightEvents.delete(conversionEventId)
+    return true
+  } catch (error) {
+    inFlightEvents.delete(conversionEventId)
+    console.error('Failed to report conversion event:', error)
+    return false
+  }
 }
 
 export function resetConversionTrackerForTesting(): void {
   memoryReportedEvents.clear()
+  inFlightEvents.clear()
   if (typeof window !== 'undefined') {
     try {
-      window.sessionStorage?.clear()
+      if (window.sessionStorage) {
+        const keysToRemove: string[] = []
+        for (let i = 0; i < window.sessionStorage.length; i++) {
+          const key = window.sessionStorage.key(i)
+          if (key?.startsWith(STORAGE_PREFIX)) {
+            keysToRemove.push(key)
+          }
+        }
+        for (const key of keysToRemove) {
+          window.sessionStorage.removeItem(key)
+        }
+      }
     } catch {
       // Ignore
     }

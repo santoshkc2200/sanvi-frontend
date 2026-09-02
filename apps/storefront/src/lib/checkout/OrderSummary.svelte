@@ -1,10 +1,11 @@
 <script lang="ts">
 import { fmt, t } from '@sanvi/i18n'
-import { Alert, Button, Container, Spinner, Stack } from '@sanvi/ui'
+import { Alert, Button, Container, Stack } from '@sanvi/ui'
 import { createTenantCheckout } from '@sanvi/api-client'
 import { apiClient } from '$lib/auth'
 import { localePath } from '$lib/links'
 import { calculateCartTotal, getCartItems } from './cart.svelte'
+import { clearIdempotencyKey, getOrCreateIdempotencyKey, setPendingCheckoutId } from './idempotency'
 import type { OrderItem } from './types'
 
 interface Props {
@@ -45,20 +46,16 @@ async function handleCheckout() {
 
   isSubmitting = true
   errorMessage = null
-  const idempotencyKey = crypto.randomUUID()
-
-  if (onInitiateCheckout) {
-    try {
-      await onInitiateCheckout(idempotencyKey)
-    } catch (err) {
-      errorMessage = t['storefront.checkout.error.generic']()
-    } finally {
-      isSubmitting = false
-    }
-    return
-  }
+  let navigated = false
 
   try {
+    const idempotencyKey = getOrCreateIdempotencyKey()
+
+    if (onInitiateCheckout) {
+      await onInitiateCheckout(idempotencyKey)
+      return
+    }
+
     const reference = `order-${Date.now()}`
     const success_url = `${window.location.origin}${localePath('/checkout/return')}`
     const cancel_url = `${window.location.origin}${localePath('/checkout/cancel')}`
@@ -75,8 +72,14 @@ async function handleCheckout() {
       idempotencyKey,
     )
 
+    setPendingCheckoutId(checkout.id)
+
     if (checkout.url) {
+      navigated = true
+      clearIdempotencyKey()
       window.location.href = checkout.url
+    } else {
+      errorMessage = t['storefront.checkout.error.generic']()
     }
   } catch (err: unknown) {
     const status = (err as { status?: number })?.status
@@ -86,7 +89,10 @@ async function handleCheckout() {
     } else {
       errorMessage = t['storefront.checkout.error.generic']()
     }
-    isSubmitting = false
+  } finally {
+    if (!navigated) {
+      isSubmitting = false
+    }
   }
 }
 </script>

@@ -17,7 +17,7 @@ describe('Checkout Return route component', () => {
       },
     })
 
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Payment failed')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Order not found')
     expect(screen.getByText("We couldn't find the requested checkout session.")).toBeInTheDocument()
   })
 
@@ -85,7 +85,32 @@ describe('Checkout Return route component', () => {
     })
   })
 
-  it('renders specific card decline message when checkout failed', async () => {
+  it('distinguishes polling/network failure from payment failure by rendering delayed state (Defect 5)', async () => {
+    vi.spyOn(checkoutModule, 'pollCheckoutStatus').mockRejectedValueOnce(
+      new Error('Network timeout after 30s'),
+    )
+
+    render(CheckoutReturnPage, {
+      props: {
+        data: {
+          checkoutId: 'chk_net_fail',
+        },
+      },
+    })
+
+    await waitFor(() => {
+      // Must NOT show payment failed
+      expect(screen.queryByRole('heading', { name: 'Payment failed' })).not.toBeInTheDocument()
+      // Must land in delayed reassurance state
+      expect(
+        screen.getByText(
+          "Payment confirmation is taking longer than usual. We'll send your receipt and order details by email as soon as it completes.",
+        ),
+      ).toBeInTheDocument()
+    })
+  })
+
+  it('renders generic failure message when server status is failed (Defect 6)', async () => {
     const failedCheckout: CheckoutView = {
       id: 'chk_failed_1',
       amount_minor: 4800,
@@ -108,8 +133,129 @@ describe('Checkout Return route component', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Payment failed')
       expect(
-        screen.getByText('Your card was declined — please try another payment method.'),
+        screen.getByText("We couldn't process your payment. Please try again or contact support."),
       ).toBeInTheDocument()
+    })
+  })
+
+  it('renders canceled heading and notice when checkout status is canceled (Defect 7)', async () => {
+    const canceledCheckout: CheckoutView = {
+      id: 'chk_canceled_1',
+      amount_minor: 4800,
+      currency: 'USD',
+      reference: 'ord-cancel-001',
+      status: 'canceled',
+      created_at: new Date().toISOString(),
+    }
+
+    vi.spyOn(checkoutModule, 'pollCheckoutStatus').mockResolvedValueOnce(canceledCheckout)
+
+    render(CheckoutReturnPage, {
+      props: {
+        data: {
+          checkoutId: 'chk_canceled_1',
+        },
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Payment canceled')
+      expect(screen.getByText('Payment was canceled. Your cart is intact.')).toBeInTheDocument()
+    })
+  })
+
+  it('clears pending checkout id and cart on terminal paid state (Defects 1 & 8)', async () => {
+    sessionStorage.setItem('sanvi_pending_checkout_id', 'chk_paid_term')
+    sessionStorage.setItem('sanvi_checkout_idempotency_key', 'idem_key_123')
+
+    const paidCheckout: CheckoutView = {
+      id: 'chk_paid_term',
+      amount_minor: 4800,
+      currency: 'USD',
+      reference: 'ord-paid-term',
+      status: 'paid',
+      created_at: new Date().toISOString(),
+    }
+
+    vi.spyOn(checkoutModule, 'pollCheckoutStatus').mockResolvedValueOnce(paidCheckout)
+
+    render(CheckoutReturnPage, {
+      props: {
+        data: {
+          checkoutId: 'chk_paid_term',
+        },
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Payment confirmed')
+    })
+
+    expect(sessionStorage.getItem('sanvi_pending_checkout_id')).toBeNull()
+    expect(sessionStorage.getItem('sanvi_checkout_idempotency_key')).toBeNull()
+    expect(checkoutModule.getCartItems()).toEqual([])
+  })
+
+  it('resets per-attempt state when checkoutId changes (Defect 11)', async () => {
+    const pendingCheckout1: CheckoutView = {
+      id: 'chk_first',
+      amount_minor: 1000,
+      currency: 'USD',
+      reference: 'ord-1',
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    }
+
+    const paidCheckout2: CheckoutView = {
+      id: 'chk_second',
+      amount_minor: 2000,
+      currency: 'USD',
+      reference: 'ord-2',
+      status: 'paid',
+      created_at: new Date().toISOString(),
+    }
+
+    vi.spyOn(checkoutModule, 'pollCheckoutStatus').mockImplementation(
+      async (_client, id, options) => {
+        if (id === 'chk_first') {
+          options?.onDelayed?.()
+          return pendingCheckout1
+        }
+        return paidCheckout2
+      },
+    )
+
+    const { rerender } = render(CheckoutReturnPage, {
+      props: {
+        data: {
+          checkoutId: 'chk_first',
+        },
+      },
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Payment confirmation is taking longer than usual. We'll send your receipt and order details by email as soon as it completes.",
+        ),
+      ).toBeInTheDocument()
+    })
+
+    // Rerender with different checkout ID
+    rerender({
+      data: {
+        checkoutId: 'chk_second',
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Payment confirmed')
+      expect(screen.getByText('Order reference: ord-2')).toBeInTheDocument()
+      expect(
+        screen.queryByText(
+          "Payment confirmation is taking longer than usual. We'll send your receipt and order details by email as soon as it completes.",
+        ),
+      ).not.toBeInTheDocument()
     })
   })
 })

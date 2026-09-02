@@ -60,6 +60,8 @@
   "storefront.checkout.error.tryAgain": "もう一度試す",
   "storefront.checkout.error.notFound": "ご注文が見つかりません",
   "storefront.checkout.error.notFoundBody": "指定されたチェックアウトセッションが見つかりませんでした。",
+  "storefront.checkout.canceled.title": "お支払いがキャンセルされました",
+  "storefront.checkout.notFound.title": "ご注文が見つかりません",
   "consent.banner.title": "トラッキングの前に確認します",
   "consent.banner.body": "一部の機能では Cookie 等の技術を使用しています。目的ごとに選択でき、「プライバシーの設定」からいつでも変更できます。",
   "consent.banner.accept": "すべて許可",

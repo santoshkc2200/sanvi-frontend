@@ -5,12 +5,14 @@ import { localePath } from '$lib/links'
 import { getDeclineMessage } from './decline-codes'
 
 interface Props {
+  title?: string | null
   declineCode?: string | null
   message?: string | null
 }
 
-let { declineCode, message }: Props = $props()
+let { title, declineCode, message }: Props = $props()
 
+const effectiveTitle = $derived(title ?? t['storefront.checkout.error.title']())
 const effectiveMessage = $derived(message ?? getDeclineMessage(declineCode))
 const retryHref = $derived(localePath('/checkout'))
 </script>
@@ -18,7 +20,7 @@ const retryHref = $derived(localePath('/checkout'))
 <Container size="sm" padding="6">
   <Stack gap="6">
     <header class="sanvi-checkout-error-header">
-      <h1 class="sanvi-checkout-error-title">{t['storefront.checkout.error.title']()}</h1>
+      <h1 class="sanvi-checkout-error-title">{effectiveTitle}</h1>
     </header>
 
     <Alert variant="error">

@@ -81,6 +81,40 @@ describe('ConfirmationView component', () => {
     expect(onConversionReported).toHaveBeenCalledWith('conv_evt_999')
   })
 
+  it('renders server-backed summary without line items when items are omitted (Defect 8)', () => {
+    render(ConfirmationView, {
+      props: {
+        checkout: paidCheckout,
+      },
+    })
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Payment confirmed')
+    expect(screen.getByText('Amount paid')).toBeInTheDocument()
+    expect(screen.queryByText('Design System Course')).not.toBeInTheDocument()
+  })
+
+  it('omits line items when client items do not reconcile with checkout amount (Defect 8)', () => {
+    const mismatchingItems: OrderItem[] = [
+      {
+        id: 'it-diff',
+        name: 'Unrelated Course',
+        quantity: 1,
+        amount_minor: 9999,
+      },
+    ]
+
+    render(ConfirmationView, {
+      props: {
+        checkout: paidCheckout,
+        items: mismatchingItems,
+      },
+    })
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Payment confirmed')
+    expect(screen.getByText('Amount paid')).toBeInTheDocument()
+    expect(screen.queryByText('Unrelated Course')).not.toBeInTheDocument()
+  })
+
   it('passes axe accessibility checks', async () => {
     const { container } = render(ConfirmationView, {
       props: {

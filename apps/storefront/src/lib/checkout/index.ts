@@ -9,7 +9,7 @@ export {
   resetCart,
   setCartItems,
 } from './cart.svelte'
-export { recordConversionOnce, resetConversionTrackerForTesting } from './conversion'
+export { recordConversionOnce } from './conversion'
 export { getDeclineMessage } from './decline-codes'
 export { pollCheckoutStatus, type PollCheckoutOptions } from './poll'
 export type { CheckoutStatus, CheckoutView, OrderDetails, OrderItem } from './types'

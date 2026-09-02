@@ -60,6 +60,8 @@
   "storefront.checkout.error.tryAgain": "Try again",
   "storefront.checkout.error.notFound": "Order not found",
   "storefront.checkout.error.notFoundBody": "We couldn't find the requested checkout session.",
+  "storefront.checkout.canceled.title": "Payment canceled",
+  "storefront.checkout.notFound.title": "Order not found",
   "consent.banner.title": "We ask before we track",
   "consent.banner.body": "Some features use cookies and similar technology to work well. You decide per purpose, and you can change your mind at any time from “Your privacy choices”.",
   "consent.banner.accept": "Accept all",

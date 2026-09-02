@@ -112,6 +112,90 @@ describe('OrderSummary component', () => {
     expect(screen.getByText('Payment was canceled. Your cart is intact.')).toBeInTheDocument()
   })
 
+  it('handles response without url by displaying generic error and resetting button (Defect 2)', async () => {
+    sessionStorage.clear()
+    const createTenantCheckoutSpy = vi
+      .spyOn(await import('@sanvi/api-client'), 'createTenantCheckout')
+      .mockResolvedValueOnce({
+        id: 'chk_no_url',
+        amount_minor: 7200,
+        currency: 'USD',
+        reference: 'order-123',
+        status: 'expired',
+        created_at: new Date().toISOString(),
+      } as unknown as import('../src/lib/checkout/types').CheckoutView)
+
+    render(OrderSummary, {
+      props: {
+        items: sampleItems,
+        currency: 'USD',
+      },
+    })
+
+    const button = screen.getByRole('button', { name: 'Proceed to checkout' })
+    await fireEvent.click(button)
+
+    expect(createTenantCheckoutSpy).toHaveBeenCalledOnce()
+    expect(
+      await screen.findByText(
+        "We couldn't process your payment. Please try again or contact support.",
+      ),
+    ).toBeInTheDocument()
+    expect(button).not.toBeDisabled()
+  })
+
+  it('generates a valid fallback UUID when crypto.randomUUID is undefined (Defect 3)', async () => {
+    sessionStorage.clear()
+    const originalRandomUUID = crypto.randomUUID
+    try {
+      // @ts-expect-error simulating non-secure context
+      delete crypto.randomUUID
+
+      const onInitiateCheckout = vi.fn()
+      render(OrderSummary, {
+        props: {
+          items: sampleItems,
+          onInitiateCheckout,
+        },
+      })
+
+      const button = screen.getByRole('button', { name: 'Proceed to checkout' })
+      await fireEvent.click(button)
+
+      expect(onInitiateCheckout).toHaveBeenCalledOnce()
+      const key = onInitiateCheckout.mock.calls[0][0]
+      expect(typeof key).toBe('string')
+      expect(key).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
+      expect(button).not.toBeDisabled()
+    } finally {
+      crypto.randomUUID = originalRandomUUID
+    }
+  })
+
+  it('reuses stable idempotency key across retry clicks of the same cart (Defect 4)', async () => {
+    sessionStorage.clear()
+    const keysPassed: string[] = []
+    const onInitiateCheckout = vi.fn(async (key: string) => {
+      keysPassed.push(key)
+      throw new Error('Timeout')
+    })
+
+    render(OrderSummary, {
+      props: {
+        items: sampleItems,
+        onInitiateCheckout,
+      },
+    })
+
+    const button = screen.getByRole('button', { name: 'Proceed to checkout' })
+    await fireEvent.click(button)
+    await fireEvent.click(button)
+
+    expect(keysPassed.length).toBe(2)
+    // Both clicks must share the exact same idempotency key
+    expect(keysPassed[0]).toBe(keysPassed[1])
+  })
+
   it('passes axe accessibility checks', async () => {
     const { container } = render(OrderSummary, {
       props: {
