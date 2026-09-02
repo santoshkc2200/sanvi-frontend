@@ -84,6 +84,8 @@ export {
   getTenantTaxSettings,
   updateTaxSettings,
   updateTenantTaxSettings,
+  disconnectConnection,
+  disconnectPaymentConnection,
 } from './payments'
 export type {
   CheckoutView,

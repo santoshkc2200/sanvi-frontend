@@ -223,6 +223,42 @@ describe('OrderSummary component', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('renders distinct provider-unavailable message on payments/provider-unavailable error', async () => {
+    sessionStorage.clear()
+    const { ApiError } = await import('@sanvi/api-client')
+    const providerUnavailableError = new ApiError(
+      502,
+      {
+        type: 'payments/provider-unavailable',
+        title: 'Payment provider unavailable',
+        status: 502,
+      },
+      'req_123',
+    )
+
+    vi.spyOn(await import('@sanvi/api-client'), 'createTenantCheckout').mockRejectedValueOnce(
+      providerUnavailableError,
+    )
+
+    render(OrderSummary, {
+      props: {
+        items: sampleItems,
+        currency: 'USD',
+      },
+    })
+
+    const button = screen.getByRole('button', { name: 'Proceed to checkout' })
+    await fireEvent.click(button)
+
+    expect(
+      await screen.findByText('Payments are temporarily unavailable. Please try again shortly.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("We couldn't process your payment. Please try again or contact support."),
+    ).not.toBeInTheDocument()
+    expect(button).not.toBeDisabled()
+  })
+
   it('passes axe accessibility checks', async () => {
     const { container } = render(OrderSummary, {
       props: {

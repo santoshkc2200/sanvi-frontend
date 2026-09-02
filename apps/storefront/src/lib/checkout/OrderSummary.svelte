@@ -1,7 +1,7 @@
 <script lang="ts">
 import { fmt, t } from '@sanvi/i18n'
 import { Alert, Button, Container, Stack } from '@sanvi/ui'
-import { createTenantCheckout } from '@sanvi/api-client'
+import { ApiError, createTenantCheckout } from '@sanvi/api-client'
 import { apiClient } from '$lib/auth'
 import { localePath } from '$lib/links'
 import { calculateCartTotal, getCartItems } from './cart.svelte'
@@ -84,8 +84,15 @@ async function handleCheckout() {
       errorMessage = t['storefront.checkout.error.generic']()
     }
   } catch (err: unknown) {
-    const status = (err as { status?: number })?.status
-    if (status === 409) {
+    if (
+      (err instanceof ApiError && err.type === 'payments/provider-unavailable') ||
+      (err as { type?: string })?.type === 'payments/provider-unavailable'
+    ) {
+      errorMessage = t['storefront.checkout.error.providerUnavailable']()
+    } else if (
+      (err instanceof ApiError && err.status === 409) ||
+      (err as { status?: number })?.status === 409
+    ) {
       liveCanAcceptPayments = false
       errorMessage = effectiveCannotAcceptReason
     } else {

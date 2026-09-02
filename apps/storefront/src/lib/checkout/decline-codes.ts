@@ -46,6 +46,11 @@ export function getDeclineMessage(code: string | null | undefined): string {
     case 'payments/cannot-accept-payments':
       return t['storefront.checkout.error.connectionUnavailable']()
 
+    case 'provider_unavailable':
+    case 'provider-unavailable':
+    case 'payments/provider-unavailable':
+      return t['storefront.checkout.error.providerUnavailable']()
+
     case 'canceled':
       return t['storefront.checkout.canceledNotice']()
 

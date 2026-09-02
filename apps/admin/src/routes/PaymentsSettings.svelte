@@ -2,6 +2,7 @@
 import {
   ApiError,
   createPaymentConnectionSession,
+  disconnectPaymentConnection,
   getPaymentConnection,
   getTenantTaxSettings,
   listPaymentProviders,
@@ -26,6 +27,8 @@ import {
   Container,
   Dialog,
   EmptyState,
+  Field,
+  Input,
   PaymentProviderCard,
   showToast,
   Spinner,
@@ -48,11 +51,55 @@ import {
 
 type ProviderView = components['schemas']['ProviderView']
 
+interface DisconnectBlocker {
+  code: string
+  summary_key: string
+}
+
+function isBlockerArray(value: unknown): value is DisconnectBlocker[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(
+      (b) =>
+        typeof b === 'object' &&
+        b !== null &&
+        typeof (b as { code?: unknown }).code === 'string' &&
+        typeof (b as { summary_key?: unknown }).summary_key === 'string',
+    )
+  )
+}
+
+function renderDisconnectBlocker(blocker: DisconnectBlocker): string {
+  const key = blocker.summary_key as MessageKey
+  const tMap = t as unknown as Record<string, () => string>
+  if (key && typeof tMap[key] === 'function') {
+    return tMap[key]()
+  }
+  if (blocker.code === 'in_flight_payments') {
+    return t['payments.disconnect.blocker.inFlightPayments']
+      ? t['payments.disconnect.blocker.inFlightPayments']()
+      : blocker.code
+  }
+  if (blocker.code === 'open_disputes') {
+    return t['payments.disconnect.blocker.openDisputes']
+      ? t['payments.disconnect.blocker.openDisputes']()
+      : blocker.code
+  }
+  if (blocker.code === 'pending_payouts') {
+    return t['payments.disconnect.blocker.pendingPayouts']
+      ? t['payments.disconnect.blocker.pendingPayouts']()
+      : blocker.code
+  }
+  return blocker.code
+}
+
 const CONNECT_IMPLEMENTED = true
 
 let loading = $state(true)
 let entitled = $state(true)
 let error = $state<string | undefined>(undefined)
+let degradedMode = $state(false)
 let providers = $state<ProviderView[]>([])
 let connection = $state<PaymentConnectionView | null>(null)
 let onboardingConnectionId = $state<string | null>(null)
@@ -68,6 +115,13 @@ let taxSettings = $state<TaxSettingsView | null>(null)
 let taxDisableDialogOpen = $state(false)
 let updatingTax = $state(false)
 let taxUpdateError = $state<string | undefined>(undefined)
+
+let disconnectDialogOpen = $state(false)
+let typedDisconnectPhrase = $state('')
+let disconnectIdempotencyKey = $state('')
+let disconnecting = $state(false)
+let disconnectError = $state<string | undefined>(undefined)
+let disconnectBlockers = $state<DisconnectBlocker[]>([])
 
 let poller: Poller<PaymentConnectionView> | undefined
 
@@ -96,11 +150,15 @@ function startPollingConnection(connId: string): void {
         }
       },
       onError: (err) => {
-        if (err instanceof ApiError && err.status === 404) {
-          clearPersistedConnectionId(getActiveTenantId() ?? undefined)
-          connection = null
-          onboardingConnectionId = null
-          stopPoller()
+        if (err instanceof ApiError) {
+          if (err.type === 'payments/provider-unavailable') {
+            degradedMode = true
+          } else if (err.status === 404) {
+            clearPersistedConnectionId(getActiveTenantId() ?? undefined)
+            connection = null
+            onboardingConnectionId = null
+            stopPoller()
+          }
         }
       },
       onPollStateChange: (checking) => {
@@ -115,6 +173,7 @@ async function load(): Promise<void> {
   const seq = ++loadSeq
   loading = true
   error = undefined
+  degradedMode = false
   entitled = true
   clearLastCreatedPaymentConnection()
   connection = null
@@ -145,10 +204,14 @@ async function load(): Promise<void> {
             onboardingConnectionId = null
           }
         } catch (connErr) {
-          if (connErr instanceof ApiError && connErr.status === 404) {
-            clearPersistedConnectionId(tenantId ?? undefined)
-            connection = null
-            onboardingConnectionId = null
+          if (connErr instanceof ApiError) {
+            if (connErr.type === 'payments/provider-unavailable') {
+              degradedMode = true
+            } else if (connErr.status === 404) {
+              clearPersistedConnectionId(tenantId ?? undefined)
+              connection = null
+              onboardingConnectionId = null
+            }
           }
         }
       }
@@ -161,9 +224,20 @@ async function load(): Promise<void> {
         if (seq !== loadSeq) return
         if (payoutsRes.status === 'fulfilled') {
           payouts = payoutsRes.value?.payouts ?? []
+        } else if (
+          payoutsRes.reason instanceof ApiError &&
+          payoutsRes.reason.type === 'payments/provider-unavailable'
+        ) {
+          degradedMode = true
         }
+
         if (taxRes.status === 'fulfilled') {
           taxSettings = taxRes.value ?? null
+        } else if (
+          taxRes.reason instanceof ApiError &&
+          taxRes.reason.type === 'payments/provider-unavailable'
+        ) {
+          degradedMode = true
         }
       } catch {
         // Non-fatal if payouts/tax cannot be loaded
@@ -171,7 +245,9 @@ async function load(): Promise<void> {
     }
   } catch (err) {
     if (seq !== loadSeq) return
-    if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+    if (err instanceof ApiError && err.type === 'payments/provider-unavailable') {
+      degradedMode = true
+    } else if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
       entitled = false
       providers = []
     } else {
@@ -401,6 +477,76 @@ async function confirmDisableTax(): Promise<void> {
   }
 }
 
+// Generate the idempotency key once per disconnect dialog open lifecycle.
+$effect(() => {
+  if (disconnectDialogOpen) {
+    if (!disconnectIdempotencyKey) {
+      disconnectIdempotencyKey =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+              const r = (Math.random() * 16) | 0
+              const v = c === 'x' ? r : (r & 0x3) | 0x8
+              return v.toString(16)
+            })
+    }
+    typedDisconnectPhrase = ''
+    disconnectError = undefined
+    disconnectBlockers = []
+    disconnecting = false
+  } else {
+    disconnectIdempotencyKey = ''
+    typedDisconnectPhrase = ''
+    disconnectError = undefined
+    disconnectBlockers = []
+    disconnecting = false
+  }
+})
+
+async function handleDisconnect(): Promise<void> {
+  if (
+    !connection ||
+    !hasManagePermission ||
+    disconnecting ||
+    typedDisconnectPhrase.trim() !== 'DISCONNECT'
+  ) {
+    return
+  }
+
+  disconnecting = true
+  disconnectError = undefined
+  disconnectBlockers = []
+
+  try {
+    await disconnectPaymentConnection(apiClient, connection.id, disconnectIdempotencyKey)
+    clearPersistedConnectionId(getActiveTenantId() ?? undefined)
+    disconnectDialogOpen = false
+    showToast({
+      title: t['admin.payments.disconnectSuccessToast'](),
+      variant: 'success',
+    })
+    await load()
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 409) {
+      const blockers = err.problem?.['blockers']
+      if (isBlockerArray(blockers)) {
+        disconnectBlockers = blockers
+      } else {
+        disconnectError = err.message || t['admin.payments.disconnectError']()
+      }
+    } else if (err instanceof ApiError && err.type === 'payments/provider-unavailable') {
+      degradedMode = true
+      disconnectError = t['admin.payments.disconnectError']()
+    } else if (err instanceof Error) {
+      disconnectError = err.message
+    } else {
+      disconnectError = t['admin.payments.disconnectError']()
+    }
+  } finally {
+    disconnecting = false
+  }
+}
+
 let publishableKey = $derived(getAppEnv().stripePublishableKey)
 let locale = $derived(currentLocale())
 let isStripeEnabled = $derived(hasFeature('payments.stripe_connect'))
@@ -417,6 +563,13 @@ $effect(() => {
       <h1>{t['admin.payments.title']()}</h1>
       <p>{t['admin.payments.description']()}</p>
     </div>
+
+    {#if degradedMode}
+      <Alert variant="warning">
+        <strong>{t['admin.payments.degradedNoticeTitle']()}</strong>
+        <p>{t['admin.payments.degradedNoticeBody']()}</p>
+      </Alert>
+    {/if}
 
     {#if hasFailedPayout}
       <Alert variant="error">
@@ -762,6 +915,108 @@ $effect(() => {
               onclick={confirmDisableTax}
             >
               {t['admin.payments.taxDisableDialogConfirm']()}
+            </Button>
+          {/snippet}
+        </Dialog>
+      {/if}
+
+      {#if isStripeEnabled && connection && connection.status !== 'disconnected'}
+        <section
+          class="sanvi-payments__disconnect"
+          aria-labelledby="sanvi-payments-disconnect-heading"
+        >
+          <div class="sanvi-payments__disconnect-header">
+            <h2 id="sanvi-payments-disconnect-heading" class="sanvi-payments__disconnect-title">
+              {t['admin.payments.disconnectTitle']()}
+            </h2>
+            <p class="sanvi-payments__disconnect-description">
+              {t['admin.payments.disconnectDescription']()}
+            </p>
+          </div>
+
+          <div class="sanvi-payments__disconnect-actions">
+            <Button
+              variant="danger"
+              disabled={!hasManagePermission}
+              onclick={() => {
+                disconnectDialogOpen = true
+              }}
+            >
+              {t['admin.payments.disconnectButton']()}
+            </Button>
+            {#if !hasManagePermission}
+              <p class="sanvi-payments__disconnect-permission-hint" role="status">
+                {t['admin.payments.disconnectPermissionDenied']()}
+              </p>
+            {/if}
+          </div>
+        </section>
+      {/if}
+
+      {#if disconnectDialogOpen}
+        <Dialog
+          bind:open={disconnectDialogOpen}
+          titleText={t['admin.payments.disconnectDialogTitle']()}
+        >
+          {#snippet children()}
+            <Stack gap="4">
+              <Alert variant="warning">
+                <ul class="sanvi-payments__consequences-list">
+                  <li>{t['admin.payments.disconnectConsequenceCheckout']()}</li>
+                  <li>{t['admin.payments.disconnectConsequenceHistory']()}</li>
+                  <li>{t['admin.payments.disconnectConsequenceAccount']()}</li>
+                </ul>
+              </Alert>
+
+              {#if disconnectError}
+                <Alert variant="error">{disconnectError}</Alert>
+              {/if}
+
+              {#if disconnectBlockers.length > 0}
+                <Alert variant="error">
+                  <strong>{t['admin.payments.disconnectBlockedTitle']()}</strong>
+                  <p>{t['admin.payments.disconnectBlockedBody']()}</p>
+                  <ul class="sanvi-payments__blocker-list">
+                    {#each disconnectBlockers as blocker (blocker.code)}
+                      <li>{renderDisconnectBlocker(blocker)}</li>
+                    {/each}
+                  </ul>
+                </Alert>
+              {/if}
+
+              <Field
+                label={t['admin.payments.disconnectConfirmPrompt']({ phrase: 'DISCONNECT' })}
+                required
+              >
+                {#snippet children(controlProps)}
+                  <Input
+                    {...controlProps}
+                    bind:value={typedDisconnectPhrase}
+                    placeholder={t['admin.payments.disconnectInputPlaceholder']()}
+                    disabled={disconnecting}
+                  />
+                {/snippet}
+              </Field>
+            </Stack>
+          {/snippet}
+          {#snippet footer()}
+            <Button
+              variant="ghost"
+              onclick={() => {
+                disconnectDialogOpen = false
+              }}
+              disabled={disconnecting}
+            >
+              {t['admin.payments.disconnectCancelButton']()}
+            </Button>
+            <Button
+              variant="danger"
+              disabled={typedDisconnectPhrase.trim() !== 'DISCONNECT' || disconnecting || !hasManagePermission}
+              loading={disconnecting}
+              loadingLabel={t['admin.payments.disconnecting']()}
+              onclick={handleDisconnect}
+            >
+              {t['admin.payments.disconnectConfirmButton']()}
             </Button>
           {/snippet}
         </Dialog>
@@ -1168,4 +1423,51 @@ $effect(() => {
     font-size: var(--sanvi-font-size-xs);
     color: var(--sanvi-color-text-secondary);
   }
+
+  .sanvi-payments__disconnect {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sanvi-spacing-4);
+    padding: var(--sanvi-spacing-6);
+    border: var(--sanvi-border-width-thin) solid var(--sanvi-color-border-default);
+    border-radius: var(--sanvi-radius-lg);
+    background: var(--sanvi-color-background-primary);
+  }
+
+  .sanvi-payments__disconnect-title {
+    margin: 0;
+    font-size: var(--sanvi-font-size-lg);
+    font-weight: var(--sanvi-font-weight-semibold);
+    color: var(--sanvi-color-text-primary);
+  }
+
+  .sanvi-payments__disconnect-description {
+    margin: var(--sanvi-spacing-1) 0 0;
+    font-size: var(--sanvi-font-size-sm);
+    color: var(--sanvi-color-text-secondary);
+  }
+
+  .sanvi-payments__disconnect-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sanvi-spacing-2);
+    align-items: flex-start;
+  }
+
+  .sanvi-payments__disconnect-permission-hint {
+    margin: 0;
+    font-size: var(--sanvi-font-size-xs);
+    color: var(--sanvi-color-solid-error-base);
+  }
+
+  .sanvi-payments__consequences-list,
+  .sanvi-payments__blocker-list {
+    margin: var(--sanvi-spacing-2) 0 0;
+    padding-inline-start: var(--sanvi-spacing-4);
+    font-size: var(--sanvi-font-size-sm);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sanvi-spacing-1);
+  }
 </style>
+
