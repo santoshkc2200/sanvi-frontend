@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ads,
   buildContentSecurityPolicy,
   buildContentSecurityPolicyDirectives,
+  buildContentSecurityPolicyDirectivesForApp,
   buildContentSecurityPolicyForApp,
 } from '../src/index'
 
@@ -145,7 +147,120 @@ describe('buildContentSecurityPolicyForApp', () => {
       buildContentSecurityPolicy({ ...options, delivery: 'header' }),
     )
     expect(buildContentSecurityPolicyForApp('admin', options)).toBe(
-      buildContentSecurityPolicy({ ...options, delivery: 'meta' }),
+      buildContentSecurityPolicy({ ...options, delivery: 'meta', ads: true }),
     )
+  })
+})
+
+describe('ads() preset (phase 10)', () => {
+  const oauthHosts = ['https://accounts.google.com', 'https://www.facebook.com']
+  const previewCdns = ['https://*.googleusercontent.com', 'https://*.fbcdn.net']
+
+  it('adds OAuth handoff origins to connect-src and form-action, and preview CDNs to img-src', () => {
+    const preset = ads()
+    expect(preset['connect-src']).toEqual(oauthHosts)
+    expect(preset['form-action']).toEqual(oauthHosts)
+    expect(preset['img-src']).toEqual(previewCdns)
+  })
+
+  it('never widens script execution: no script-src/style-src keys, no unsafe-inline/unsafe-eval anywhere', () => {
+    const preset = ads()
+    expect(preset['script-src']).toBeUndefined()
+    expect(preset['style-src']).toBeUndefined()
+    for (const sources of Object.values(preset)) {
+      for (const source of sources ?? []) {
+        expect(source).not.toContain('unsafe-inline')
+        expect(source).not.toContain('unsafe-eval')
+      }
+    }
+  })
+
+  it('folds the ad origins into a policy only when the ads option is on', () => {
+    const base = { apiOrigin: 'https://api.example.com' }
+    const withAds = buildContentSecurityPolicy({ ...base, ads: true })
+
+    expect(withAds).toContain(
+      "connect-src 'self' https://api.example.com https://api.stripe.com https://*.stripe.com https://*.link.com https://accounts.google.com https://www.facebook.com",
+    )
+    expect(withAds).toContain(
+      "form-action 'self' https://*.stripe.com https://accounts.google.com https://www.facebook.com",
+    )
+    expect(withAds).toMatch(
+      /img-src[^;]*https:\/\/\*\.googleusercontent\.com[^;]*https:\/\/\*\.fbcdn\.net/,
+    )
+    // The token endpoints are server-to-server only — never browser-allowed.
+    expect(withAds).not.toContain('oauth2.googleapis.com')
+    expect(withAds).not.toContain('graph.facebook.com')
+
+    const withoutAds = buildContentSecurityPolicy(base)
+    expect(withoutAds).not.toContain('accounts.google.com')
+    expect(withoutAds).not.toContain('facebook.com')
+    expect(withoutAds).not.toContain('googleusercontent.com')
+    expect(withoutAds).not.toContain('fbcdn.net')
+  })
+
+  it('admin includes the ads() preset origins and never widens script-src', () => {
+    const csp = buildContentSecurityPolicyForApp('admin', { apiOrigin: 'https://api.example.com' })
+    expect(csp).toContain('https://accounts.google.com')
+    expect(csp).toContain('https://www.facebook.com')
+    expect(csp).toContain('https://*.googleusercontent.com')
+    expect(csp).toContain('https://*.fbcdn.net')
+    // `style-src 'unsafe-inline'` predates this phase (component styles);
+    // what must never happen is script-execution widening.
+    const scriptSrc = /script-src ([^;]+)/.exec(csp)?.[1] ?? ''
+    expect(scriptSrc).not.toContain('unsafe-inline')
+    expect(scriptSrc).not.toContain('unsafe-eval')
+  })
+
+  it.each(['marketing', 'storefront', 'platform-admin'] as const)(
+    '%s does not include the ads() preset origins',
+    (app) => {
+      const csp = buildContentSecurityPolicyForApp(app, { apiOrigin: 'https://api.example.com' })
+      expect(csp).not.toContain('accounts.google.com')
+      expect(csp).not.toContain('facebook.com')
+      expect(csp).not.toContain('googleusercontent.com')
+      expect(csp).not.toContain('fbcdn.net')
+    },
+  )
+
+  // Snapshot of the storefront policy with representative deploy-time origins.
+  // Advertising must not touch the storefront: its tracking (phase 10, TASK-014)
+  // is same-origin by design, so this string is pinned to the phase-09 form and
+  // any ads() leak into `storefront` fails this byte comparison.
+  const SNAPSHOT_OPTIONS = {
+    apiOrigin: 'https://api.example.com',
+    mediaOrigin: 'https://media.example.com',
+    themeAssetOrigin: 'https://cdn.example.com',
+    kratosOrigin: 'https://auth.example.com',
+  }
+
+  it('storefront policy is byte-identical to phase 09 (no advertising origins ever)', () => {
+    expect(buildContentSecurityPolicyForApp('storefront', SNAPSHOT_OPTIONS)).toBe(
+      "default-src 'self'; script-src 'self' https://js.stripe.com https://*.stripe.com; style-src 'self' 'unsafe-inline' https://cdn.example.com; img-src 'self' data: blob: https: https://media.example.com https://cdn.example.com https://*.stripe.com https://i.ytimg.com https://img.youtube.com; media-src 'self' blob: https: https://media.example.com; font-src 'self' data: https://cdn.example.com; frame-src https://js.stripe.com https://hooks.stripe.com https://*.stripe.com https://*.link.com https://www.youtube.com https://www.youtube-nocookie.com https://youtu.be; connect-src 'self' https://api.example.com https://media.example.com https://auth.example.com https://api.stripe.com https://*.stripe.com https://*.link.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://*.stripe.com; frame-ancestors 'none'",
+    )
+  })
+
+  it('admin policy snapshot includes the ads() preset origins (byte-pinned)', () => {
+    expect(buildContentSecurityPolicyForApp('admin', SNAPSHOT_OPTIONS)).toBe(
+      "default-src 'self'; script-src 'self' https://js.stripe.com https://*.stripe.com; style-src 'self' 'unsafe-inline' https://cdn.example.com; img-src 'self' data: blob: https: https://media.example.com https://cdn.example.com https://*.stripe.com https://i.ytimg.com https://img.youtube.com https://*.googleusercontent.com https://*.fbcdn.net; media-src 'self' blob: https: https://media.example.com; font-src 'self' data: https://cdn.example.com; frame-src https://js.stripe.com https://hooks.stripe.com https://*.stripe.com https://*.link.com https://www.youtube.com https://www.youtube-nocookie.com https://youtu.be; connect-src 'self' https://api.example.com https://media.example.com https://auth.example.com https://api.stripe.com https://*.stripe.com https://*.link.com https://accounts.google.com https://www.facebook.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://*.stripe.com https://accounts.google.com https://www.facebook.com",
+    )
+  })
+
+  it('directives form agrees with the string form on the ad origins', () => {
+    const storefront = buildContentSecurityPolicyDirectivesForApp('storefront', SNAPSHOT_OPTIONS)
+    expect(storefront['connect-src']).not.toContain('https://accounts.google.com')
+    expect(storefront['form-action']).not.toContain('https://www.facebook.com')
+
+    const admin = buildContentSecurityPolicyDirectivesForApp('admin', SNAPSHOT_OPTIONS)
+    expect(admin['connect-src']).toEqual(
+      expect.arrayContaining(['https://accounts.google.com', 'https://www.facebook.com']),
+    )
+    expect(admin['img-src']).toEqual(
+      expect.arrayContaining(['https://*.googleusercontent.com', 'https://*.fbcdn.net']),
+    )
+    expect(admin['form-action']).toEqual(
+      expect.arrayContaining(['https://accounts.google.com', 'https://www.facebook.com']),
+    )
+    expect(admin['script-src']).not.toContain('unsafe-inline')
   })
 })

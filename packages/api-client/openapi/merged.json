@@ -6282,6 +6282,13 @@
           },
           "spend_to_date": {
             "$ref": "#/components/schemas/Money"
+          },
+          "unconvertible_spend_currencies": {
+            "description": "Currencies for which spend data could not be converted to the cap currency\nbecause an FX rate was unavailable. When non-empty, spend totals are incomplete.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -16813,7 +16820,7 @@
     },
     "/api/v1/tenant/payments/providers": {
       "get": {
-        "description": "Gated three ways: the `payments.enabled` phase flag (route absent when\noff), `payments.read` (permission extractor), and the\n`payments.stripe_connect` entitlement (`RequiredFeature` — 403, never\n404, so the frontend can render an upgrade prompt instead of a dead\nend).\n\nThe response is derived from the provider registry — the handler adds\nnothing provider-specific. The tenant's country (from the tenant\ncontext's region, when it parses as ISO-3166-1 alpha-2) decides\nper-tenant availability; an unparseable region leaves the provider\navailable rather than locking the tenant out.",
+        "description": "Gated two ways: the `payments.enabled` phase flag (route absent when off)\nand `payments.read` (permission extractor). Deliberately **not** gated on\nthe `payments.stripe_connect` entitlement, unlike every other payments\nroute — the catalog is how an un-entitled tenant learns which providers\nexist and therefore what upgrading would buy; the admin renders the cards\nwith the connect CTA replaced by an upgrade prompt. Connecting\n(`POST /payments/connections`) keeps the entitlement.\n\nA 403 here therefore means the caller lacks `payments.read` — a\npermission problem, not a plan problem. The frontend must not answer it\nwith an upgrade prompt.\n\nThe response is derived from the provider registry — the handler adds\nnothing provider-specific. The tenant's country (from the tenant\ncontext's region, when it parses as ISO-3166-1 alpha-2) decides\nper-tenant availability; an unparseable region leaves the provider\navailable rather than locking the tenant out.",
         "operationId": "list_payment_providers",
         "responses": {
           "200": {
@@ -16834,7 +16841,7 @@
                 }
               }
             },
-            "description": "Missing payments.read permission or the payments.stripe_connect entitlement"
+            "description": "Missing payments.read permission (the catalog is not entitlement-gated)"
           }
         },
         "summary": "`GET /api/v1/tenant/payments/providers`.",

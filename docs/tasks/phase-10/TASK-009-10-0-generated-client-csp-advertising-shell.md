@@ -1,7 +1,7 @@
 # TASK-009: 10.0 Generated client, CSP & advertising shell
 
 **Phase:** 10
-**Status:** todo
+**Status:** done (2026-09-03 — code + local gates green; staging deploy and `v0.11.0-alpha.1` tag not run from this environment)
 **Requirement(s):** FR-1001, NFR-1003, NFR-1007, NFR-1008
 **Depends on:** phase 09
 **Created:** 2026-08-20
@@ -26,35 +26,35 @@ a per-screen `toFixed` is how JPY grows decimals and a zero-spend ROAS renders a
 
 ## What to do
 
-- [ ] **Generated client** — regenerate `packages/api-client` from the backend's new
+- [x] **Generated client** — regenerate `packages/api-client` from the backend's new
       `advertising.yaml` (`pnpm generate:api`). The empty platform list proves the pipeline end to end.
-- [ ] **CSP** — add the ad-platform origins needed for OAuth handoff and creative previews to
+- [x] **CSP** — add the ad-platform origins needed for OAuth handoff and creative previews to
       `packages/csp` as a named `ads()` preset, never ad-hoc per app, so admin and storefront cannot
       drift. A unit test asserts the preset produces no `unsafe-inline` widening; a storefront snapshot
       asserts its policy is **unchanged**.
-- [ ] **Admin shell page** — `apps/admin/src/routes/AdvertisingSettings.svelte`, registered in the SPA
+- [x] **Admin shell page** — `apps/admin/src/routes/AdvertisingSettings.svelte`, registered in the SPA
       router and entitlement-gated: `UpgradePrompt` without the entitlement, an empty state with it. No
       platform code yet.
-- [ ] **Metric formatting** — extend `packages/ui` formatters with ad-account-currency display, a
+- [x] **Metric formatting** — extend `packages/ui` formatters with ad-account-currency display, a
       zero-decimal guard, and a ratio formatter for ROAS/CPA that renders `—` rather than `∞` or `NaN`
       at zero spend. Unit-tested against JPY and USD, reused by TASK-016 rather than reinvented per
       screen.
-- [ ] **Bundle credential scan** — extend `scripts/check-no-secret-keys-in-bundle.mjs` with the
+- [x] **Bundle credential scan** — extend `scripts/check-no-secret-keys-in-bundle.mjs` with the
       ad-platform patterns (OAuth client secret, Google Ads developer token) so a leak fails CI from
       the start of the phase, not at the end.
 
 ## Acceptance criteria
 
-- [ ] `pnpm generate:api` produces an advertising client and `pnpm typecheck` passes against it.
-- [ ] The admin CSP snapshot includes the `ads()` preset origins and contains no `unsafe-inline`; the
+- [x] `pnpm generate:api` produces an advertising client and `pnpm typecheck` passes against it.
+- [x] The admin CSP snapshot includes the `ads()` preset origins and contains no `unsafe-inline`; the
       storefront CSP snapshot is byte-identical to phase 09's.
-- [ ] The advertising settings route renders `UpgradePrompt` without the entitlement and an empty state
+- [x] The advertising settings route renders `UpgradePrompt` without the entitlement and an empty state
       with it; no ad-platform script loads on either path.
-- [ ] The currency formatter renders JPY with no decimals and USD with two; the ratio formatter returns
+- [x] The currency formatter renders JPY with no decimals and USD with two; the ratio formatter returns
       `—` for zero spend, zero revenue, and both zero — no division by zero anywhere.
-- [ ] `node scripts/check-no-secret-keys-in-bundle.mjs` runs over a real build, covers the ad-platform
+- [x] `node scripts/check-no-secret-keys-in-bundle.mjs` runs over a real build, covers the ad-platform
       patterns, and exits 0.
-- [ ] `pnpm check:i18n` and `pnpm check:tokens` pass — the shell page has no hardcoded strings or
+- [x] `pnpm check:i18n` and `pnpm check:tokens` pass — the shell page has no hardcoded strings or
       colours.
 
 ## Verification
@@ -92,6 +92,31 @@ chart primitives (TASK-016), and anything storefront-side (TASK-014).
 - Rollback is flag-off; nothing here has an external side effect.
 - Put the formatters in `packages/ui`, not in the dashboard route — TASK-012's campaign list needs them
   before the dashboard exists.
+
+## Execution notes (2026-09-03)
+
+- `pnpm generate:api` pulled the 38 advertising paths (`/api/v1/tenant/ads/**`,
+  `/api/v1/public/track`, `/api/v1/platform/ads/health`) into `generated/types.ts`; `pnpm typecheck`
+  passes workspace-wide against the regenerated types (24/24 tasks).
+- The `ads()` preset allows only the two OAuth *authorization* hosts (`connect-src`, `form-action`)
+  plus the two creative-preview CDNs (`img-src`). The token endpoints
+  (`oauth2.googleapis.com`, `graph.facebook.com`) are deliberately absent — token exchange is
+  server-to-server, and a browser that could reach them would mean client-side token handling.
+  Storefront policy pinned byte-for-byte to its phase-09 form in `packages/csp/__tests__`.
+- `UpgradePrompt`'s title moved `<h3>` → `<h2>`: composed under a page's `<h1>` (its only real
+  context) it skipped a heading level — axe `heading-order` failed on the new shell's upgrade path.
+  Styles are class-scoped, so no visual change; its own standalone test still passes.
+- The secret scan gained `GOCSPX-` (Google OAuth client secret), a contextual
+  `developerToken: "…"` pair (the developer token has no stable prefix), and an `access_token`
+  contextual Meta pattern. A bare `EA…` prefix would false-positive on inlined base64 blobs, so Meta
+  matches only where an `access_token`-shaped key carries the value; Meta's 32-hex *app secret* is not
+  regex-matchable at all and is documented as a review obligation instead.
+- `pnpm check:quiet` is red on `@sanvi/marketing#check:budget` — **pre-existing**: the clean phase-09
+  tree fails identically (initial JS 105.9 KB / 100 KB budget before this change, 106.2 KB after; the
+  delta is the nine new i18n strings). Not this task's verification list; belongs to the deferred
+  bundle sweeps (TASK-008 partial / TASK-018).
+- Not run from this environment: the `v0.11.0-alpha.1` prerelease tag and the staging deploy (no
+  release pipeline here). Nothing external exists to roll back; flag stays off.
 
 ---
 *On completion: satisfy every acceptance criterion, run the verification commands, then

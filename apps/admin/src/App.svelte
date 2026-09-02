@@ -115,6 +115,15 @@ const routes: RouteDefinition[] = [
     load: () => import('./routes/PaymentDetail.svelte'),
   },
   {
+    // Phase 10 advertising shell. Gated on the `advertising.read` permission
+    // (route visible to operators whose role carries it); the entitlement
+    // split — `UpgradePrompt` vs. empty state — happens inside the page, the
+    // same split PaymentsSettings makes for `payments.stripe_connect`.
+    path: 'advertising/settings',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/AdvertisingSettings.svelte'),
+  },
+  {
     path: 'domains',
     guard: (params) => requireSession(router)(params),
     load: () => import('./routes/Domains.svelte'),
@@ -299,6 +308,7 @@ type NavKey =
   | 'usage'
   | 'billing'
   | 'payments'
+  | 'advertising'
   | 'domains'
   | 'privacy'
   | 'settings'
@@ -313,6 +323,7 @@ const NAV: { href: string; labelKey: NavKey; permission?: string }[] = [
   { href: '/usage', labelKey: 'usage' },
   { href: '/billing', labelKey: 'billing', permission: 'billing.subscription.read' },
   { href: '/payments', labelKey: 'payments', permission: 'payments.read' },
+  { href: '/advertising/settings', labelKey: 'advertising', permission: 'advertising.read' },
   { href: '/domains', labelKey: 'domains' },
   { href: '/theme', labelKey: 'theme', permission: 'tenant.theming.read' },
   { href: '/privacy', labelKey: 'privacy' },

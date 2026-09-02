@@ -1,16 +1,29 @@
 #!/usr/bin/env node
 /**
- * The phase-09 CI gate (docs/phase-09-tenant-payments/09.0-contract-and-foundations.md):
- * no Stripe secret/restricted key pattern may ever appear in a built frontend
- * bundle. The Connect RAK (`rk_`) and any platform secret key (`sk_`) are
- * server-only; if one shows up in `dist/`, a `VITE_`-prefixed env var (or
- * similar) leaked it into client code, and that's a build that must not ship.
+ * CI gate, started in phase 09 (docs/phase-09-tenant-payments/09.0-contract-
+ * and-foundations.md) and extended in phase 10
+ * (docs/phase-10-advertising/implementation-plan.md § TASK-009): no server-
+ * only credential pattern may ever appear in a built frontend bundle.
+ *
+ * Phase 09 — Stripe: the Connect RAK (`rk_`) and any platform secret key
+ * (`sk_`) are server-only; if one shows up in `dist/`, a `VITE_`-prefixed
+ * env var (or similar) leaked it into client code, and that's a build that
+ * must not ship.
+ *
+ * Phase 10 — ad platforms (TASK-009, from the start of the phase, not the
+ * end): a Google OAuth client secret has the `GOCSPX-` prefix, and a Google
+ * Ads developer token leaks as a `developerToken`-shaped key/value pair in
+ * minified code. Meta user/system access tokens (`EAAB…`-style `EAA…`) are
+ * also matched; Meta's *app secret* is deliberately not pattern-matched —
+ * it is bare 32-hex, indistinguishable from every hash in a bundle, so the
+ * gate for it is "never put it in frontend-reaching code", reviewed, not a
+ * regex.
  *
  *   node scripts/check-no-secret-keys-in-bundle.mjs             # scan every app's build output
  *   node scripts/check-no-secret-keys-in-bundle.mjs --self-test # prove it catches a violation
  *
- * Stripe's *publishable* key (`pk_`) is meant to ship to the browser and is
- * deliberately not matched.
+ * Stripe's *publishable* key (`pk_`) and OAuth *client IDs* are meant to
+ * ship to the browser and are deliberately not matched.
  */
 import {
   existsSync,
@@ -26,7 +39,24 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const BUILD_DIR_NAMES = ['dist', 'build', '.svelte-kit/output']
-const PATTERN = /\b(sk|rk)_(live|test)_[A-Za-z0-9]{10,}/
+const PATTERNS = [
+  { name: 'stripe secret/restricted key', pattern: /\b(sk|rk)_(live|test)_[A-Za-z0-9]{10,}/ },
+  { name: 'google oauth client secret', pattern: /\bGOCSPX-[A-Za-z0-9_-]{10,}/ },
+  {
+    name: 'google ads developer token',
+    // No stable prefix to match on — the token is bare base62 — so match the
+    // value only where a `developerToken`-shaped key names it (object literal
+    // or assignment, quoted value), which is how a bundler would emit a leak.
+    pattern: /developer_?[Tt]oken["']?\s*[:=]\s*["'][A-Za-z0-9_-]{10,}["']/,
+  },
+  {
+    name: 'meta access token',
+    // Same contextual rule: a bare `EA…` prefix inside minified code would
+    // false-positive on base64 blobs (inlined images), so the token only
+    // counts where an `access_token`-shaped key or query param carries it.
+    pattern: /access_?[Tt]oken["']?\s*[:=]\s*["']?EA[A-Za-z0-9_-]{20,}/,
+  },
+]
 
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir)) {
@@ -61,9 +91,11 @@ function scan(dirs) {
   for (const dir of dirs) {
     for (const file of walk(dir)) {
       const content = readFileSync(file, 'latin1')
-      const match = content.match(PATTERN)
-      if (match) {
-        violations.push({ file, match: match[0] })
+      for (const { name, pattern } of PATTERNS) {
+        const match = content.match(pattern)
+        if (match) {
+          violations.push({ file, kind: name, match: match[0] })
+        }
       }
     }
   }
@@ -71,8 +103,8 @@ function scan(dirs) {
 }
 
 function report(violations) {
-  for (const { file, match } of violations) {
-    console.error(`SECRET-KEY-IN-BUNDLE VIOLATION: ${file}`)
+  for (const { file, kind, match } of violations) {
+    console.error(`${kind.toUpperCase()} IN BUNDLE VIOLATION: ${file}`)
     console.error(`  matched: ${match.slice(0, 7)}…`)
   }
 }
@@ -80,29 +112,57 @@ function report(violations) {
 function selfTest() {
   const fixtureDir = join(ROOT, 'apps', '__bundle_scan_fixture__', 'dist')
   mkdirSync(fixtureDir, { recursive: true })
+  const fixtureFile = join(fixtureDir, 'index.js')
+
+  const caught = (fixture, label) => {
+    writeFileSync(fixtureFile, fixture)
+    if (scan([fixtureDir]).length === 0) {
+      console.error(`SELF-TEST FAILED: ${label} was not detected`)
+      process.exit(1)
+    }
+    console.log(`self-test OK: ${label} detected`)
+  }
+  const ignored = (fixture, label) => {
+    writeFileSync(fixtureFile, fixture)
+    if (scan([fixtureDir]).length > 0) {
+      console.error(`SELF-TEST FAILED: ${label} must never be flagged`)
+      process.exit(1)
+    }
+    console.log(`self-test OK: ${label} ignored`)
+  }
+
   try {
-    const fixtureFile = join(fixtureDir, 'index.js')
-
-    writeFileSync(fixtureFile, 'const stripeKey = "sk_live_abcdefghijklmnop";\n')
-    if (scan([join(ROOT, 'apps', '__bundle_scan_fixture__', 'dist')]).length === 0) {
-      console.error('SELF-TEST FAILED: sk_live_ literal was not detected')
-      process.exit(1)
-    }
-    console.log('self-test OK: sk_live_ literal detected')
-
-    writeFileSync(fixtureFile, 'const connectKey = "rk_test_abcdefghijklmnop";\n')
-    if (scan([join(ROOT, 'apps', '__bundle_scan_fixture__', 'dist')]).length === 0) {
-      console.error('SELF-TEST FAILED: rk_test_ literal was not detected')
-      process.exit(1)
-    }
-    console.log('self-test OK: rk_test_ literal detected')
-
-    writeFileSync(fixtureFile, 'const publishableKey = "pk_live_abcdefghijklmnop";\n')
-    if (scan([join(ROOT, 'apps', '__bundle_scan_fixture__', 'dist')]).length > 0) {
-      console.error('SELF-TEST FAILED: the publishable key (pk_) must never be flagged')
-      process.exit(1)
-    }
-    console.log('self-test OK: publishable key (pk_) ignored')
+    caught('const stripeKey = "sk_live_abcdefghijklmnop";\n', 'sk_live_ literal')
+    caught('const connectKey = "rk_test_abcdefghijklmnop";\n', 'rk_test_ literal')
+    caught(
+      'const googleSecret = "GOCSPX-abcdefghijklmnopqrstu";\n',
+      'google oauth client secret literal',
+    )
+    caught(
+      'const cfg = { developerToken: "1aBcD2eFg3hIj4K5l6mNo" };\n',
+      'google ads developer token key/value pair',
+    )
+    caught(
+      'const mt = { accessToken: "EAABsbCDi1Q5B7vzW1234567890abcdefghij" };\n',
+      'meta access token assignment',
+    )
+    caught(
+      'const url = "https://graph.facebook.com/me?access_token=EAAGsbCDi1Q5B7vzW1234567890abcdefghij";\n',
+      'meta access token in a query string',
+    )
+    ignored('const publishableKey = "pk_live_abcdefghijklmnop";\n', 'the publishable key (pk_)')
+    ignored(
+      'const clientId = "1234567890-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com";\n',
+      'the oauth client id',
+    )
+    ignored(
+      'const cfg = { developerMode: true };\n',
+      'a developer-prefixed key with no secret-shaped value',
+    )
+    ignored(
+      'const blob = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAEAAYABA3EAAB/+wKG";\n',
+      'a base64 blob that merely contains an EA… run',
+    )
   } finally {
     rmSync(join(ROOT, 'apps', '__bundle_scan_fixture__'), { recursive: true, force: true })
   }
@@ -125,8 +185,11 @@ const violations = scan(dirs)
 if (violations.length > 0) {
   report(violations)
   console.error('')
-  console.error('A Stripe secret/restricted key pattern was found in a built bundle.')
-  console.error('See docs/phase-09-tenant-payments/09.0-contract-and-foundations.md.')
+  console.error('A server-only credential pattern was found in a built bundle.')
+  console.error(
+    'See docs/phase-09-tenant-payments/09.0-contract-and-foundations.md and',
+    'docs/phase-10-advertising/implementation-plan.md (TASK-009).',
+  )
   process.exit(1)
 }
 console.log(

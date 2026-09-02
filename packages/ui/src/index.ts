@@ -25,6 +25,13 @@ export { default as EmptyState } from './EmptyState.svelte'
 export { default as ErrorView } from './ErrorView.svelte'
 export { default as Field, type FieldControlProps } from './Field.svelte'
 export { default as FilterBar, type FilterFieldConfig } from './FilterBar.svelte'
+export {
+  formatAdCurrency,
+  formatRatio,
+  minorUnitDigits,
+  NO_VALUE,
+  type RatioFormatOptions,
+} from './format/metrics'
 export { default as Input } from './Input.svelte'
 export { enterUnlessComposing, isComposingKeyboardEvent } from './ime'
 export { default as Cluster } from './layout/Cluster.svelte'

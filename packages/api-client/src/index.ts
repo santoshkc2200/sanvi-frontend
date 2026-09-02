@@ -13,6 +13,8 @@ export {
 } from './access'
 export { approveRequest, listPendingApprovals, rejectRequest } from './approvals'
 export { listAudit } from './audit'
+export { listAdPlatforms } from './advertising'
+export type { PlatformsView, PlatformView } from './advertising'
 export {
   createCheckoutSession,
   createPortalSession,

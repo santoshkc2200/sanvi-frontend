@@ -2679,11 +2679,17 @@ export interface paths {
     }
     /**
      * `GET /api/v1/tenant/payments/providers`.
-     * @description Gated three ways: the `payments.enabled` phase flag (route absent when
-     *     off), `payments.read` (permission extractor), and the
-     *     `payments.stripe_connect` entitlement (`RequiredFeature` — 403, never
-     *     404, so the frontend can render an upgrade prompt instead of a dead
-     *     end).
+     * @description Gated two ways: the `payments.enabled` phase flag (route absent when off)
+     *     and `payments.read` (permission extractor). Deliberately **not** gated on
+     *     the `payments.stripe_connect` entitlement, unlike every other payments
+     *     route — the catalog is how an un-entitled tenant learns which providers
+     *     exist and therefore what upgrading would buy; the admin renders the cards
+     *     with the connect CTA replaced by an upgrade prompt. Connecting
+     *     (`POST /payments/connections`) keeps the entitlement.
+     *
+     *     A 403 here therefore means the caller lacks `payments.read` — a
+     *     permission problem, not a plan problem. The frontend must not answer it
+     *     with an upgrade prompt.
      *
      *     The response is derived from the provider registry — the handler adds
      *     nothing provider-specific. The tenant's country (from the tenant
@@ -5868,6 +5874,11 @@ export interface components {
       scope: string
       settled_spend: components['schemas']['Money']
       spend_to_date: components['schemas']['Money']
+      /**
+       * @description Currencies for which spend data could not be converted to the cap currency
+       *     because an FX rate was unavailable. When non-empty, spend totals are incomplete.
+       */
+      unconvertible_spend_currencies?: string[]
     }
     SpendStatusReport: {
       items: components['schemas']['SpendStatusItem'][]
@@ -13487,7 +13498,7 @@ export interface operations {
           'application/json': components['schemas']['ProvidersView']
         }
       }
-      /** @description Missing payments.read permission or the payments.stripe_connect entitlement */
+      /** @description Missing payments.read permission (the catalog is not entitlement-gated) */
       403: {
         headers: {
           [name: string]: unknown

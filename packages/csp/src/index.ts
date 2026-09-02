@@ -40,6 +40,47 @@ export interface ContentSecurityPolicyOptions {
    * @default 'header'
    */
   delivery?: 'header' | 'meta'
+  /**
+   * Folds the ad-platform origins from the {@link ads} preset into the
+   * policy — OAuth handoff hosts (`connect-src`, `form-action`) and creative
+   * preview CDNs (`img-src`). Opt-in per app: the admin console turns it on
+   * (its `APP_PRESETS` entry), the storefront deliberately does not, so the
+   * storefront policy is byte-identical to its pre-advertising form — first
+   * party tracking is same-origin by design and needs no third-party origin.
+   *
+   * @default false
+   */
+  ads?: boolean
+}
+
+/**
+ * The ad-platform origins phase 10 (advertising) needs, as one named preset
+ * rather than per-app ad-hoc additions, so `admin` and `storefront` cannot
+ * drift apart.
+ *
+ * - **OAuth handoff** — the browser is redirected to the platform's
+ *   authorization page at an URL the *backend* mints (signed `state`
+ *   included; the frontend never constructs it and never sees a token), so
+ *   the origins are the two authorization hosts, allowed for `form-action`
+ *   (a handoff may be a form navigation) and `connect-src` (any in-page
+ *   fetch during the handoff). The token endpoints
+ *   (`oauth2.googleapis.com`, `graph.facebook.com`) are deliberately absent:
+ *   token exchange is server-to-server, and a browser that could reach them
+ *   would mean client-side token handling, which the design forbids.
+ * - **Creative previews** — campaign creatives are rendered from the
+ *   platforms' own media CDNs: Google serves ad assets from
+ *   `googleusercontent.com`, Meta from `fbcdn.net`.
+ *
+ * Never adds anything to `script-src` or `style-src` — no `unsafe-inline`
+ * widening, no platform script is ever loaded into Sanvi pages (asserted in
+ * the package tests).
+ */
+export function ads(): Partial<CspDirectives> {
+  return {
+    'connect-src': ['https://accounts.google.com', 'https://www.facebook.com'],
+    'img-src': ['https://*.googleusercontent.com', 'https://*.fbcdn.net'],
+    'form-action': ['https://accounts.google.com', 'https://www.facebook.com'],
+  }
 }
 
 function directive(name: string, ...values: Array<string | false | undefined>): string {
@@ -79,7 +120,9 @@ export function buildContentSecurityPolicyDirectives(
     allowInlineScripts = false,
     allowEval = false,
     delivery = 'header',
+    ads: adsOrigins = false,
   } = options
+  const adPreset = adsOrigins ? ads() : {}
 
   return {
     ...directiveSources('default-src', "'self'"),
@@ -103,6 +146,7 @@ export function buildContentSecurityPolicyDirectives(
       'https://*.stripe.com',
       'https://i.ytimg.com',
       'https://img.youtube.com',
+      ...(adPreset['img-src'] ?? []),
     ),
     ...directiveSources('media-src', "'self'", 'blob:', 'https:', mediaOrigin),
     ...directiveSources('font-src', "'self'", 'data:', themeAssetOrigin),
@@ -126,11 +170,17 @@ export function buildContentSecurityPolicyDirectives(
       'https://api.stripe.com',
       'https://*.stripe.com',
       'https://*.link.com',
+      ...(adPreset['connect-src'] ?? []),
     ),
     ...directiveSources('worker-src', "'self'", 'blob:'),
     ...directiveSources('object-src', "'none'"),
     ...directiveSources('base-uri', "'self'"),
-    ...directiveSources('form-action', "'self'", 'https://*.stripe.com'),
+    ...directiveSources(
+      'form-action',
+      "'self'",
+      'https://*.stripe.com',
+      ...(adPreset['form-action'] ?? []),
+    ),
     ...(delivery === 'header' ? directiveSources('frame-ancestors', "'none'") : {}),
   }
 }
@@ -151,7 +201,9 @@ export function buildContentSecurityPolicy(options: ContentSecurityPolicyOptions
     allowInlineScripts = false,
     allowEval = false,
     delivery = 'header',
+    ads: adsOrigins = false,
   } = options
+  const adPreset = adsOrigins ? ads() : {}
 
   return [
     directive('default-src', "'self'"),
@@ -175,6 +227,7 @@ export function buildContentSecurityPolicy(options: ContentSecurityPolicyOptions
       'https://*.stripe.com',
       'https://i.ytimg.com',
       'https://img.youtube.com',
+      ...(adPreset['img-src'] ?? []),
     ),
     directive('media-src', "'self'", 'blob:', 'https:', mediaOrigin),
     directive('font-src', "'self'", 'data:', themeAssetOrigin),
@@ -197,11 +250,12 @@ export function buildContentSecurityPolicy(options: ContentSecurityPolicyOptions
       'https://api.stripe.com',
       'https://*.stripe.com',
       'https://*.link.com',
+      ...(adPreset['connect-src'] ?? []),
     ),
     directive('worker-src', "'self'", 'blob:'),
     directive('object-src', "'none'"),
     directive('base-uri', "'self'"),
-    directive('form-action', "'self'", 'https://*.stripe.com'),
+    directive('form-action', "'self'", 'https://*.stripe.com', ...(adPreset['form-action'] ?? [])),
     delivery === 'header' ? directive('frame-ancestors', "'none'") : undefined,
   ]
     .filter((value): value is string => value !== undefined)
@@ -222,15 +276,22 @@ export type CspAppPresetOptions = Pick<
  * `Content-Security-Policy` response header, so they keep `frame-ancestors`.
  * `admin`/`platform-admin` are Vite SPAs that deliver the policy via
  * `<meta http-equiv>` in dev/preview, where `frame-ancestors` is ignored.
+ *
+ * Only `admin` opts into the {@link ads} preset: it is where OAuth handoff
+ * and creative previews render. `platform-admin`'s advertising surface is a
+ * read-only health overview served by our own API (no platform origin is
+ * contacted), and `marketing`/`storefront` have no advertising surface at
+ * all — the storefront's policy must stay byte-identical to its
+ * pre-advertising form.
  */
 const APP_PRESETS: Record<
   SanviApp,
-  Pick<ContentSecurityPolicyOptions, 'allowInlineScripts' | 'allowEval' | 'delivery'>
+  Pick<ContentSecurityPolicyOptions, 'allowInlineScripts' | 'allowEval' | 'delivery' | 'ads'>
 > = {
-  marketing: { allowInlineScripts: false, allowEval: false, delivery: 'header' },
-  storefront: { allowInlineScripts: false, allowEval: false, delivery: 'header' },
-  admin: { allowInlineScripts: false, allowEval: false, delivery: 'meta' },
-  'platform-admin': { allowInlineScripts: false, allowEval: false, delivery: 'meta' },
+  marketing: { allowInlineScripts: false, allowEval: false, delivery: 'header', ads: false },
+  storefront: { allowInlineScripts: false, allowEval: false, delivery: 'header', ads: false },
+  admin: { allowInlineScripts: false, allowEval: false, delivery: 'meta', ads: true },
+  'platform-admin': { allowInlineScripts: false, allowEval: false, delivery: 'meta', ads: false },
 }
 
 /**

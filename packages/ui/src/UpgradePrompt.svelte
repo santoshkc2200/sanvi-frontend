@@ -37,7 +37,9 @@ const displayCta = $derived(ctaLabel ?? COPY.defaultCta)
 
 <aside class="sanvi-upgrade-prompt {className}" aria-label={displayTitle}>
   <div class="sanvi-upgrade-prompt__content">
-    <h3 class="sanvi-upgrade-prompt__title">{displayTitle}</h3>
+    <!-- h2: the prompt always renders inside a page that already has an h1.
+         An h3 here skips a heading level (axe heading-order) in every app. -->
+    <h2 class="sanvi-upgrade-prompt__title">{displayTitle}</h2>
     <p class="sanvi-upgrade-prompt__description">{displayDescription}</p>
   </div>
   <div class="sanvi-upgrade-prompt__action">
