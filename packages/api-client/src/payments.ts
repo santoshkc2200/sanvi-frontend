@@ -295,6 +295,19 @@ export function updateTenantTaxSettings(
   return client.PUT('/api/v1/tenant/payments/tax-settings', body, signal ? { signal } : undefined)
 }
 
+export function disconnectPaymentConnection(
+  client: TypedApiClient,
+  connectionId: string,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<PaymentConnectionView> {
+  return client.DELETE('/api/v1/tenant/payments/connections/{id}', {
+    params: { path: { id: connectionId } },
+    idempotencyKey,
+    ...(signal ? { signal } : {}),
+  }) as unknown as Promise<PaymentConnectionView>
+}
+
 export const listPayments = listTenantPayments
 export const getPayment = getTenantPayment
 export const refundPayment = refundTenantPayment
@@ -303,3 +316,4 @@ export const exportPayments = exportTenantPayments
 export const listPayouts = listTenantPayouts
 export const getTaxSettings = getTenantTaxSettings
 export const updateTaxSettings = updateTenantTaxSettings
+export const disconnectConnection = disconnectPaymentConnection

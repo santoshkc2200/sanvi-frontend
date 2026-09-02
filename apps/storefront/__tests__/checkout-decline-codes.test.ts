@@ -43,6 +43,15 @@ describe('getDeclineMessage', () => {
     expect(getDeclineMessage('restricted')).toContain('cannot accept payments right now')
   })
 
+  it('maps provider unavailable code', () => {
+    expect(getDeclineMessage('provider_unavailable')).toContain(
+      'Payments are temporarily unavailable',
+    )
+    expect(getDeclineMessage('payments/provider-unavailable')).toContain(
+      'Payments are temporarily unavailable',
+    )
+  })
+
   it('maps cancel code', () => {
     expect(getDeclineMessage('canceled')).toContain('canceled')
   })
@@ -63,6 +72,9 @@ describe('getDeclineMessage', () => {
     )
     expect(getDeclineMessage('cannot_accept_payments')).toBe(
       'このストアは現在お支払いを受け付けることができません。後でもう一度お試しください。',
+    )
+    expect(getDeclineMessage('payments/provider-unavailable')).toBe(
+      '決済サービスは一時的に利用できません。しばらくしてからもう一度お試しください。',
     )
     await setLocale('en')
   })

@@ -18,6 +18,8 @@ import {
   refundTenantPayment,
   updateTaxSettings,
   updateTenantTaxSettings,
+  disconnectConnection,
+  disconnectPaymentConnection,
 } from '../src/payments'
 import { createTypedApiClient } from '../src/typed'
 
@@ -249,7 +251,22 @@ describe('payments api functions', () => {
     )
   })
 
-  it('aliases listPayouts, getTaxSettings, and updateTaxSettings work identically', async () => {
+  it('disconnectPaymentConnection calls DELETE /api/v1/tenant/payments/connections/{id} with idempotency key', async () => {
+    const { client, request } = fakeClient()
+    const typed = createTypedApiClient(client)
+
+    await disconnectPaymentConnection(typed, 'conn-xyz', 'idemp-disconnect-123')
+
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tenant/payments/connections/conn-xyz',
+      expect.objectContaining({
+        method: 'DELETE',
+        idempotencyKey: 'idemp-disconnect-123',
+      }),
+    )
+  })
+
+  it('aliases listPayouts, getTaxSettings, updateTaxSettings, and disconnectConnection work identically', async () => {
     const { client, request } = fakeClient()
     const typed = createTypedApiClient(client)
 
@@ -263,6 +280,12 @@ describe('payments api functions', () => {
     expect(request).toHaveBeenCalledWith(
       '/api/v1/tenant/payments/tax-settings',
       expect.objectContaining({ body: { enabled: false } }),
+    )
+
+    await disconnectConnection(typed, 'conn-alias', 'idemp-alias-123')
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tenant/payments/connections/conn-alias',
+      expect.objectContaining({ method: 'DELETE', idempotencyKey: 'idemp-alias-123' }),
     )
   })
 })

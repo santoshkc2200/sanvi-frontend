@@ -39,7 +39,7 @@ Statuses: `todo` · `in-progress` · `blocked` · `done`
 | TASK-005 | 09 | 09.4 Storefront checkout journey | done | TASK-004 | order summary, checkout initiation, return polling with backoff, confirmation, cancel path, decline code mapping, unit/component tests; e2e/visual snapshots deferred (needs live backend + Stripe sandbox) |
 | TASK-006 | 09 | 09.5 Payments list, detail, refunds & disputes | done | TASK-005 | feat(payments): payments list, detail, refunds & disputes |
 | TASK-007 | 09 | 09.6 Payouts, tax section & fee disclosure | done | TASK-004, TASK-005 | feat(payments): payouts list, failed-payout notice, tax preflight & toggle dialog, platform fee disclosure; storefront tax-note-reflects-real-setting acceptance criterion NOT met — no customer-safe contract surface exists yet (see task file) |
-| TASK-008 | 09 | 09.7 Disconnect, degraded mode & release sweeps | todo | TASK-006, TASK-007 | |
+| TASK-008 | 09 | 09.7 Disconnect, degraded mode & release sweeps | todo | TASK-006, TASK-007 | partial (disconnect flow with typed confirm & blocker mapping, degraded mode in admin/storefront, api-client helper, unit/a11y tests); e2e suite, visual baselines, flag default flip deferred |
 | TASK-009 | 10 | 10.0 Generated client, CSP & advertising shell | todo | phase 09 | |
 | TASK-010 | 10 | 10.1 Capability-driven form engine & platform catalog | todo | TASK-009 | |
 | TASK-011 | 10 | 10.2 Connection screens, OAuth handoff & health | todo | TASK-010 | |
