@@ -10,6 +10,7 @@ import {
 } from '@sanvi/ui'
 import '@sanvi/ui/styles.css'
 import { setTenantContext } from '@sanvi/tenant'
+import { createCart, setCartContext } from '$lib/checkout'
 import {
   currentLocale,
   initI18n,
@@ -72,6 +73,7 @@ $effect(() => {
 // could change later (it can't, within one SSR response).
 setTenantContext(untrack(() => data.tenant))
 setSessionContext(untrack(() => data.session))
+setCartContext(createCart())
 
 const lockedReason = $derived(
   data.tenant && data.tenant.status !== 'active' ? data.tenant.status : null,

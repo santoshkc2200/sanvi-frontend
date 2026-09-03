@@ -67,9 +67,11 @@ export {
   createTenantCheckout,
   getPaymentConnection,
   getTenantCheckout,
+  getTenantCheckoutConfig,
   listPaymentProviders,
 } from './payments'
 export type {
+  CheckoutConfigView,
   CheckoutView,
   CreateCheckoutRequest,
   CreatePaymentConnectionRequest,

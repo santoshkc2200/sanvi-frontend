@@ -110,6 +110,7 @@ export function getPaymentConnection(
 
 export type CreateCheckoutRequest = components['schemas']['CreateCheckoutRequest']
 export type CheckoutView = components['schemas']['CheckoutView']
+export type CheckoutConfigView = components['schemas']['CheckoutConfigView']
 
 /**
  * `POST /api/v1/tenant/checkout` — start a purchase on the tenant's own
@@ -124,6 +125,21 @@ export function createTenantCheckout(
 ): Promise<CheckoutView> {
   return client.POST('/api/v1/tenant/checkout', body, {
     idempotencyKey,
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `GET /api/v1/tenant/checkout/config` — the storefront's pre-flight:
+ * whether the tenant's connected account can be paid, the i18n key for why
+ * not, and the currency it settles in. Read before rendering a Pay button
+ * so a buyer is not told only after clicking.
+ */
+export function getTenantCheckoutConfig(
+  client: TypedApiClient,
+  signal?: AbortSignal,
+): Promise<CheckoutConfigView> {
+  return client.GET('/api/v1/tenant/checkout/config', {
     ...(signal ? { signal } : {}),
   })
 }

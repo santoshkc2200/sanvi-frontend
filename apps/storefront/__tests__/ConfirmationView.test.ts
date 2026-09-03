@@ -47,7 +47,8 @@ describe('ConfirmationView component', () => {
     expect(screen.getByText('Design System Course')).toBeInTheDocument()
     expect(screen.getByText('A receipt has been sent to your email address.')).toBeInTheDocument()
     expect(screen.getByText('Next steps')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Return to store' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Return to store' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Return to store' })).toHaveAttribute('href', '/')
   })
 
   it('formats JPY with no decimals in confirmation total', () => {

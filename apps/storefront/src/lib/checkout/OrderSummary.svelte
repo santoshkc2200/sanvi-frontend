@@ -4,27 +4,36 @@ import { Alert, Button, Container, Stack } from '@sanvi/ui'
 import { createTenantCheckout } from '@sanvi/api-client'
 import { apiClient } from '$lib/auth'
 import { localePath } from '$lib/links'
-import { calculateCartTotal, getCartItems } from './cart.svelte'
-import { clearIdempotencyKey, getOrCreateIdempotencyKey, setPendingCheckoutId } from './idempotency'
+import { calculateCartTotal, DEFAULT_SAMPLE_ITEMS, getCartContext } from './cart.svelte'
+import { getOrCreateCheckoutSession, setPendingCheckoutId } from './idempotency'
 import type { OrderItem } from './types'
 
 interface Props {
   items?: OrderItem[]
+  /** The connected account's settlement currency, from the server's
+   *  checkout config. Absent means it could not be read — the storefront
+   *  never guesses one, because the backend refuses any currency but the
+   *  account's own and a guess would price the cart wrongly on the way. */
   currency?: string
   canAcceptPayments?: boolean
   cannotAcceptReason?: string
   canceled?: boolean
+  reference?: string
   onInitiateCheckout?: (idempotencyKey: string) => Promise<void> | void
 }
 
 let {
-  items = getCartItems(),
-  currency = 'JPY',
+  items,
+  currency,
   canAcceptPayments = true,
   cannotAcceptReason,
   canceled = false,
+  reference: explicitReference,
   onInitiateCheckout,
 }: Props = $props()
+
+const cart = getCartContext()
+const effectiveItems = $derived(items ?? cart?.items ?? DEFAULT_SAMPLE_ITEMS)
 
 let isSubmitting = $state(false)
 let errorMessage = $state<string | null>(null)
@@ -35,28 +44,39 @@ $effect(() => {
   liveCanAcceptPayments = canAcceptPayments
 })
 
-const subtotal = $derived(calculateCartTotal(items))
+const subtotal = $derived(calculateCartTotal(effectiveItems))
 const total = $derived(subtotal)
+// Not knowing the currency is indistinguishable, for the buyer, from not
+// being able to pay: there is nothing safe to render or send.
+const canPay = $derived(liveCanAcceptPayments && currency !== undefined)
 const effectiveCannotAcceptReason = $derived(
   cannotAcceptReason ?? t['storefront.checkout.payButtonDisabledReason'](),
 )
 
 async function handleCheckout() {
-  if (!liveCanAcceptPayments || isSubmitting) return
+  if (!canPay || currency === undefined || isSubmitting) return
 
   isSubmitting = true
   errorMessage = null
   let navigated = false
 
   try {
-    const idempotencyKey = getOrCreateIdempotencyKey()
+    const payloadSignature = JSON.stringify({
+      amount: total,
+      currency,
+      items: effectiveItems.map((it) => ({ id: it.id, qty: it.quantity, amount: it.amount_minor })),
+      ...(explicitReference ? { reference: explicitReference } : {}),
+    })
+
+    const session = getOrCreateCheckoutSession(payloadSignature, explicitReference)
+    const idempotencyKey = session.idempotencyKey
+    const reference = session.reference
 
     if (onInitiateCheckout) {
       await onInitiateCheckout(idempotencyKey)
       return
     }
 
-    const reference = `order-${Date.now()}`
     const success_url = `${window.location.origin}${localePath('/checkout/return')}`
     const cancel_url = `${window.location.origin}${localePath('/checkout/cancel')}`
 
@@ -76,7 +96,6 @@ async function handleCheckout() {
 
     if (checkout.url) {
       navigated = true
-      clearIdempotencyKey()
       window.location.href = checkout.url
     } else {
       errorMessage = t['storefront.checkout.error.generic']()
@@ -115,15 +134,20 @@ async function handleCheckout() {
       </Alert>
     {/if}
 
-    {#if !liveCanAcceptPayments}
+    {#if !canPay}
       <Alert variant="warning">
         <p>{effectiveCannotAcceptReason}</p>
       </Alert>
     {/if}
 
-    {#if items.length === 0}
+    {#if effectiveItems.length === 0}
       <p class="sanvi-checkout-empty">{t['storefront.checkout.emptyCart']()}</p>
     {:else}
+      <!-- Without the account's settlement currency there is nothing safe
+           to price the cart in: the warning above says so, and the button
+           below stays disabled. Prices in a guessed currency would be
+           worse than no prices. -->
+      {#if currency !== undefined}
       <div class="sanvi-checkout-items" role="region" aria-label={t['storefront.checkout.title']()}>
         <table class="sanvi-checkout-table">
           <thead>
@@ -134,7 +158,7 @@ async function handleCheckout() {
             </tr>
           </thead>
           <tbody>
-            {#each items as item (item.id)}
+            {#each effectiveItems as item (item.id)}
               <tr class="sanvi-checkout-row">
                 <td class="sanvi-checkout-td-item">
                   <div class="sanvi-item-name">{item.name}</div>
@@ -163,9 +187,10 @@ async function handleCheckout() {
       <aside class="sanvi-checkout-tax-note" aria-label={t['storefront.checkout.taxNote']()}>
         <p>{t['storefront.checkout.taxNote']()}</p>
       </aside>
+      {/if}
 
       <div class="sanvi-checkout-actions">
-        {#if !liveCanAcceptPayments}
+        {#if !canPay}
           <div class="sanvi-checkout-disabled-reason" role="status">
             <p>{effectiveCannotAcceptReason}</p>
           </div>
@@ -173,7 +198,7 @@ async function handleCheckout() {
 
         <Button
           variant="primary"
-          disabled={!liveCanAcceptPayments || isSubmitting}
+          disabled={!canPay || isSubmitting}
           loading={isSubmitting}
           loadingLabel={t['storefront.checkout.loading']()}
           onclick={handleCheckout}
