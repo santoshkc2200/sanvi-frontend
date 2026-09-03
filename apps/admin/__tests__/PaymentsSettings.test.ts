@@ -141,7 +141,7 @@ describe('Admin PaymentsSettings Route Component', () => {
     )
   })
 
-  it('renders upgrade prompt and no error alert when catalog returns 403', async () => {
+  it('renders permission denied message and no upgrade prompt when catalog returns 403', async () => {
     switchTenant('dev-unentitled')
     setEntitlements([])
     vi.stubGlobal(
@@ -160,12 +160,10 @@ describe('Admin PaymentsSettings Route Component', () => {
 
     render(PaymentsSettings)
 
-    expect(await screen.findByText('Upgrade required')).toBeInTheDocument()
     expect(
-      screen.getByText(
-        'Accepting payments needs a plan with Stripe Connect. Ask a tenant owner to upgrade.',
-      ),
+      await screen.findByText('You do not have permission to view payment settings.'),
     ).toBeInTheDocument()
+    expect(screen.queryByText('Upgrade required')).not.toBeInTheDocument()
     expect(
       screen.queryByText('Could not load payment providers. Try again in a moment.'),
     ).not.toBeInTheDocument()

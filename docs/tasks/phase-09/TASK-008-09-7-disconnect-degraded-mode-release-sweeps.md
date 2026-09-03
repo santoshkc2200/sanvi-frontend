@@ -87,6 +87,15 @@ Anything phase 10 consumes beyond the conversion event id the confirmation page 
 - Disconnect copy is the last place a tenant might believe Sanvi holds their money. Say plainly that
   their Stripe account stays theirs.
 - **Partial implementation note (2026-09-02):** Disconnect flow (permission-gated, typed confirmation, idempotency key lifecycle, 409 blocker code rendering) and degraded mode UI (admin status notice, storefront error translation) implemented and tested with unit & a11y tests. Consolidated e2e, visual snapshot baselines, and flag flipping / release tagging remain pending live backend sandbox environment and full phase completion.
+- **Blocked on backend (2026-09-03):** `PaymentsSettings` can only recover an existing payment
+  connection id from `localStorage`. `GET /tenant/payments/providers` returns a bare catalog —
+  `ProvidersView` has a single `providers` property and `ProviderView` carries no connection id —
+  and there is no list endpoint, only `GET /tenant/payments/connections/{id}`. A merchant signing
+  in from a second browser or device, or after clearing site data, therefore sees the
+  not-connected state — no connection status, disconnect control or onboarding resume — even
+  though a connection exists server-side. Payouts and tax settings are unaffected; they load
+  independently of the stored id. Unblocking this needs a backend current-connection endpoint;
+  there is no frontend-only fix.
 
 ---
 *On completion: satisfy every acceptance criterion, run the verification commands, then

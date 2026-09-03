@@ -39,6 +39,7 @@ import { onDestroy } from 'svelte'
 import { apiClient } from '../lib/api'
 import { getAppEnv } from '../lib/env'
 import { EXPLAINER_BODY_KEY, EXPLAINER_TITLE_KEY } from '../lib/payments/explainerCopy'
+import { getPayoutStatusLabel, getPayoutStatusVariant } from '../lib/payments/helpers'
 import PaymentConnectionStatus from '../lib/payments/PaymentConnectionStatus.svelte'
 import { pollPaymentConnection, type Poller } from '../lib/payments/poll'
 import {
@@ -46,6 +47,7 @@ import {
   clearPersistedConnectionId,
   getLastCreatedPaymentConnection,
   getProviderAdapter,
+  persistConnectionId,
   readPersistedConnectionId,
 } from '../lib/payments/providerRegistry'
 
@@ -71,10 +73,8 @@ function isBlockerArray(value: unknown): value is DisconnectBlocker[] {
 }
 
 function renderDisconnectBlocker(blocker: DisconnectBlocker): string {
-  const key = blocker.summary_key as MessageKey
-  const tMap = t as unknown as Record<string, () => string>
-  if (key && typeof tMap[key] === 'function') {
-    return tMap[key]()
+  if (blocker.summary_key && hasMessage(blocker.summary_key)) {
+    return t[blocker.summary_key]()
   }
   if (blocker.code === 'in_flight_payments') {
     return t['payments.disconnect.blocker.inFlightPayments']
@@ -97,9 +97,9 @@ function renderDisconnectBlocker(blocker: DisconnectBlocker): string {
 const CONNECT_IMPLEMENTED = true
 
 let loading = $state(true)
-let entitled = $state(true)
 let error = $state<string | undefined>(undefined)
 let degradedMode = $state(false)
+let entitled = $state(true)
 let providers = $state<ProviderView[]>([])
 let connection = $state<PaymentConnectionView | null>(null)
 let onboardingConnectionId = $state<string | null>(null)
@@ -111,8 +111,10 @@ let createError = $state<string | undefined>(undefined)
 let isCheckingWithStripe = $state(false)
 
 let payouts = $state<PayoutView[]>([])
+let payoutsLoadError = $state<string | undefined>(undefined)
 let taxSettings = $state<TaxSettingsView | null>(null)
 let taxCheckboxChecked = $state(false)
+let taxLoadError = $state<string | undefined>(undefined)
 let taxDisableDialogOpen = $state(false)
 let updatingTax = $state(false)
 let taxUpdateError = $state<string | undefined>(undefined)
@@ -151,6 +153,7 @@ function startPollingConnection(connId: string): void {
     (res) => res.status === 'active' || res.status === 'rejected' || res.status === 'disconnected',
     {
       onUpdate: (updated) => {
+        const wasActive = connection?.status === 'active'
         connection = updated
         if (
           updated.status === 'active' ||
@@ -158,6 +161,9 @@ function startPollingConnection(connId: string): void {
           updated.status === 'disconnected'
         ) {
           onboardingConnectionId = null
+          if (!wasActive) {
+            void load(true)
+          }
         }
       },
       onError: (err) => {
@@ -180,19 +186,23 @@ function startPollingConnection(connId: string): void {
   poller.start()
 }
 
-async function load(): Promise<void> {
+async function load(background = false): Promise<void> {
   const seq = ++loadSeq
-  loading = true
-  error = undefined
-  degradedMode = false
-  entitled = true
-  clearLastCreatedPaymentConnection()
-  connection = null
-  onboardingConnectionId = null
-  payouts = []
-  taxSettings = null
-  taxUpdateError = undefined
-  stopPoller()
+  if (!background) {
+    loading = true
+    error = undefined
+    degradedMode = false
+    entitled = true
+    clearLastCreatedPaymentConnection()
+    connection = null
+    onboardingConnectionId = null
+    payouts = []
+    payoutsLoadError = undefined
+    taxSettings = null
+    taxLoadError = undefined
+    taxUpdateError = undefined
+    stopPoller()
+  }
 
   try {
     const result = await listPaymentProviders(apiClient)
@@ -201,18 +211,33 @@ async function load(): Promise<void> {
 
     if (hasFeature('payments.stripe_connect')) {
       const tenantId = getActiveTenantId()
-      const stored = readPersistedConnectionId(tenantId ?? undefined)
-      if (stored) {
+      // KNOWN GAP: the connection id is only recoverable from localStorage.
+      // `GET /payments/providers` returns a bare catalog (`ProvidersView` has
+      // one property, `providers`; `ProviderView` carries no connection id),
+      // and there is no list endpoint — only `GET /payments/connections/{id}`.
+      // So a merchant on a second browser/device, or after clearing site data,
+      // sees the not-connected state — no status, disconnect or onboarding UI —
+      // even though a connection exists server-side. Payouts and tax settings
+      // are unaffected; they load below regardless. Fixing this needs a backend
+      // current-connection endpoint; do not paper over it with a speculative
+      // cast on the catalog response.
+      const connId = readPersistedConnectionId(tenantId ?? undefined)
+      if (connId) {
         try {
-          const conn = await getPaymentConnection(apiClient, stored)
+          const conn = await getPaymentConnection(apiClient, connId)
           if (seq !== loadSeq) return
-          connection = conn
-          if (conn.status === 'pending' || conn.status === 'onboarding') {
-            onboardingConnectionId = stored
-            onboardingKey = 0
-            startPollingConnection(stored)
-          } else {
-            onboardingConnectionId = null
+          if (conn) {
+            connection = conn
+            if (tenantId && conn.id) {
+              persistConnectionId(tenantId, conn.id)
+            }
+            if (conn.status === 'pending' || conn.status === 'onboarding') {
+              onboardingConnectionId = connId
+              onboardingKey = 0
+              startPollingConnection(connId)
+            } else {
+              onboardingConnectionId = null
+            }
           }
         } catch (connErr) {
           if (connErr instanceof ApiError) {
@@ -227,45 +252,60 @@ async function load(): Promise<void> {
         }
       }
 
-      try {
-        const [payoutsRes, taxRes] = await Promise.allSettled([
-          listTenantPayouts(apiClient),
-          getTenantTaxSettings(apiClient),
-        ])
-        if (seq !== loadSeq) return
-        if (payoutsRes.status === 'fulfilled') {
-          payouts = payoutsRes.value?.payouts ?? []
-        } else if (
+      const [payoutsRes, taxRes] = await Promise.allSettled([
+        listTenantPayouts(apiClient),
+        getTenantTaxSettings(apiClient),
+      ])
+      if (seq !== loadSeq) return
+      if (payoutsRes.status === 'fulfilled') {
+        payouts = payoutsRes.value?.payouts ?? []
+        payoutsLoadError = undefined
+      } else {
+        payouts = []
+        if (
           payoutsRes.reason instanceof ApiError &&
           payoutsRes.reason.type === 'payments/provider-unavailable'
         ) {
           degradedMode = true
         }
+        payoutsLoadError = t['admin.payments.payoutsLoadError']()
+      }
 
-        if (taxRes.status === 'fulfilled') {
-          taxSettings = taxRes.value ?? null
-        } else if (
+      if (taxRes.status === 'fulfilled') {
+        taxSettings = taxRes.value ?? null
+        taxLoadError = undefined
+      } else {
+        taxSettings = null
+        if (
           taxRes.reason instanceof ApiError &&
           taxRes.reason.type === 'payments/provider-unavailable'
         ) {
           degradedMode = true
         }
-      } catch {
-        // Non-fatal if payouts/tax cannot be loaded
+        taxLoadError = t['admin.payments.taxLoadError']()
       }
     }
   } catch (err) {
     if (seq !== loadSeq) return
     if (err instanceof ApiError && err.type === 'payments/provider-unavailable') {
       degradedMode = true
-    } else if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+    } else if (err instanceof ApiError && err.status === 403) {
+      // The catalog is NOT entitlement-gated (payments routes.rs registers no
+      // RequiredFeature on it), so a 403 is a missing `payments.read`
+      // permission, never a plan boundary. Do not answer it with an upgrade
+      // prompt.
+      error = t['admin.payments.permissionDenied']()
+      providers = []
+    } else if (err instanceof ApiError && err.status === 404) {
+      // The route is absent when the `payments.enabled` phase flag is off, so
+      // a 404 does mean the tenant cannot use payments at all.
       entitled = false
       providers = []
     } else {
       error = t['admin.payments.genericError']()
     }
   } finally {
-    if (seq === loadSeq) loading = false
+    if (seq === loadSeq && !background) loading = false
   }
 }
 
@@ -280,10 +320,13 @@ async function handleConnect(provider: ProviderView): Promise<void> {
     const conn = getLastCreatedPaymentConnection()
     if (conn) {
       connection = conn
-      onboardingConnectionId = conn.id
-      onboardingKey += 1
       if (conn.status === 'pending' || conn.status === 'onboarding') {
+        onboardingConnectionId = conn.id
+        onboardingKey += 1
         startPollingConnection(conn.id)
+      } else if (conn.status === 'active') {
+        onboardingConnectionId = null
+        void load(true)
       }
     } else {
       const tid = getActiveTenantId()
@@ -406,32 +449,24 @@ const toggleDisabledReason = $derived.by(() => {
   return undefined
 })
 
-function getPayoutStatusVariant(
-  status: string,
-): 'success' | 'error' | 'warning' | 'info' | 'neutral' {
+function getTaxProviderStatusLabel(status: string): string {
   switch (status) {
-    case 'paid':
-      return 'success'
-    case 'failed':
-      return 'error'
+    case 'active':
+      return t['admin.payments.taxProviderStatusActive']()
+    case 'inactive':
+      return t['admin.payments.taxProviderStatusInactive']()
     case 'pending':
-      return 'warning'
-    default:
-      return 'neutral'
-  }
-}
-
-function getPayoutStatusLabel(status: string): string {
-  switch (status) {
-    case 'paid':
-      return t['admin.payments.payoutsStatusPaid']()
-    case 'pending':
-      return t['admin.payments.payoutsStatusPending']()
-    case 'failed':
-      return t['admin.payments.payoutsStatusFailed']()
+      return t['admin.payments.taxProviderStatusPending']()
     default:
       return status
   }
+}
+
+function renderFeeAmount(minor: number, currency: string | null | undefined): string {
+  if (currency) {
+    return formatMinor(minor, currency)
+  }
+  return `${minor} (${t['admin.payments.feeUnknownCurrency']()})`
 }
 
 function getTaxWarningMessage(code: string): string {
@@ -443,7 +478,8 @@ function getTaxWarningMessage(code: string): string {
 
 async function handleTaxToggleChange(event: Event & { currentTarget: HTMLInputElement }) {
   if (toggleDisabled || updatingTax || !taxSettings) return
-  const willEnable = event.currentTarget.checked
+  const inputEl = event.currentTarget
+  const willEnable = inputEl?.checked ?? false
 
   if (willEnable) {
     updatingTax = true
@@ -457,8 +493,13 @@ async function handleTaxToggleChange(event: Event & { currentTarget: HTMLInputEl
       })
     } catch (err) {
       taxCheckboxChecked = false
-      if (err instanceof ApiError && err.status === 409) {
-        taxUpdateError = err.message || t['admin.payments.taxDisabledPreflight']()
+      // ApiError.message is the backend problem.title — untranslated English,
+      // and never empty, so it must not reach the UI. Key off type/status.
+      if (
+        err instanceof ApiError &&
+        (err.status === 409 || err.type === 'payments/tax-preflight-failed')
+      ) {
+        taxUpdateError = t['admin.payments.taxDisabledPreflight']()
       } else {
         taxUpdateError = t['admin.payments.taxUpdateError']()
       }
@@ -490,8 +531,15 @@ async function confirmDisableTax(): Promise<void> {
       title: t['admin.payments.taxSuccessDisabled'](),
       variant: 'success',
     })
-  } catch {
-    taxUpdateError = t['admin.payments.taxUpdateError']()
+  } catch (err) {
+    if (
+      err instanceof ApiError &&
+      (err.status === 409 || err.type === 'payments/tax-preflight-failed')
+    ) {
+      taxUpdateError = t['admin.payments.taxDisabledPreflight']()
+    } else {
+      taxUpdateError = t['admin.payments.taxUpdateError']()
+    }
   } finally {
     updatingTax = false
   }
@@ -735,7 +783,7 @@ $effect(() => {
         </section>
       {/if}
 
-      {#if isStripeEnabled && (connection || payouts.length > 0)}
+      {#if isStripeEnabled && (connection || payouts.length > 0 || payoutsLoadError || (!loading && !error))}
         <section class="sanvi-payments__payouts" aria-labelledby="sanvi-payments-payouts-heading">
           <div class="sanvi-payments__payouts-header">
             <h2 id="sanvi-payments-payouts-heading" class="sanvi-payments__payouts-title">
@@ -746,7 +794,9 @@ $effect(() => {
             </p>
           </div>
 
-          {#if payouts.length === 0}
+          {#if payoutsLoadError}
+            <Alert variant="error">{payoutsLoadError}</Alert>
+          {:else if payouts.length === 0}
             <EmptyState
               title={t['admin.payments.payoutsEmpty']()}
               description={t['admin.payments.payoutsEmptyDescription']()}
@@ -796,7 +846,7 @@ $effect(() => {
         </section>
       {/if}
 
-      {#if isStripeEnabled && taxSettings}
+      {#if isStripeEnabled && (taxSettings || taxLoadError)}
         <section class="sanvi-payments__tax" aria-labelledby="sanvi-payments-tax-heading">
           <div class="sanvi-payments__tax-header">
             <h2 id="sanvi-payments-tax-heading" class="sanvi-payments__tax-title">
@@ -807,71 +857,75 @@ $effect(() => {
             </p>
           </div>
 
-          <div class="sanvi-payments__tax-disclaimer">
-            <p>{t['admin.payments.taxDisclaimer']()}</p>
-          </div>
+          {#if taxLoadError}
+            <Alert variant="error">{taxLoadError}</Alert>
+          {:else if taxSettings}
+            <div class="sanvi-payments__tax-disclaimer">
+              <p>{t['admin.payments.taxDisclaimer']()}</p>
+            </div>
 
-          {#if taxUpdateError}
-            <Alert variant="error">{taxUpdateError}</Alert>
-          {/if}
+            {#if taxUpdateError}
+              <Alert variant="error">{taxUpdateError}</Alert>
+            {/if}
 
-          {#if taxSettings.warning}
-            <Alert variant="warning">
-              <strong>{t['admin.payments.taxWarningTitle']()}</strong>
-              <p>{getTaxWarningMessage(taxSettings.warning.code)}</p>
-              <div class="sanvi-payments__tax-warning-date">
-                {t['admin.payments.taxWarningDetectedAt']({ date: fmt.datetime(taxSettings.warning.detected_at, 'medium') })}
-              </div>
-            </Alert>
-          {/if}
-
-          <div class="sanvi-payments__tax-preflight-card">
-            <div class="sanvi-payments__tax-grid">
-              <div class="sanvi-payments__tax-field">
-                <span class="sanvi-payments__tax-label">{t['admin.payments.taxRegistrationsLabel']()}</span>
-                <strong class="sanvi-payments__tax-value">
-                  {t['admin.payments.taxRegistrationsCount']({ count: taxSettings.active_registrations })}
-                </strong>
-              </div>
-              <div class="sanvi-payments__tax-field">
-                <span class="sanvi-payments__tax-label">{t['admin.payments.taxProviderStatusLabel']()}</span>
-                <span class="sanvi-payments__tax-value">{taxSettings.provider_status}</span>
-              </div>
-              {#if taxSettings.liability_account}
-                <div class="sanvi-payments__tax-field">
-                  <span class="sanvi-payments__tax-label">{t['admin.payments.taxLiabilityAccountLabel']()}</span>
-                  <span class="sanvi-payments__tax-value sanvi-payments__code">{taxSettings.liability_account}</span>
+            {#if taxSettings.warning}
+              <Alert variant="warning">
+                <strong>{t['admin.payments.taxWarningTitle']()}</strong>
+                <p>{getTaxWarningMessage(taxSettings.warning.code)}</p>
+                <div class="sanvi-payments__tax-warning-date">
+                  {t['admin.payments.taxWarningDetectedAt']({ date: fmt.datetime(taxSettings.warning.detected_at, 'medium') })}
                 </div>
-              {/if}
-              {#if taxSettings.last_checked_at}
+              </Alert>
+            {/if}
+
+            <div class="sanvi-payments__tax-preflight-card">
+              <div class="sanvi-payments__tax-grid">
                 <div class="sanvi-payments__tax-field">
-                  <span class="sanvi-payments__tax-label">{t['admin.payments.taxLastCheckedLabel']()}</span>
-                  <span class="sanvi-payments__tax-value">{fmt.datetime(taxSettings.last_checked_at, 'medium')}</span>
+                  <span class="sanvi-payments__tax-label">{t['admin.payments.taxRegistrationsLabel']()}</span>
+                  <strong class="sanvi-payments__tax-value">
+                    {t['admin.payments.taxRegistrationsCount']({ count: taxSettings.active_registrations })}
+                  </strong>
                 </div>
+                <div class="sanvi-payments__tax-field">
+                  <span class="sanvi-payments__tax-label">{t['admin.payments.taxProviderStatusLabel']()}</span>
+                  <span class="sanvi-payments__tax-value">{getTaxProviderStatusLabel(taxSettings.provider_status)}</span>
+                </div>
+                {#if taxSettings.liability_account}
+                  <div class="sanvi-payments__tax-field">
+                    <span class="sanvi-payments__tax-label">{t['admin.payments.taxLiabilityAccountLabel']()}</span>
+                    <span class="sanvi-payments__tax-value sanvi-payments__code">{taxSettings.liability_account}</span>
+                  </div>
+                {/if}
+                {#if taxSettings.last_checked_at}
+                  <div class="sanvi-payments__tax-field">
+                    <span class="sanvi-payments__tax-label">{t['admin.payments.taxLastCheckedLabel']()}</span>
+                    <span class="sanvi-payments__tax-value">{fmt.datetime(taxSettings.last_checked_at, 'medium')}</span>
+                  </div>
+                {/if}
+              </div>
+            </div>
+
+            <div class="sanvi-payments__tax-control">
+              <Checkbox
+                bind:checked={taxCheckboxChecked}
+                disabled={toggleDisabled || updatingTax}
+                onchange={handleTaxToggleChange}
+              >
+                {#snippet children()}
+                  <span>{t['admin.payments.taxToggleLabel']()}</span>
+                {/snippet}
+              </Checkbox>
+              {#if toggleDisabledReason}
+                <p class="sanvi-payments__tax-disabled-reason" role="status">
+                  {toggleDisabledReason}
+                </p>
               {/if}
             </div>
-          </div>
-
-          <div class="sanvi-payments__tax-control">
-            <Checkbox
-              bind:checked={taxCheckboxChecked}
-              disabled={toggleDisabled || updatingTax}
-              onchange={handleTaxToggleChange}
-            >
-              {#snippet children()}
-                <span>{t['admin.payments.taxToggleLabel']()}</span>
-              {/snippet}
-            </Checkbox>
-            {#if toggleDisabledReason}
-              <p class="sanvi-payments__tax-disabled-reason" role="status">
-                {toggleDisabledReason}
-              </p>
-            {/if}
-          </div>
+          {/if}
         </section>
       {/if}
 
-      {#if isStripeEnabled && platformFee && platformFee.enabled}
+      {#if isStripeEnabled && ((platformFee && platformFee.enabled) || taxLoadError)}
         <section class="sanvi-payments__fee" aria-labelledby="sanvi-payments-fee-heading">
           <div class="sanvi-payments__fee-header">
             <h2 id="sanvi-payments-fee-heading" class="sanvi-payments__fee-title">
@@ -882,34 +936,38 @@ $effect(() => {
             </p>
           </div>
 
-          <div class="sanvi-payments__fee-card">
-            <div class="sanvi-payments__fee-grid">
-              {#if platformFee.basis_points != null}
-                <div class="sanvi-payments__fee-field">
-                  <span class="sanvi-payments__fee-label">{t['admin.payments.feeRateLabel']()}</span>
-                  <strong class="sanvi-payments__fee-value">
-                    {(platformFee.basis_points / 100).toFixed(2)}%
-                  </strong>
-                </div>
-              {/if}
-              {#if platformFee.fixed_minor != null && feeCurrency}
-                <div class="sanvi-payments__fee-field">
-                  <span class="sanvi-payments__fee-label">{t['admin.payments.feeFixedLabel']()}</span>
-                  <strong class="sanvi-payments__fee-value">
-                    {formatMinor(platformFee.fixed_minor, feeCurrency)}
-                  </strong>
-                </div>
-              {/if}
-              {#if platformFee.minimum_minor > 0 && feeCurrency}
-                <div class="sanvi-payments__fee-field">
-                  <span class="sanvi-payments__fee-label">{t['admin.payments.feeMinimumLabel']()}</span>
-                  <strong class="sanvi-payments__fee-value">
-                    {formatMinor(platformFee.minimum_minor, feeCurrency)}
-                  </strong>
-                </div>
-              {/if}
+          {#if taxLoadError}
+            <Alert variant="error">{taxLoadError}</Alert>
+          {:else if platformFee && platformFee.enabled}
+            <div class="sanvi-payments__fee-card">
+              <div class="sanvi-payments__fee-grid">
+                {#if platformFee.basis_points != null}
+                  <div class="sanvi-payments__fee-field">
+                    <span class="sanvi-payments__fee-label">{t['admin.payments.feeRateLabel']()}</span>
+                    <strong class="sanvi-payments__fee-value">
+                      {(platformFee.basis_points / 100).toFixed(2)}%
+                    </strong>
+                  </div>
+                {/if}
+                {#if platformFee.fixed_minor != null}
+                  <div class="sanvi-payments__fee-field">
+                    <span class="sanvi-payments__fee-label">{t['admin.payments.feeFixedLabel']()}</span>
+                    <strong class="sanvi-payments__fee-value">
+                      {renderFeeAmount(platformFee.fixed_minor, feeCurrency)}
+                    </strong>
+                  </div>
+                {/if}
+                {#if platformFee.minimum_minor != null}
+                  <div class="sanvi-payments__fee-field">
+                    <span class="sanvi-payments__fee-label">{t['admin.payments.feeMinimumLabel']()}</span>
+                    <strong class="sanvi-payments__fee-value">
+                      {renderFeeAmount(platformFee.minimum_minor, feeCurrency)}
+                    </strong>
+                  </div>
+                {/if}
+              </div>
             </div>
-          </div>
+          {/if}
         </section>
       {/if}
 
