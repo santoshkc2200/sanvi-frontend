@@ -297,6 +297,7 @@ describe('OrderSummary component', () => {
     render(OrderSummary, {
       props: {
         items: sampleItems,
+        currency: 'USD',
         taxEnabled: true,
       },
     })
@@ -310,6 +311,7 @@ describe('OrderSummary component', () => {
     render(OrderSummary, {
       props: {
         items: sampleItems,
+        currency: 'USD',
         taxEnabled: false,
       },
     })

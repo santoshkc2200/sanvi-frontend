@@ -16,7 +16,7 @@ import type {
 } from '@sanvi/api-client'
 import { can } from '@sanvi/auth'
 import { formatMinor } from '@sanvi/billing-elements'
-import { currentLocale, fmt, t, type MessageKey } from '@sanvi/i18n'
+import { currentLocale, fmt, hasMessage, t } from '@sanvi/i18n'
 import { getActiveTenantId, hasFeature } from '@sanvi/tenant'
 import {
   Alert,
@@ -65,9 +65,16 @@ let isCheckingWithStripe = $state(false)
 
 let payouts = $state<PayoutView[]>([])
 let taxSettings = $state<TaxSettingsView | null>(null)
+let taxCheckboxChecked = $state(false)
 let taxDisableDialogOpen = $state(false)
 let updatingTax = $state(false)
 let taxUpdateError = $state<string | undefined>(undefined)
+
+$effect(() => {
+  if (!taxDisableDialogOpen) {
+    taxCheckboxChecked = taxSettings?.enabled ?? false
+  }
+})
 
 let poller: Poller<PaymentConnectionView> | undefined
 
@@ -148,6 +155,22 @@ async function load(): Promise<void> {
           } else {
             onboardingConnectionId = null
           }
+
+          try {
+            const [payoutsRes, taxRes] = await Promise.allSettled([
+              listTenantPayouts(apiClient),
+              getTenantTaxSettings(apiClient),
+            ])
+            if (seq !== loadSeq) return
+            if (payoutsRes.status === 'fulfilled') {
+              payouts = payoutsRes.value?.payouts ?? []
+            }
+            if (taxRes.status === 'fulfilled') {
+              taxSettings = taxRes.value ?? null
+            }
+          } catch {
+            // Non-fatal if payouts/tax cannot be loaded
+          }
         } catch (connErr) {
           if (seq !== loadSeq) return
           if (connErr instanceof ApiError && connErr.status === 404) {
@@ -156,22 +179,6 @@ async function load(): Promise<void> {
             onboardingConnectionId = null
           }
         }
-      }
-
-      try {
-        const [payoutsRes, taxRes] = await Promise.allSettled([
-          listTenantPayouts(apiClient),
-          getTenantTaxSettings(apiClient),
-        ])
-        if (seq !== loadSeq) return
-        if (payoutsRes.status === 'fulfilled') {
-          payouts = payoutsRes.value?.payouts ?? []
-        }
-        if (taxRes.status === 'fulfilled') {
-          taxSettings = taxRes.value ?? null
-        }
-      } catch {
-        // Non-fatal if payouts/tax cannot be loaded
       }
     }
   } catch (err) {
@@ -290,6 +297,9 @@ onDestroy(() => {
 
 const hasFailedPayout = $derived(payouts.some((p) => p.status === 'failed'))
 const platformFee = $derived(taxSettings?.platform_fee)
+const feeCurrency = $derived(
+  platformFee?.fixed_currency || connection?.default_currency || undefined,
+)
 const hasManagePermission = $derived(can('payments.manage', getActiveTenantId()))
 
 const preflightFails = $derived(
@@ -308,8 +318,8 @@ const toggleDisabledReason = $derived.by(() => {
   }
   if (!taxSettings?.enabled) {
     if (taxSettings?.warning) {
-      const warningKey = taxSettings.warning.code as MessageKey
-      return t[warningKey] ? t[warningKey]() : t['payments.tax.warning.generic']()
+      const warningCode = taxSettings.warning.code
+      return hasMessage(warningCode) ? t[warningCode]() : t['payments.tax.warning.generic']()
     }
     if (taxSettings && taxSettings.provider_status !== 'active') {
       return t['admin.payments.taxDisabledProviderInactive']()
@@ -350,9 +360,8 @@ function getPayoutStatusLabel(status: string): string {
 }
 
 function getTaxWarningMessage(code: string): string {
-  const key = code as MessageKey
-  if (t[key]) {
-    return t[key]()
+  if (hasMessage(code)) {
+    return t[code]()
   }
   return t['payments.tax.warning.generic']()
 }
@@ -372,7 +381,7 @@ async function handleTaxToggleChange(event: Event & { currentTarget: HTMLInputEl
         variant: 'success',
       })
     } catch (err) {
-      event.currentTarget.checked = false
+      taxCheckboxChecked = false
       if (err instanceof ApiError && err.status === 409) {
         taxUpdateError = err.message || t['admin.payments.taxDisabledPreflight']()
       } else {
@@ -382,9 +391,16 @@ async function handleTaxToggleChange(event: Event & { currentTarget: HTMLInputEl
       updatingTax = false
     }
   } else {
-    event.currentTarget.checked = true
+    taxCheckboxChecked = true
+    taxUpdateError = undefined
     taxDisableDialogOpen = true
   }
+}
+
+function cancelDisableTax(): void {
+  taxDisableDialogOpen = false
+  taxUpdateError = undefined
+  taxCheckboxChecked = taxSettings?.enabled ?? false
 }
 
 async function confirmDisableTax(): Promise<void> {
@@ -686,7 +702,7 @@ $effect(() => {
 
           <div class="sanvi-payments__tax-control">
             <Checkbox
-              checked={taxSettings.enabled}
+              bind:checked={taxCheckboxChecked}
               disabled={toggleDisabled || updatingTax}
               onchange={handleTaxToggleChange}
             >
@@ -724,19 +740,19 @@ $effect(() => {
                   </strong>
                 </div>
               {/if}
-              {#if platformFee.fixed_minor != null}
+              {#if platformFee.fixed_minor != null && feeCurrency}
                 <div class="sanvi-payments__fee-field">
                   <span class="sanvi-payments__fee-label">{t['admin.payments.feeFixedLabel']()}</span>
                   <strong class="sanvi-payments__fee-value">
-                    {formatMinor(platformFee.fixed_minor, platformFee.fixed_currency || connection?.default_currency || 'USD')}
+                    {formatMinor(platformFee.fixed_minor, feeCurrency)}
                   </strong>
                 </div>
               {/if}
-              {#if platformFee.minimum_minor != null}
+              {#if platformFee.minimum_minor > 0 && feeCurrency}
                 <div class="sanvi-payments__fee-field">
                   <span class="sanvi-payments__fee-label">{t['admin.payments.feeMinimumLabel']()}</span>
                   <strong class="sanvi-payments__fee-value">
-                    {formatMinor(platformFee.minimum_minor, platformFee.fixed_currency || connection?.default_currency || 'USD')}
+                    {formatMinor(platformFee.minimum_minor, feeCurrency)}
                   </strong>
                 </div>
               {/if}
@@ -749,18 +765,20 @@ $effect(() => {
         <Dialog
           bind:open={taxDisableDialogOpen}
           titleText={t['admin.payments.taxDisableDialogTitle']()}
+          closeLabel={t['admin.payments.taxDisableDialogClose']()}
         >
           {#snippet children()}
             <Stack gap="3">
+              {#if taxUpdateError}
+                <Alert variant="error">{taxUpdateError}</Alert>
+              {/if}
               <p>{t['admin.payments.taxDisableDialogDescription']()}</p>
             </Stack>
           {/snippet}
           {#snippet footer()}
             <Button
               variant="ghost"
-              onclick={() => {
-                taxDisableDialogOpen = false
-              }}
+              onclick={cancelDisableTax}
               disabled={updatingTax}
             >
               {t['admin.payments.taxDisableDialogCancel']()}

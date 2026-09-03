@@ -686,6 +686,7 @@
   "admin.payments.taxDisableDialogDescription": "自動税計算を無効にすると、次回以降のチェックアウトで税金の計算および徴収が停止されます。この変更は直ちに適用され、請求期間途中のお客様への請求金額に影響します。自動税計算を無効にしてもよろしいですか？",
   "admin.payments.taxDisableDialogConfirm": "自動税計算を無効にする",
   "admin.payments.taxDisableDialogCancel": "有効のままにする",
+  "admin.payments.taxDisableDialogClose": "閉じる",
   "admin.payments.taxDisabling": "無効化中…",
   "admin.payments.taxEnabling": "有効化中…",
   "admin.payments.taxSuccessEnabled": "自動税計算を有効にしました。",

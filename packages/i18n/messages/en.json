@@ -686,6 +686,7 @@
   "admin.payments.taxDisableDialogDescription": "Disabling automatic tax will stop tax calculation and collection on upcoming customer checkouts. This change takes effect immediately and affects what customers are charged mid-period. Are you sure you want to disable automatic tax?",
   "admin.payments.taxDisableDialogConfirm": "Disable automatic tax",
   "admin.payments.taxDisableDialogCancel": "Keep enabled",
+  "admin.payments.taxDisableDialogClose": "Close",
   "admin.payments.taxDisabling": "Disabling…",
   "admin.payments.taxEnabling": "Enabling…",
   "admin.payments.taxSuccessEnabled": "Automatic tax enabled.",
