@@ -131,6 +131,10 @@ function lineOf(source, index) {
   return line
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 /**
  * @returns {{ file: string, line: number, literal: string, tier: 1 | 2, scope: string }[]}
  */
@@ -144,7 +148,7 @@ export function scanFile(file, relativePath, source) {
   // whatever identifiers the contract carries.
   if (!normalized.includes('/generated/')) {
     for (const literal of PLATFORM_IDENTIFIERS) {
-      const pattern = new RegExp(`\\b${literal}\\b`, 'g')
+      const pattern = new RegExp(`\\b${escapeRegExp(literal)}\\b`, 'g')
       let match = pattern.exec(code)
       while (match !== null) {
         violations.push({
@@ -161,7 +165,7 @@ export function scanFile(file, relativePath, source) {
 
   if (isFormPath(normalized)) {
     for (const literal of MATRIX_VALUE_QUOTED) {
-      const pattern = new RegExp(`['"\`]${literal}['\`]`, 'g')
+      const pattern = new RegExp(`['"\`]${escapeRegExp(literal)}['"\`]`, 'g')
       let match = pattern.exec(code)
       while (match !== null) {
         violations.push({
@@ -175,7 +179,7 @@ export function scanFile(file, relativePath, source) {
       }
     }
     for (const literal of MATRIX_VALUE_IDENTIFIERS) {
-      const pattern = new RegExp(`\\b${literal}\\b`, 'g')
+      const pattern = new RegExp(`\\b${escapeRegExp(literal)}\\b`, 'g')
       let match = pattern.exec(code)
       while (match !== null) {
         violations.push({

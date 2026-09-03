@@ -7,9 +7,11 @@ import {
   codePointLength,
   emptyDraft,
   FIELD_PATHS,
+  schemaCacheKey,
   textFieldsFor,
   textLimit,
 } from '../src/forms/schema'
+import type { AdCapabilityMatrix } from '../src/forms/types'
 import { mapViolations, validateDraft } from '../src/forms/validate'
 import { AD_PLATFORM_FIXTURES, fixturePlatformByKey } from './fixtures/advertising/index'
 
@@ -36,6 +38,25 @@ describe('campaignFormSchema (matrix → fields)', () => {
     edited.objectives[0] = `${GOOGLE.objectives[0]}_x`
     expect(campaignFormSchema(edited)).not.toBe(first)
     expect(campaignFormSchema(edited)).toBe(campaignFormSchema(edited))
+  })
+
+  it('differentiates matrices that differ only in deeply nested values', () => {
+    const base = GOOGLE
+    const firstLocale = Object.keys(base.text_limits)[0]!
+    const firstField = Object.keys(base.text_limits[firstLocale]!)[0]!
+    const currentLimit = base.text_limits[firstLocale]![firstField]!
+    const variant: AdCapabilityMatrix = {
+      ...base,
+      text_limits: {
+        ...base.text_limits,
+        [firstLocale]: {
+          ...base.text_limits[firstLocale]!,
+          [firstField]: currentLimit + 10,
+        },
+      },
+    }
+    expect(schemaCacheKey(base)).not.toBe(schemaCacheKey(variant))
+    expect(campaignFormSchema(base)).not.toBe(campaignFormSchema(variant))
   })
 
   it('resolves the default limits entry for locales with no explicit entry, and not for ones with', () => {
@@ -153,6 +174,14 @@ describe('validateDraft (client-side, from the same matrix the backend enforces)
       { code: 'tooLong', current: 20, limit: 18, path: 'texts[0].headline' },
     ])
   })
+
+  it('attributes text limit issues using array index directly even when entries share object references', () => {
+    const draft = validDraft()
+    const sharedEntry = { locale: 'ja', values: { headline: 'x'.repeat(35), body: '' } }
+    draft.texts = [sharedEntry, sharedEntry]
+    const issues = validateDraft(schema, draft)
+    expect(issues.map((i) => i.path)).toContain('texts[1].headline')
+  })
 })
 
 describe('mapViolations (server violations land on fields by path)', () => {
@@ -178,6 +207,18 @@ describe('mapViolations (server violations land on fields by path)', () => {
       { code: 'invalid', field_path: 'texts[1].headline', message: 'headline exceeds the limit' },
     ])
     expect(mapped.fieldMessages['texts[1].headline']).toEqual(['headline exceeds the limit'])
+  })
+
+  it('maps bare targeting to fieldMessages and not formMessages', () => {
+    const mapped = mapViolations(schema, draft, [
+      {
+        code: 'invalid',
+        field_path: 'targeting',
+        message: 'at least one targeting dimension required',
+      },
+    ])
+    expect(mapped.fieldMessages.targeting).toEqual(['at least one targeting dimension required'])
+    expect(mapped.formMessages).toEqual([])
   })
 
   it('surfaces an unmapped violation at form level rather than swallowing it', () => {
@@ -302,11 +343,82 @@ describe('CapabilityForm rendering (from matrix data alone)', () => {
     ).toBeInTheDocument()
   })
 
+  it('renders bare targeting and per-dimension targeting violations in the targeting fieldset without duplicating in form alert', async () => {
+    const selectedDimension = GOOGLE.targeting_dimensions[0]!
+    render(CapabilityForm, {
+      props: {
+        matrix: GOOGLE,
+        currency: 'JPY',
+        serverViolations: [
+          {
+            code: 'invalid',
+            field_path: 'targeting',
+            message: 'at least one targeting dimension required',
+          },
+          {
+            code: 'invalid',
+            field_path: `targeting.${selectedDimension}`,
+            message: `${selectedDimension} dimension is invalid`,
+          },
+        ],
+      },
+    })
+    const checkbox = screen.getByRole('checkbox', { name: new RegExp(selectedDimension, 'i') })
+    await fireEvent.click(checkbox)
+
+    const targetingFieldset = screen.getByRole('group', { name: 'Targeting' })
+    expect(targetingFieldset).toHaveTextContent('at least one targeting dimension required')
+    expect(targetingFieldset).toHaveTextContent(`${selectedDimension} dimension is invalid`)
+    expect(
+      screen.queryByText('Some issues could not be matched to a field:'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('surfaces violations on non-active locales and marks the locale in the selector', async () => {
+    const nonActiveLocale = 'ja'
+    const nonActiveIndex = 1
+    const message = 'headline exceeds limit for non-active locale'
+    render(CapabilityForm, {
+      props: {
+        matrix: GOOGLE,
+        currency: 'JPY',
+        serverViolations: [
+          {
+            code: 'invalid',
+            field_path: `texts[${nonActiveIndex}].headline`,
+            message,
+          },
+        ],
+      },
+    })
+
+    // Violation on non-active locale is visible in rendered output
+    expect(screen.getByText(new RegExp(message))).toBeInTheDocument()
+    expect(screen.getByText(new RegExp(`\\[${nonActiveLocale}\\]`))).toBeInTheDocument()
+
+    // Locale selector marks that locale
+    const localeSelect = screen.getByLabelText('Text language') as HTMLSelectElement
+    const options = [...localeSelect.options]
+    const nonActiveOption = options.find((opt) => opt.value === nonActiveLocale)
+    const activeOption = options.find((opt) => opt.value !== nonActiveLocale)
+
+    expect(nonActiveOption?.textContent).toMatch(/\(has errors\)/)
+    expect(activeOption?.textContent).not.toMatch(/\(has errors\)/)
+  })
+
   it('resets the draft when the matrix changes', async () => {
     const component = render(CapabilityForm, { props: { matrix: GOOGLE } })
     await fireEvent.input(screen.getByLabelText(/^Campaign name/), { target: { value: 'kept?' } })
-    await component.rerender({ props: { matrix: META } })
+    await component.rerender({ matrix: META })
     expect(screen.getByLabelText(/^Campaign name/)).toHaveDisplayValue('')
+  })
+
+  it('clears client-side validation errors when the matrix changes', async () => {
+    const component = render(CapabilityForm, { props: { matrix: GOOGLE, currency: 'JPY' } })
+    await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getAllByRole('alert').length).toBeGreaterThan(0)
+    await component.rerender({ matrix: META, currency: 'JPY' })
+    expect(screen.queryAllByRole('alert')).toHaveLength(0)
   })
 
   it.each(AD_PLATFORM_FIXTURES.map((fixture) => [fixture.display_name, fixture.capability_matrix]))(

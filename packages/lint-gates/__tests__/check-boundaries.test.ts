@@ -62,9 +62,16 @@ describe('check:platform-literals gate (phase 10, TASK-010)', () => {
   it('catches a platform identifier in a .svelte template expression, but not in its comment', () => {
     const violations = scanWorkspace(`${FIXTURES}boundaries-violation`)
     const svelteHits = violations.filter((v) => v.file.endsWith('AdvertisingPanel.svelte'))
-    // 'meta_ads' in code and 'reels' as a form-path literal — the commented
-    // google_ads must not appear.
-    expect(svelteHits.map((v) => v.literal).sort()).toEqual(['meta_ads', 'reels'])
+    // 'meta_ads' in code, double-quoted 'reels', and double-quoted attribute 'sales'
+    // — the commented google_ads must not appear.
+    expect(svelteHits.map((v) => v.literal).sort()).toEqual(['meta_ads', 'reels', 'sales'])
+  })
+
+  it('catches double-quoted matrix values and double-quoted Svelte attributes in form paths', () => {
+    const violations = scanWorkspace(`${FIXTURES}boundaries-violation`)
+    const svelteHits = violations.filter((v) => v.file.endsWith('AdvertisingPanel.svelte'))
+    expect(svelteHits.find((v) => v.literal === 'reels')).toBeDefined()
+    expect(svelteHits.find((v) => v.literal === 'sales')).toBeDefined()
   })
 
   it('catches matrix values (objective literals) inside form paths (tier 2)', () => {

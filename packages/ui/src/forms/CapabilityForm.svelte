@@ -48,6 +48,7 @@ interface Labels {
   unavailableOptionError?: string
   formSubmitError?: string
   submitLabel?: string
+  localeErrorSuffix?: string
 }
 
 interface Props {
@@ -73,6 +74,8 @@ interface Props {
   formatBelowMinimumError?: (minimumMinor: number) => string
   /** Error for text over a locale's limit. */
   formatTooLongError?: (limit: number, current: number) => string
+  /** Formats an issue message from a non-active locale's text entry. */
+  formatNonActiveLocaleMessage?: (locale: string, message: string) => string
   onSubmit?: (draft: CampaignFormDraft) => void
   class?: string
 }
@@ -89,6 +92,7 @@ let {
   formatBelowMinimumError = (minimum) => `Must be at least ${minimum} minor units.`,
   formatTooLongError = (limit, current) =>
     `Must be ${limit} characters or fewer (currently ${current}).`,
+  formatNonActiveLocaleMessage = (locale, message) => `[${locale}] ${message}`,
   onSubmit,
   class: className = '',
 }: Props = $props()
@@ -108,6 +112,7 @@ const COPY = {
   unavailableOptionError: 'This option is not available for this platform.',
   formSubmitError: 'Some issues could not be matched to a field:',
   submitLabel: 'Save',
+  localeErrorSuffix: ' (has errors)',
 }
 
 const display = $derived({
@@ -125,6 +130,7 @@ const display = $derived({
   unavailableOptionError: labels.unavailableOptionError ?? COPY.unavailableOptionError,
   formSubmitError: labels.formSubmitError ?? COPY.formSubmitError,
   submitLabel: labels.submitLabel ?? COPY.submitLabel,
+  localeErrorSuffix: labels.localeErrorSuffix ?? COPY.localeErrorSuffix,
 })
 
 const schema = $derived(campaignFormSchema(matrix, cacheKey))
@@ -135,6 +141,7 @@ const schemaKey = $derived(schemaCacheKey(matrix, cacheKey))
 // svelte-ignore state_referenced_locally
 let draft = $state<CampaignFormDraft>(emptyDraft(schema))
 let activeLocale = $state('')
+let clientIssues = $state<FormIssue[]>([])
 // The memoized schema is identity-stable per matrix version, so this fires
 // exactly when the platform (or its matrix version) changes — the draft
 // resets rather than carrying fields between platforms.
@@ -142,16 +149,14 @@ $effect.pre(() => {
   void schemaKey
   draft = emptyDraft(schema)
   activeLocale = schema.texts.locales[0] ?? ''
+  clientIssues = []
 })
-
-let clientIssues = $state<FormIssue[]>([])
 
 const activeTextFields = $derived(
   activeLocale === '' ? {} : textFieldsFor(schema.texts, activeLocale),
 )
 
 const mappedServer = $derived(mapViolations(schema, draft, serverViolations))
-const formLevelMessages = $derived(mappedServer.formMessages)
 
 function issueMessages(path: string): string[] {
   return [
@@ -159,6 +164,35 @@ function issueMessages(path: string): string[] {
     ...(mappedServer.fieldMessages[path] ?? []),
   ]
 }
+
+function localeHasErrors(locale: string): boolean {
+  const index = draft.texts.findIndex((entry) => entry.locale === locale)
+  if (index === -1) return false
+  const fields = Object.keys(textFieldsFor(schema.texts, locale))
+  return fields.some((field) => issueMessages(FIELD_PATHS.textEntry(index, field)).length > 0)
+}
+
+const nonActiveLocaleMessages = $derived.by(() => {
+  const result: string[] = []
+  draft.texts.forEach((entry, index) => {
+    if (entry.locale === activeLocale) return
+    const fields = Object.keys(textFieldsFor(schema.texts, entry.locale))
+    for (const field of fields) {
+      const path = FIELD_PATHS.textEntry(index, field)
+      for (const msg of issueMessages(path)) {
+        result.push(formatNonActiveLocaleMessage(entry.locale, msg))
+      }
+    }
+  })
+  return result
+})
+
+const formLevelMessages = $derived([...mappedServer.formMessages, ...nonActiveLocaleMessages])
+
+const targetingMessages = $derived([
+  ...issueMessages(FIELD_PATHS.targeting),
+  ...draft.targeting.flatMap((dimension) => issueMessages(`${FIELD_PATHS.targeting}.${dimension}`)),
+])
 
 function clientMessage(issue: FormIssue): string {
   switch (issue.code) {
@@ -212,7 +246,7 @@ function budgetMinimum(): number | undefined {
     <div class="sanvi-capability-form__form-level" role="alert">
       <p>{display.formSubmitError}</p>
       <ul>
-        {#each formLevelMessages as message (message)}
+        {#each formLevelMessages as message, index (`${index}-${message}`)}
           <li>{message}</li>
         {/each}
       </ul>
@@ -310,7 +344,7 @@ function budgetMinimum(): number | undefined {
     <fieldset
       class="sanvi-capability-form__group"
       aria-describedby={
-        issueMessages(FIELD_PATHS.targeting).length > 0 ? 'sanvi-capability-form--targeting-error' : undefined
+        targetingMessages.length > 0 ? 'sanvi-capability-form--targeting-error' : undefined
       }
     >
       <legend class="sanvi-capability-form__legend">{display.targetingLabel}</legend>
@@ -326,13 +360,13 @@ function budgetMinimum(): number | undefined {
           </Checkbox>
         {/each}
       </div>
-      {#if issueMessages(FIELD_PATHS.targeting).length > 0}
+      {#if targetingMessages.length > 0}
         <p
           id="sanvi-capability-form--targeting-error"
           class="sanvi-capability-form__group-error"
           role="alert"
         >
-          {issueMessages(FIELD_PATHS.targeting).join(' ')}
+          {targetingMessages.join(' ')}
         </p>
       {/if}
     </fieldset>
@@ -346,10 +380,15 @@ function budgetMinimum(): number | undefined {
           <Select
             id={control.id}
             value={activeLocale}
-            options={schema.texts.locales.map((value) => ({
-              value,
-              label: optionLabels[value] ?? value,
-            }))}
+            options={schema.texts.locales.map((value) => {
+              const baseLabel = optionLabels[value] ?? value
+              return {
+                value,
+                label: localeHasErrors(value)
+                  ? `${baseLabel}${display.localeErrorSuffix}`
+                  : baseLabel,
+              }
+            })}
             onchange={(event) => {
               activeLocale = event.currentTarget.value
             }}

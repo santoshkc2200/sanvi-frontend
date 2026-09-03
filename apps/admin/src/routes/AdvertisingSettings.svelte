@@ -1,7 +1,7 @@
 <script lang="ts">
 import { ApiError, listAdPlatforms } from '@sanvi/api-client'
 import type { PlatformView } from '@sanvi/api-client'
-import { t } from '@sanvi/i18n'
+import { en, t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import {
   AdPlatformCard,
@@ -83,9 +83,9 @@ function platformEntitled(platform: PlatformView): boolean {
 
 /**
  * Localized labels for matrix values (objectives, placements), keyed by the
- * value itself. Values the catalogs have no entry for resolve to their raw
- * value — the card humanizes that fallback, so a newly registered
- * objective still renders while its translation is on its way.
+ * value itself. Values the catalogs have no entry for are omitted — the card
+ * humanizes that fallback, so a newly registered objective still renders
+ * while its translation is on its way.
  */
 function optionLabelsFor(platform: PlatformView): Record<string, string> {
   const tMap = t as unknown as Record<string, () => string>
@@ -93,12 +93,14 @@ function optionLabelsFor(platform: PlatformView): Record<string, string> {
     ...platform.capability_matrix.objectives,
     ...platform.capability_matrix.creative_placements.map((placement) => placement.key),
   ]
-  return Object.fromEntries(
-    values.map((value) => {
-      const key = `admin.advertising.option.${value}`
-      return [value, typeof tMap[key] === 'function' ? tMap[key]() : value]
-    }),
-  )
+  const entries: [string, string][] = []
+  for (const value of values) {
+    const key = `admin.advertising.option.${value}`
+    if (key in en && typeof tMap[key] === 'function') {
+      entries.push([value, tMap[key]()])
+    }
+  }
+  return Object.fromEntries(entries)
 }
 
 $effect(() => {
