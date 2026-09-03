@@ -14,6 +14,12 @@ interface Props {
   canAcceptPayments?: boolean
   cannotAcceptReason?: string
   canceled?: boolean
+  /** Whether a checkout started now would carry automatic tax. Decides which
+   *  tax note the buyer reads. Defaults to the "taxes may apply" hedge rather
+   *  than the definite "taxes are not collected", so an unset value never
+   *  states something false. Not yet wired at the checkout route: the
+   *  storefront has no checkout-config endpoint on this branch, so the caller
+   *  has nothing to pass. See TASK-009 review finding 9. */
   taxEnabled?: boolean
   onInitiateCheckout?: (idempotencyKey: string) => Promise<void> | void
 }
