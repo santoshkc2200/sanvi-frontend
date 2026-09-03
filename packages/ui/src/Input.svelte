@@ -4,6 +4,8 @@ import type { HTMLInputAttributes } from 'svelte/elements'
 interface Props {
   value?: string
   type?: 'text' | 'email' | 'password' | 'search' | 'tel' | 'url'
+  /** Hint for virtual keyboards on text-typed inputs (e.g. `numeric` for minor-unit amounts). */
+  inputmode?: 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url'
   placeholder?: string
   disabled?: boolean
   readonly?: boolean
@@ -21,6 +23,7 @@ interface Props {
 let {
   value = $bindable(''),
   type = 'text',
+  inputmode,
   placeholder,
   disabled = false,
   readonly = false,
@@ -40,6 +43,7 @@ let {
   {id}
   {name}
   {type}
+  {inputmode}
   {placeholder}
   {disabled}
   {readonly}

@@ -3,6 +3,10 @@
  * Enforces the import-boundary rules from `docs/architecture-overview.md`
  * §2: `apps → packages → design-tokens`, never upward, never sideways.
  *
+ * Since phase 10 (TASK-010) this CLI also runs the matrix-is-the-only-source
+ * gate (`check-platform-literals.mjs`): `pnpm check:boundaries` reports both
+ * violation kinds and fails on either.
+ *
  *   - `ui` never imports `api-client` (never fetches, never touches server state).
  *   - Apps never import each other — shared code moves into a package.
  *   - Nothing imports another package's `src/**` internals directly — only
@@ -17,6 +21,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve, sep } from 'node:path'
 import { isMainEntryPoint, walkFiles } from './walk-files.mjs'
+import { scanWorkspace as scanPlatformLiterals } from './check-platform-literals.mjs'
 
 const IMPORT_PATTERN =
   /(?:import|export)(?:[^'";]*?from)?\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g
@@ -163,16 +168,29 @@ async function main() {
     process.exit(2)
   }
 
-  const violations = checkWorkspace(resolve(root))
+  const resolvedRoot = resolve(root)
+  const violations = checkWorkspace(resolvedRoot)
+  const literalViolations = scanPlatformLiterals(resolvedRoot)
 
-  if (violations.length === 0) {
-    console.log('✓ check:boundaries — no import-boundary violations found')
+  if (violations.length === 0 && literalViolations.length === 0) {
+    console.log('✓ check:boundaries — no import-boundary or platform-literal violations found')
     return
   }
 
-  console.error(`✗ check:boundaries — ${violations.length} violation(s):\n`)
-  for (const v of violations) {
-    console.error(`  ${v.file}\n    imports "${v.specifier}" — ${v.reason}`)
+  if (violations.length > 0) {
+    console.error(`✗ check:boundaries — ${violations.length} violation(s):\n`)
+    for (const v of violations) {
+      console.error(`  ${v.file}\n    imports "${v.specifier}" — ${v.reason}`)
+    }
+  }
+  if (literalViolations.length > 0) {
+    console.error(`\n✗ check:platform-literals — ${literalViolations.length} violation(s):\n`)
+    for (const v of literalViolations) {
+      console.error(
+        `  ${v.file}:${v.line}  "${v.literal}" (tier ${v.tier}, ${v.scope})\n` +
+          `    platform data belongs to the backend matrix, not to frontend source`,
+      )
+    }
   }
   process.exit(1)
 }

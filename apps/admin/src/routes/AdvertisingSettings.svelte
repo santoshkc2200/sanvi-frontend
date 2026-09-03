@@ -2,21 +2,35 @@
 import { ApiError, listAdPlatforms } from '@sanvi/api-client'
 import type { PlatformView } from '@sanvi/api-client'
 import { t } from '@sanvi/i18n'
-import { getActiveTenantId, hasFeature } from '@sanvi/tenant'
-import { Alert, Button, Container, EmptyState, Spinner, Stack, UpgradePrompt } from '@sanvi/ui'
+import { getActiveTenantId } from '@sanvi/tenant'
+import {
+  AdPlatformCard,
+  Alert,
+  Button,
+  Container,
+  EmptyState,
+  Spinner,
+  Stack,
+  UpgradePrompt,
+} from '@sanvi/ui'
 import { apiClient } from '../lib/api'
 
 /**
- * The phase-10 advertising shell (TASK-009). Nothing platform-specific
- * renders here yet — the catalog, connections, and campaign screens land in
- * TASK-010/011/012. What this page settles now is the entitlement gate
- * (`UpgradePrompt` without a platform entitlement, an empty state with one)
- * and the live contract call, which is what proves the generated-client
- * pipeline end to end.
+ * The phase-10 advertising settings page. Since TASK-010 it renders the
+ * registry-derived platform catalog: one {@link AdPlatformCard} per
+ * platform, with each platform's entitlement and connection state read from
+ * the catalog entry itself — the page spells no platform key and no
+ * entitlement key, so a platform the backend registers renders here with no
+ * frontend change. Non-entitled platforms stay listed with their upgrade
+ * path rather than disappearing.
  *
- * Entitlement keys mirror the access catalog the same way
- * `payments.stripe_connect` does in PaymentsSettings; per-platform gating
- * switches to the catalog-provided `entitlement_key` in TASK-010.
+ * Without any advertising entitlement the catalog endpoint answers 403 and
+ * the page falls back to the `UpgradePrompt`; with the flag off the route is
+ * absent (404) and the same fallback stands in for "not there yet".
+ *
+ * The connect action stays disabled until TASK-011 lands the OAuth handoff;
+ * the reason is stated on the card, the way an inert-but-focusable control
+ * must be.
  */
 let loading = $state(true)
 let entitled = $state(true)
@@ -34,12 +48,6 @@ async function load(): Promise<void> {
   entitled = true
   platforms = []
 
-  if (!hasFeature('advertising.google_ads') && !hasFeature('advertising.meta_ads')) {
-    entitled = false
-    loading = false
-    return
-  }
-
   try {
     const result = await listAdPlatforms(apiClient)
     if (seq !== loadSeq) return
@@ -47,8 +55,8 @@ async function load(): Promise<void> {
   } catch (err) {
     if (seq !== loadSeq) return
     if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
-      // 403: no platform entitlement after all; 404: the advertising flag is
-      // off and the route does not exist — the feature is simply not there.
+      // 403: no platform entitlement; 404: the advertising flag is off and
+      // the route does not exist — the feature is simply not there.
       entitled = false
       platforms = []
     } else {
@@ -61,6 +69,36 @@ async function load(): Promise<void> {
 
 function retry(): void {
   void load()
+}
+
+/**
+ * Per-platform entitlement comes from the catalog's own
+ * `upgrade_required`/`available` state — computed by the backend from the
+ * same grants `hasFeature` reads locally, but authoritative and already in
+ * hand, so the page never hardcodes an entitlement key to check.
+ */
+function platformEntitled(platform: PlatformView): boolean {
+  return platform.available && !platform.upgrade_required
+}
+
+/**
+ * Localized labels for matrix values (objectives, placements), keyed by the
+ * value itself. Values the catalogs have no entry for resolve to their raw
+ * value — the card humanizes that fallback, so a newly registered
+ * objective still renders while its translation is on its way.
+ */
+function optionLabelsFor(platform: PlatformView): Record<string, string> {
+  const tMap = t as unknown as Record<string, () => string>
+  const values = [
+    ...platform.capability_matrix.objectives,
+    ...platform.capability_matrix.creative_placements.map((placement) => placement.key),
+  ]
+  return Object.fromEntries(
+    values.map((value) => {
+      const key = `admin.advertising.option.${value}`
+      return [value, typeof tMap[key] === 'function' ? tMap[key]() : value]
+    }),
+  )
 }
 
 $effect(() => {
@@ -91,11 +129,47 @@ $effect(() => {
         description={t['admin.advertising.upgradeDescription']()}
         upgradeHref="/billing"
       />
-    {:else}
+    {:else if platforms.length === 0}
       <EmptyState
         title={t['admin.advertising.empty']()}
         description={t['admin.advertising.emptyDescription']()}
       />
+    {:else}
+      <!-- A plain wrapper, not a named <section>: a named section is a region
+           landmark, and the per-card UpgradePrompt's <aside> (a complementary
+           landmark) must stay top-level. -->
+      <div>
+        <Stack gap="4">
+          <h2>{t['admin.advertising.platformsHeading']()}</h2>
+          {#each platforms as platform (platform.key)}
+            <AdPlatformCard
+              platform={platform}
+              entitled={platformEntitled(platform)}
+              optionLabels={optionLabelsFor(platform)}
+              connectionLabels={{
+                connected: t['admin.advertising.connectedBadge'](),
+                not_connected: t['admin.advertising.notConnectedBadge'](),
+              }}
+              connectionTones={{ connected: 'success' }}
+              connectDisabled={true}
+              labels={{
+                connectCta: t['admin.advertising.connectCta'](),
+                connectDisabledReason: t['admin.advertising.connectDisabledReason'](),
+                upgradeTitle: t['admin.advertising.upgradeTitle'](),
+                upgradeDescription: t['admin.advertising.cardUpgradeDescription']({
+                  platform: platform.display_name,
+                }),
+                upgradeCtaLabel: t['admin.advertising.upgradeCtaLabel'](),
+                capabilitiesLabel: t['admin.advertising.capabilitiesLabel'](),
+                objectivesLabel: t['admin.advertising.objectivesLabel'](),
+                placementsLabel: t['admin.advertising.placementsLabel'](),
+                unavailableTitle: t['admin.advertising.unavailableTitle'](),
+                unavailableDescription: t['admin.advertising.unavailableDescription'](),
+              }}
+            />
+          {/each}
+        </Stack>
+      </div>
     {/if}
   </Stack>
 </Container>

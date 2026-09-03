@@ -12,7 +12,8 @@
       "svelte": "./src/index.ts",
       "default": "./src/index.ts"
     },
-    "./styles.css": "./src/styles/reset.css"
+    "./styles.css": "./src/styles/reset.css",
+    "./test-fixtures": "./__tests__/fixtures/advertising/index.ts"
   },
   "sideEffects": [
     "./src/styles/*.css"

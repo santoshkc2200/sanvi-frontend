@@ -1,6 +1,7 @@
 // Layout primitives
 
 // Core components
+export { default as AdPlatformCard } from './advertising/AdPlatformCard.svelte'
 export { default as Alert } from './Alert.svelte'
 export { type ApprovalRequestItem, default as ApprovalRequest } from './ApprovalRequest.svelte'
 export { type AppShellNavItem, default as AppShell } from './AppShell.svelte'
@@ -32,6 +33,31 @@ export {
   NO_VALUE,
   type RatioFormatOptions,
 } from './format/metrics'
+// Capability-driven advertising form engine (phase 10)
+export { default as CapabilityForm } from './forms/CapabilityForm.svelte'
+export { humanizeOptionValue } from './forms/humanize'
+export {
+  campaignFormSchema,
+  codePointLength,
+  emptyDraft,
+  FIELD_PATHS,
+  textFieldsFor,
+  textLimit,
+  type CampaignFormSchema,
+  type TextEntrySchema,
+} from './forms/schema'
+export type {
+  AdAssetSpec,
+  AdCapabilityMatrix,
+  AdCreativePlacement,
+  AdPlatform,
+  CampaignFormDraft,
+  CampaignFormTextEntry,
+  FormIssue,
+  MappedViolations,
+  ServerViolation,
+} from './forms/types'
+export { mapViolations, minimumFor, validateDraft } from './forms/validate'
 export { default as Input } from './Input.svelte'
 export { enterUnlessComposing, isComposingKeyboardEvent } from './ime'
 export { default as Cluster } from './layout/Cluster.svelte'
