@@ -1604,9 +1604,13 @@
             "description": "The connected account's settlement currency. The storefront must\nprice in this currency; anything else is refused at creation.",
             "example": "JPY",
             "type": ["string", "null"]
+          },
+          "tax_enabled": {
+            "description": "Whether a checkout started now would have automatic tax applied,\nread from the tenant's stored tax settings by the same rule the\nsession creation applies. The storefront renders its tax note from\nthis; it never assumes tax is on.",
+            "type": "boolean"
           }
         },
-        "required": ["can_accept_payments"],
+        "required": ["can_accept_payments", "tax_enabled"],
         "type": "object"
       },
       "CheckoutSessionRequest": {
@@ -15099,7 +15103,7 @@
                 }
               }
             },
-            "description": "Whether the tenant's connected account can accept payments, why not, and its settlement currency"
+            "description": "Whether the tenant's connected account can accept payments, why not, its settlement currency, and whether automatic tax applies"
           },
           "403": {
             "content": {

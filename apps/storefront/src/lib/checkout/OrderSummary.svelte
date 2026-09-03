@@ -19,6 +19,12 @@ interface Props {
   cannotAcceptReason?: string
   canceled?: boolean
   reference?: string
+  /** Whether a checkout started now would carry automatic tax, from the
+   *  server's checkout config. Decides which tax note the buyer reads.
+   *  Defaults to the "taxes may apply" hedge rather than the definite
+   *  "taxes are not collected", so an unread config never states
+   *  something false — and the note only renders alongside a known
+   *  currency, which comes from the same config. */
   taxEnabled?: boolean
   onInitiateCheckout?: (idempotencyKey: string) => Promise<void> | void
 }

@@ -3791,6 +3791,13 @@ export interface components {
        * @example JPY
        */
       currency?: string | null
+      /**
+       * @description Whether a checkout started now would have automatic tax applied,
+       *     read from the tenant's stored tax settings by the same rule the
+       *     session creation applies. The storefront renders its tax note from
+       *     this; it never assumes tax is on.
+       */
+      tax_enabled: boolean
     }
     CheckoutSessionRequest: {
       cancel_url?: string | null
@@ -12189,7 +12196,7 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Whether the tenant's connected account can accept payments, why not, and its settlement currency */
+      /** @description Whether the tenant's connected account can accept payments, why not, its settlement currency, and whether automatic tax applies */
       200: {
         headers: {
           [name: string]: unknown
