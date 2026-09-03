@@ -1,8 +1,12 @@
-import { describe, expect, it } from 'vitest'
-import { en, jaCatalog, messages, compiledPattern } from '../src/catalogs'
+import { beforeAll, describe, expect, it } from 'vitest'
+import { en, jaCatalog, messages, compiledPattern, ensureLocaleLoaded } from '../src/catalogs'
 import { OTHER_LOCALES } from '../tools/check.mjs'
 
 describe('catalogs', () => {
+  beforeAll(async () => {
+    await ensureLocaleLoaded('ja')
+  })
+
   it('compile-time ja parity holds at runtime: exactly the en key set', () => {
     expect(Object.keys(messages.ja ?? {}).sort()).toEqual(Object.keys(en).sort())
   })

@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
+import { ensureLocaleLoaded } from '../src/catalogs'
 import { t } from '../src/translate'
 import { resolveRequestLocale, runWithLocale } from '../src/server'
 
@@ -74,6 +75,10 @@ describe('resolveRequestLocale — the detection-chain matrix', () => {
 })
 
 describe('runWithLocale (AsyncLocalStorage)', () => {
+  beforeAll(async () => {
+    await ensureLocaleLoaded('ja')
+  })
+
   it('scopes t() to the request inside the run', async () => {
     const ja = runWithLocale('ja', () => t['marketing.home.cta']())
     const en = runWithLocale('en', () => t['marketing.home.cta']())

@@ -53,6 +53,7 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             vendor: ['svelte'],
+            i18n: ['@sanvi/i18n'],
           },
         },
       },

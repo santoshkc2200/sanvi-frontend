@@ -4,6 +4,7 @@ import { buildContentSecurityPolicyDirectivesForApp } from '@sanvi/csp'
 import {
   BASE_LOCALE,
   LOCALE_COOKIE,
+  ensureLocaleLoaded,
   normalizeLocaleTag,
   type Locale,
   parseLocalePrefix,
@@ -195,6 +196,7 @@ export const resolveLocale: Handle = async ({ event, resolve }) => {
 
   const locale = prefix?.locale ?? tenantDefault
   event.locals.locale = locale
+  await ensureLocaleLoaded(locale)
 
   const response = await runWithLocale(locale, () =>
     resolve(event, {
