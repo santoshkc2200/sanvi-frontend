@@ -151,6 +151,22 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/platform/ads/health': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_platform_ads_health']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/platform/approvals': {
     parameters: {
       query?: never
@@ -1480,6 +1496,54 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/tenant/ads/budget-alerts': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_budget_alerts']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/budget-alerts/{alert_id}/acknowledge': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['acknowledge_budget_alert']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/budget-caps': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_budget_caps']
+    put: operations['put_budget_cap']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/tenant/ads/campaigns': {
     parameters: {
       query?: never
@@ -1574,6 +1638,22 @@ export interface paths {
     options?: never
     head?: never
     patch: operations['update_ad']
+    trace?: never
+  }
+  '/api/v1/tenant/ads/campaigns/{campaign_id}/budget-cap': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_campaign_budget_cap']
+    put: operations['put_campaign_budget_cap']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
     trace?: never
   }
   '/api/v1/tenant/ads/campaigns/{campaign_id}/changes': {
@@ -1917,6 +1997,22 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/tenant/ads/spend-status': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_spend_status']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/tenant/ads/tracking/settings': {
     parameters: {
       query?: never
@@ -2046,6 +2142,27 @@ export interface paths {
      *     the confirmation page trusts only `GET /tenant/checkout/{id}`.
      */
     post: operations['create_tenant_checkout']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/checkout/config': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * `GET /api/v1/tenant/checkout/config` — the storefront's pre-flight.
+     *     Same permission and entitlement as the buy path it guards, because it
+     *     answers the same question the buy path would refuse on.
+     */
+    get: operations['get_tenant_checkout_config']
+    put?: never
+    post?: never
     delete?: never
     options?: never
     head?: never
@@ -3007,6 +3124,14 @@ export interface components {
       /** Format: int64 */
       unit_amount_minor: number
     }
+    AdsFreshnessSummaryView: {
+      /** Format: int32 */
+      stalled_connections: number
+      /** Format: int32 */
+      total_connections: number
+      /** Format: double */
+      worst_lag_hours?: number | null
+    }
     /**
      * @description Stable RFC-7807 suffixes emitted by future advertising endpoints.
      * @enum {string}
@@ -3040,6 +3165,14 @@ export interface components {
       /** @description Signed permission artifact: an opaque reference plus checksum. */
       authorization_evidence: unknown
     }
+    /** @enum {string} */
+    AlertCondition:
+      | 'settled_breach'
+      | 'provisional_lower_bound_breach'
+      | 'provisional_warning'
+      | 'stale_data_warning'
+      | 'spend_anomaly'
+      | 'threshold80'
     /**
      * @description Application-level API error.
      *
@@ -3400,6 +3533,84 @@ export interface components {
       amount: components['schemas']['Money']
       kind: components['schemas']['BudgetType']
     }
+    BudgetActionsConfigured: {
+      auto_pause: boolean
+      auto_resume_on_rollover: boolean
+      threshold_100: string
+      threshold_80: string
+    }
+    BudgetAlert: {
+      /** Format: date-time */
+      acknowledged_at?: string | null
+      acknowledged_by?: string | null
+      auto_paused: boolean
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      campaign_id?: string
+      cap_amount: components['schemas']['Money']
+      cap_id?: string | null
+      condition: components['schemas']['AlertCondition']
+      /** Format: date-time */
+      created_at: string
+      data_freshness: components['schemas']['DataFreshness']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      period: components['schemas']['BudgetPeriod']
+      /** Format: date */
+      period_start: string
+      spend: components['schemas']['Money']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id: string
+      /** Format: int32 */
+      threshold: number
+    }
+    BudgetAlertsView: {
+      alerts: components['schemas']['BudgetAlert'][]
+    }
+    BudgetCap: {
+      amount: components['schemas']['Money']
+      auto_pause: boolean
+      auto_resume_on_rollover: boolean
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      campaign_id?: string
+      /** Format: date-time */
+      created_at: string
+      declared_fx_basis?: string | null
+      effective_currency: string
+      /** Format: date */
+      fx_rate_date?: string | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      period: components['schemas']['BudgetPeriod']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id: string
+      /** Format: date-time */
+      updated_at: string
+      /** Format: int64 */
+      version: number
+    }
+    BudgetCapsView: {
+      caps: components['schemas']['BudgetCap'][]
+    }
+    /** @enum {string} */
+    BudgetPeriod: 'daily' | 'monthly'
     /** @enum {string} */
     BudgetType: 'daily' | 'lifetime'
     /** @description Immutable build/version information, captured at compile time. */
@@ -3451,6 +3662,7 @@ export interface components {
        */
       actor_id?: string
       after_state: components['schemas']['Campaign']
+      attribution?: string | null
       before_state: components['schemas']['Campaign']
       /**
        * Format: snowflake-id
@@ -3465,6 +3677,7 @@ export interface components {
        * @example 873698342314721281
        */
       id: string
+      metadata?: unknown
       /** Format: uuid */
       mutation_id?: string | null
       /** Format: int64 */
@@ -3553,6 +3766,32 @@ export interface components {
     }
     /** @enum {string} */
     ChangeSource: 'sanvi' | 'platform'
+    /**
+     * @description What the storefront needs before it can render a Pay button:
+     *     readiness and the settlement currency. Derived from the tenant's live
+     *     connection by the same gate the checkout itself applies.
+     */
+    CheckoutConfigView: {
+      /**
+       * @description Server-computed from the v2 `card_payments` capability, exactly as
+       *     `POST /tenant/checkout` computes it. The storefront renders this;
+       *     it never recomputes readiness of its own.
+       */
+      can_accept_payments: boolean
+      /**
+       * @description The i18n key for *why* not (`payments.blocker.*`), so the
+       *     storefront can show a reason next to a disabled button instead of
+       *     waiting for a 409. `null` when payments are accepted.
+       * @example payments.blocker.card_payments_inactive
+       */
+      cannot_accept_reason?: string | null
+      /**
+       * @description The connected account's settlement currency. The storefront must
+       *     price in this currency; anything else is refused at creation.
+       * @example JPY
+       */
+      currency?: string | null
+    }
     CheckoutSessionRequest: {
       cancel_url?: string | null
       /**
@@ -3587,6 +3826,17 @@ export interface components {
       currency: string
       customer_ref?: Record<string, never> | null
       expires_at?: string | null
+      /**
+       * @description Server-issued exactly once per order when paid; identical on every
+       *     refresh of the confirmation page, so phase 10's conversion
+       *     pipeline cannot double-count.
+       *     The provider's decline/failure code for the newest failed attempt
+       *     (`card_declined`, `insufficient_funds`, …), so the storefront can
+       *     tell a buyer *why*. The provider's own message is deliberately not
+       *     exposed: the storefront renders its own localized copy.
+       * @example card_declined
+       */
+      failure_code?: string | null
       /**
        * Format: snowflake-id
        * @example 873698342314721281
@@ -3630,6 +3880,24 @@ export interface components {
       /** @example 64-hex-chars */
       nonce?: string | null
     }
+    ConnectionAttentionView: {
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      connection_id: string
+      last_error?: string | null
+      platform: string
+      reconnect_required: boolean
+      scopes_missing: string[]
+      stalled: boolean
+      status: string
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id: string
+    }
     ConnectionFreshnessView: {
       /**
        * Format: snowflake-id
@@ -3670,8 +3938,8 @@ export interface components {
        */
       client_secret: string
       /**
-       * @description The embedded components enabled on this session (09.2:
-       *     `account_onboarding` only).
+       * @description The embedded components enabled on this session:
+       *     `account_onboarding`, `notification_banner`, and `account_management`.
        */
       components: string[]
       /**
@@ -4037,6 +4305,16 @@ export interface components {
       | 'advertising_conversion_event'
       | 'advertising_metric'
       | 'advertising_campaign_change'
+      | 'advertising_budget_cap'
+      | 'advertising_budget_alert'
+    DataFreshness: {
+      is_settled: boolean
+      is_stale: boolean
+      /** Format: double */
+      lag_hours?: number | null
+      /** Format: date-time */
+      last_synced_at?: string | null
+    }
     DecideAppealOutput: {
       /**
        * Format: snowflake-id
@@ -4153,6 +4431,18 @@ export interface components {
     DriftState: {
       changed_fields: string[]
       drifted: boolean
+    }
+    DryRunEvaluationResult: {
+      cap_amount: components['schemas']['Money']
+      condition: string
+      current_spend: components['schemas']['Money']
+      /** Format: double */
+      percentage: number
+      period: components['schemas']['BudgetPeriod']
+      scope: string
+      would_auto_pause: boolean
+      would_breach_100: boolean
+      would_breach_80: boolean
     }
     /**
      * @description A DSR kind. `KnowCategories` is the CCPA "right to know" (categories
@@ -4974,6 +5264,24 @@ export interface components {
      * @enum {string}
      */
     PlanVisibility: 'public' | 'hidden'
+    PlatformAdsHealthReport: {
+      connections_needing_attention: components['schemas']['ConnectionAttentionView'][]
+      freshness_summary: components['schemas']['AdsFreshnessSummaryView']
+      platform_counts: components['schemas']['PlatformConnectionCountView'][]
+    }
+    PlatformConnectionCountView: {
+      /** Format: int32 */
+      active: number
+      /** Format: int32 */
+      disconnected: number
+      /** Format: int32 */
+      expired: number
+      /** Format: int32 */
+      pending: number
+      platform: string
+      /** Format: int32 */
+      total: number
+    }
     /**
      * @description The platform's fee disclosure for this tenant (their payment settings).
      *     A platform fee the merchant cannot see is not acceptable, whatever the
@@ -5202,6 +5510,20 @@ export interface components {
       /** Format: date-time */
       superseded_at?: string | null
     }
+    PutBudgetCapRequest: {
+      amount: components['schemas']['Money']
+      auto_pause?: boolean | null
+      auto_resume_on_rollover?: boolean | null
+      confirm_below_current_spend?: boolean | null
+      declared_fx_basis?: string | null
+      dry_run?: boolean | null
+      /** Format: date */
+      fx_rate_date?: string | null
+      period: components['schemas']['BudgetPeriod']
+    }
+    PutBudgetCapResponse:
+      | components['schemas']['BudgetCap']
+      | components['schemas']['DryRunEvaluationResult']
     /** @description Aggregate readiness answer: every dependency's status plus the verdict. */
     Readiness: {
       checks: components['schemas']['DependencyStatus'][]
@@ -5592,6 +5914,38 @@ export interface components {
      * @example 873698342314721281
      */
     SnowflakeId: string
+    SpendStatusItem: {
+      actions_configured: components['schemas']['BudgetActionsConfigured']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      campaign_id?: string
+      cap?: null | components['schemas']['BudgetCap']
+      data_freshness: components['schemas']['DataFreshness']
+      /** Format: double */
+      percentage?: number | null
+      period: components['schemas']['BudgetPeriod']
+      projected_spend: components['schemas']['Money']
+      provisional_lower_bound?: null | components['schemas']['Money']
+      provisional_spend: components['schemas']['Money']
+      scope: string
+      settled_spend: components['schemas']['Money']
+      spend_to_date: components['schemas']['Money']
+      /**
+       * @description Currencies for which spend data could not be converted to the cap currency
+       *     because an FX rate was unavailable. When non-empty, spend totals are incomplete.
+       */
+      unconvertible_spend_currencies?: string[]
+    }
+    SpendStatusReport: {
+      items: components['schemas']['SpendStatusItem'][]
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id: string
+    }
     StartLinkChallengeCommand: {
       /** @example alice@example.com */
       email: string
@@ -6620,6 +6974,35 @@ export interface operations {
       }
       /** @description Tenant not found */
       404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_platform_ads_health: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Cross-tenant advertising connection health and freshness overview */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PlatformAdsHealthReport']
+        }
+      }
+      /** @description Missing platform.tenant.read permission */
+      403: {
         headers: {
           [name: string]: unknown
         }
@@ -9532,6 +9915,151 @@ export interface operations {
       }
     }
   }
+  get_budget_alerts: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        campaign_id: string
+        unacknowledged_only: boolean | null
+        limit: number | null
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Budget alerts history */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['BudgetAlertsView']
+        }
+      }
+      /** @description Missing advertising.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  acknowledge_budget_alert: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Target budget alert ID */
+        alert_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Acknowledged budget alert */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['BudgetAlert']
+        }
+      }
+      /** @description Missing advertising.budget.manage permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Budget alert not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_budget_caps: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description All budget caps defined for this tenant */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['BudgetCapsView']
+        }
+      }
+      /** @description Missing advertising.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  put_budget_cap: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PutBudgetCapRequest']
+      }
+    }
+    responses: {
+      /** @description Budget cap created or updated, or dry-run simulation result */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PutBudgetCapResponse']
+        }
+      }
+      /** @description Missing advertising.budget.manage permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description New cap is below current period spend and confirmation is required */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
   list_campaigns: {
     parameters: {
       query?: never
@@ -10049,6 +10577,93 @@ export interface operations {
       }
       /** @description Platform adapter unavailable */
       503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_campaign_budget_cap: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Target campaign ID */
+        campaign_id: string
+        period: null | components['schemas']['BudgetPeriod']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Campaign budget cap */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['BudgetCap']
+        }
+      }
+      /** @description Missing advertising.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description No budget cap found for this campaign and period */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  put_campaign_budget_cap: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Target campaign ID */
+        campaign_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PutBudgetCapRequest']
+      }
+    }
+    responses: {
+      /** @description Campaign budget cap created/updated or dry run result */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PutBudgetCapResponse']
+        }
+      }
+      /** @description Missing advertising.budget.manage permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description New cap is below current period spend and confirmation is required */
+      409: {
         headers: {
           [name: string]: unknown
         }
@@ -11210,6 +11825,37 @@ export interface operations {
       }
     }
   }
+  get_spend_status: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        period: null | components['schemas']['BudgetPeriod']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Spend status and run-rate projection across tenant and campaign scopes */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SpendStatusReport']
+        }
+      }
+      /** @description Missing advertising.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
   get_tracking_settings: {
     parameters: {
       query?: never
@@ -11516,6 +12162,44 @@ export interface operations {
       }
       /** @description Provider unavailable (payments/provider-unavailable) */
       502: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description The payments.checkout flag is off (payments/provider-unavailable) */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_tenant_checkout_config: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Whether the tenant's connected account can accept payments, why not, and its settlement currency */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CheckoutConfigView']
+        }
+      }
+      /** @description Missing payments.checkout permission or the entitlement */
+      403: {
         headers: {
           [name: string]: unknown
         }

@@ -107,3 +107,55 @@ export function getPaymentConnection(
     ...(signal ? { signal } : {}),
   }) as unknown as Promise<PaymentConnectionView>
 }
+
+export type CreateCheckoutRequest = components['schemas']['CreateCheckoutRequest']
+export type CheckoutView = components['schemas']['CheckoutView']
+export type CheckoutConfigView = components['schemas']['CheckoutConfigView']
+
+/**
+ * `POST /api/v1/tenant/checkout` — start a purchase on the tenant's own
+ * connected account (09.4, direct charges). Requires an `Idempotency-Key`
+ * header to ensure one double-clicked buy button creates one session.
+ */
+export function createTenantCheckout(
+  client: TypedApiClient,
+  body: CreateCheckoutRequest,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<CheckoutView> {
+  return client.POST('/api/v1/tenant/checkout', body, {
+    idempotencyKey,
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `GET /api/v1/tenant/checkout/config` — the storefront's pre-flight:
+ * whether the tenant's connected account can be paid, the i18n key for why
+ * not, and the currency it settles in. Read before rendering a Pay button
+ * so a buyer is not told only after clicking.
+ */
+export function getTenantCheckoutConfig(
+  client: TypedApiClient,
+  signal?: AbortSignal,
+): Promise<CheckoutConfigView> {
+  return client.GET('/api/v1/tenant/checkout/config', {
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `GET /api/v1/tenant/checkout/{id}` — the confirming state. Polled by the
+ * confirmation page with backoff. Webhook is the truth; order state is never
+ * derived from the return URL.
+ */
+export function getTenantCheckout(
+  client: TypedApiClient,
+  checkoutId: string,
+  signal?: AbortSignal,
+): Promise<CheckoutView> {
+  return client.GET('/api/v1/tenant/checkout/{id}', {
+    params: { path: { id: checkoutId } },
+    ...(signal ? { signal } : {}),
+  })
+}
