@@ -72,6 +72,7 @@ export {
   getPayment,
   getPaymentConnection,
   getTenantCheckout,
+  getTenantCheckoutConfig,
   getTenantPayment,
   listDisputes,
   listPaymentProviders,
@@ -90,6 +91,7 @@ export {
   disconnectPaymentConnection,
 } from './payments'
 export type {
+  CheckoutConfigView,
   CheckoutView,
   CreateCheckoutRequest,
   CreatePaymentConnectionRequest,

@@ -1,6 +1,10 @@
 import { BASE_LOCALE, type Locale } from './config'
-import { compiledPattern, type MessageKey } from './catalogs'
+import { compiledPattern, en, type MessageKey } from './catalogs'
 import { formatPattern, MissingParamError, type MessageParams } from './icu'
+
+export function hasMessage(key: string): key is MessageKey {
+  return Object.hasOwn(en, key)
+}
 import { currentLocale } from './runtime.svelte'
 import { isPseudoMode, pseudoize } from './pseudo'
 

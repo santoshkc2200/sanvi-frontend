@@ -1,5 +1,5 @@
 import { buildContentSecurityPolicyForApp } from '@sanvi/csp'
-import { BASE_LOCALE, parseLocalePrefix } from '@sanvi/i18n'
+import { BASE_LOCALE, ensureLocaleLoaded, parseLocalePrefix } from '@sanvi/i18n'
 import { runWithLocale } from '@sanvi/i18n/server'
 import type { Handle } from '@sveltejs/kit'
 import { getAppEnv } from '$lib/env'
@@ -26,6 +26,7 @@ import { getAppEnv } from '$lib/env'
  */
 export const handle: Handle = async ({ event, resolve }) => {
   const locale = parseLocalePrefix(event.url.pathname)?.locale ?? BASE_LOCALE
+  await ensureLocaleLoaded(locale)
 
   const response = await runWithLocale(locale, () =>
     resolve(event, {

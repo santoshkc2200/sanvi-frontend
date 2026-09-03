@@ -171,4 +171,55 @@ describe('pollPaymentConnection', () => {
 
     poller.stop()
   })
+
+  it('does not call onError, schedule duplicate timer, or clear isChecking when a poll is aborted', async () => {
+    let resolvePoll2: ((val: unknown) => void) | undefined
+
+    let callCount = 0
+    const fetchFn = vi.fn().mockImplementation((signal?: AbortSignal) => {
+      callCount++
+      if (callCount === 1) {
+        return new Promise((_resolve, reject) => {
+          signal?.addEventListener('abort', () => {
+            reject(new DOMException('The operation was aborted', 'AbortError'))
+          })
+        })
+      }
+      return new Promise((resolve) => {
+        resolvePoll2 = resolve
+      })
+    })
+
+    const isDone = vi.fn().mockReturnValue(false)
+    const onError = vi.fn()
+    const onPollStateChange = vi.fn()
+
+    const poller = pollPaymentConnection(fetchFn, isDone, {
+      minDelayMs: 1000,
+      jitterRatio: 0,
+      onError,
+      onPollStateChange,
+    })
+
+    poller.start()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fetchFn).toHaveBeenCalledTimes(1)
+    expect(onPollStateChange).toHaveBeenLastCalledWith(true)
+
+    // Hide and re-show tab while fetch 1 is in-flight — triggers second poll that aborts the first
+    document.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fetchFn).toHaveBeenCalledTimes(2)
+
+    // First poll was aborted: no error reported, isChecking not prematurely cleared
+    expect(onError).not.toHaveBeenCalled()
+    expect(onPollStateChange).toHaveBeenLastCalledWith(true)
+
+    // Resolve poll 2
+    resolvePoll2?.({ id: 'conn_1', status: 'onboarding' })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(onPollStateChange).toHaveBeenLastCalledWith(false)
+
+    poller.stop()
+  })
 })

@@ -51,10 +51,10 @@ async function load(): Promise<void> {
     if (err instanceof ApiError && err.status === 404) {
       notAvailable = true
       platforms = []
-    } else if (
-      err instanceof ApiError &&
-      (err.status === 403 || err.type === 'access/missing-entitlement')
-    ) {
+    } else if (err instanceof ApiError && err.status === 403) {
+      // The contract folds two cases into one 403 ("Missing advertising.read
+      // permission or both advertising platform entitlements"), and emits no
+      // problem type to tell them apart, so this stays the upgrade path.
       entitled = false
       platforms = []
     } else {

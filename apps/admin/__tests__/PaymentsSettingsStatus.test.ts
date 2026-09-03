@@ -231,7 +231,7 @@ describe('PaymentsSettings Status, Requirements & Embedded Components (TASK-004)
 
     // Requirements list with deadline
     expect(screen.getByText('Outstanding requirements')).toBeInTheDocument()
-    expect(screen.getByText(/Due by 2026-09-30/)).toBeInTheDocument()
+    expect(screen.getByText(/Due by Sep 30, 2026/)).toBeInTheDocument()
     expect(screen.getByText('Required now')).toBeInTheDocument()
     expect(screen.getByText(/Identity document/)).toBeInTheDocument()
     expect(screen.getByText(/Bank account for payouts/)).toBeInTheDocument()
@@ -254,7 +254,7 @@ describe('PaymentsSettings Status, Requirements & Embedded Components (TASK-004)
 
     // Past due requirement section
     expect(screen.getByText('Past due')).toBeInTheDocument()
-    expect(screen.getByText(/Due by 2026-08-15/)).toBeInTheDocument()
+    expect(screen.getByText(/Due by Aug 15, 2026/)).toBeInTheDocument()
     expect(screen.getByText(/Identity document/)).toBeInTheDocument()
   })
 

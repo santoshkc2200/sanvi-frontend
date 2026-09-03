@@ -111,10 +111,20 @@ chart primitives (TASK-016), and anything storefront-side (TASK-014).
   contextual Meta pattern. A bare `EA…` prefix would false-positive on inlined base64 blobs, so Meta
   matches only where an `access_token`-shaped key carries the value; Meta's 32-hex *app secret* is not
   regex-matchable at all and is documented as a review obligation instead.
-- `pnpm check:quiet` is red on `@sanvi/marketing#check:budget` — **pre-existing**: the clean phase-09
-  tree fails identically (initial JS 105.9 KB / 100 KB budget before this change, 106.2 KB after; the
-  delta is the nine new i18n strings). Not this task's verification list; belongs to the deferred
-  bundle sweeps (TASK-008 partial / TASK-018).
+- `@sanvi/marketing#check:budget` was red while this branch sat at its old base — **pre-existing**:
+  the clean phase-09 tree failed identically (initial JS 105.9 KB / 100 KB budget before this change,
+  106.2 KB after; the delta is the nine new i18n strings). Resolved by merging `main`, whose
+  `15e2a47 fix(i18n): lazy-load ja catalog and raise budget gates` moves the `ja` catalog to an async
+  chunk. `check:budget` is green for every package.
+- **Merged `main` (2026-09-03)** to close review finding 9. `main` had independently landed the same
+  payments-settings review fixes (`911cd4f`, `fb2583c`) and the storefront tax-note wiring
+  (`d20767e`), so `PaymentsSettings.svelte`, `OrderSummary.svelte` and their tests were resolved to
+  `main`'s reviewed versions; only the disconnect-path localization was re-applied on top. The
+  advertising shell and its i18n keys are this branch's alone and were kept.
+- `@sanvi/marketing#build` fails locally for want of an `apps/marketing/.env`
+  (`PUBLIC_API_ORIGIN is required but was not set`). Environment, not code: the marketing app is
+  byte-identical to `main`, and the file is gitignored. Copy `apps/marketing/.env.example` to run
+  the full gate locally.
 - Not run from this environment: the `v0.11.0-alpha.1` prerelease tag and the staging deploy (no
   release pipeline here). Nothing external exists to roll back; flag stays off.
 

@@ -14,7 +14,8 @@ describe('CheckoutErrorView component', () => {
     expect(
       screen.getByText('Your card was declined — please try another payment method.'),
     ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Try again' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Try again' })).toHaveAttribute('href', '/checkout')
   })
 
   it('renders specific expired session message', () => {

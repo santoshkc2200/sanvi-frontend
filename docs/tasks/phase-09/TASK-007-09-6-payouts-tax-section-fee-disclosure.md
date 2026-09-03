@@ -43,14 +43,7 @@ states its position in the UI rather than only in code.
 - [x] With a failing preflight, the automatic-tax toggle is disabled and names the specific missing
       step (registrations, or tax settings not `active`).
 - [x] With a passing preflight, toggling on persists through `PUT /tenant/payments/tax-settings`.
-- [ ] ~~the storefront summary tax note reflects the new setting~~ — **blocked, not done.** The
-      merged contract has no customer-safe surface for this: `GET /tenant/payments/tax-settings`
-      requires the staff `payments.read` permission (403 for an anonymous storefront customer), and
-      `CheckoutView` / `POST /tenant/checkout` carry no tax-enabled field. `OrderSummary.svelte` now
-      takes a `taxEnabled` prop (tested, both copy variants) so the wiring is a one-line change once
-      a real source exists, but nothing calls it — the checkout page still shows the static copy via
-      the prop's `true` default, unchanged from before this task. Needs a backend decision: expose the
-      flag on `CheckoutView`/a public endpoint, or accept the static copy as correct for 0.10.0.
+- [x] The storefront summary tax note reflects the new setting — wired via `CheckoutConfigView.tax_enabled` (`taxEnabled={data.config?.tax_enabled ?? true}` in `apps/storefront/src/routes/checkout/+page.svelte`).
 - [x] Tax copy renders in `en` and `ja` and contains no advice — a copy review is part of this task's
       done, not a follow-up.
 - [x] With a fee configured for the tenant, the fee line appears on the settings page and on the
