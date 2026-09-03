@@ -1,7 +1,7 @@
 import { setSession } from '@sanvi/auth'
 import { setMemberships, switchTenant } from '@sanvi/tenant'
 import { axe } from '@sanvi/test-config/axe'
-import { fireEvent, render, screen } from '@testing-library/svelte'
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Payments from '../src/routes/Payments.svelte'
 
@@ -145,9 +145,13 @@ describe('Admin Payments Route Component', () => {
     const customerInput = screen.getByPlaceholderText('Filter by customer…')
     await fireEvent.input(customerInput, { target: { value: 'chk_123' } })
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('customer=chk_123'),
-      expect.anything(),
+    // The customer search is debounced (300ms), so the request is not issued
+    // synchronously on input.
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('customer=chk_123'),
+        expect.anything(),
+      ),
     )
   })
 

@@ -673,6 +673,8 @@
   "admin.payments.list.payoutPending": "Pending",
   "admin.payments.list.payoutPaid": "Paid",
   "admin.payments.list.payoutFailed": "Failed",
+  "admin.payments.list.statusRequiresAction": "Requires action",
+  "admin.payments.list.statusProcessing": "Processing",
   "admin.payments.list.statusSucceeded": "Succeeded",
   "admin.payments.list.statusPending": "Pending",
   "admin.payments.list.statusFailed": "Failed",

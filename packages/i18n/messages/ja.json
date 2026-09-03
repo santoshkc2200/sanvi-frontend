@@ -673,6 +673,8 @@
   "admin.payments.list.payoutPending": "処理中",
   "admin.payments.list.payoutPaid": "入金済み",
   "admin.payments.list.payoutFailed": "失敗",
+  "admin.payments.list.statusRequiresAction": "要アクション",
+  "admin.payments.list.statusProcessing": "処理中",
   "admin.payments.list.statusSucceeded": "成功",
   "admin.payments.list.statusPending": "保留中",
   "admin.payments.list.statusFailed": "失敗",
