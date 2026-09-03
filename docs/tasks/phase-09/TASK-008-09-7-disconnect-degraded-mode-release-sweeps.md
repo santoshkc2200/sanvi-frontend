@@ -54,7 +54,7 @@ Phase-09 frontend acceptance, verified as a set before tagging:
 - [ ] Refunds work and are correct in JPY and USD.
 - [ ] `node scripts/check-no-secret-keys-in-bundle.mjs` passes, and no card data appears in any
       bundle or DOM.
-- [ ] `pnpm check:budget` passes for the storefront with Stripe added; Connect.js is absent from the
+- [x] `pnpm check:budget` passes for the storefront with Stripe added; Connect.js is absent from the
       storefront bundle.
 - [ ] axe checks pass across every payments surface in both locales.
 
@@ -87,6 +87,17 @@ Anything phase 10 consumes beyond the conversion event id the confirmation page 
 - Disconnect copy is the last place a tenant might believe Sanvi holds their money. Say plainly that
   their Stripe account stays theirs.
 - **Partial implementation note (2026-09-02):** Disconnect flow (permission-gated, typed confirmation, idempotency key lifecycle, 409 blocker code rendering) and degraded mode UI (admin status notice, storefront error translation) implemented and tested with unit & a11y tests. Consolidated e2e, visual snapshot baselines, and flag flipping / release tagging remain pending live backend sandbox environment and full phase completion.
+- **Review findings addressed (2026-09-03, 911cd4f):** A 403 from
+  `GET /tenant/payments/providers` renders a permission error, not an upgrade prompt — the route
+  registers no `RequiredFeature`, so 403 is a missing `payments.read`; only a 404, the route being
+  absent while the `payments.enabled` phase flag is off, renders the upgrade prompt. Payouts and
+  tax settings now carry per-section load errors instead of disappearing on a failed request, the
+  loader re-runs after Connect onboarding, tax preflight failures show a localized message rather
+  than the untranslated `problem.title`, and a configured fixed or minimum platform fee renders
+  even when the currency is unknown. `check:budget` and `assert-connect-js-bundle` verified on
+  main; `check-no-secret-keys-in-bundle.mjs` passes, but the "no card data in the DOM" half of
+  that criterion still needs the e2e suite.
+
 - **Blocked on backend (2026-09-03):** `PaymentsSettings` can only recover an existing payment
   connection id from `localStorage`. `GET /tenant/payments/providers` returns a bare catalog —
   `ProvidersView` has a single `providers` property and `ProviderView` carries no connection id —
