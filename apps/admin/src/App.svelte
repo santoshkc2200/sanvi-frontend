@@ -102,7 +102,17 @@ const routes: RouteDefinition[] = [
   {
     path: 'payments',
     guard: (params) => requirePermission(router, 'payments.read', getActiveTenantId())(params),
+    load: () => import('./routes/Payments.svelte'),
+  },
+  {
+    path: 'payments/settings',
+    guard: (params) => requirePermission(router, 'payments.read', getActiveTenantId())(params),
     load: () => import('./routes/PaymentsSettings.svelte'),
+  },
+  {
+    path: 'payments/:id',
+    guard: (params) => requirePermission(router, 'payments.read', getActiveTenantId())(params),
+    load: () => import('./routes/PaymentDetail.svelte'),
   },
   {
     path: 'domains',

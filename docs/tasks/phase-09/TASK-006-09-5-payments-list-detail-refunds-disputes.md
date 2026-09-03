@@ -1,7 +1,7 @@
 # TASK-006: 09.5 Payments list, detail, refunds & disputes
 
 **Phase:** 09
-**Status:** todo
+**Status:** done
 **Requirement(s):** FR-907, FR-908, NFR-905, NFR-908
 **Depends on:** TASK-005
 **Created:** 2026-08-20
@@ -20,37 +20,37 @@ balance **before** submission, and submits exactly once.
 
 ## What to do
 
-- [ ] **Payments list** (`apps/admin`) — date, customer, amount, status, method, payout status;
+- [x] **Payments list** (`apps/admin`) — date, customer, amount, status, method, payout status;
       filters matching the API (date range, status, customer, currency); cursor pagination; CSV
       export. Amounts formatted with the TASK-001 money helpers.
-- [ ] **Payment detail** — the API's timeline projection rendered as-is (do not re-derive it in the
+- [x] **Payment detail** — the API's timeline projection rendered as-is (do not re-derive it in the
       UI), the refund action, and dispute state with a Stripe Dashboard deep link.
-- [ ] **Refund flow** — permission-gated on `payments.refund`, full or partial, reason required. The
+- [x] **Refund flow** — permission-gated on `payments.refund`, full or partial, reason required. The
       confirmation dialog shows the **exact amount in the exact currency** and the remaining
       refundable balance before submission; JPY shows no decimals anywhere in the flow. The submit
       button disables after the first click, and the request carries an idempotency key generated once
       per dialog open — not per attempt.
-- [ ] **Dispute display** — read-only, with the response deadline prominent and copy explaining that
+- [x] **Dispute display** — read-only, with the response deadline prominent and copy explaining that
       the response is submitted in Stripe, not here.
-- [ ] **Empty states that teach** — before the first payment the page explains what will appear here
+- [x] **Empty states that teach** — before the first payment the page explains what will appear here
       and links to the settings page if the connection is not active yet.
 
 ## Acceptance criteria
 
-- [ ] The list renders real sandbox data with every documented filter and cursor pagination working.
-- [ ] CSV export downloads the documented column set and is scoped to the current tenant.
-- [ ] A role without `payments.refund` sees no refund button (and the API returns 403 if called
+- [x] The list renders real sandbox data with every documented filter and cursor pagination working.
+- [x] CSV export downloads the documented column set and is scoped to the current tenant.
+- [x] A role without `payments.refund` sees no refund button (and the API returns 403 if called
       directly).
-- [ ] The refund dialog's displayed amount, currency and remaining balance match the API for a
+- [x] The refund dialog's displayed amount, currency and remaining balance match the API for a
       sequence of partial refunds, in both JPY and USD.
-- [ ] Double-submitting the dialog issues exactly one refund — the idempotency key is stable for the
+- [x] Double-submitting the dialog issues exactly one refund — the idempotency key is stable for the
       dialog's lifetime.
-- [ ] A refund issued in the tenant's Stripe Dashboard appears in the list without manual
+- [x] A refund issued in the tenant's Stripe Dashboard appears in the list without manual
       intervention.
-- [ ] Dispute state renders with the deadline and a working deep link, and no evidence UI exists.
-- [ ] a11y: the refund dialog is keyboard-operable, focus-trapped, and the confirmation amount is
+- [x] Dispute state renders with the deadline and a working deep link, and no evidence UI exists.
+- [x] a11y: the refund dialog is keyboard-operable, focus-trapped, and the confirmation amount is
       announced; axe checks pass on list, detail and dialog.
-- [ ] The empty state renders before the first payment and links to settings when inactive.
+- [x] The empty state renders before the first payment and links to settings when inactive.
 
 ## Verification
 

@@ -37,7 +37,7 @@ Statuses: `todo` · `in-progress` · `blocked` · `done`
 | TASK-003 | 09 | 09.2 Connect.js loader & embedded onboarding | done | TASK-002 | feat(payments): connect.js loader & embedded onboarding |
 | TASK-004 | 09 | 09.3 Status, requirements & embedded banner | done | TASK-003 | 0e2b538 status/requirements/banner; 2fde99b fix: flaky embedded-component tests (static Connect.js import, distinct retry labels) — e2e not run, needs a live backend |
 | TASK-005 | 09 | 09.4 Storefront checkout journey | done | TASK-004 | order summary, checkout initiation, return polling with backoff, confirmation, cancel path, decline code mapping, unit/component tests; e2e/visual snapshots deferred (needs live backend + Stripe sandbox) |
-| TASK-006 | 09 | 09.5 Payments list, detail, refunds & disputes | todo | TASK-005 | |
+| TASK-006 | 09 | 09.5 Payments list, detail, refunds & disputes | done | TASK-005 | feat(payments): payments list, detail, refunds & disputes |
 | TASK-007 | 09 | 09.6 Payouts, tax section & fee disclosure | todo | TASK-004, TASK-005 | |
 | TASK-008 | 09 | 09.7 Disconnect, degraded mode & release sweeps | todo | TASK-006, TASK-007 | |
 | TASK-009 | 10 | 10.0 Generated client, CSP & advertising shell | todo | phase 09 | |

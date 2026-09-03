@@ -159,3 +159,104 @@ export function getTenantCheckout(
     ...(signal ? { signal } : {}),
   })
 }
+
+export type ListTenantPaymentsQuery =
+  import('./generated/types').operations['list_tenant_payments']['parameters']['query']
+export type ListTenantDisputesQuery =
+  import('./generated/types').operations['list_tenant_disputes']['parameters']['query']
+export type ExportTenantPaymentsQuery =
+  import('./generated/types').operations['export_tenant_payments']['parameters']['query']
+
+export type PaymentListView = components['schemas']['PaymentListView']
+export type PaymentView = components['schemas']['PaymentView']
+export type PaymentDetailView = components['schemas']['PaymentDetailView']
+export type RefundRequest = components['schemas']['RefundRequest']
+export type RefundAmount = components['schemas']['RefundAmount']
+export type RefundView = components['schemas']['RefundView']
+export type DisputeListView = components['schemas']['DisputeListView']
+export type DisputeView = components['schemas']['DisputeView']
+export type TimelineEntry = components['schemas']['TimelineEntry']
+
+/**
+ * `GET /api/v1/tenant/payments` — every documented filter combinable,
+ * cursor-paginated, tenant-scoped.
+ */
+export function listTenantPayments(
+  client: TypedApiClient,
+  query?: ListTenantPaymentsQuery,
+  signal?: AbortSignal,
+): Promise<PaymentListView> {
+  return client.GET('/api/v1/tenant/payments', {
+    params: { query },
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `GET /api/v1/tenant/payments/{id}` — payment detail with timeline,
+ * refunds and dispute state.
+ */
+export function getTenantPayment(
+  client: TypedApiClient,
+  paymentId: string,
+  signal?: AbortSignal,
+): Promise<PaymentDetailView> {
+  return client.GET('/api/v1/tenant/payments/{id}', {
+    params: { path: { id: paymentId } },
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `POST /api/v1/tenant/payments/{id}/refund` — refund a payment.
+ * Requires an `Idempotency-Key` UUID header.
+ */
+export function refundTenantPayment(
+  client: TypedApiClient,
+  paymentId: string,
+  body: RefundRequest,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<RefundView> {
+  return client.POST('/api/v1/tenant/payments/{id}/refund', body, {
+    params: { path: { id: paymentId } },
+    idempotencyKey,
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `GET /api/v1/tenant/payments/disputes` — disputes for this tenant,
+ * cursor-paginated.
+ */
+export function listTenantDisputes(
+  client: TypedApiClient,
+  query?: ListTenantDisputesQuery,
+  signal?: AbortSignal,
+): Promise<DisputeListView> {
+  return client.GET('/api/v1/tenant/payments/disputes', {
+    params: { query },
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `GET /api/v1/tenant/payments/export` — server-side CSV export,
+ * tenant-scoped, audited.
+ */
+export function exportTenantPayments(
+  client: TypedApiClient,
+  query?: ExportTenantPaymentsQuery,
+  signal?: AbortSignal,
+): Promise<string> {
+  return client.GET('/api/v1/tenant/payments/export', {
+    params: { query },
+    ...(signal ? { signal } : {}),
+  }) as unknown as Promise<string>
+}
+
+export const listPayments = listTenantPayments
+export const getPayment = getTenantPayment
+export const refundPayment = refundTenantPayment
+export const listDisputes = listTenantDisputes
+export const exportPayments = exportTenantPayments
