@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { ApiError } from '@sanvi/api-client'
 import { pollCheckoutStatus } from '../src/lib/checkout/poll'
 import type { CheckoutView } from '../src/lib/checkout/types'
 
@@ -169,5 +170,32 @@ describe('pollCheckoutStatus', () => {
         signal: abortController.signal,
       }),
     ).rejects.toThrow('Polling aborted')
+  })
+
+  it('stops immediately and throws on non-retryable ApiError (e.g. 404)', async () => {
+    const apiError = new ApiError(
+      404,
+      {
+        type: 'about:blank',
+        title: 'Not Found',
+        status: 404,
+      },
+      undefined,
+    )
+
+    const getFn = vi.fn(async () => {
+      throw apiError
+    })
+    const sleep = vi.fn(async () => {})
+
+    await expect(
+      pollCheckoutStatus({ GET: getFn } as never, 'chk_123', {
+        maxAttempts: 5,
+        sleep,
+      }),
+    ).rejects.toThrow(apiError)
+
+    expect(getFn).toHaveBeenCalledTimes(1)
+    expect(sleep).not.toHaveBeenCalled()
   })
 })

@@ -2148,6 +2148,27 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/tenant/checkout/config': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * `GET /api/v1/tenant/checkout/config` — the storefront's pre-flight.
+     *     Same permission and entitlement as the buy path it guards, because it
+     *     answers the same question the buy path would refuse on.
+     */
+    get: operations['get_tenant_checkout_config']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/tenant/checkout/{id}': {
     parameters: {
       query?: never
@@ -3745,6 +3766,39 @@ export interface components {
     }
     /** @enum {string} */
     ChangeSource: 'sanvi' | 'platform'
+    /**
+     * @description What the storefront needs before it can render a Pay button:
+     *     readiness and the settlement currency. Derived from the tenant's live
+     *     connection by the same gate the checkout itself applies.
+     */
+    CheckoutConfigView: {
+      /**
+       * @description Server-computed from the v2 `card_payments` capability, exactly as
+       *     `POST /tenant/checkout` computes it. The storefront renders this;
+       *     it never recomputes readiness of its own.
+       */
+      can_accept_payments: boolean
+      /**
+       * @description The i18n key for *why* not (`payments.blocker.*`), so the
+       *     storefront can show a reason next to a disabled button instead of
+       *     waiting for a 409. `null` when payments are accepted.
+       * @example payments.blocker.card_payments_inactive
+       */
+      cannot_accept_reason?: string | null
+      /**
+       * @description The connected account's settlement currency. The storefront must
+       *     price in this currency; anything else is refused at creation.
+       * @example JPY
+       */
+      currency?: string | null
+      /**
+       * @description Whether a checkout started now would have automatic tax applied,
+       *     read from the tenant's stored tax settings by the same rule the
+       *     session creation applies. The storefront renders its tax note from
+       *     this; it never assumes tax is on.
+       */
+      tax_enabled: boolean
+    }
     CheckoutSessionRequest: {
       cancel_url?: string | null
       /**
@@ -3779,6 +3833,17 @@ export interface components {
       currency: string
       customer_ref?: Record<string, never> | null
       expires_at?: string | null
+      /**
+       * @description Server-issued exactly once per order when paid; identical on every
+       *     refresh of the confirmation page, so phase 10's conversion
+       *     pipeline cannot double-count.
+       *     The provider's decline/failure code for the newest failed attempt
+       *     (`card_declined`, `insufficient_funds`, …), so the storefront can
+       *     tell a buyer *why*. The provider's own message is deliberately not
+       *     exposed: the storefront renders its own localized copy.
+       * @example card_declined
+       */
+      failure_code?: string | null
       /**
        * Format: snowflake-id
        * @example 873698342314721281
@@ -3880,8 +3945,8 @@ export interface components {
        */
       client_secret: string
       /**
-       * @description The embedded components enabled on this session (09.2:
-       *     `account_onboarding` only).
+       * @description The embedded components enabled on this session:
+       *     `account_onboarding`, `notification_banner`, and `account_management`.
        */
       components: string[]
       /**
@@ -12122,6 +12187,44 @@ export interface operations {
       }
     }
   }
+  get_tenant_checkout_config: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Whether the tenant's connected account can accept payments, why not, its settlement currency, and whether automatic tax applies */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CheckoutConfigView']
+        }
+      }
+      /** @description Missing payments.checkout permission or the entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description The payments.checkout flag is off (payments/provider-unavailable) */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
   get_tenant_checkout: {
     parameters: {
       query?: never
@@ -13066,6 +13169,8 @@ export interface operations {
       query?: {
         /** @description Filter by payment status */
         status?: string
+        /** @description Filter by payout status */
+        payout_status?: string
         /** @description Filter by currency (ISO-4217) */
         currency?: string
         /** @description Filter by customer reference substring */
@@ -13407,6 +13512,8 @@ export interface operations {
       query?: {
         /** @description Filter by payment status */
         status?: string
+        /** @description Filter by payout status */
+        payout_status?: string
         /** @description Filter by currency */
         currency?: string
         /** @description Filter by customer reference substring */

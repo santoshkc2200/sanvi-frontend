@@ -9,6 +9,12 @@ import { Alert, Badge, Button, Cluster, Container, Spinner, Stack } from '@sanvi
 import { apiClient } from '../lib/api'
 import DisputeDisplay from '../lib/payments/DisputeDisplay.svelte'
 import RefundDialog from '../lib/payments/RefundDialog.svelte'
+import {
+  getPaymentStatusLabel as getStatusLabel,
+  getPaymentStatusVariant as getStatusVariant,
+  getPayoutStatusLabel,
+  sumSucceededRefundsMinor,
+} from '../lib/payments/helpers'
 
 interface Props {
   id?: string
@@ -69,7 +75,7 @@ const disputes = $derived(detail?.disputes ?? [])
 const timeline = $derived(detail?.timeline ?? [])
 
 const totalRefundedMinor = $derived.by(() => {
-  return refunds.reduce((sum, r) => sum + r.amount_minor, 0)
+  return sumSucceededRefundsMinor(refunds)
 })
 
 const remainingRefundableMinor = $derived.by(() => {
@@ -85,60 +91,6 @@ const canRefund = $derived.by(() => {
 })
 
 const hasRefundPermission = $derived(can('payments.refund', getActiveTenantId()))
-
-function getStatusVariant(status: string): 'success' | 'error' | 'warning' | 'info' | 'neutral' {
-  switch (status) {
-    case 'succeeded':
-      return 'success'
-    case 'failed':
-      return 'error'
-    case 'disputed':
-      return 'warning'
-    case 'partially_refunded':
-      return 'info'
-    case 'refunded':
-      return 'neutral'
-    case 'pending':
-      return 'warning'
-    default:
-      return 'neutral'
-  }
-}
-
-function getStatusLabel(status: string): string {
-  switch (status) {
-    case 'succeeded':
-      return t['admin.payments.list.statusSucceeded']()
-    case 'failed':
-      return t['admin.payments.list.statusFailed']()
-    case 'disputed':
-      return t['admin.payments.list.statusDisputed']()
-    case 'refunded':
-      return t['admin.payments.list.statusRefunded']()
-    case 'partially_refunded':
-      return t['admin.payments.list.statusPartiallyRefunded']()
-    case 'pending':
-      return t['admin.payments.list.statusPending']()
-    case 'canceled':
-      return t['admin.payments.list.statusCanceled']()
-    default:
-      return status
-  }
-}
-
-function getPayoutStatusLabel(payoutStatus?: string | null): string {
-  if (!payoutStatus) return '—'
-  switch (payoutStatus) {
-    case 'paid':
-      return t['admin.payments.list.payoutPaid']()
-    case 'pending':
-      return t['admin.payments.list.payoutPending']()
-    case 'failed':
-      return t['admin.payments.list.payoutFailed']()
-    default:
-      return payoutStatus
-  }
-}
 
 function getTimelineKindLabel(kind: string): string {
   switch (kind) {

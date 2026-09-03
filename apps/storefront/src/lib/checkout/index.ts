@@ -4,10 +4,11 @@ export { default as ConfirmingState } from './ConfirmingState.svelte'
 export { default as OrderSummary } from './OrderSummary.svelte'
 export {
   calculateCartTotal,
-  clearCart,
-  getCartItems,
-  resetCart,
-  setCartItems,
+  createCart,
+  DEFAULT_SAMPLE_ITEMS,
+  getCartContext,
+  setCartContext,
+  type CartStore,
 } from './cart.svelte'
 export { recordConversionOnce } from './conversion'
 export { getDeclineMessage } from './decline-codes'

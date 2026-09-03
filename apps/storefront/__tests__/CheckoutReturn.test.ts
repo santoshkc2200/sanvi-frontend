@@ -2,7 +2,9 @@ import { render, screen, waitFor } from '@testing-library/svelte'
 import { initI18n } from '@sanvi/i18n'
 import { describe, expect, it, vi } from 'vitest'
 import CheckoutReturnPage from '../src/routes/checkout/return/+page.svelte'
+import { ApiError } from '@sanvi/api-client'
 import * as checkoutModule from '../src/lib/checkout'
+import { getDeclineMessage } from '../src/lib/checkout/decline-codes'
 import type { CheckoutView } from '../src/lib/checkout/types'
 
 describe('Checkout Return route component', () => {
@@ -164,7 +166,7 @@ describe('Checkout Return route component', () => {
     })
   })
 
-  it('clears pending checkout id and cart on terminal paid state (Defects 1 & 8)', async () => {
+  it('retains pending checkout id on terminal paid state for refresh support, and clears cart and idempotency key', async () => {
     sessionStorage.setItem('sanvi_pending_checkout_id', 'chk_paid_term')
     sessionStorage.setItem('sanvi_checkout_idempotency_key', 'idem_key_123')
 
@@ -179,11 +181,13 @@ describe('Checkout Return route component', () => {
 
     vi.spyOn(checkoutModule, 'pollCheckoutStatus').mockResolvedValueOnce(paidCheckout)
 
+    const cart = checkoutModule.createCart()
     render(CheckoutReturnPage, {
       props: {
         data: {
           checkoutId: 'chk_paid_term',
         },
+        cart,
       },
     })
 
@@ -191,9 +195,96 @@ describe('Checkout Return route component', () => {
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Payment confirmed')
     })
 
-    expect(sessionStorage.getItem('sanvi_pending_checkout_id')).toBeNull()
+    expect(sessionStorage.getItem('sanvi_pending_checkout_id')).toBe('chk_paid_term')
     expect(sessionStorage.getItem('sanvi_checkout_idempotency_key')).toBeNull()
-    expect(checkoutModule.getCartItems()).toEqual([])
+    expect(cart.items).toEqual([])
+  })
+
+  it('retains pending checkout id on terminal canceled state so a refresh still shows the reason', async () => {
+    sessionStorage.setItem('sanvi_pending_checkout_id', 'chk_canceled_term')
+    sessionStorage.setItem('sanvi_checkout_idempotency_key', 'idem_key_456')
+
+    const canceledCheckout: CheckoutView = {
+      id: 'chk_canceled_term',
+      amount_minor: 4800,
+      currency: 'USD',
+      reference: 'ord-canceled-term',
+      status: 'canceled',
+      created_at: new Date().toISOString(),
+    }
+
+    vi.spyOn(checkoutModule, 'pollCheckoutStatus').mockResolvedValueOnce(canceledCheckout)
+
+    render(CheckoutReturnPage, {
+      props: {
+        data: {
+          checkoutId: 'chk_canceled_term',
+        },
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Payment canceled')
+    })
+
+    expect(sessionStorage.getItem('sanvi_pending_checkout_id')).toBe('chk_canceled_term')
+    expect(sessionStorage.getItem('sanvi_checkout_idempotency_key')).toBeNull()
+  })
+
+  it('renders the specific decline copy the server names, not the generic message', async () => {
+    const declinedCheckout: CheckoutView = {
+      id: 'chk_declined',
+      amount_minor: 4800,
+      currency: 'USD',
+      reference: 'ord-declined',
+      status: 'failed',
+      failure_code: 'insufficient_funds',
+      created_at: new Date().toISOString(),
+    }
+
+    vi.spyOn(checkoutModule, 'pollCheckoutStatus').mockResolvedValueOnce(declinedCheckout)
+
+    render(CheckoutReturnPage, {
+      props: {
+        data: {
+          checkoutId: 'chk_declined',
+        },
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(getDeclineMessage('insufficient_funds'))).toBeInTheDocument()
+    })
+    expect(screen.queryByText(getDeclineMessage(null))).not.toBeInTheDocument()
+  })
+
+  it('surfaces non-retryable ApiError as not_found rather than delayed (Defect 4)', async () => {
+    const notFoundError = new ApiError(
+      404,
+      {
+        type: 'about:blank',
+        title: 'Not Found',
+        status: 404,
+      },
+      undefined,
+    )
+
+    vi.spyOn(checkoutModule, 'pollCheckoutStatus').mockRejectedValueOnce(notFoundError)
+
+    render(CheckoutReturnPage, {
+      props: {
+        data: {
+          checkoutId: 'chk_stale_or_foreign',
+        },
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Order not found')
+      expect(
+        screen.getByText("We couldn't find the requested checkout session."),
+      ).toBeInTheDocument()
+    })
   })
 
   it('resets per-attempt state when checkoutId changes (Defect 11)', async () => {

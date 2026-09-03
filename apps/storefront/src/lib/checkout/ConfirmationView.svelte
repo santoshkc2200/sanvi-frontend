@@ -1,7 +1,7 @@
 <script lang="ts">
 import { onMount } from 'svelte'
 import { fmt, t } from '@sanvi/i18n'
-import { Alert, Button, Container, Stack } from '@sanvi/ui'
+import { Alert, Container, Stack } from '@sanvi/ui'
 import { localePath } from '$lib/links'
 import { recordConversionOnce } from './conversion'
 import { calculateCartTotal } from './cart.svelte'
@@ -109,9 +109,7 @@ const returnHomeHref = $derived(localePath('/'))
 
     <div class="sanvi-confirmation-actions">
       <a href={returnHomeHref} class="sanvi-confirmation-home-link">
-        <Button variant="primary">
-          {t['storefront.checkout.confirmation.returnHome']()}
-        </Button>
+        {t['storefront.checkout.confirmation.returnHome']()}
       </a>
     </div>
   </Stack>
@@ -240,6 +238,22 @@ const returnHomeHref = $derived(localePath('/'))
   }
 
   .sanvi-confirmation-home-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sanvi-spacing-2);
+    padding: var(--sanvi-spacing-2) var(--sanvi-spacing-4);
+    border-radius: var(--sanvi-radius-md);
+    background: var(--sanvi-color-solid-primary-base);
+    color: var(--sanvi-color-text-inverse);
     text-decoration: none;
+    font-weight: var(--sanvi-font-weight-medium);
+    font-size: var(--sanvi-font-size-md);
+    line-height: var(--sanvi-line-height-tight);
+    transition: background-color 0.12s ease;
+  }
+
+  .sanvi-confirmation-home-link:hover {
+    background: var(--sanvi-color-solid-primary-hover);
   }
 </style>

@@ -37,6 +37,7 @@ export function pollPaymentConnection<T>(
   let currentDelay = minDelayMs
   let timer: ReturnType<typeof setTimeout> | undefined
   let abortController: AbortController | undefined
+  let pollSeq = 0
   let running = false
   let current: T | undefined
   let lastFetchTime = 0
@@ -63,17 +64,19 @@ export function pollPaymentConnection<T>(
     if (!running) return undefined
     if (isTabHidden()) return undefined
 
+    const seq = ++pollSeq
     if (abortController) {
       abortController.abort()
     }
-    abortController = new AbortController()
+    const controller = new AbortController()
+    abortController = controller
     lastFetchTime = Date.now()
     isChecking = true
     options.onPollStateChange?.(true)
 
     try {
-      const result = await fetchFn(abortController.signal)
-      if (!running) return undefined
+      const result = await fetchFn(controller.signal)
+      if (!running || seq !== pollSeq) return undefined
 
       current = result
       options.onUpdate?.(result)
@@ -86,12 +89,19 @@ export function pollPaymentConnection<T>(
       scheduleNext()
       return result
     } catch (err) {
-      if (!running) return undefined
+      if (
+        controller.signal.aborted ||
+        (err instanceof DOMException && err.name === 'AbortError') ||
+        (err instanceof Error && err.name === 'AbortError')
+      ) {
+        return undefined
+      }
+      if (!running || seq !== pollSeq) return undefined
       options.onError?.(err)
       scheduleNext()
       return undefined
     } finally {
-      if (isChecking) {
+      if (seq === pollSeq && isChecking) {
         isChecking = false
         options.onPollStateChange?.(false)
       }

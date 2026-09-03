@@ -1,6 +1,6 @@
 <script lang="ts">
 import { t } from '@sanvi/i18n'
-import { Alert, Button, Container, Stack } from '@sanvi/ui'
+import { Alert, Container, Stack } from '@sanvi/ui'
 import { localePath } from '$lib/links'
 import { getDeclineMessage } from './decline-codes'
 
@@ -29,9 +29,7 @@ const retryHref = $derived(localePath('/checkout'))
 
     <div class="sanvi-checkout-error-actions">
       <a href={retryHref} class="sanvi-checkout-error-link">
-        <Button variant="primary">
-          {t['storefront.checkout.error.tryAgain']()}
-        </Button>
+        {t['storefront.checkout.error.tryAgain']()}
       </a>
     </div>
   </Stack>
@@ -57,6 +55,22 @@ const retryHref = $derived(localePath('/checkout'))
   }
 
   .sanvi-checkout-error-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sanvi-spacing-2);
+    padding: var(--sanvi-spacing-2) var(--sanvi-spacing-4);
+    border-radius: var(--sanvi-radius-md);
+    background: var(--sanvi-color-solid-primary-base);
+    color: var(--sanvi-color-text-inverse);
     text-decoration: none;
+    font-weight: var(--sanvi-font-weight-medium);
+    font-size: var(--sanvi-font-size-md);
+    line-height: var(--sanvi-line-height-tight);
+    transition: background-color 0.12s ease;
+  }
+
+  .sanvi-checkout-error-link:hover {
+    background: var(--sanvi-color-solid-primary-hover);
   }
 </style>
