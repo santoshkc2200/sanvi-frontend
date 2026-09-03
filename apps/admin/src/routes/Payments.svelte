@@ -32,6 +32,7 @@ import {
   getPaymentStatusLabel as getStatusLabel,
   getPaymentStatusVariant as getStatusVariant,
   getPayoutStatusLabel,
+  getPayoutStatusVariant,
 } from '../lib/payments/helpers'
 import {
   clearPersistedConnectionId,
@@ -53,6 +54,7 @@ let hasConnection = $state<boolean | null>(null)
 
 // Filter states
 let filterStatus = $state('')
+let filterPayoutStatus = $state('')
 let filterCurrency = $state('')
 let customerInput = $state('')
 let filterCustomer = $state('')
@@ -65,6 +67,7 @@ let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined
 const isFiltered = $derived(
   Boolean(
     filterStatus ||
+      filterPayoutStatus ||
       filterCurrency ||
       filterCustomer ||
       customerInput ||
@@ -87,6 +90,7 @@ async function load(): Promise<void> {
     cursor: currentCursor,
   }
   if (filterStatus) query['status'] = filterStatus
+  if (filterPayoutStatus) query['payout_status'] = filterPayoutStatus
   if (filterCurrency) query['currency'] = filterCurrency
   if (filterCustomer) query['customer'] = filterCustomer
 
@@ -174,6 +178,7 @@ function clearFilters(): void {
   }
   customerInput = ''
   filterStatus = ''
+  filterPayoutStatus = ''
   filterCurrency = ''
   filterCustomer = ''
   filterDateFrom = ''
@@ -204,6 +209,7 @@ async function handleExportCsv(): Promise<void> {
   exportError = undefined
   const query: Record<string, string | undefined> = {}
   if (filterStatus) query['status'] = filterStatus
+  if (filterPayoutStatus) query['payout_status'] = filterPayoutStatus
   if (filterCurrency) query['currency'] = filterCurrency
   if (filterCustomer) query['customer'] = filterCustomer
 
@@ -222,6 +228,12 @@ async function handleExportCsv(): Promise<void> {
 }
 
 const statusFilterOptions = $derived(getPaymentStatusFilterOptions())
+
+const payoutStatusFilterOptions = $derived([
+  { value: 'paid', label: t['admin.payments.list.payoutPaid']() },
+  { value: 'pending', label: t['admin.payments.list.payoutPending']() },
+  { value: 'failed', label: t['admin.payments.list.payoutFailed']() },
+])
 
 const currencyFilterOptions = [
   { value: 'USD', label: 'USD' },
@@ -323,6 +335,19 @@ const currencyFilterOptions = [
                 bind:value={filterStatus}
                 options={statusFilterOptions}
                 placeholder={t['admin.payments.list.filterStatusAll']()}
+                clearable
+                onchange={handleFilterChange}
+              />
+            {/snippet}
+          </Field>
+
+          <Field label={t['admin.payments.list.filterPayoutStatus']()}>
+            {#snippet children(controlProps)}
+              <Select
+                {...controlProps}
+                bind:value={filterPayoutStatus}
+                options={payoutStatusFilterOptions}
+                placeholder={t['admin.payments.list.filterPayoutStatusAll']()}
                 clearable
                 onchange={handleFilterChange}
               />
@@ -432,9 +457,17 @@ const currencyFilterOptions = [
                     </span>
                   </td>
                   <td>
-                    <span class="sanvi-payments-list__muted">
-                      {getPayoutStatusLabel(payment.payout_status)}
-                    </span>
+                    {#if payment.payout_status}
+                      <Badge variant={getPayoutStatusVariant(payment.payout_status)}>
+                        {#snippet children()}
+                          {getPayoutStatusLabel(payment.payout_status)}
+                        {/snippet}
+                      </Badge>
+                    {:else}
+                      <span class="sanvi-payments-list__muted">
+                        —
+                      </span>
+                    {/if}
                   </td>
                   <td class="sanvi-payments-list__td--actions">
                     <a class="sanvi-payments-list__action-link" href={`/payments/${payment.id}`}>

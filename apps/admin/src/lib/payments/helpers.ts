@@ -66,6 +66,19 @@ export function getPayoutStatusLabel(payoutStatus?: string | null): string {
   }
 }
 
+export function getPayoutStatusVariant(payoutStatus?: string | null): PaymentStatusVariant {
+  switch (payoutStatus) {
+    case 'paid':
+      return 'success'
+    case 'failed':
+      return 'error'
+    case 'pending':
+      return 'warning'
+    default:
+      return 'neutral'
+  }
+}
+
 export const PAYMENT_STATUS_FILTER_VALUES = [
   'requires_action',
   'processing',

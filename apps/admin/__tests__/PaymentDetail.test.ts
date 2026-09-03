@@ -197,6 +197,69 @@ describe('Admin PaymentDetail Route Component', () => {
     expect(screen.queryByRole('button', { name: 'Refund payment' })).not.toBeInTheDocument()
   })
 
+  it('renders fee line when fee_minor is present with proper money formatting', async () => {
+    render(PaymentDetail, { props: { id: 'pay_123' } })
+    await screen.findByRole('heading', { name: '$100.00' })
+
+    expect(screen.getByText('Processing fee')).toBeInTheDocument()
+    expect(screen.getByText('$3.20')).toBeInTheDocument()
+  })
+
+  it('renders JPY fee line with zero decimal formatting', async () => {
+    const jpyDetail = {
+      ...MOCK_DETAIL,
+      payment: {
+        ...MOCK_DETAIL.payment,
+        currency: 'JPY',
+        amount_minor: 5000,
+        fee_minor: 180,
+        fee_currency: 'JPY',
+      },
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/api/v1/tenant/payments/pay_123')) {
+          return Promise.resolve(jsonResponse(jpyDetail))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(PaymentDetail, { props: { id: 'pay_123' } })
+    await screen.findByRole('heading', { name: '¥5,000' })
+
+    expect(screen.getByText('Processing fee')).toBeInTheDocument()
+    expect(screen.getByText('¥180')).toBeInTheDocument()
+  })
+
+  it('does not render fee line when fee_minor is null or undefined', async () => {
+    const noFeeDetail = {
+      ...MOCK_DETAIL,
+      payment: {
+        ...MOCK_DETAIL.payment,
+        fee_minor: null,
+        fee_currency: null,
+      },
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/api/v1/tenant/payments/pay_123')) {
+          return Promise.resolve(jsonResponse(noFeeDetail))
+        }
+        return Promise.resolve(jsonResponse({ title: 'not found' }, 404))
+      }),
+    )
+
+    render(PaymentDetail, { props: { id: 'pay_123' } })
+    await screen.findByRole('heading', { name: '$100.00' })
+
+    expect(screen.queryByText('Processing fee')).not.toBeInTheDocument()
+  })
+
   it('has no accessibility violations', async () => {
     const { container } = render(PaymentDetail, { props: { id: 'pay_123' } })
     await screen.findByRole('heading', { name: '$100.00' })

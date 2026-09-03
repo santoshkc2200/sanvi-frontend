@@ -19,6 +19,13 @@ interface Props {
   cannotAcceptReason?: string
   canceled?: boolean
   reference?: string
+  /** Whether a checkout started now would carry automatic tax, from the
+   *  server's checkout config. Decides which tax note the buyer reads.
+   *  Defaults to the "taxes may apply" hedge rather than the definite
+   *  "taxes are not collected", so an unread config never states
+   *  something false — and the note only renders alongside a known
+   *  currency, which comes from the same config. */
+  taxEnabled?: boolean
   onInitiateCheckout?: (idempotencyKey: string) => Promise<void> | void
 }
 
@@ -29,6 +36,7 @@ let {
   cannotAcceptReason,
   canceled = false,
   reference: explicitReference,
+  taxEnabled = true,
   onInitiateCheckout,
 }: Props = $props()
 
@@ -184,8 +192,17 @@ async function handleCheckout() {
         </table>
       </div>
 
-      <aside class="sanvi-checkout-tax-note" aria-label={t['storefront.checkout.taxNote']()}>
-        <p>{t['storefront.checkout.taxNote']()}</p>
+      <aside
+        class="sanvi-checkout-tax-note"
+        aria-label={taxEnabled
+          ? t['storefront.checkout.taxNote']()
+          : t['storefront.checkout.taxNoteDisabled']()}
+      >
+        <p>
+          {taxEnabled
+            ? t['storefront.checkout.taxNote']()
+            : t['storefront.checkout.taxNoteDisabled']()}
+        </p>
       </aside>
       {/if}
 

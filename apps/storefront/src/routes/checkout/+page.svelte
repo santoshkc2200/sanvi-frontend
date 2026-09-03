@@ -19,4 +19,5 @@ let { data }: { data: PageData } = $props()
   canceled={data.canceled}
   canAcceptPayments={data.config?.can_accept_payments ?? false}
   currency={data.config?.currency ?? undefined}
+  taxEnabled={data.config?.tax_enabled ?? true}
 />

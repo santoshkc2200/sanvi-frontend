@@ -2700,11 +2700,17 @@ export interface paths {
     }
     /**
      * `GET /api/v1/tenant/payments/providers`.
-     * @description Gated three ways: the `payments.enabled` phase flag (route absent when
-     *     off), `payments.read` (permission extractor), and the
-     *     `payments.stripe_connect` entitlement (`RequiredFeature` — 403, never
-     *     404, so the frontend can render an upgrade prompt instead of a dead
-     *     end).
+     * @description Gated two ways: the `payments.enabled` phase flag (route absent when off)
+     *     and `payments.read` (permission extractor). Deliberately **not** gated on
+     *     the `payments.stripe_connect` entitlement, unlike every other payments
+     *     route — the catalog is how an un-entitled tenant learns which providers
+     *     exist and therefore what upgrading would buy; the admin renders the cards
+     *     with the connect CTA replaced by an upgrade prompt. Connecting
+     *     (`POST /payments/connections`) keeps the entitlement.
+     *
+     *     A 403 here therefore means the caller lacks `payments.read` — a
+     *     permission problem, not a plan problem. The frontend must not answer it
+     *     with an upgrade prompt.
      *
      *     The response is derived from the provider registry — the handler adds
      *     nothing provider-specific. The tenant's country (from the tenant
@@ -3785,6 +3791,13 @@ export interface components {
        * @example JPY
        */
       currency?: string | null
+      /**
+       * @description Whether a checkout started now would have automatic tax applied,
+       *     read from the tenant's stored tax settings by the same rule the
+       *     session creation applies. The storefront renders its tax note from
+       *     this; it never assumes tax is on.
+       */
+      tax_enabled: boolean
     }
     CheckoutSessionRequest: {
       cancel_url?: string | null
@@ -12183,7 +12196,7 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Whether the tenant's connected account can accept payments, why not, and its settlement currency */
+      /** @description Whether the tenant's connected account can accept payments, why not, its settlement currency, and whether automatic tax applies */
       200: {
         headers: {
           [name: string]: unknown
@@ -13156,6 +13169,8 @@ export interface operations {
       query?: {
         /** @description Filter by payment status */
         status?: string
+        /** @description Filter by payout status */
+        payout_status?: string
         /** @description Filter by currency (ISO-4217) */
         currency?: string
         /** @description Filter by customer reference substring */
@@ -13497,6 +13512,8 @@ export interface operations {
       query?: {
         /** @description Filter by payment status */
         status?: string
+        /** @description Filter by payout status */
+        payout_status?: string
         /** @description Filter by currency */
         currency?: string
         /** @description Filter by customer reference substring */
@@ -13588,7 +13605,7 @@ export interface operations {
           'application/json': components['schemas']['ProvidersView']
         }
       }
-      /** @description Missing payments.read permission or the payments.stripe_connect entitlement */
+      /** @description Missing payments.read permission (the catalog is not entitlement-gated) */
       403: {
         headers: {
           [name: string]: unknown

@@ -293,6 +293,35 @@ describe('OrderSummary component', () => {
     expect(sessionStorage.getItem('sanvi_checkout_idempotency_key')).not.toBeNull()
   })
 
+  it('renders tax calculation note when taxEnabled is true', async () => {
+    render(OrderSummary, {
+      props: {
+        items: sampleItems,
+        currency: 'USD',
+        taxEnabled: true,
+      },
+    })
+
+    expect(
+      screen.getByText('Taxes may apply and will be calculated during payment.'),
+    ).toBeInTheDocument()
+  })
+
+  it('renders taxes not collected note when taxEnabled is false', async () => {
+    render(OrderSummary, {
+      props: {
+        items: sampleItems,
+        currency: 'USD',
+        taxEnabled: false,
+      },
+    })
+
+    expect(screen.getByText('Taxes are not collected for this order.')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Taxes may apply and will be calculated during payment.'),
+    ).not.toBeInTheDocument()
+  })
+
   it('passes axe accessibility checks', async () => {
     const { container } = render(OrderSummary, {
       props: {

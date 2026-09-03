@@ -1604,9 +1604,13 @@
             "description": "The connected account's settlement currency. The storefront must\nprice in this currency; anything else is refused at creation.",
             "example": "JPY",
             "type": ["string", "null"]
+          },
+          "tax_enabled": {
+            "description": "Whether a checkout started now would have automatic tax applied,\nread from the tenant's stored tax settings by the same rule the\nsession creation applies. The storefront renders its tax note from\nthis; it never assumes tax is on.",
+            "type": "boolean"
           }
         },
-        "required": ["can_accept_payments"],
+        "required": ["can_accept_payments", "tax_enabled"],
         "type": "object"
       },
       "CheckoutSessionRequest": {
@@ -15099,7 +15103,7 @@
                 }
               }
             },
-            "description": "Whether the tenant's connected account can accept payments, why not, and its settlement currency"
+            "description": "Whether the tenant's connected account can accept payments, why not, its settlement currency, and whether automatic tax applies"
           },
           "403": {
             "content": {
@@ -16272,6 +16276,15 @@
             }
           },
           {
+            "description": "Filter by payout status",
+            "in": "query",
+            "name": "payout_status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "description": "Filter by currency (ISO-4217)",
             "in": "query",
             "name": "currency",
@@ -16786,6 +16799,15 @@
             }
           },
           {
+            "description": "Filter by payout status",
+            "in": "query",
+            "name": "payout_status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "description": "Filter by currency",
             "in": "query",
             "name": "currency",
@@ -16885,7 +16907,7 @@
     },
     "/api/v1/tenant/payments/providers": {
       "get": {
-        "description": "Gated three ways: the `payments.enabled` phase flag (route absent when\noff), `payments.read` (permission extractor), and the\n`payments.stripe_connect` entitlement (`RequiredFeature` — 403, never\n404, so the frontend can render an upgrade prompt instead of a dead\nend).\n\nThe response is derived from the provider registry — the handler adds\nnothing provider-specific. The tenant's country (from the tenant\ncontext's region, when it parses as ISO-3166-1 alpha-2) decides\nper-tenant availability; an unparseable region leaves the provider\navailable rather than locking the tenant out.",
+        "description": "Gated two ways: the `payments.enabled` phase flag (route absent when off)\nand `payments.read` (permission extractor). Deliberately **not** gated on\nthe `payments.stripe_connect` entitlement, unlike every other payments\nroute — the catalog is how an un-entitled tenant learns which providers\nexist and therefore what upgrading would buy; the admin renders the cards\nwith the connect CTA replaced by an upgrade prompt. Connecting\n(`POST /payments/connections`) keeps the entitlement.\n\nA 403 here therefore means the caller lacks `payments.read` — a\npermission problem, not a plan problem. The frontend must not answer it\nwith an upgrade prompt.\n\nThe response is derived from the provider registry — the handler adds\nnothing provider-specific. The tenant's country (from the tenant\ncontext's region, when it parses as ISO-3166-1 alpha-2) decides\nper-tenant availability; an unparseable region leaves the provider\navailable rather than locking the tenant out.",
         "operationId": "list_payment_providers",
         "responses": {
           "200": {
@@ -16906,7 +16928,7 @@
                 }
               }
             },
-            "description": "Missing payments.read permission or the payments.stripe_connect entitlement"
+            "description": "Missing payments.read permission (the catalog is not entitlement-gated)"
           }
         },
         "summary": "`GET /api/v1/tenant/payments/providers`.",
