@@ -13,8 +13,24 @@ export {
 } from './access'
 export { approveRequest, listPendingApprovals, rejectRequest } from './approvals'
 export { listAudit } from './audit'
-export { listAdPlatforms } from './advertising'
-export type { PlatformsView, PlatformView } from './advertising'
+export {
+  createAdConnection,
+  deleteAdConnection,
+  listAdConnections,
+  listAdPlatforms,
+  redeemAdOAuthCallback,
+  startAdOAuth,
+} from './advertising'
+export type {
+  AdAccountView,
+  ConnectionHealthView,
+  ConnectionsView,
+  ConnectionView,
+  PendingConnectionView,
+  PlatformsView,
+  PlatformView,
+  StartOAuthResponse,
+} from './advertising'
 export {
   createCheckoutSession,
   createPortalSession,

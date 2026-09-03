@@ -58,20 +58,13 @@ describe('AdvertisingSettings platform catalog (phase 10, TASK-010)', () => {
     expect(await screen.findByRole('heading', { name: GOOGLE.display_name })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: META.display_name })).toBeInTheDocument()
 
-    // Entitled platform: connect CTA (inert until TASK-011) with its reason.
+    // Entitled platform: the connect CTA is live since TASK-011 — it routes
+    // to the connections screen rather than starting a grant from here.
     const googleCard = screen
       .getByRole('heading', { name: GOOGLE.display_name })
       .closest('article') as HTMLElement
     expect(within(googleCard).getByText('Connected')).toBeInTheDocument()
-    expect(within(googleCard).getByRole('button', { name: 'Connect' })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    )
-    expect(
-      within(googleCard).getByText(
-        'Connection setup arrives in an upcoming update. Campaigns you already run on the platform keep running.',
-      ),
-    ).toBeInTheDocument()
+    expect(within(googleCard).getByRole('button', { name: 'Connect' })).toBeEnabled()
 
     // Non-entitled platform stays listed, with its upgrade path.
     const metaCard = screen

@@ -1588,6 +1588,27 @@
         "enum": ["sanvi", "platform"],
         "type": "string"
       },
+      "CheckoutConfigView": {
+        "description": "What the storefront needs before it can render a Pay button:\nreadiness and the settlement currency. Derived from the tenant's live\nconnection by the same gate the checkout itself applies.",
+        "properties": {
+          "can_accept_payments": {
+            "description": "Server-computed from the v2 `card_payments` capability, exactly as\n`POST /tenant/checkout` computes it. The storefront renders this;\nit never recomputes readiness of its own.",
+            "type": "boolean"
+          },
+          "cannot_accept_reason": {
+            "description": "The i18n key for *why* not (`payments.blocker.*`), so the\nstorefront can show a reason next to a disabled button instead of\nwaiting for a 409. `null` when payments are accepted.",
+            "example": "payments.blocker.card_payments_inactive",
+            "type": ["string", "null"]
+          },
+          "currency": {
+            "description": "The connected account's settlement currency. The storefront must\nprice in this currency; anything else is refused at creation.",
+            "example": "JPY",
+            "type": ["string", "null"]
+          }
+        },
+        "required": ["can_accept_payments"],
+        "type": "object"
+      },
       "CheckoutSessionRequest": {
         "properties": {
           "cancel_url": {
@@ -1643,6 +1664,11 @@
             "type": ["object", "null"]
           },
           "expires_at": {
+            "type": ["string", "null"]
+          },
+          "failure_code": {
+            "description": "Server-issued exactly once per order when paid; identical on every\nrefresh of the confirmation page, so phase 10's conversion\npipeline cannot double-count.\nThe provider's decline/failure code for the newest failed attempt\n(`card_declined`, `insufficient_funds`, …), so the storefront can\ntell a buyer *why*. The provider's own message is deliberately not\nexposed: the storefront renders its own localized copy.",
+            "example": "card_declined",
             "type": ["string", "null"]
           },
           "id": {
@@ -1837,7 +1863,7 @@
             "type": "string"
           },
           "components": {
-            "description": "The embedded components enabled on this session (09.2:\n`account_onboarding` only).",
+            "description": "The embedded components enabled on this session:\n`account_onboarding`, `notification_banner`, and `account_management`.",
             "items": {
               "type": "string"
             },
@@ -15061,6 +15087,45 @@
         "tags": ["payments"]
       }
     },
+    "/api/v1/tenant/checkout/config": {
+      "get": {
+        "operationId": "get_tenant_checkout_config",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutConfigView"
+                }
+              }
+            },
+            "description": "Whether the tenant's connected account can accept payments, why not, and its settlement currency"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing payments.checkout permission or the entitlement"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The payments.checkout flag is off (payments/provider-unavailable)"
+          }
+        },
+        "summary": "`GET /api/v1/tenant/checkout/config` — the storefront's pre-flight.\nSame permission and entitlement as the buy path it guards, because it\nanswers the same question the buy path would refuse on.",
+        "tags": ["payments"]
+      }
+    },
     "/api/v1/tenant/checkout/{id}": {
       "get": {
         "operationId": "get_tenant_checkout",
@@ -16207,6 +16272,15 @@
             }
           },
           {
+            "description": "Filter by payout status",
+            "in": "query",
+            "name": "payout_status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "description": "Filter by currency (ISO-4217)",
             "in": "query",
             "name": "currency",
@@ -16715,6 +16789,15 @@
             "description": "Filter by payment status",
             "in": "query",
             "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by payout status",
+            "in": "query",
+            "name": "payout_status",
             "required": false,
             "schema": {
               "type": "string"

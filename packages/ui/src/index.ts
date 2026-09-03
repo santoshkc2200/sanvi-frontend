@@ -2,6 +2,18 @@
 
 // Core components
 export { default as AdPlatformCard } from './advertising/AdPlatformCard.svelte'
+// Advertising connections (phase 10, TASK-011)
+export { default as AdAccountPicker } from './advertising/AdAccountPicker.svelte'
+export type { AdAccountOption, AdPickerLabels } from './advertising/AdAccountPicker.svelte'
+export { default as AdConnectionHealth } from './advertising/AdConnectionHealth.svelte'
+export type { AdHealthLabels } from './advertising/AdConnectionHealth.svelte'
+export {
+  adHealthState,
+  AD_HEALTH_TONES,
+  EXPIRING_SOON_SECS,
+  type AdConnectionHealthData,
+  type AdHealthState,
+} from './advertising/health'
 export { default as Alert } from './Alert.svelte'
 export { type ApprovalRequestItem, default as ApprovalRequest } from './ApprovalRequest.svelte'
 export { type AppShellNavItem, default as AppShell } from './AppShell.svelte'

@@ -1,4 +1,4 @@
-import rawPlatforms from './capability-matrices.json'
+import rawPlatforms from './capability-matrices.json' with { type: 'json' }
 import type { AdPlatform } from '../../../src/forms/types'
 
 /**
