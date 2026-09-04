@@ -296,6 +296,46 @@ describe('AdvertisingCampaigns list (phase 10, TASK-012)', () => {
     expect(screen.getByRole('button', { name: 'Manage connections' })).toBeInTheDocument()
   })
 
+  it('sorts the cross-platform list by the platform column without mixing currencies', async () => {
+    setupFetch({
+      campaigns: [
+        campaignView({ id: 'camp_1' }),
+        campaignView({
+          id: 'camp_2',
+          connection_id: 'conn_meta_1',
+          platform: META.key,
+          campaign: {
+            name: 'Meta push',
+            status: 'paused',
+            budget: { kind: 'lifetime', amount: { amount_minor: 9000, currency: 'USD' } },
+          },
+        }),
+      ],
+      connections: [
+        connection(),
+        connection({ id: 'conn_meta_1', platform: META.key, currency: 'USD' }),
+      ],
+    })
+    render(Campaigns)
+
+    await screen.findByText('Summer sale')
+    // TASK-013: the platform column is a sortable badge column now. Sorting
+    // reorders rows; the per-currency budget cells render untouched.
+    fireEvent.click(screen.getByRole('button', { name: /Platform/ }))
+    await waitFor(() => {
+      const badges = screen.getAllByText(/^(Google Ads|Meta Ads)$/)
+      expect(badges[0]).toHaveTextContent('Google Ads')
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Platform/ }))
+    await waitFor(() => {
+      const badges = screen.getAllByText(/^(Google Ads|Meta Ads)$/)
+      expect(badges[0]).toHaveTextContent('Meta Ads')
+    })
+    // Both currencies still render natively — sorting never sums.
+    expect(screen.getByText(/¥1,500/)).toBeInTheDocument()
+    expect(screen.getByText(/\$90\.00/)).toBeInTheDocument()
+  })
+
   it('has no axe violations', async () => {
     setupFetch()
     const { container } = render(Campaigns)

@@ -645,13 +645,19 @@ $effect(() => {
         {/if}
 
         {#if step === 'creatives'}
-          <!-- Creative fields land with TASK-013: this slice's contract has
-               no campaign-level copy — ads and their creative text are per
-               ad group, managed from the detail view. -->
+          <!-- Creative copy and assets live in the creative library (TASK-013);
+               the contract keeps them on creatives, attached to ads per ad
+               group — never on the campaign itself. -->
           <EmptyState
             title={t['admin.advertising.builder.creativesTitle']()}
             description={t['admin.advertising.builder.creativesDescription']()}
-          />
+          >
+            {#snippet action()}
+              <Button variant="secondary" onclick={() => navigate('/advertising/creatives')}>
+                {t['admin.advertising.builder.creativesLibraryCta']()}
+              </Button>
+            {/snippet}
+          </EmptyState>
         {:else if step === 'review'}
           <Stack gap="4">
             <dl class="sanvi-ad-builder__review">

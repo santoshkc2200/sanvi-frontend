@@ -417,6 +417,100 @@ export function addAdAd(
   )
 }
 
+// ---------------------------------------------------------------------------
+// Creatives & placement previews (TASK-013 — slice 10.4)
+//
+// Gating: reads answer 403 without `advertising.read` or the connection's
+// platform entitlement; creates carry an `Idempotency-Key` (a retried mint
+// answers the original creative). The create request is validated at
+// upload time against the connection's platform capability matrix —
+// placement, per-locale text limits, and per-asset spec (the client sends
+// the measured `assets` metadata alongside the opaque `asset_references`).
+// A violation is a 400 whose field violations name the dimension
+// (`assets[0].width_px`, `placement`, `texts[0].headline`).
+// ---------------------------------------------------------------------------
+
+export type CreativeView = components['schemas']['CreativeView']
+export type CreativesView = components['schemas']['CreativesView']
+export type CreateCreativeRequest = components['schemas']['CreateCreativeRequest']
+export type CreativeAssetSpec = components['schemas']['CreativeAssetSpec']
+export type CreativePreviewView = components['schemas']['CreativePreviewView']
+export type CreativePreviewsView = components['schemas']['CreativePreviewsView']
+export type AssetMetadata = components['schemas']['AssetMetadata']
+
+/**
+ * `GET /api/v1/tenant/ads/creatives` — every creative on an entitled
+ * platform, newest first. The `platform` field on each view is what the
+ * list's badge keys off; `assets` carries the platform-confirmed metadata
+ * when the backend has it.
+ */
+export function listAdCreatives(client: TypedApiClient, signal?: AbortSignal) {
+  return client.GET('/api/v1/tenant/ads/creatives', signal ? { signal } : undefined)
+}
+
+/**
+ * `GET /api/v1/tenant/ads/creatives/{creative_id}` — one stored creative
+ * with its placement, per-locale texts, and asset references.
+ */
+export function getAdCreative(client: TypedApiClient, creativeId: string, signal?: AbortSignal) {
+  return client.GET('/api/v1/tenant/ads/creatives/{creative_id}', {
+    params: { path: { creative_id: creativeId } },
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `POST /api/v1/tenant/ads/creatives` — creates a creative for one
+ * placement of the connection's platform. Requires an `Idempotency-Key`.
+ * Validation happens here, at upload time, against the platform's matrix:
+ * an unsupported placement, copy over a locale's limit, or an asset missing
+ * a spec dimension is a 400 with field violations — the form renders them
+ * instead of a broken ad shipping later.
+ */
+export function createAdCreative(
+  client: TypedApiClient,
+  body: CreateCreativeRequest,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+) {
+  return client.POST('/api/v1/tenant/ads/creatives', body, {
+    idempotencyKey,
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `DELETE /api/v1/tenant/ads/creatives/{creative_id}` — deletes the stored
+ * creative. A creative already referenced by a live ad is refused by the
+ * backend; answers 204 otherwise.
+ */
+export function deleteAdCreative(client: TypedApiClient, creativeId: string) {
+  return client.DELETE('/api/v1/tenant/ads/creatives/{creative_id}', {
+    params: { path: { creative_id: creativeId } },
+  })
+}
+
+/**
+ * `GET /api/v1/tenant/ads/creatives/{creative_id}/previews` — the
+ * spec-rendered preview set: per placement, the spec, the copy, and the
+ * asset references, exactly as the platform would compose them. The
+ * optional `placement` narrows the set to one placement.
+ */
+export function getAdCreativePreviews(
+  client: TypedApiClient,
+  creativeId: string,
+  placement?: string,
+  signal?: AbortSignal,
+) {
+  return client.GET('/api/v1/tenant/ads/creatives/{creative_id}/previews', {
+    params: {
+      path: { creative_id: creativeId },
+      ...(placement ? { query: { placement } } : {}),
+    },
+    ...(signal ? { signal } : {}),
+  })
+}
+
 /**
  * `PATCH /api/v1/tenant/ads/campaigns/{campaign_id}/ad-groups/{ad_group_id}/ads/{ad_id}`
  * — a merge patch of one ad (creative reference, landing URL, tracking

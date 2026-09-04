@@ -69,7 +69,15 @@ export interface AdvertisingMockControls {
 
 export function mockAdvertisingBackend(
   page: Page,
-  options: { seedConnection?: boolean } = {},
+  options: {
+    seedConnection?: boolean
+    seedCreative?: boolean
+    /** Two connections in different currencies (JPY + USD), for the
+        cross-currency list assertions: rendered natively, never summed. */
+    seedTwoConnections?: boolean
+    /** One draft campaign per seeded connection, each in its account's currency. */
+    seedTwoCampaigns?: boolean
+  } = {},
 ): AdvertisingMockControls {
   const connections: MockAdConnection[] = []
   let pendingCounter = 0
@@ -97,6 +105,40 @@ export function mockAdvertisingBackend(
         last_synced_at: new Date().toISOString(),
       },
     })
+  }
+
+  // The second connection's platform comes from the fixture catalog — the
+  // mock never spells a platform key itself.
+  function otherPlatformFixture() {
+    return AD_PLATFORM_FIXTURES.find((candidate) => candidate.key !== 'meta')!
+  }
+
+  function seedConnectionRecord(id: string, fixture: { key: string }, currency: string): void {
+    connections.push({
+      id,
+      platform: fixture.key,
+      external_account_id: '999-888',
+      account_name: `Acme ${currency} Account`,
+      currency,
+      timezone: 'Asia/Tokyo',
+      status: 'active',
+      health: {
+        can_sync: true,
+        can_upload_conversions: true,
+        scopes_missing: [],
+        reconnect_required: false,
+        token_expires_at: null,
+        last_error: null,
+        last_synced_at: new Date().toISOString(),
+      },
+    })
+  }
+
+  if (options.seedTwoConnections) {
+    connectionCounter += 1
+    seedConnectionRecord('conn_live_0', { key: 'meta' }, 'JPY')
+    connectionCounter += 1
+    seedConnectionRecord('conn_live_1', otherPlatformFixture(), 'USD')
   }
 
   // Stateful campaign store (TASK-012): the fake adapter's semantics —
@@ -517,6 +559,288 @@ export function mockAdvertisingBackend(
     }
     await route.fulfill({ json: {} })
   })
+
+  // --- Creatives & placement previews (TASK-013) --------------------------
+  //
+  // A stateful creative store with upload-time matrix validation mirrored
+  // from the backend: placement must exist in the connection's platform
+  // matrix, per-locale copy must fit its limit, and the client-measured
+  // asset metadata must pass the placement's asset spec. Every placement
+  // key, text limit, and spec value comes from the committed fixtures —
+  // the mock spells none of them itself.
+  interface MockCreative {
+    id: string
+    connection_id: string
+    platform: string
+    external_id: string | null
+    creative: {
+      id: string
+      placement: string
+      texts: { locale: string; headline: string; body: string }[]
+      asset_references: string[]
+    }
+    assets: unknown[]
+    created_at: string
+    updated_at: string
+  }
+
+  const creatives: MockCreative[] = []
+  const creativesLocked = new Set<string>()
+  let creativeCounter = 0
+
+  function creativeViolations(
+    platformKey: string,
+    body: {
+      placement?: string
+      texts?: { locale: string; headline: string; body: string }[]
+      assets?: { width_px?: number; height_px?: number; file_size_bytes?: number }[]
+    },
+  ): { field_path: string; code: string; message: string }[] {
+    const fixture = AD_PLATFORM_FIXTURES.find((candidate) => candidate.key === platformKey)
+    const matrix = fixture?.capability_matrix
+    const violations: { field_path: string; code: string; message: string }[] = []
+    if (!matrix) return violations
+    const placement = matrix.creative_placements.find(
+      (candidate) => candidate.key === body.placement,
+    )
+    if (!placement) {
+      violations.push({
+        field_path: 'placement',
+        code: 'unsupported',
+        message: 'creative placement is unavailable for this platform',
+      })
+      return violations
+    }
+    for (const [index, text] of (body.texts ?? []).entries()) {
+      const limits = matrix.text_limits[text.locale]
+      if (!limits) continue
+      for (const [field, value] of Object.entries({
+        headline: text.headline,
+        body: text.body,
+      })) {
+        const limit = limits[field]
+        if (limit !== undefined && [...String(value ?? '')].length > limit) {
+          violations.push({
+            field_path: `texts[${index}].${field}`,
+            code: 'invalid',
+            message: `${field} exceeds the ${limit}-character ${text.locale} limit`,
+          })
+        }
+      }
+    }
+    for (const [index, asset] of (body.assets ?? []).entries()) {
+      const spec = placement.asset_spec
+      const width = asset.width_px ?? 0
+      const height = asset.height_px ?? 0
+      if (
+        spec.min_width_px !== null &&
+        spec.min_width_px !== undefined &&
+        width < spec.min_width_px
+      ) {
+        violations.push({
+          field_path: `assets[${index}].width_px`,
+          code: 'invalid',
+          message: `asset width (${width}px) is below the minimum required width of ${spec.min_width_px}px`,
+        })
+      }
+      if (
+        spec.min_height_px !== null &&
+        spec.min_height_px !== undefined &&
+        height < spec.min_height_px
+      ) {
+        violations.push({
+          field_path: `assets[${index}].height_px`,
+          code: 'invalid',
+          message: `asset height (${height}px) is below the minimum required height of ${spec.min_height_px}px`,
+        })
+      }
+      if (
+        spec.max_file_size_bytes !== null &&
+        spec.max_file_size_bytes !== undefined &&
+        (asset.file_size_bytes ?? 0) > spec.max_file_size_bytes
+      ) {
+        violations.push({
+          field_path: `assets[${index}].file_size_bytes`,
+          code: 'invalid',
+          message: `asset file size (${asset.file_size_bytes} bytes) exceeds the maximum allowed ${spec.max_file_size_bytes} bytes`,
+        })
+      }
+    }
+    return violations
+  }
+
+  if (options.seedCreative) {
+    const fixture = AD_PLATFORM_FIXTURES.find((candidate) => candidate.key === 'meta')!
+    const matrix = fixture.capability_matrix
+    creativeCounter += 1
+    creatives.push({
+      id: `cre_seed_${creativeCounter}`,
+      connection_id: 'conn_live_0',
+      platform: 'meta',
+      external_id: null,
+      creative: {
+        id: `cre_seed_${creativeCounter}`,
+        placement: matrix.creative_placements[0]!.key,
+        texts: [
+          { locale: 'en', headline: 'Summer sale', body: 'Up to 50% off everything' },
+          { locale: 'ja', headline: '夏のセール', body: '全品最大50%オフ' },
+        ],
+        asset_references: ['asset_seed_1'],
+      },
+      assets: [],
+      created_at: '2026-09-01T00:00:00Z',
+      updated_at: '2026-09-02T00:00:00Z',
+    })
+  }
+
+  void page.route('**/api/v1/tenant/ads/creatives/*/previews*', async (route) => {
+    const id = new URL(route.request().url()).pathname.split('/')[6] ?? ''
+    const creative = creatives.find((candidate) => candidate.id === id)
+    if (!creative) {
+      await route.fulfill({
+        status: 404,
+        json: { type: 'about:blank', title: 'Not found', status: 404 },
+      })
+      return
+    }
+    const fixture = AD_PLATFORM_FIXTURES.find((candidate) => candidate.key === creative.platform)
+    const placement = fixture?.capability_matrix.creative_placements.find(
+      (candidate) => candidate.key === creative.creative.placement,
+    )
+    const text = creative.creative.texts[0]
+    await route.fulfill({
+      json: {
+        previews: [
+          {
+            placement: creative.creative.placement,
+            headline: text?.headline ?? null,
+            body: text?.body ?? null,
+            asset_references: creative.creative.asset_references,
+            spec: placement?.asset_spec ?? null,
+          },
+        ],
+      },
+    })
+  })
+
+  void page.route('**/api/v1/tenant/ads/creatives/*', async (route) => {
+    const request = route.request()
+    const id = new URL(request.url()).pathname.split('/')[6] ?? ''
+    if (request.method() === 'DELETE') {
+      if (creativesLocked.has(id)) {
+        await route.fulfill({
+          status: 409,
+          json: { type: 'about:blank', title: 'Conflict', status: 409 },
+        })
+        return
+      }
+      const index = creatives.findIndex((candidate) => candidate.id === id)
+      if (index >= 0) creatives.splice(index, 1)
+      await route.fulfill({ status: 204 })
+      return
+    }
+    await route.fulfill({ json: creatives.find((candidate) => candidate.id === id) ?? {} })
+  })
+
+  void page.route('**/api/v1/tenant/ads/creatives', async (route) => {
+    const request = route.request()
+    if (request.method() === 'GET') {
+      await route.fulfill({ json: { creatives } })
+      return
+    }
+    if (request.method() === 'POST') {
+      if (!request.headers()['idempotency-key']) {
+        await route.fulfill({
+          status: 400,
+          json: { type: 'about:blank', title: 'Bad request', status: 400 },
+        })
+        return
+      }
+      const body = request.postDataJSON() as {
+        connection_id: string
+        placement: string
+        texts: { locale: string; headline: string; body: string }[]
+        asset_references: string[]
+        assets: {
+          width_px: number
+          height_px: number
+          file_size_bytes: number
+          aspect_ratio: string
+          is_video: boolean
+        }[]
+      }
+      const connection = connections.find((candidate) => candidate.id === body.connection_id)
+      if (!connection) {
+        await route.fulfill({
+          status: 404,
+          json: { type: 'about:blank', title: 'Not found', status: 404 },
+        })
+        return
+      }
+      const violations = creativeViolations(connection.platform, body)
+      if (violations.length > 0) {
+        await route.fulfill({
+          status: 400,
+          json: {
+            type: 'about:blank',
+            title: 'Bad request',
+            status: 400,
+            violations,
+          },
+        })
+        return
+      }
+      creativeCounter += 1
+      const now = new Date().toISOString()
+      const creative: MockCreative = {
+        id: `cre_${creativeCounter}`,
+        connection_id: connection.id,
+        platform: connection.platform,
+        external_id: null,
+        creative: {
+          id: `cre_${creativeCounter}`,
+          placement: body.placement,
+          texts: body.texts,
+          asset_references: body.asset_references,
+        },
+        assets: body.assets ?? [],
+        created_at: now,
+        updated_at: now,
+      }
+      creatives.unshift(creative)
+      await route.fulfill({ json: creative })
+      return
+    }
+    await route.fulfill({ json: {} })
+  })
+
+  if (options.seedTwoCampaigns) {
+    for (const seeded of connections) {
+      const fixture = AD_PLATFORM_FIXTURES.find((candidate) => candidate.key === seeded.platform)!
+      campaignCounter += 1
+      const view: MockCampaignView = {
+        id: `camp_${campaignCounter}`,
+        connection_id: seeded.id,
+        platform: seeded.platform,
+        external_id: `platform-${campaignCounter}`,
+        revision: 1,
+        campaign: {
+          id: `camp_${campaignCounter}`,
+          name: `${seeded.currency} push`,
+          objective: fixture.capability_matrix.objectives[0]!,
+          budget: {
+            kind: fixture.capability_matrix.budget_types[0]!,
+            amount: { amount_minor: 1500, currency: seeded.currency },
+          },
+          schedule: null,
+          status: 'active',
+          drift: { drifted: false, changed_fields: [] },
+          ad_groups: [],
+        },
+      }
+      campaigns.push(view)
+    }
+  }
 
   return {
     simulatePlatformEdit: (campaignId: string) => {

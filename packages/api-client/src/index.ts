@@ -34,6 +34,11 @@ export {
   patchAdAdGroup,
   addAdAd,
   patchAdAd,
+  listAdCreatives,
+  getAdCreative,
+  createAdCreative,
+  deleteAdCreative,
+  getAdCreativePreviews,
 } from './advertising'
 export type {
   AdAccountView,
@@ -72,6 +77,13 @@ export type {
   DriftState,
   DriftResolution,
   ResolvedCampaignDriftView,
+  CreativeView,
+  CreativesView,
+  CreateCreativeRequest,
+  CreativeAssetSpec,
+  CreativePreviewView,
+  CreativePreviewsView,
+  AssetMetadata,
 } from './advertising'
 export {
   createCheckoutSession,
