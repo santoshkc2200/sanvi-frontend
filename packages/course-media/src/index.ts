@@ -13,6 +13,16 @@ export {
   viewAsset,
 } from './api/media'
 export {
+  abortAssetUpload,
+  completeAssetUpload,
+  createAssetDelivery,
+  createAssetUpload,
+  getGenericAsset,
+  presignAssetParts,
+  type AssetDelivery,
+  type CreateAssetUploadInput,
+} from './api/assets'
+export {
   formatTimecode,
   formatVttTimestamp,
   parseTimecode,
@@ -41,6 +51,11 @@ export {
   ImageUploadController,
   type ImageUploadState,
 } from './controllers/image-upload'
+export {
+  AssetUploadController,
+  type AssetUploadState,
+} from './controllers/asset-upload'
+export { measureImage } from './image/measure'
 export { MediaUploadController, type MediaUploadState } from './controllers/media-upload'
 export { clearImageUrlCache, resolveImageUrl } from './image/imageUrlCache'
 export { default as LectureImage } from './LectureImage.svelte'
@@ -67,6 +82,7 @@ export {
   rewriteMasterPlaylist,
   type VariantRef,
 } from './player/manifestAuth'
+export type { AssetUpload, GenericAsset, GenericAssetStatus } from './model/generic-asset'
 export type {
   CaptionEditorLabels,
   ChapterEditorLabels,

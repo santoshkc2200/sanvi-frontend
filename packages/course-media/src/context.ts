@@ -42,9 +42,19 @@ export async function courseApiRequest<T>(
   options: CourseApiRequestOptions = {},
 ): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  headers['Authorization'] = `Bearer ${await ctx.getToken()}`
+  const token = await ctx.getToken()
+  // An empty token means the caller authenticates some other way (e.g. a
+  // cookie the gateway reads) — sending `Authorization: Bearer ` empty
+  // would only confuse a strict backend, so the header is omitted instead.
+  if (token) headers['Authorization'] = `Bearer ${token}`
   const tenantId = ctx.getTenantId()
-  if (tenantId) headers['X-Tenant-ID'] = tenantId
+  if (tenantId) {
+    // Both scoping headers travel together: the course API scopes by
+    // `X-Tenant-ID`, the media service by `X-Namespace-ID` — the same
+    // tenant id under two header names, so one context serves both.
+    headers['X-Tenant-ID'] = tenantId
+    headers['X-Namespace-ID'] = tenantId
+  }
   Object.assign(headers, options.headers)
 
   const url = new URL(`${ctx.apiBaseUrl}${path}`)
@@ -58,6 +68,9 @@ export async function courseApiRequest<T>(
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     keepalive: options.keepalive,
     signal: options.signal,
+    // Cookie-authenticated deployments (the admin SPA's Kratos session) need
+    // the session cookie to travel; token callers are unaffected.
+    credentials: 'include',
   })
   if (response.status === 204) return undefined as T
 

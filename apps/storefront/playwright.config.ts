@@ -31,6 +31,10 @@ export default defineConfig({
         PUBLIC_API_ORIGIN: 'http://localhost:8090',
         PUBLIC_KRATOS_ORIGIN: 'http://localhost:4433',
         PUBLIC_MEDIA_ORIGIN: 'http://localhost:8091',
+        // The conversion beacon's site key — the beacon verifies it is being
+        // sent and the specs assert the header. Per-tenant delivery from the
+        // backend is the open cross-repo item; the harness sets it as env.
+        PUBLIC_TRACKING_SITE_KEY: 'e2e-tracking-site-key',
       },
     },
   ],

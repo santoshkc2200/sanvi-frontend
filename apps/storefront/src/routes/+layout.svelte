@@ -32,6 +32,7 @@ import {
 } from '$lib/consent.svelte'
 import { consentablePurposeCopy } from '$lib/purpose-copy'
 import { localePath, setClientDefaultLocale } from '$lib/links'
+import { stashLandingClickIds } from '$lib/tracking/click-ids'
 
 registerAllBlocks()
 // Preload targets for ja pages (see `<svelte:head>` below): the two
@@ -108,6 +109,15 @@ $effect(() => {
   })
   initGatedAnalytics()
   consentState.version += 1
+})
+
+// First-party ad click ids (gclid etc.) only ever appear on the URL the
+// visitor *landed* on, pages before the confirmation beacon fires — observe
+// them here, once per navigation, so the beacon can carry what was seen.
+// The stasher overwrites only on a new observation and is a no-op without
+// click params.
+$effect(() => {
+  stashLandingClickIds()
 })
 
 // The store is a singleton, so a derived returning the object itself never

@@ -430,6 +430,27 @@ const server = createServer(async (req, res) => {
     return
   }
 
+  // TASK-014: a paid checkout for the confirmation/beacon path. The id is
+  // arbitrary (the return route polls whatever `?id` carried); the view is
+  // `paid` and carries the server-issued conversion event id, which is
+  // what the beacon must forward verbatim.
+  if (path.startsWith('/api/v1/tenant/checkout/')) {
+    const id = decodeURIComponent(path.split('/').pop() ?? '')
+    json(req, res, 200, {
+      id,
+      amount_minor: 4800,
+      currency: 'JPY',
+      reference: 'ord-beacon-1',
+      status: 'paid',
+      // `chk_noid_*` simulates a checkout paid before conversion tracking
+      // existed: `paid`, but the server issued no event id — and the
+      // storefront must fire no beacon rather than mint one.
+      ...(id.startsWith('chk_noid') ? {} : { conversion_event_id: 'conv_e2e_001' }),
+      created_at: new Date().toISOString(),
+    })
+    return
+  }
+
   if (path === '/api/v1/public/tenant-context') {
     const tenant = req.headers.host ? TENANTS[req.headers.host] : undefined
     if (!tenant) {

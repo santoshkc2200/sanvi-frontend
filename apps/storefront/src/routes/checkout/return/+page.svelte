@@ -10,6 +10,7 @@ import {
   type CheckoutView,
 } from '$lib/checkout'
 import { clearIdempotencyKey, clearPendingCheckoutId } from '$lib/checkout/idempotency'
+import { buildPurchaseBeacon, fireConversionBeacon } from '$lib/tracking/beacon'
 import type { PageData } from './$types'
 
 let { data }: { data: PageData } = $props()
@@ -20,6 +21,17 @@ let checkoutState = $state<'confirming' | 'paid' | 'delayed' | 'failed' | 'cance
 let isDelayed = $state(false)
 let resolvedCheckout = $state<CheckoutView | null>(null)
 let failureCode = $state<string | null>(null)
+
+/**
+ * The confirmation view calls this through `recordConversionOnce`, so it
+ * runs exactly once per server-issued event id — a refresh fires no second
+ * beacon. It only hands the payload to the fire-and-forget beacon sender:
+ * nothing here is awaited on the render path.
+ */
+function reportPurchase(conversionEventId: string): void {
+  if (!resolvedCheckout) return
+  fireConversionBeacon(buildPurchaseBeacon(resolvedCheckout, conversionEventId))
+}
 
 $effect(() => {
   const checkoutId = data.checkoutId
@@ -121,7 +133,7 @@ const pageTitle = $derived.by(() => {
 {:else if checkoutState === 'confirming' || checkoutState === 'delayed'}
   <ConfirmingState delayed={isDelayed || checkoutState === 'delayed'} />
 {:else if checkoutState === 'paid' && resolvedCheckout}
-  <ConfirmationView checkout={resolvedCheckout} />
+  <ConfirmationView checkout={resolvedCheckout} onConversionReported={reportPurchase} />
 {:else}
   <CheckoutErrorView declineCode={failureCode} />
 {/if}

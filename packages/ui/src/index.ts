@@ -19,6 +19,24 @@ export { default as AdDriftDiff } from './advertising/AdDriftDiff.svelte'
 export type { DriftDiffRow } from './advertising/AdDriftDiff.svelte'
 export { default as AdChangeTimeline } from './advertising/AdChangeTimeline.svelte'
 export type { AdChangeItem } from './advertising/AdChangeTimeline.svelte'
+// Advertising creatives & placement previews (phase 10, TASK-013)
+export { default as AdLocaleCopyEditor } from './advertising/AdLocaleCopyEditor.svelte'
+export { default as PlacementPreview } from './advertising/PlacementPreview.svelte'
+export {
+  aspectRatioFromDimensions,
+  assetMetadataFromMeasured,
+  hasImageAsset,
+  previewFrameAspectRatio,
+  specRequirements,
+  validateAssetAgainstSpec,
+  validateAssetSetAgainstSpec,
+  type AdAssetMetadata,
+  type AdAssetSetIssue,
+  type AdAssetSetIssueCode,
+  type AdAssetSpecDimension,
+  type AdAssetSpecIssue,
+  type AdSpecRequirement,
+} from './advertising/creative-spec'
 export { default as Alert } from './Alert.svelte'
 export { type ApprovalRequestItem, default as ApprovalRequest } from './ApprovalRequest.svelte'
 export { type AppShellNavItem, default as AppShell } from './AppShell.svelte'

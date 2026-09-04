@@ -6,6 +6,15 @@ export interface AppEnv {
   themeAssetOrigin: string | undefined
   /** Ory Kratos's public API origin — `@sanvi/auth` calls it directly from the browser. */
   kratosOrigin: string
+  /**
+   * Site key for the same-origin conversion beacon (`/api/v1/public/track`).
+   * Optional: the backend's `/public/track` answers an uninformative `202`
+   * without a verifiable key, so a deployment without one simply captures
+   * nothing. Per-tenant delivery from the backend is still an open
+   * cross-repo item (see TASK-014 notes); single-tenant deployments and the
+   * e2e harness set it as a runtime env var.
+   */
+  trackingSiteKey: string | undefined
 }
 
 let cached: AppEnv | undefined
@@ -32,6 +41,7 @@ export function getAppEnv(): AppEnv {
     mediaOrigin: env['PUBLIC_MEDIA_ORIGIN'] || undefined,
     themeAssetOrigin: env['PUBLIC_THEME_ASSET_ORIGIN'] || undefined,
     kratosOrigin,
+    trackingSiteKey: env['PUBLIC_TRACKING_SITE_KEY'] || undefined,
   }
   return cached
 }

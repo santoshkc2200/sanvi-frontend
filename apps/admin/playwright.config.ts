@@ -16,6 +16,11 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     env: {
       VITE_API_ORIGIN: 'http://localhost:8080',
+      // Same-origin as the preview server: the creative uploader's media
+      // calls stay on the page's own origin, so the route mocks answer
+      // them without a cross-origin round trip (production fronts media
+      // through the same-site gateway the same way).
+      VITE_MEDIA_ORIGIN: 'http://localhost:4175',
       VITE_STRIPE_PUBLISHABLE_KEY: 'pk_test_e2e_fake_key',
     },
   },

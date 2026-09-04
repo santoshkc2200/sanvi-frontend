@@ -34,6 +34,16 @@ describe('Checkout Return route component', () => {
 
     vi.spyOn(checkoutModule, 'pollCheckoutStatus').mockResolvedValueOnce(paidCheckout)
 
+    // The confirmation fires the phase-10 conversion beacon on mount; keep
+    // it hermetic and assert it went out exactly once with the
+    // server-issued event id. The test env has no site key, so the
+    // transport is `navigator.sendBeacon`.
+    const sendBeacon = vi.fn(() => true)
+    Object.defineProperty(window.navigator, 'sendBeacon', {
+      value: sendBeacon,
+      configurable: true,
+    })
+
     render(CheckoutReturnPage, {
       props: {
         data: {
@@ -47,6 +57,10 @@ describe('Checkout Return route component', () => {
       expect(screen.getByText('Order reference: ord-ret-001')).toBeInTheDocument()
       expect(screen.getByText('Amount paid')).toBeInTheDocument()
     })
+    await waitFor(() => expect(sendBeacon).toHaveBeenCalledTimes(1))
+    const [beaconUrl, beaconBody] = sendBeacon.mock.calls[0] as unknown as [string, Blob]
+    expect(beaconUrl).toContain('/api/v1/public/track')
+    expect(beaconBody).toBeInstanceOf(Blob)
   })
 
   it('holds confirming state and displays delayed reassurance notice on webhook lag (never false failure)', async () => {

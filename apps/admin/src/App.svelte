@@ -156,9 +156,37 @@ const routes: RouteDefinition[] = [
     load: () => import('./routes/advertising/CampaignBuilder.svelte'),
   },
   {
+    // Phase 10 TASK-013: the creative library — assets, per-locale copy,
+    // placement previews. Reads gate on `advertising.read`; create/delete
+    // additionally check `advertising.campaign.write`, the same split the
+    // campaign routes make (the backend's 403 is the authority).
+    path: 'advertising/creatives',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/Creatives.svelte'),
+  },
+  {
     path: 'advertising/campaigns/:id/drift',
     guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
     load: () => import('./routes/advertising/CampaignDrift.svelte'),
+  },
+  {
+    // Phase 10 TASK-014: conversion-tracking setup — the capture explainer,
+    // the event→conversion-action mapping matrix, the consent linkage, and
+    // the one-click test event. The screen itself carries the
+    // `advertising.conversion_tracking` disabled state (rollback), and the
+    // tracking settings round-trip requires `advertising.connect` on the
+    // backend, which answers 403 to a role without it.
+    path: 'advertising/tracking',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/TrackingSetup.svelte'),
+  },
+  {
+    // Phase 10 TASK-014: captured conversions, newest first. Upload status
+    // columns render their "available after upload is enabled" label until
+    // TASK-015 lights them up.
+    path: 'advertising/conversions',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/Conversions.svelte'),
   },
   {
     // The OAuth return route: the ad platform sends the browser back here.
@@ -373,6 +401,8 @@ type NavKey =
   | 'payments'
   | 'advertising'
   | 'advertisingCampaigns'
+  | 'advertisingCreatives'
+  | 'advertisingTracking'
   | 'domains'
   | 'privacy'
   | 'settings'
@@ -391,6 +421,16 @@ const NAV: { href: string; labelKey: NavKey; permission?: string }[] = [
   {
     href: '/advertising/campaigns',
     labelKey: 'advertisingCampaigns',
+    permission: 'advertising.read',
+  },
+  {
+    href: '/advertising/creatives',
+    labelKey: 'advertisingCreatives',
+    permission: 'advertising.read',
+  },
+  {
+    href: '/advertising/tracking',
+    labelKey: 'advertisingTracking',
     permission: 'advertising.read',
   },
   { href: '/domains', labelKey: 'domains' },

@@ -417,6 +417,100 @@ export function addAdAd(
   )
 }
 
+// ---------------------------------------------------------------------------
+// Creatives & placement previews (TASK-013 — slice 10.4)
+//
+// Gating: reads answer 403 without `advertising.read` or the connection's
+// platform entitlement; creates carry an `Idempotency-Key` (a retried mint
+// answers the original creative). The create request is validated at
+// upload time against the connection's platform capability matrix —
+// placement, per-locale text limits, and per-asset spec (the client sends
+// the measured `assets` metadata alongside the opaque `asset_references`).
+// A violation is a 400 whose field violations name the dimension
+// (`assets[0].width_px`, `placement`, `texts[0].headline`).
+// ---------------------------------------------------------------------------
+
+export type CreativeView = components['schemas']['CreativeView']
+export type CreativesView = components['schemas']['CreativesView']
+export type CreateCreativeRequest = components['schemas']['CreateCreativeRequest']
+export type CreativeAssetSpec = components['schemas']['CreativeAssetSpec']
+export type CreativePreviewView = components['schemas']['CreativePreviewView']
+export type CreativePreviewsView = components['schemas']['CreativePreviewsView']
+export type AssetMetadata = components['schemas']['AssetMetadata']
+
+/**
+ * `GET /api/v1/tenant/ads/creatives` — every creative on an entitled
+ * platform, newest first. The `platform` field on each view is what the
+ * list's badge keys off; `assets` carries the platform-confirmed metadata
+ * when the backend has it.
+ */
+export function listAdCreatives(client: TypedApiClient, signal?: AbortSignal) {
+  return client.GET('/api/v1/tenant/ads/creatives', signal ? { signal } : undefined)
+}
+
+/**
+ * `GET /api/v1/tenant/ads/creatives/{creative_id}` — one stored creative
+ * with its placement, per-locale texts, and asset references.
+ */
+export function getAdCreative(client: TypedApiClient, creativeId: string, signal?: AbortSignal) {
+  return client.GET('/api/v1/tenant/ads/creatives/{creative_id}', {
+    params: { path: { creative_id: creativeId } },
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `POST /api/v1/tenant/ads/creatives` — creates a creative for one
+ * placement of the connection's platform. Requires an `Idempotency-Key`.
+ * Validation happens here, at upload time, against the platform's matrix:
+ * an unsupported placement, copy over a locale's limit, or an asset missing
+ * a spec dimension is a 400 with field violations — the form renders them
+ * instead of a broken ad shipping later.
+ */
+export function createAdCreative(
+  client: TypedApiClient,
+  body: CreateCreativeRequest,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+) {
+  return client.POST('/api/v1/tenant/ads/creatives', body, {
+    idempotencyKey,
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `DELETE /api/v1/tenant/ads/creatives/{creative_id}` — deletes the stored
+ * creative. A creative already referenced by a live ad is refused by the
+ * backend; answers 204 otherwise.
+ */
+export function deleteAdCreative(client: TypedApiClient, creativeId: string) {
+  return client.DELETE('/api/v1/tenant/ads/creatives/{creative_id}', {
+    params: { path: { creative_id: creativeId } },
+  })
+}
+
+/**
+ * `GET /api/v1/tenant/ads/creatives/{creative_id}/previews` — the
+ * spec-rendered preview set: per placement, the spec, the copy, and the
+ * asset references, exactly as the platform would compose them. The
+ * optional `placement` narrows the set to one placement.
+ */
+export function getAdCreativePreviews(
+  client: TypedApiClient,
+  creativeId: string,
+  placement?: string,
+  signal?: AbortSignal,
+) {
+  return client.GET('/api/v1/tenant/ads/creatives/{creative_id}/previews', {
+    params: {
+      path: { creative_id: creativeId },
+      ...(placement ? { query: { placement } } : {}),
+    },
+    ...(signal ? { signal } : {}),
+  })
+}
+
 /**
  * `PATCH /api/v1/tenant/ads/campaigns/{campaign_id}/ad-groups/{ad_group_id}/ads/{ad_id}`
  * — a merge patch of one ad (creative reference, landing URL, tracking
@@ -439,4 +533,128 @@ export function patchAdAd(
       idempotencyKey: options.idempotencyKey,
     },
   )
+}
+
+// ---------------------------------------------------------------------------
+// Conversion tracking (TASK-014 — slice 10.5)
+//
+// Gating: the settings routes require `advertising.connect`; the test event
+// and the conversion list require `advertising.metrics.read`.
+//
+// Two words that must never be conflated on any screen that renders these
+// endpoints: an event is *captured* when the storefront beacon reaches
+// `/public/track`; it is *uploaded* when the backend later pushes it to an
+// ad platform — which happens only when the capture-time directives permit
+// it. This slice ships capture and its gate; upload status arrives with
+// TASK-015, and until then upload columns render their "available after
+// upload is enabled" label rather than looking broken or silently blank.
+// ---------------------------------------------------------------------------
+
+export type TrackingSettings = components['schemas']['TrackingSettings']
+export type TrackConversionRequest = components['schemas']['TrackConversionRequest']
+export type TestTrackingEventResponse = components['schemas']['TestTrackingEventResponse']
+export type ConversionEvent = components['schemas']['ConversionEvent']
+export type ClickIds = components['schemas']['ClickIds']
+export type ConsentSnapshot = components['schemas']['ConsentSnapshot']
+export type UploadState = components['schemas']['UploadState']
+export type ValueSource = components['schemas']['ValueSource']
+
+/**
+ * `GET /api/v1/tenant/ads/tracking/settings` — the event-name →
+ * (platform → conversion action) mappings. The matrix is the only source:
+ * screens render and edit exactly these mappings and never carry a
+ * hand-maintained event or platform list.
+ */
+export function getAdTrackingSettings(client: TypedApiClient, signal?: AbortSignal) {
+  return client.GET('/api/v1/tenant/ads/tracking/settings', signal ? { signal } : undefined)
+}
+
+/**
+ * `PUT /api/v1/tenant/ads/tracking/settings` — replaces the whole mapping
+ * matrix. Requires `advertising.connect`. The setup screen round-trips the
+ * exact object it rendered; a mapping dropped in the UI is dropped in the
+ * tenant's tracking, so the save confirms the matrix shape before sending.
+ */
+export function putAdTrackingSettings(
+  client: TypedApiClient,
+  body: TrackingSettings,
+  signal?: AbortSignal,
+) {
+  return client.PUT('/api/v1/tenant/ads/tracking/settings', body, signal ? { signal } : undefined)
+}
+
+/**
+ * `POST /api/v1/tenant/ads/tracking/test-event` — runs a synthetic event
+ * through the exact same capture pipeline as `/public/track`, including the
+ * directive gate, and returns what was captured and why — without
+ * persisting anything. The response is flagged `test: true` so nothing can
+ * mistake it for a real event.
+ */
+export function testAdTrackingEvent(
+  client: TypedApiClient,
+  body: TrackConversionRequest,
+  signal?: AbortSignal,
+) {
+  return client.POST(
+    '/api/v1/tenant/ads/tracking/test-event',
+    body,
+    signal ? { signal } : undefined,
+  )
+}
+
+/**
+ * `GET /api/v1/tenant/ads/conversions` — captured conversion events,
+ * newest first, each carrying its frozen consent snapshot and per-platform
+ * upload states. Requires `advertising.metrics.read`.
+ */
+export function listAdConversions(client: TypedApiClient, signal?: AbortSignal) {
+  return client.GET('/api/v1/tenant/ads/conversions', signal ? { signal } : undefined)
+}
+
+/**
+ * `POST /api/v1/public/track` — the storefront beacon's endpoint. Unlike
+ * every other function in this package it does **not** go through the
+ * shared client: the beacon posts to the tenant's own verified domain
+ * (same-origin), not the API origin, and it authenticates with an
+ * `X-Site-Key` header the backend verifies against tenant + origin — a
+ * header `navigator.sendBeacon` cannot carry.
+ *
+ * Transport priority follows from that constraint: when a site key is
+ * configured, `fetch` with `keepalive` is the only header-bearing beacon-
+ * grade transport, so it goes first; `sendBeacon` — which survives page
+ * teardown equally well but cannot set headers — is the fallback for the
+ * (currently hypothetical) header-less deployment. The backend answers
+ * `202` with an uninformative body regardless of outcome, so the boolean
+ * return is best-effort and callers must treat `false` as "unknown", never
+ * as "not captured" — the storage layer's own idempotent insert is what
+ * makes a retried or duplicated beacon safe.
+ */
+export async function sendConversionBeacon(input: {
+  url: string
+  body: TrackConversionRequest
+  siteKey?: string | undefined
+}): Promise<boolean> {
+  const payload = JSON.stringify(input.body)
+  const canBeacon = typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function'
+  if (!input.siteKey && canBeacon) {
+    const blob = new Blob([payload], { type: 'application/json' })
+    return navigator.sendBeacon(input.url, blob)
+  }
+  if (typeof fetch !== 'function') return false
+  try {
+    const response = await fetch(input.url, {
+      method: 'POST',
+      keepalive: true,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(input.siteKey ? { 'X-Site-Key': input.siteKey } : {}),
+      },
+      body: payload,
+    })
+    return response.ok
+  } catch {
+    // The endpoint never reveals outcome and the beacon is fire-and-forget;
+    // a network failure here is silently dropped, exactly like a 202.
+    return false
+  }
 }

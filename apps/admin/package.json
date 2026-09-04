@@ -23,6 +23,7 @@
     "@sanvi/api-client": "workspace:*",
     "@sanvi/auth": "workspace:*",
     "@sanvi/billing-elements": "workspace:*",
+    "@sanvi/course-media": "workspace:*",
     "@sanvi/csp": "workspace:*",
     "@sanvi/design-tokens": "workspace:*",
     "@sanvi/i18n": "workspace:*",
