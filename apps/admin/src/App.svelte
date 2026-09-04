@@ -132,6 +132,35 @@ const routes: RouteDefinition[] = [
     load: () => import('./routes/advertising/Connections.svelte'),
   },
   {
+    // Phase 10 TASK-012: the campaign manager. Reads gate on
+    // `advertising.read`; the write actions inside additionally check
+    // `advertising.campaign.write` (a 403 from the backend is the
+    // authority — the client check only hides the buttons).
+    path: 'advertising/campaigns',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/Campaigns.svelte'),
+  },
+  {
+    path: 'advertising/campaigns/new',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/CampaignBuilder.svelte'),
+  },
+  {
+    path: 'advertising/campaigns/:id',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/CampaignDetail.svelte'),
+  },
+  {
+    path: 'advertising/campaigns/:id/edit',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/CampaignBuilder.svelte'),
+  },
+  {
+    path: 'advertising/campaigns/:id/drift',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/CampaignDrift.svelte'),
+  },
+  {
     // The OAuth return route: the ad platform sends the browser back here.
     // Session-gated only — a tenant bounced to sign-in mid-handoff loses
     // the redemption; the page itself explains anything else that goes
@@ -343,6 +372,7 @@ type NavKey =
   | 'billing'
   | 'payments'
   | 'advertising'
+  | 'advertisingCampaigns'
   | 'domains'
   | 'privacy'
   | 'settings'
@@ -358,6 +388,11 @@ const NAV: { href: string; labelKey: NavKey; permission?: string }[] = [
   { href: '/billing', labelKey: 'billing', permission: 'billing.subscription.read' },
   { href: '/payments', labelKey: 'payments', permission: 'payments.read' },
   { href: '/advertising/settings', labelKey: 'advertising', permission: 'advertising.read' },
+  {
+    href: '/advertising/campaigns',
+    labelKey: 'advertisingCampaigns',
+    permission: 'advertising.read',
+  },
   { href: '/domains', labelKey: 'domains' },
   { href: '/theme', labelKey: 'theme', permission: 'tenant.theming.read' },
   { href: '/privacy', labelKey: 'privacy' },

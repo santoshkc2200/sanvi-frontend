@@ -3,7 +3,7 @@ import type { HTMLInputAttributes } from 'svelte/elements'
 
 interface Props {
   value?: string
-  type?: 'text' | 'email' | 'password' | 'search' | 'tel' | 'url'
+  type?: 'text' | 'email' | 'password' | 'search' | 'tel' | 'url' | 'date' | 'datetime-local'
   /** Hint for virtual keyboards on text-typed inputs (e.g. `numeric` for minor-unit amounts). */
   inputmode?: 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url'
   placeholder?: string
