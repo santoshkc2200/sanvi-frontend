@@ -49,7 +49,7 @@ export function validateDraft(
     }
   }
 
-  for (const entry of draft.texts) {
+  for (const [index, entry] of draft.texts.entries()) {
     const limits = textFieldsFor(schema.texts, entry.locale)
     for (const [field, limit] of Object.entries(limits)) {
       const current = codePointLength(entry.values[field] ?? '')
@@ -58,7 +58,7 @@ export function validateDraft(
           code: 'tooLong',
           current,
           limit,
-          path: FIELD_PATHS.textEntry(draft.texts.indexOf(entry), field),
+          path: FIELD_PATHS.textEntry(index, field),
         })
       }
     }
@@ -99,6 +99,7 @@ export function mapViolations(
     FIELD_PATHS.objective,
     FIELD_PATHS.budgetKind,
     FIELD_PATHS.budgetAmount,
+    FIELD_PATHS.targeting,
     ...draft.targeting.map((dimension) => `${FIELD_PATHS.targeting}.${dimension}`),
   ])
   draft.texts.forEach((entry, index) => {

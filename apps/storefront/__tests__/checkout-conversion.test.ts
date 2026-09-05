@@ -93,4 +93,17 @@ describe('recordConversionOnce', () => {
     expect(sessionStorage.getItem('sanvi_conversion_reported_conv_test')).toBeNull()
     expect(sessionStorage.getItem('sanvi_other_key')).toBe('keep_me')
   })
+
+  it('does not write storage marker or mark reported if reporter is undefined', () => {
+    const result = recordConversionOnce('conv_no_reporter')
+    expect(result).toBe(false)
+    expect(sessionStorage.getItem('sanvi_conversion_reported_conv_no_reporter')).toBeNull()
+
+    // Subsequent call with reporter should report successfully
+    const reporter = vi.fn()
+    const retryResult = recordConversionOnce('conv_no_reporter', reporter)
+    expect(retryResult).toBe(true)
+    expect(reporter).toHaveBeenCalledWith('conv_no_reporter')
+    expect(sessionStorage.getItem('sanvi_conversion_reported_conv_no_reporter')).toBe('1')
+  })
 })

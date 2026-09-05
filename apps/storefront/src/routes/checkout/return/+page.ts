@@ -1,3 +1,4 @@
+import { PENDING_CHECKOUT_ID_STORAGE_KEY } from '$lib/checkout/idempotency'
 import type { PageLoad } from './$types'
 
 export const prerender = false
@@ -11,7 +12,7 @@ export const load: PageLoad = async ({ url }) => {
 
   if (!checkoutId && typeof window !== 'undefined') {
     try {
-      checkoutId = window.sessionStorage?.getItem('sanvi_pending_checkout_id')
+      checkoutId = window.sessionStorage?.getItem(PENDING_CHECKOUT_ID_STORAGE_KEY)
     } catch {
       // Ignore privacy mode / restricted storage errors
     }

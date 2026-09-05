@@ -7,6 +7,7 @@ import { t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import { Alert, Button, Cluster, Dialog, Field, Input, Select, showToast, Stack } from '@sanvi/ui'
 import { apiClient } from '../../lib/api'
+import { sumSucceededRefundsMinor } from './helpers'
 
 interface Props {
   open?: boolean
@@ -25,11 +26,26 @@ let note = $state('')
 let submitting = $state(false)
 let error = $state<string | undefined>(undefined)
 let idempotencyKey = $state('')
+interface LastAttemptPayload {
+  amountMinor: number | undefined
+  reason: string
+}
+let lastFailedAttempt = $state<LastAttemptPayload | undefined>(undefined)
+
+function mintIdempotencyKey(): string {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0
+        const v = c === 'x' ? r : (r & 0x3) | 0x8
+        return v.toString(16)
+      })
+}
 
 const currency = $derived(payment.currency)
 
 const totalRefundedMinor = $derived.by(() => {
-  return refunds.reduce((sum, r) => sum + r.amount_minor, 0)
+  return sumSucceededRefundsMinor(refunds)
 })
 
 const currentRefundableMinor = $derived.by(() => {
@@ -62,15 +78,9 @@ const isValid = $derived.by(() => {
 $effect(() => {
   if (open) {
     if (!idempotencyKey) {
-      idempotencyKey =
-        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-          ? crypto.randomUUID()
-          : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-              const r = (Math.random() * 16) | 0
-              const v = c === 'x' ? r : (r & 0x3) | 0x8
-              return v.toString(16)
-            })
+      idempotencyKey = mintIdempotencyKey()
     }
+    lastFailedAttempt = undefined
     mode = 'full'
     partialMajor = minorToMajor(currentRefundableMinor, currency)
     reason = ''
@@ -79,6 +89,7 @@ $effect(() => {
     error = undefined
   } else {
     idempotencyKey = ''
+    lastFailedAttempt = undefined
     submitting = false
     error = undefined
   }
@@ -95,6 +106,18 @@ async function handleSubmit(): Promise<void> {
   if (!isValid || submitting) return
   submitting = true
   error = undefined
+
+  const submittedAmountMinor = mode === 'partial' ? refundMinor : undefined
+  const submittedReason = reason.trim()
+
+  if (lastFailedAttempt) {
+    const isDifferent =
+      lastFailedAttempt.amountMinor !== submittedAmountMinor ||
+      lastFailedAttempt.reason !== submittedReason
+    if (isDifferent) {
+      idempotencyKey = mintIdempotencyKey()
+    }
+  }
 
   const payload: RefundRequest = {
     reason,
@@ -117,9 +140,14 @@ async function handleSubmit(): Promise<void> {
       variant: 'success',
     })
     open = false
+    lastFailedAttempt = undefined
     onSuccess?.(refund)
     onClose?.()
   } catch (err) {
+    lastFailedAttempt = {
+      amountMinor: submittedAmountMinor,
+      reason: submittedReason,
+    }
     if (
       err &&
       typeof err === 'object' &&

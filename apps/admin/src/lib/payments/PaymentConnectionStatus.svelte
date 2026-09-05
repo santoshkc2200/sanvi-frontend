@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { PaymentConnectionView } from '@sanvi/api-client'
-import { t } from '@sanvi/i18n'
+import { hasMessage, t } from '@sanvi/i18n'
 import { Alert, Badge } from '@sanvi/ui'
 
 interface Props {
@@ -13,6 +13,7 @@ interface Props {
     statusOnboarding: string
     statusPending: string
     statusRestricted: string
+    statusRejected: string
     statusDisconnected: string
     verdictCanAcceptPayments: string
     verdictCannotAcceptPayments: string
@@ -42,10 +43,13 @@ function getStatusBadgeVariant(status: string): 'success' | 'error' | 'warning' 
     case 'active':
       return 'success'
     case 'restricted':
+    case 'rejected':
       return 'error'
     case 'onboarding':
     case 'pending':
       return 'warning'
+    case 'disconnected':
+      return 'neutral'
     default:
       return 'neutral'
   }
@@ -57,6 +61,8 @@ function getStatusLabel(status: string): string {
       return labels.statusActive
     case 'restricted':
       return labels.statusRestricted
+    case 'rejected':
+      return labels.statusRejected
     case 'onboarding':
       return labels.statusOnboarding
     case 'pending':
@@ -107,20 +113,18 @@ function renderRequirementText(item: { code: string; summary_key: string }): {
   isUnmapped: boolean
 } {
   const key = item.summary_key
-  const tMap = t as unknown as Record<string, (args?: { code?: string }) => string>
-  if (key && typeof tMap[key] === 'function') {
+  if (key && hasMessage(key)) {
     if (key === 'payments.req.unmapped') {
-      return { text: tMap[key]({ code: item.code }), isUnmapped: true }
+      return { text: t[key]({ code: item.code }), isUnmapped: true }
     }
-    return { text: tMap[key]({ code: item.code }), isUnmapped: false }
+    return { text: t[key]({ code: item.code }), isUnmapped: false }
   }
   return { text: item.code, isUnmapped: true }
 }
 
 function renderBlockerText(key: string): string {
-  const tMap = t as unknown as Record<string, () => string>
-  if (key && typeof tMap[key] === 'function') {
-    return tMap[key]()
+  if (key && hasMessage(key)) {
+    return t[key]()
   }
   return key
 }
@@ -144,7 +148,7 @@ const hasRequirements = $derived(
             <span class="sanvi-payment-status__badge-content">
               {#if connection.status === 'active'}
                 <span class="sanvi-payment-status__badge-icon" aria-hidden="true">✓</span>
-              {:else if connection.status === 'restricted'}
+              {:else if connection.status === 'restricted' || connection.status === 'rejected'}
                 <span class="sanvi-payment-status__badge-icon" aria-hidden="true">⚠</span>
               {:else if connection.status === 'onboarding' || connection.status === 'pending'}
                 <span class="sanvi-payment-status__badge-icon" aria-hidden="true">⏳</span>
@@ -244,7 +248,7 @@ const hasRequirements = $derived(
       <h3 class="sanvi-payment-status__section-title">{labels.requirementsTitle}</h3>
       {#if connection.requirements.deadline}
         <span class="sanvi-payment-status__deadline">
-          {labels.requirementsDeadline.replace('{deadline}', connection.requirements.deadline)}
+          {labels.requirementsDeadline}
         </span>
       {/if}
     </div>

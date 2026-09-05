@@ -88,7 +88,7 @@ export function campaignFormSchema(
   matrix: AdCapabilityMatrix,
   cacheKey?: string,
 ): CampaignFormSchema {
-  const key = `${cacheKey ?? ''}@${matrix.matrix_version}@${contentDigest(matrix)}`
+  const key = schemaCacheKey(matrix, cacheKey)
   const cached = schemaCache.get(key)
   if (cached) return cached
 
@@ -111,9 +111,28 @@ export function schemaCacheKey(matrix: AdCapabilityMatrix, cacheKey?: string): s
   return `${cacheKey ?? ''}@${matrix.matrix_version}@${contentDigest(matrix)}`
 }
 
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value)
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item) ?? 'null').join(',')}]`
+  }
+  const obj = value as Record<string, unknown>
+  const sortedKeys = Object.keys(obj).sort()
+  const entries: string[] = []
+  for (const key of sortedKeys) {
+    const val = obj[key]
+    if (val !== undefined) {
+      entries.push(`${JSON.stringify(key)}:${stableStringify(val)}`)
+    }
+  }
+  return `{${entries.join(',')}}`
+}
+
 /** djb2 over the stable-key JSON encoding — collision-tested enough for a 32-entry presentation cache. */
 function contentDigest(matrix: AdCapabilityMatrix): string {
-  const json = JSON.stringify(matrix, Object.keys(matrix).sort())
+  const json = stableStringify(matrix)
   let hash = 5381
   for (let i = 0; i < json.length; i += 1) {
     hash = ((hash << 5) + hash + json.charCodeAt(i)) | 0

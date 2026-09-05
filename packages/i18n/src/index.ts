@@ -17,7 +17,14 @@ export {
   type Locale,
   type LocaleConfig,
 } from './config'
-export { en, type MessageKey, messages } from './catalogs'
+export {
+  en,
+  type MessageKey,
+  messages,
+  ensureLocaleLoaded,
+  isJaLoaded,
+  jaCatalog,
+} from './catalogs'
 export { fmt } from './format'
 export { IcuParseError, MissingParamError, extractParams, formatPattern, parsePattern } from './icu'
 export { normalizeEmail, normalizeSlug, normalizeTel, nfkc } from './normalize'
@@ -37,4 +44,4 @@ export {
   stripLocalePrefix,
   withLocalePrefix,
 } from './routing'
-export { t, translate, type Messages } from './translate'
+export { hasMessage, t, translate, type Messages } from './translate'

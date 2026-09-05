@@ -70,6 +70,7 @@ describe('OrderSummary component', () => {
     render(OrderSummary, {
       props: {
         items: sampleItems,
+        currency: 'USD',
         canAcceptPayments: false,
         cannotAcceptReason: 'This store cannot accept payments right now.',
       },
@@ -87,6 +88,7 @@ describe('OrderSummary component', () => {
     render(OrderSummary, {
       props: {
         items: sampleItems,
+        currency: 'USD',
         canAcceptPayments: true,
         onInitiateCheckout,
       },
@@ -105,6 +107,7 @@ describe('OrderSummary component', () => {
     render(OrderSummary, {
       props: {
         items: sampleItems,
+        currency: 'USD',
         canceled: true,
       },
     })
@@ -144,6 +147,23 @@ describe('OrderSummary component', () => {
     expect(button).not.toBeDisabled()
   })
 
+  it('disables checkout when the server did not supply a settlement currency', async () => {
+    const onInitiateCheckout = vi.fn()
+    render(OrderSummary, {
+      props: {
+        items: sampleItems,
+        onInitiateCheckout,
+      },
+    })
+
+    const button = screen.getByRole('button', { name: 'Proceed to checkout' })
+    expect(button).toBeDisabled()
+    // Prices in a guessed currency would be worse than no prices.
+    expect(screen.queryByText('Modern Web Course')).not.toBeInTheDocument()
+    await fireEvent.click(button)
+    expect(onInitiateCheckout).not.toHaveBeenCalled()
+  })
+
   it('generates a valid fallback UUID when crypto.randomUUID is undefined (Defect 3)', async () => {
     sessionStorage.clear()
     const originalRandomUUID = crypto.randomUUID
@@ -155,6 +175,7 @@ describe('OrderSummary component', () => {
       render(OrderSummary, {
         props: {
           items: sampleItems,
+          currency: 'USD',
           onInitiateCheckout,
         },
       })
@@ -183,6 +204,7 @@ describe('OrderSummary component', () => {
     render(OrderSummary, {
       props: {
         items: sampleItems,
+        currency: 'USD',
         onInitiateCheckout,
       },
     })
@@ -196,10 +218,86 @@ describe('OrderSummary component', () => {
     expect(keysPassed[0]).toBe(keysPassed[1])
   })
 
+  it('mints a new idempotency key when cart contents or amount change (Defect 2)', async () => {
+    sessionStorage.clear()
+    const keysPassed: string[] = []
+    const onInitiateCheckout = vi.fn(async (key: string) => {
+      keysPassed.push(key)
+      throw new Error('Timeout')
+    })
+
+    const { unmount } = render(OrderSummary, {
+      props: {
+        items: sampleItems,
+        currency: 'USD',
+        onInitiateCheckout,
+      },
+    })
+
+    const button1 = screen.getByRole('button', { name: 'Proceed to checkout' })
+    await fireEvent.click(button1)
+
+    unmount()
+
+    const modifiedItems: OrderItem[] = [
+      ...sampleItems,
+      {
+        id: 'item-3',
+        name: 'Extra Book',
+        quantity: 1,
+        amount_minor: 1500,
+      },
+    ]
+
+    render(OrderSummary, {
+      props: {
+        items: modifiedItems,
+        currency: 'USD',
+        onInitiateCheckout,
+      },
+    })
+
+    const button2 = screen.getByRole('button', { name: 'Proceed to checkout' })
+    await fireEvent.click(button2)
+
+    expect(keysPassed.length).toBe(2)
+    expect(keysPassed[0]).not.toBe(keysPassed[1])
+  })
+
+  it('preserves idempotency key across navigation to checkout url (Defect 1)', async () => {
+    sessionStorage.clear()
+    const createTenantCheckoutSpy = vi
+      .spyOn(await import('@sanvi/api-client'), 'createTenantCheckout')
+      .mockResolvedValueOnce({
+        id: 'chk_redirect_test',
+        amount_minor: 7200,
+        currency: 'USD',
+        reference: 'order-123',
+        status: 'pending',
+        url: 'https://checkout.stripe.com/c/pay/cs_test',
+        created_at: new Date().toISOString(),
+      } as unknown as import('../src/lib/checkout/types').CheckoutView)
+
+    render(OrderSummary, {
+      props: {
+        items: sampleItems,
+        currency: 'USD',
+      },
+    })
+
+    const button = screen.getByRole('button', { name: 'Proceed to checkout' })
+    await fireEvent.click(button)
+
+    expect(createTenantCheckoutSpy).toHaveBeenCalledOnce()
+    // Key must not be wiped before redirect
+    expect(sessionStorage.getItem('sanvi_checkout_idempotency_key')).not.toBeNull()
+  })
+
   it('renders tax calculation note when taxEnabled is true', async () => {
     render(OrderSummary, {
       props: {
         items: sampleItems,
+        currency: 'USD',
         taxEnabled: true,
       },
     })
@@ -213,6 +311,7 @@ describe('OrderSummary component', () => {
     render(OrderSummary, {
       props: {
         items: sampleItems,
+        currency: 'USD',
         taxEnabled: false,
       },
     })

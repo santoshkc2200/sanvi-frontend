@@ -31,7 +31,7 @@ export function recordConversionOnce(
   conversionEventId: string | undefined | null,
   reporter?: (id: string) => void | Promise<void>,
 ): boolean {
-  if (!conversionEventId) return false
+  if (!conversionEventId || !reporter) return false
 
   if (
     memoryReportedEvents.has(conversionEventId) ||
@@ -44,7 +44,7 @@ export function recordConversionOnce(
   inFlightEvents.add(conversionEventId)
 
   try {
-    const result = reporter?.(conversionEventId)
+    const result = reporter(conversionEventId)
     if (result && typeof (result as Promise<void>).then === 'function') {
       ;(result as Promise<void>)
         .then(() => {

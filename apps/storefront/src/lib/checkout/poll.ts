@@ -1,4 +1,9 @@
-import { getTenantCheckout, type CheckoutView, type TypedApiClient } from '@sanvi/api-client'
+import {
+  ApiError,
+  getTenantCheckout,
+  type CheckoutView,
+  type TypedApiClient,
+} from '@sanvi/api-client'
 
 export interface PollCheckoutOptions {
   maxAttempts?: number
@@ -52,6 +57,9 @@ export async function pollCheckoutStatus(
       checkout = await getTenantCheckout(client, checkoutId, signal)
     } catch (err) {
       if (signal?.aborted) throw err
+      if (err instanceof ApiError && !err.isRetryable) {
+        throw err
+      }
       // A transient network/fetch error is not proof of payment failure — the webhook
       // is the fact, a failed status request is neither the webhook nor the redirect.
       // Treat it like a still-pending poll and keep retrying rather than surfacing a

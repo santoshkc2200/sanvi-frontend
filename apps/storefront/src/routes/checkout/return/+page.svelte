@@ -1,19 +1,20 @@
 <script lang="ts">
 import { t } from '@sanvi/i18n'
+import { ApiError } from '@sanvi/api-client'
 import { apiClient } from '$lib/auth'
 import {
-  clearCart,
+  getCartContext,
   CheckoutErrorView,
   ConfirmationView,
   ConfirmingState,
   pollCheckoutStatus,
-  type CheckoutView,
 } from '$lib/checkout'
+import type { CartStore, CheckoutView } from '$lib/checkout'
 import { clearIdempotencyKey, clearPendingCheckoutId } from '$lib/checkout/idempotency'
 import { buildPurchaseBeacon, fireConversionBeacon } from '$lib/tracking/beacon'
 import type { PageData } from './$types'
 
-let { data }: { data: PageData } = $props()
+let { data, cart = getCartContext() }: { data: PageData; cart?: CartStore | null } = $props()
 
 let checkoutState = $state<'confirming' | 'paid' | 'delayed' | 'failed' | 'canceled' | 'not_found'>(
   'confirming',
@@ -68,23 +69,21 @@ $effect(() => {
 
       if (result.status === 'paid') {
         checkoutState = 'paid'
-        clearCart()
-        clearPendingCheckoutId()
+        cart?.clear()
         clearIdempotencyKey()
       } else if (result.status === 'canceled') {
         checkoutState = 'canceled'
         failureCode = 'canceled'
-        clearPendingCheckoutId()
         clearIdempotencyKey()
       } else if (result.status === 'expired') {
         checkoutState = 'failed'
         failureCode = 'expired'
-        clearPendingCheckoutId()
         clearIdempotencyKey()
       } else if (result.status === 'failed') {
         checkoutState = 'failed'
-        failureCode = 'generic'
-        clearPendingCheckoutId()
+        // The server's own decline code when it has one — that is what
+        // turns "something went wrong" into "your card was declined".
+        failureCode = result.failure_code ?? 'generic'
         clearIdempotencyKey()
       } else {
         // Still pending after polling ceiling: hold confirming state with delayed reassurance notice.
@@ -94,6 +93,11 @@ $effect(() => {
       }
     } catch (err: unknown) {
       if (aborted || abortController.signal.aborted) return
+      if (err instanceof ApiError && !err.isRetryable) {
+        checkoutState = 'not_found'
+        clearPendingCheckoutId()
+        return
+      }
       checkoutState = 'delayed'
       isDelayed = true
     }

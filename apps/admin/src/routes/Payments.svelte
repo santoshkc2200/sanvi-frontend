@@ -1,8 +1,9 @@
 <script lang="ts">
+import { onDestroy } from 'svelte'
 import {
   ApiError,
   exportTenantPayments,
-  listPaymentProviders,
+  getPaymentConnection,
   listTenantPayments,
 } from '@sanvi/api-client'
 import type { PaymentView } from '@sanvi/api-client'
@@ -25,7 +26,18 @@ import {
   downloadCsv,
 } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
-import { readPersistedConnectionId } from '../lib/payments/providerRegistry'
+import {
+  buildLocalDateRange,
+  getPaymentStatusFilterOptions,
+  getPaymentStatusLabel as getStatusLabel,
+  getPaymentStatusVariant as getStatusVariant,
+  getPayoutStatusLabel,
+  getPayoutStatusVariant,
+} from '../lib/payments/helpers'
+import {
+  clearPersistedConnectionId,
+  readPersistedConnectionId,
+} from '../lib/payments/providerRegistry'
 
 let loading = $state(true)
 let entitled = $state(true)
@@ -44,9 +56,13 @@ let hasConnection = $state<boolean | null>(null)
 let filterStatus = $state('')
 let filterPayoutStatus = $state('')
 let filterCurrency = $state('')
+let customerInput = $state('')
 let filterCustomer = $state('')
 let filterDateFrom = $state('')
 let filterDateTo = $state('')
+
+const SEARCH_DEBOUNCE_MS = 300
+let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined
 
 const isFiltered = $derived(
   Boolean(
@@ -54,6 +70,7 @@ const isFiltered = $derived(
       filterPayoutStatus ||
       filterCurrency ||
       filterCustomer ||
+      customerInput ||
       filterDateFrom ||
       filterDateTo,
   ),
@@ -76,12 +93,10 @@ async function load(): Promise<void> {
   if (filterPayoutStatus) query['payout_status'] = filterPayoutStatus
   if (filterCurrency) query['currency'] = filterCurrency
   if (filterCustomer) query['customer'] = filterCustomer
-  if (filterDateFrom) query['date_from'] = new Date(filterDateFrom).toISOString()
-  if (filterDateTo) {
-    const d = new Date(filterDateTo)
-    d.setHours(23, 59, 59, 999)
-    query['date_to'] = d.toISOString()
-  }
+
+  const dateRange = buildLocalDateRange(filterDateFrom, filterDateTo)
+  if (dateRange.date_from) query['date_from'] = dateRange.date_from
+  if (dateRange.date_to) query['date_to'] = dateRange.date_to
 
   try {
     const result = await listTenantPayments(apiClient, query)
@@ -94,16 +109,23 @@ async function load(): Promise<void> {
       hasConnection = true
     } else if (hasConnection === null) {
       const tenantId = getActiveTenantId()
-      const stored = readPersistedConnectionId(tenantId ?? undefined)
+      const stored = hasFeature('payments.stripe_connect')
+        ? readPersistedConnectionId(tenantId ?? undefined)
+        : null
       if (stored) {
-        hasConnection = true
-      } else {
         try {
-          const providersResult = await listPaymentProviders(apiClient)
-          hasConnection = (providersResult?.providers ?? []).length > 0
-        } catch {
+          await getPaymentConnection(apiClient, stored)
+          if (seq !== loadSeq) return
+          hasConnection = true
+        } catch (connErr) {
+          if (seq !== loadSeq) return
+          if (connErr instanceof ApiError && connErr.status === 404) {
+            clearPersistedConnectionId(tenantId ?? undefined)
+          }
           hasConnection = false
         }
+      } else {
+        hasConnection = false
       }
     }
   } catch (err) {
@@ -123,13 +145,38 @@ $effect(() => {
   void load()
 })
 
+onDestroy(() => {
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+  }
+})
+
+function handleCustomerInput(e: Event): void {
+  const target = e.target as HTMLInputElement
+  const value = target.value
+  customerInput = value
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+    searchDebounceTimer = undefined
+  }
+  searchDebounceTimer = setTimeout(() => {
+    filterCustomer = value
+    currentCursor = undefined
+    cursorHistory = []
+  }, SEARCH_DEBOUNCE_MS)
+}
+
 function handleFilterChange(): void {
   currentCursor = undefined
   cursorHistory = []
-  void load()
 }
 
 function clearFilters(): void {
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+    searchDebounceTimer = undefined
+  }
+  customerInput = ''
   filterStatus = ''
   filterPayoutStatus = ''
   filterCurrency = ''
@@ -138,7 +185,6 @@ function clearFilters(): void {
   filterDateTo = ''
   currentCursor = undefined
   cursorHistory = []
-  void load()
 }
 
 function handleNextPage(): void {
@@ -149,7 +195,6 @@ function handleNextPage(): void {
     cursorHistory = ['']
   }
   currentCursor = nextCursor
-  void load()
 }
 
 function handlePrevPage(): void {
@@ -157,7 +202,6 @@ function handlePrevPage(): void {
   const prev = cursorHistory[cursorHistory.length - 1]
   cursorHistory = cursorHistory.slice(0, -1)
   currentCursor = prev || undefined
-  void load()
 }
 
 async function handleExportCsv(): Promise<void> {
@@ -168,12 +212,10 @@ async function handleExportCsv(): Promise<void> {
   if (filterPayoutStatus) query['payout_status'] = filterPayoutStatus
   if (filterCurrency) query['currency'] = filterCurrency
   if (filterCustomer) query['customer'] = filterCustomer
-  if (filterDateFrom) query['date_from'] = new Date(filterDateFrom).toISOString()
-  if (filterDateTo) {
-    const d = new Date(filterDateTo)
-    d.setHours(23, 59, 59, 999)
-    query['date_to'] = d.toISOString()
-  }
+
+  const dateRange = buildLocalDateRange(filterDateFrom, filterDateTo)
+  if (dateRange.date_from) query['date_from'] = dateRange.date_from
+  if (dateRange.date_to) query['date_to'] = dateRange.date_to
 
   try {
     const csvContent = await exportTenantPayments(apiClient, query)
@@ -185,84 +227,7 @@ async function handleExportCsv(): Promise<void> {
   }
 }
 
-function getStatusVariant(status: string): 'success' | 'error' | 'warning' | 'info' | 'neutral' {
-  switch (status) {
-    case 'succeeded':
-      return 'success'
-    case 'failed':
-      return 'error'
-    case 'disputed':
-      return 'warning'
-    case 'partially_refunded':
-      return 'info'
-    case 'refunded':
-      return 'neutral'
-    case 'pending':
-      return 'warning'
-    default:
-      return 'neutral'
-  }
-}
-
-function getStatusLabel(status: string): string {
-  switch (status) {
-    case 'succeeded':
-      return t['admin.payments.list.statusSucceeded']()
-    case 'failed':
-      return t['admin.payments.list.statusFailed']()
-    case 'disputed':
-      return t['admin.payments.list.statusDisputed']()
-    case 'refunded':
-      return t['admin.payments.list.statusRefunded']()
-    case 'partially_refunded':
-      return t['admin.payments.list.statusPartiallyRefunded']()
-    case 'pending':
-      return t['admin.payments.list.statusPending']()
-    case 'canceled':
-      return t['admin.payments.list.statusCanceled']()
-    default:
-      return status
-  }
-}
-
-function getPayoutStatusLabel(payoutStatus?: string | null): string {
-  if (!payoutStatus) return '—'
-  switch (payoutStatus) {
-    case 'paid':
-      return t['admin.payments.list.payoutPaid']()
-    case 'pending':
-      return t['admin.payments.list.payoutPending']()
-    case 'failed':
-      return t['admin.payments.list.payoutFailed']()
-    default:
-      return payoutStatus
-  }
-}
-
-function getPayoutStatusVariant(
-  payoutStatus?: string | null,
-): 'success' | 'error' | 'warning' | 'info' | 'neutral' {
-  switch (payoutStatus) {
-    case 'paid':
-      return 'success'
-    case 'failed':
-      return 'error'
-    case 'pending':
-      return 'warning'
-    default:
-      return 'neutral'
-  }
-}
-
-const statusFilterOptions = $derived([
-  { value: 'succeeded', label: t['admin.payments.list.statusSucceeded']() },
-  { value: 'refunded', label: t['admin.payments.list.statusRefunded']() },
-  { value: 'partially_refunded', label: t['admin.payments.list.statusPartiallyRefunded']() },
-  { value: 'disputed', label: t['admin.payments.list.statusDisputed']() },
-  { value: 'failed', label: t['admin.payments.list.statusFailed']() },
-  { value: 'pending', label: t['admin.payments.list.statusPending']() },
-  { value: 'canceled', label: t['admin.payments.list.statusCanceled']() },
-])
+const statusFilterOptions = $derived(getPaymentStatusFilterOptions())
 
 const payoutStatusFilterOptions = $derived([
   { value: 'paid', label: t['admin.payments.list.payoutPaid']() },
@@ -330,7 +295,7 @@ const currencyFilterOptions = [
         description={t['admin.payments.upgradeDescription']()}
         upgradeHref="/billing"
       />
-    {:else if payments.length === 0 && !isFiltered}
+    {:else if payments.length === 0 && !isFiltered && cursorHistory.length === 0}
       <EmptyState
         title={t['admin.payments.list.emptyTitle']()}
         description={hasConnection === false
@@ -356,9 +321,9 @@ const currencyFilterOptions = [
               <Input
                 {...controlProps}
                 type="search"
-                bind:value={filterCustomer}
+                value={customerInput}
                 placeholder={t['admin.payments.list.filterCustomerPlaceholder']()}
-                oninput={handleFilterChange}
+                oninput={handleCustomerInput}
               />
             {/snippet}
           </Field>
@@ -514,8 +479,10 @@ const currencyFilterOptions = [
             </tbody>
           </table>
         </div>
+      {/if}
 
-        <!-- Cursor Pagination controls -->
+      <!-- Cursor Pagination controls -->
+      {#if payments.length > 0 || cursorHistory.length > 0}
         <Cluster justify="space-between" align="center" gap="4">
           <div>
             {#if loading}

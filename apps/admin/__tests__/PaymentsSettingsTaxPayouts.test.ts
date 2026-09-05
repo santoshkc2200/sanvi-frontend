@@ -273,7 +273,7 @@ describe('PaymentsSettings - Payouts, Tax, and Fee Disclosure (TASK-007)', () =>
     expect(screen.getByText('Active registrations')).toBeInTheDocument()
     expect(screen.getByText('2 active registrations')).toBeInTheDocument()
     expect(screen.getByText('Tax engine status')).toBeInTheDocument()
-    expect(screen.getByText('active')).toBeInTheDocument()
+    expect(screen.getByText('Active')).toBeInTheDocument()
     expect(screen.getByText('acct_stripe_123')).toBeInTheDocument()
 
     // Toggle is checked and enabled

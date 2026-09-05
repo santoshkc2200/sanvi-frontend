@@ -1,5 +1,6 @@
 import { BASE_LOCALE, isLocale, LOCALE_COOKIE, normalizeLocaleTag, type Locale } from './config'
 import { setPseudoMode } from './pseudo'
+import { ensureLocaleLoaded } from './catalogs'
 
 /**
  * The locale runtime.
@@ -93,6 +94,9 @@ export function initI18n(options: I18nInitOptions = {}): void {
     if (locale && typeof document !== 'undefined') {
       clientLocale = locale
       document.documentElement.lang = locale
+      void ensureLocaleLoaded(locale).then(() => {
+        for (const listener of changeListeners) listener(locale)
+      })
     }
     return
   }
@@ -104,6 +108,9 @@ export function initI18n(options: I18nInitOptions = {}): void {
     if (typeof document !== 'undefined') {
       clientLocale = sessionLocale
       document.documentElement.lang = sessionLocale
+      void ensureLocaleLoaded(sessionLocale).then(() => {
+        for (const listener of changeListeners) listener(sessionLocale)
+      })
     }
     return
   }
@@ -113,6 +120,9 @@ export function initI18n(options: I18nInitOptions = {}): void {
       if (typeof document !== 'undefined') {
         clientLocale = locale
         document.documentElement.lang = locale
+        void ensureLocaleLoaded(locale).then(() => {
+          for (const listener of changeListeners) listener(locale)
+        })
       }
       return
     }
@@ -130,11 +140,12 @@ export async function setLocale(next: Locale | string): Promise<void> {
   if (!isLocale(next)) {
     throw new TypeError(`setLocale: "${String(next)}" is not a configured locale`)
   }
+  await ensureLocaleLoaded(next as Locale)
   if (typeof document === 'undefined') return
-  clientLocale = next
-  persistLocaleCookie(next)
+  clientLocale = next as Locale
+  persistLocaleCookie(next as Locale)
   document.documentElement.lang = next
-  for (const listener of changeListeners) listener(next)
+  for (const listener of changeListeners) listener(next as Locale)
 }
 
 /** Svelte-store view of {@link currentLocale} — `export const locale: Readable<Locale>` from the phase-06 API. */

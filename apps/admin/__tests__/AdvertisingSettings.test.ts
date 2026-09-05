@@ -94,6 +94,27 @@ describe('AdvertisingSettings platform catalog (phase 10, TASK-010)', () => {
     expect(within(googleCard).getByText('Feed, Stories')).toBeInTheDocument()
   })
 
+  it('renders a value with no i18n key humanized, not raw', async () => {
+    const { listAdPlatforms } = await import('@sanvi/api-client')
+    const customPlatform = {
+      ...GOOGLE,
+      capability_matrix: {
+        ...GOOGLE.capability_matrix,
+        objectives: ['untranslated_goal'],
+      },
+    }
+    vi.mocked(listAdPlatforms).mockResolvedValue({
+      platforms: [platformViewFixture(customPlatform)],
+    } as PlatformsView)
+    render(AdvertisingSettings)
+
+    const card = (await screen.findByRole('heading', { name: GOOGLE.display_name })).closest(
+      'article',
+    ) as HTMLElement
+    expect(within(card).getByText('Untranslated Goal')).toBeInTheDocument()
+    expect(within(card).queryByText('untranslated_goal')).not.toBeInTheDocument()
+  })
+
   it('renders the empty state when the catalog is empty', async () => {
     render(AdvertisingSettings)
     expect(

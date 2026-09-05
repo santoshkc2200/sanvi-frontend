@@ -1,6 +1,7 @@
+import { getContext, hasContext, setContext } from 'svelte'
 import type { OrderItem } from './types'
 
-const DEFAULT_SAMPLE_ITEMS: OrderItem[] = [
+export const DEFAULT_SAMPLE_ITEMS: OrderItem[] = [
   {
     id: 'item-foundations-course',
     name: 'Full Platform Access & Foundations Course',
@@ -10,22 +11,45 @@ const DEFAULT_SAMPLE_ITEMS: OrderItem[] = [
   },
 ]
 
-let cartItemsState = $state<OrderItem[]>([...DEFAULT_SAMPLE_ITEMS])
+const CART_KEY = Symbol('sanvi.checkout.cart')
 
-export function getCartItems(): OrderItem[] {
-  return cartItemsState
+export interface CartStore {
+  readonly items: OrderItem[]
+  setItems(items: OrderItem[]): void
+  clear(): void
+  reset(): void
 }
 
-export function setCartItems(items: OrderItem[]): void {
-  cartItemsState = [...items]
+export function createCart(initialItems: OrderItem[] = DEFAULT_SAMPLE_ITEMS): CartStore {
+  let items = $state<OrderItem[]>([...initialItems])
+
+  return {
+    get items() {
+      return items
+    },
+    setItems(newItems: OrderItem[]) {
+      items = [...newItems]
+    },
+    clear() {
+      items = []
+    },
+    reset() {
+      items = [...initialItems]
+    },
+  }
 }
 
-export function resetCart(): void {
-  cartItemsState = [...DEFAULT_SAMPLE_ITEMS]
+/**
+ * SSR-safe: scopes the cart per request/component-tree via Svelte context.
+ * Call once from the storefront's root `+layout.svelte`.
+ */
+export function setCartContext(cart: CartStore): CartStore {
+  setContext(CART_KEY, cart)
+  return cart
 }
 
-export function clearCart(): void {
-  cartItemsState = []
+export function getCartContext(): CartStore | null {
+  return hasContext(CART_KEY) ? (getContext(CART_KEY) as CartStore) : null
 }
 
 export function calculateCartTotal(items: OrderItem[]): number {

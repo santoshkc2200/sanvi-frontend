@@ -15,7 +15,7 @@ export function clearLastCreatedPaymentConnection(): void {
   lastCreatedConnection = null
 }
 
-function persistConnectionId(tenantId: string | undefined, connectionId: string): void {
+export function persistConnectionId(tenantId: string | undefined, connectionId: string): void {
   if (!tenantId) return
   try {
     localStorage.setItem(`sanvi:payments:connection:${tenantId}`, connectionId)
