@@ -6,6 +6,11 @@ import { ApiError } from '@sanvi/api-client'
 import * as checkoutModule from '../src/lib/checkout'
 import { getDeclineMessage } from '../src/lib/checkout/decline-codes'
 import type { CheckoutView } from '../src/lib/checkout/types'
+import { env } from './mocks/env-dynamic-public'
+
+// The beacon only fires when a site key is configured (the emission gate);
+// give this file's env mock one before any component boots `getAppEnv()`.
+env['PUBLIC_TRACKING_SITE_KEY'] = 'test-site-key'
 
 describe('Checkout Return route component', () => {
   initI18n({ locale: 'en' })
@@ -38,13 +43,10 @@ describe('Checkout Return route component', () => {
 
     // The confirmation fires the phase-10 conversion beacon on mount; keep
     // it hermetic and assert it went out exactly once with the
-    // server-issued event id. The test env has no site key, so the
-    // transport is `navigator.sendBeacon`.
-    const sendBeacon = vi.fn(() => true)
-    Object.defineProperty(window.navigator, 'sendBeacon', {
-      value: sendBeacon,
-      configurable: true,
-    })
+    // server-issued event id. A site key is configured above, so the
+    // transport is fetch keepalive carrying the X-Site-Key header.
+    const fetchMock = vi.fn(async () => ({ ok: true }))
+    vi.stubGlobal('fetch', fetchMock)
 
     render(CheckoutReturnPage, {
       props: {
@@ -59,10 +61,14 @@ describe('Checkout Return route component', () => {
       expect(screen.getByText('Order reference: ord-ret-001')).toBeInTheDocument()
       expect(screen.getByText('Amount paid')).toBeInTheDocument()
     })
-    await waitFor(() => expect(sendBeacon).toHaveBeenCalledTimes(1))
-    const [beaconUrl, beaconBody] = sendBeacon.mock.calls[0] as unknown as [string, Blob]
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    const [beaconUrl, beaconInit] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit & { headers: Record<string, string> },
+    ]
     expect(beaconUrl).toContain('/api/v1/public/track')
-    expect(beaconBody).toBeInstanceOf(Blob)
+    expect(beaconInit.headers['X-Site-Key']).toBe('test-site-key')
+    expect(JSON.parse(String(beaconInit.body)).event_id).toBe('conv_ret_001')
   })
 
   it('holds confirming state and displays delayed reassurance notice on webhook lag (never false failure)', async () => {

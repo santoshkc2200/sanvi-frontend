@@ -50,12 +50,20 @@ export function buildPurchaseBeacon(
  * endpoint answers `202` with an uninformative body regardless of outcome,
  * and the backend's idempotent insert makes a lost beacon recoverable in a
  * future slice rather than worth a client-side retry loop.
+ *
+ * Without a site key the beacon is **not emitted at all**: the backend
+ * verifies `X-Site-Key` against tenant + origin and drops everything it
+ * cannot verify, so a headerless beacon is indistinguishable from dropped
+ * traffic — and the rollback contract (`advertising.conversion_tracking`
+ * off → beacon not emitted, nothing queued) is then enforced by the same
+ * switch that controls capture, instead of the page firing into a void.
  */
 export function fireConversionBeacon(payload: TrackConversionRequest): void {
   if (typeof window === 'undefined') return
   try {
-    const url = `${window.location.origin}${TRACK_ENDPOINT_PATH}`
     const siteKey = getAppEnv().trackingSiteKey
+    if (!siteKey) return
+    const url = `${window.location.origin}${TRACK_ENDPOINT_PATH}`
     void sendConversionBeacon({ url, body: payload, siteKey })
   } catch {
     // Fire-and-forget: a thrown send is the same silence as a 202.

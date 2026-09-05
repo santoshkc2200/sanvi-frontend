@@ -98,34 +98,21 @@ describe('beacon transport', () => {
     expect(sendBeacon).not.toHaveBeenCalled()
   })
 
-  it('uses sendBeacon when no site key is configured', async () => {
+  it('does not emit at all when no site key is configured — the rollback gate', async () => {
     const fetchMock = vi.fn(async () => ({ ok: true }))
     vi.stubGlobal('fetch', fetchMock)
     const sendBeacon = defineSendBeacon(() => true)
     const { fireConversionBeacon, buildPurchaseBeacon } = await loadBeaconModule(undefined)
 
     fireConversionBeacon(buildPurchaseBeacon(paidCheckout, 'conv_1'))
-    await vi.waitFor(() => expect(sendBeacon).toHaveBeenCalledTimes(1))
+    await new Promise((resolve) => setTimeout(resolve, 0))
 
-    const [url, blob] = sendBeacon.mock.calls[0] as unknown as [string, Blob]
-    expect(url).toContain('/api/v1/public/track')
-    expect(blob).toBeInstanceOf(Blob)
+    // A headerless beacon can never pass the backend's site-key check, so
+    // the page does not fire one: emission is gated on the same switch that
+    // governs capture (`advertising.conversion_tracking` off → nothing
+    // sent, nothing queued).
+    expect(sendBeacon).not.toHaveBeenCalled()
     expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it('falls back to fetch when sendBeacon is unavailable, even without a site key', async () => {
-    const fetchMock = vi.fn(async () => ({ ok: true }))
-    vi.stubGlobal('fetch', fetchMock)
-    const { fireConversionBeacon, buildPurchaseBeacon } = await loadBeaconModule(undefined)
-
-    fireConversionBeacon(buildPurchaseBeacon(paidCheckout, 'conv_1'))
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
-
-    const [, init] = fetchMock.mock.calls[0] as unknown as [
-      string,
-      RequestInit & { headers: Record<string, string> },
-    ]
-    expect(init.headers['X-Site-Key']).toBeUndefined()
   })
 
   it('swallows a network failure — the beacon is fire-and-forget', async () => {

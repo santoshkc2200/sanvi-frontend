@@ -427,7 +427,10 @@ describe('AdvertisingConnections screen (phase 10, TASK-011)', () => {
   it('renders Japanese copy for health states and the disconnect dialog', async () => {
     const { setLocale } = await import('@sanvi/i18n')
     setupStandardFetch()
-    setLocale('ja')
+    // The ja catalog loads asynchronously (the i18n budget fix), so the
+    // switch must complete before rendering — otherwise the component
+    // renders en strings and the locale flips under later tests.
+    await setLocale('ja')
     render(Connections)
 
     const googleCard = (await screen.findByRole('heading', { name: GOOGLE.display_name })).closest(

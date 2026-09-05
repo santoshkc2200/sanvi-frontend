@@ -74,8 +74,9 @@ test.describe('storefront conversion beacon (TASK-014)', () => {
 
     await page.route('**/api/v1/public/track', async (route) => {
       beaconRequested = true
-      // Hold the response: the render must not be waiting on it.
-      await page.waitForTimeout(3_000)
+      // Hold the response: the render must not be waiting on it. A plain
+      // timer — `page.waitForTimeout` is unavailable inside route handlers.
+      await new Promise((resolve) => setTimeout(resolve, 3_000))
       await route.fulfill({ status: 202, body: '' })
       beaconSettled = true
     })
