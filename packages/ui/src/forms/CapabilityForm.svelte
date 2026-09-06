@@ -1,4 +1,5 @@
 <script lang="ts">
+import { untrack } from 'svelte'
 import Button from '../Button.svelte'
 import Checkbox from '../Checkbox.svelte'
 import Field from '../Field.svelte'
@@ -61,6 +62,34 @@ interface Props {
    * check is skipped (the backend still enforces it).
    */
   currency?: string
+  /**
+   * Bindable draft. The component owns its draft by default (created empty,
+   * reset when the matrix changes); a parent that binds it can autosave,
+   * resume, or drive the same fields from a stepper (TASK-012's builder).
+   * Assigning a bound draft replaces the fields wholesale; matrix changes
+   * still reset it.
+   */
+  draft?: CampaignFormDraft
+  /**
+   * Which field groups render, by group id (`basics`, `budget`, `targeting`,
+   * `texts`). Undefined renders every group the matrix offers — the
+   * single-page form. A stepper passes one group per step; a group the
+   * matrix has no data for stays absent regardless.
+   */
+  visibleGroups?: string[]
+  /**
+   * What the submit validates: `'all'` (the default — the whole draft, so
+   * the single-page form blocks on everything) or `'visible'` (only the
+   * rendered groups — how the stepper validates one step at a time; the
+   * review step then re-validates `'all'` before submit).
+   */
+  validateScope?: 'all' | 'visible'
+  /**
+   * Force the submit button to render even in stepper mode (one group per
+   * step). The stepper's own Continue lives *inside* the form, so a blocked
+   * advance shows the field errors instead of doing nothing.
+   */
+  submitVisible?: boolean
   labels?: Labels
   /** Localized labels for matrix values (objectives, kinds, fields, locales). */
   optionLabels?: Record<string, string>
@@ -84,6 +113,10 @@ let {
   matrix,
   cacheKey,
   currency,
+  draft = $bindable<CampaignFormDraft | undefined>(undefined),
+  visibleGroups = undefined,
+  validateScope = 'all',
+  submitVisible = false,
   labels = {},
   optionLabels = {},
   serverViolations = [],
@@ -136,27 +169,60 @@ const display = $derived({
 const schema = $derived(campaignFormSchema(matrix, cacheKey))
 
 const schemaKey = $derived(schemaCacheKey(matrix, cacheKey))
-// Deliberate initial capture: the $effect.pre below replaces the draft
-// whenever the matrix (or its version) changes afterwards.
-// svelte-ignore state_referenced_locally
-let draft = $state<CampaignFormDraft>(emptyDraft(schema))
+// The $effect.pre below seeds an absent draft (the unbound single-page
+// form) and replaces the draft whenever the matrix (or its version) changes
+// afterwards. A bound draft is left alone on the first run — that is the
+// autosave resume path (TASK-012's builder) — and only a matrix change
+// resets it. The draft read is untracked so writing it never retriggers
+// this effect; its only dependency is the schema key.
 let activeLocale = $state('')
 let clientIssues = $state<FormIssue[]>([])
-// The memoized schema is identity-stable per matrix version, so this fires
-// exactly when the platform (or its matrix version) changes — the draft
-// resets rather than carrying fields between platforms.
+let schemaObserved = false
 $effect.pre(() => {
   void schemaKey
-  draft = emptyDraft(schema)
-  activeLocale = schema.texts.locales[0] ?? ''
-  clientIssues = []
+  const shouldSeed = untrack(() => draft === undefined)
+  if (shouldSeed || schemaObserved) {
+    draft = emptyDraft(schema)
+    activeLocale = schema.texts.locales[0] ?? ''
+    // Issues belong to the draft they were raised against; a reseed drops them.
+    clientIssues = []
+  }
+  schemaObserved = true
 })
+
+// Non-undefined view of the draft for the template and validators. Before
+// the first render the seeding effect has already put a real draft in place,
+// so the fallback here exists for the type system, not the runtime.
+const form = $derived(draft ?? emptyDraft(schema))
+
+function shows(group: string): boolean {
+  return visibleGroups === undefined || visibleGroups.includes(group)
+}
+
+/** The field paths the rendered groups own — the `'visible'` validation scope. */
+function visibleIssuePaths(): Set<string> {
+  const paths = new Set<string>()
+  if (shows('basics')) {
+    paths.add(FIELD_PATHS.name)
+    paths.add(FIELD_PATHS.objective)
+  }
+  if (shows('budget')) {
+    paths.add(FIELD_PATHS.budgetKind)
+    paths.add(FIELD_PATHS.budgetAmount)
+  }
+  if (shows('targeting')) {
+    for (const dimension of schema.targetingOptions) {
+      paths.add(`${FIELD_PATHS.targeting}.${dimension}`)
+    }
+  }
+  return paths
+}
 
 const activeTextFields = $derived(
   activeLocale === '' ? {} : textFieldsFor(schema.texts, activeLocale),
 )
 
-const mappedServer = $derived(mapViolations(schema, draft, serverViolations))
+const mappedServer = $derived(mapViolations(schema, form, serverViolations))
 
 function issueMessages(path: string): string[] {
   return [
@@ -166,7 +232,7 @@ function issueMessages(path: string): string[] {
 }
 
 function localeHasErrors(locale: string): boolean {
-  const index = draft.texts.findIndex((entry) => entry.locale === locale)
+  const index = form.texts.findIndex((entry) => entry.locale === locale)
   if (index === -1) return false
   const fields = Object.keys(textFieldsFor(schema.texts, locale))
   return fields.some((field) => issueMessages(FIELD_PATHS.textEntry(index, field)).length > 0)
@@ -174,7 +240,7 @@ function localeHasErrors(locale: string): boolean {
 
 const nonActiveLocaleMessages = $derived.by(() => {
   const result: string[] = []
-  draft.texts.forEach((entry, index) => {
+  form.texts.forEach((entry, index) => {
     if (entry.locale === activeLocale) return
     const fields = Object.keys(textFieldsFor(schema.texts, entry.locale))
     for (const field of fields) {
@@ -191,7 +257,7 @@ const formLevelMessages = $derived([...mappedServer.formMessages, ...nonActiveLo
 
 const targetingMessages = $derived([
   ...issueMessages(FIELD_PATHS.targeting),
-  ...draft.targeting.flatMap((dimension) => issueMessages(`${FIELD_PATHS.targeting}.${dimension}`)),
+  ...form.targeting.flatMap((dimension) => issueMessages(`${FIELD_PATHS.targeting}.${dimension}`)),
 ])
 
 function clientMessage(issue: FormIssue): string {
@@ -214,30 +280,34 @@ function optionLabel(value: string): string {
 }
 
 function textValue(index: number, field: string): string {
-  return draft.texts[index]?.values[field] ?? ''
+  return form.texts[index]?.values[field] ?? ''
 }
 
 function setTextValue(index: number, field: string, value: string): void {
-  const entry = draft.texts[index]
+  const entry = form.texts[index]
   if (entry) entry.values[field] = value
 }
 
 function toggleTargeting(dimension: string, checked: boolean): void {
-  draft.targeting = checked
-    ? [...draft.targeting, dimension]
-    : draft.targeting.filter((existing) => existing !== dimension)
+  form.targeting = checked
+    ? [...form.targeting, dimension]
+    : form.targeting.filter((existing) => existing !== dimension)
 }
 
 function handleSubmit(event: SubmitEvent): void {
   event.preventDefault()
-  const issues = validateDraft(schema, draft, currency)
+  let issues = validateDraft(schema, form, currency)
+  if (validateScope === 'visible') {
+    const owned = visibleIssuePaths()
+    issues = issues.filter((issue) => owned.has(issue.path))
+  }
   clientIssues = issues
-  if (issues.length === 0) onSubmit?.(draft)
+  if (issues.length === 0) onSubmit?.(form)
 }
 
 function budgetMinimum(): number | undefined {
-  if (!currency || draft.budgetKind === '') return undefined
-  return schema.minimumBudgets[currency]?.[draft.budgetKind]
+  if (!currency || form.budgetKind === '') return undefined
+  return schema.minimumBudgets[currency]?.[form.budgetKind]
 }
 </script>
 
@@ -253,63 +323,66 @@ function budgetMinimum(): number | undefined {
     </div>
   {/if}
 
-  <Field
-    label={display.nameLabel}
-    required
-    error={issueMessages(FIELD_PATHS.name).join(' ') || undefined}
-  >
-    {#snippet children(control)}
-      <Input
-        id={control.id}
-        value={draft.name}
-        oninput={(event) => {
-          draft.name = event.currentTarget.value
-        }}
-        invalid={control.invalid}
-        describedBy={control.describedBy}
-      />
-    {/snippet}
-  </Field>
+  {#if shows('basics')}
+    <Field
+      label={display.nameLabel}
+      required
+      error={issueMessages(FIELD_PATHS.name).join(' ') || undefined}
+    >
+      {#snippet children(control)}
+        <Input
+          id={control.id}
+          value={form.name}
+          oninput={(event) => {
+            form.name = event.currentTarget.value
+          }}
+          invalid={control.invalid}
+          describedBy={control.describedBy}
+        />
+      {/snippet}
+    </Field>
 
-  <Field
-    label={display.objectiveLabel}
-    required
-    error={issueMessages(FIELD_PATHS.objective).join(' ') || undefined}
-  >
+    <Field
+      label={display.objectiveLabel}
+      required
+      error={issueMessages(FIELD_PATHS.objective).join(' ') || undefined}
+    >
+      {#snippet children(control)}
+        <Select
+          id={control.id}
+          value={form.objective}
+          options={schema.objectiveOptions.map((value) => ({
+            value,
+            label: optionLabel(value),
+          }))}
+          placeholder={display.objectivePlaceholder}
+          onchange={(event) => {
+            form.objective = event.currentTarget.value
+          }}
+          invalid={control.invalid}
+          describedBy={control.describedBy}
+        />
+      {/snippet}
+    </Field>
+  {/if}
+
+  {#if shows('budget')}
+    <Field
+      label={display.budgetKindLabel}
+      required
+      error={issueMessages(FIELD_PATHS.budgetKind).join(' ') || undefined}
+    >
     {#snippet children(control)}
       <Select
         id={control.id}
-        value={draft.objective}
-        options={schema.objectiveOptions.map((value) => ({
-          value,
-          label: optionLabel(value),
-        }))}
-        placeholder={display.objectivePlaceholder}
-        onchange={(event) => {
-          draft.objective = event.currentTarget.value
-        }}
-        invalid={control.invalid}
-        describedBy={control.describedBy}
-      />
-    {/snippet}
-  </Field>
-
-  <Field
-    label={display.budgetKindLabel}
-    required
-    error={issueMessages(FIELD_PATHS.budgetKind).join(' ') || undefined}
-  >
-    {#snippet children(control)}
-      <Select
-        id={control.id}
-        value={draft.budgetKind}
+        value={form.budgetKind}
         options={schema.budgetKinds.map((value) => ({
           value,
           label: optionLabel(value),
         }))}
         placeholder={display.budgetKindPlaceholder}
         onchange={(event) => {
-          draft.budgetKind = event.currentTarget.value
+          form.budgetKind = event.currentTarget.value
         }}
         invalid={control.invalid}
         describedBy={control.describedBy}
@@ -329,17 +402,19 @@ function budgetMinimum(): number | undefined {
     {#snippet children(control)}
       <Input
         id={control.id}
-        value={draft.budgetAmountMinor}
+        value={form.budgetAmountMinor}
         inputmode="numeric"
         oninput={(event) => {
-          draft.budgetAmountMinor = event.currentTarget.value
+          form.budgetAmountMinor = event.currentTarget.value
         }}
         invalid={control.invalid}
         describedBy={control.describedBy}
       />
     {/snippet}
   </Field>
+  {/if}
 
+  {#if shows('targeting')}
   {#if schema.targetingOptions.length > 0}
     <fieldset
       class="sanvi-capability-form__group"
@@ -351,7 +426,7 @@ function budgetMinimum(): number | undefined {
       <div class="sanvi-capability-form__checkboxes">
         {#each schema.targetingOptions as dimension (dimension)}
           <Checkbox
-            checked={draft.targeting.includes(dimension)}
+            checked={form.targeting.includes(dimension)}
             onchange={(event) => {
               toggleTargeting(dimension, event.currentTarget.checked)
             }}
@@ -371,8 +446,9 @@ function budgetMinimum(): number | undefined {
       {/if}
     </fieldset>
   {/if}
+  {/if}
 
-  {#if schema.texts.locales.length > 0}
+  {#if shows('texts') && schema.texts.locales.length > 0}
     <fieldset class="sanvi-capability-form__group">
       <legend class="sanvi-capability-form__legend">{display.textsLabel}</legend>
       <Field label={display.textLocaleLabel}>
@@ -397,7 +473,7 @@ function budgetMinimum(): number | undefined {
         {/snippet}
       </Field>
       {#each Object.entries(activeTextFields) as [field, limit] (field)}
-        {@const entryIndex = draft.texts.findIndex((entry) => entry.locale === activeLocale)}
+        {@const entryIndex = form.texts.findIndex((entry) => entry.locale === activeLocale)}
         {@const path = FIELD_PATHS.textEntry(entryIndex, field)}
         <Field
           label={optionLabel(field)}
@@ -421,9 +497,11 @@ function budgetMinimum(): number | undefined {
     </fieldset>
   {/if}
 
-  <div class="sanvi-capability-form__actions">
-    <Button type="submit" variant="primary">{display.submitLabel}</Button>
-  </div>
+  {#if visibleGroups === undefined || submitVisible}
+    <div class="sanvi-capability-form__actions">
+      <Button type="submit" variant="primary">{display.submitLabel}</Button>
+    </div>
+  {/if}
 </form>
 
 <style>

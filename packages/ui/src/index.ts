@@ -14,6 +14,11 @@ export {
   type AdConnectionHealthData,
   type AdHealthState,
 } from './advertising/health'
+// Advertising campaign surfaces (phase 10, TASK-012)
+export { default as AdDriftDiff } from './advertising/AdDriftDiff.svelte'
+export type { DriftDiffRow } from './advertising/AdDriftDiff.svelte'
+export { default as AdChangeTimeline } from './advertising/AdChangeTimeline.svelte'
+export type { AdChangeItem } from './advertising/AdChangeTimeline.svelte'
 export { default as Alert } from './Alert.svelte'
 export { type ApprovalRequestItem, default as ApprovalRequest } from './ApprovalRequest.svelte'
 export { type AppShellNavItem, default as AppShell } from './AppShell.svelte'
@@ -47,6 +52,7 @@ export {
 } from './format/metrics'
 // Capability-driven advertising form engine (phase 10)
 export { default as CapabilityForm } from './forms/CapabilityForm.svelte'
+export { default as StepperNav } from './forms/StepperNav.svelte'
 export { humanizeOptionValue } from './forms/humanize'
 export {
   campaignFormSchema,
@@ -58,6 +64,25 @@ export {
   type CampaignFormSchema,
   type TextEntrySchema,
 } from './forms/schema'
+export {
+  builderAutosaveKey,
+  builderSteps,
+  clearBuilderAutosave,
+  draftFromCampaign,
+  draftToCreatePayload,
+  draftToPatchPayload,
+  loadBuilderAutosave,
+  saveBuilderAutosave,
+  seedAdGroupPayload,
+  validateStep,
+  type BuilderAutosave,
+  type BuilderSchedule,
+  type BuilderStepId,
+  type CampaignSnapshot,
+  type CreateCampaignPayload,
+  type PatchCampaignPayload,
+  type SeedAdGroupPayload,
+} from './forms/builder'
 export type {
   AdAssetSpec,
   AdCapabilityMatrix,
