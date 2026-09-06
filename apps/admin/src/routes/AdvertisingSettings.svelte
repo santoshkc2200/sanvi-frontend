@@ -2,6 +2,7 @@
 import { ApiError, listAdPlatforms } from '@sanvi/api-client'
 import type { PlatformView } from '@sanvi/api-client'
 import { en, t } from '@sanvi/i18n'
+import { navigate } from '@sanvi/spa-router'
 import { getActiveTenantId } from '@sanvi/tenant'
 import {
   AdPlatformCard,
@@ -28,9 +29,10 @@ import { apiClient } from '../lib/api'
  * the page falls back to the `UpgradePrompt`; with the flag off the route is
  * absent (404) and the same fallback stands in for "not there yet".
  *
- * The connect action stays disabled until TASK-011 lands the OAuth handoff;
- * the reason is stated on the card, the way an inert-but-focusable control
- * must be.
+ * Since TASK-011 the connect action routes to the connections screen
+ * (`/advertising/connections`) — the credential screen where the OAuth
+ * handoff, health states, and disconnect live — rather than into the flow
+ * directly.
  */
 let loading = $state(true)
 let entitled = $state(true)
@@ -120,6 +122,9 @@ $effect(() => {
     <div>
       <h1>{t['admin.advertising.title']()}</h1>
       <p>{t['admin.advertising.description']()}</p>
+      <Button variant="secondary" onclick={() => navigate('/advertising/connections')}>
+        {t['admin.advertising.manageConnectionsCta']()}
+      </Button>
     </div>
 
     {#if error}
@@ -162,10 +167,8 @@ $effect(() => {
                 not_connected: t['admin.advertising.notConnectedBadge'](),
               }}
               connectionTones={{ connected: 'success' }}
-              connectDisabled={true}
               labels={{
                 connectCta: t['admin.advertising.connectCta'](),
-                connectDisabledReason: t['admin.advertising.connectDisabledReason'](),
                 upgradeTitle: t['admin.advertising.upgradeTitle'](),
                 upgradeDescription: t['admin.advertising.cardUpgradeDescription']({
                   platform: platform.display_name,
@@ -177,6 +180,7 @@ $effect(() => {
                 unavailableTitle: t['admin.advertising.unavailableTitle'](),
                 unavailableDescription: t['admin.advertising.unavailableDescription'](),
               }}
+              onConnect={() => navigate('/advertising/connections')}
             />
           {/each}
         </Stack>

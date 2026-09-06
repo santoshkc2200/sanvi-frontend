@@ -1,6 +1,7 @@
 import type { Router, RouteParams } from '@sanvi/spa-router'
 import { hasPermission } from './can'
 import { getSession, setLastDeniedPermission } from './store.svelte'
+import type { Session } from './session'
 
 const RETURN_TO_PARAM = 'return_to'
 
@@ -60,4 +61,26 @@ export function requireAal2(router: Router, stepUpPath = '/step-up') {
     )
     return false
   }
+}
+
+/**
+ * The backend's freshness rule, computed on the same data it uses: an `aal2`
+ * session whose `authenticated_at` is within `maxAgeSecs` of `now`
+ * (backend default 300s — `crates/platform/http/src/authn.rs`'s
+ * `FreshAal2Policy`). Money-adjacent mutations (ad connections, payments
+ * disconnect) check this *before* offering the destructive control, so the
+ * user is sent to step-up rather than shown a bare 403 after the fact.
+ *
+ * A session without `authenticated_at` is never fresh: absence of evidence
+ * is the stale case, not the fresh one.
+ */
+export function hasFreshAal2(
+  session: Pick<Session, 'aal' | 'authenticatedAt'> | null | undefined,
+  now: number = Date.now(),
+  maxAgeSecs = 300,
+): boolean {
+  if (session?.aal !== 'aal2' || !session.authenticatedAt) return false
+  const authenticatedAt = Date.parse(session.authenticatedAt)
+  if (!Number.isFinite(authenticatedAt)) return false
+  return now - authenticatedAt <= maxAgeSecs * 1000
 }

@@ -23,7 +23,7 @@ export { can, hasPermission } from './can'
 export { default as Can } from './components/Can.svelte'
 
 // Guards (SPA — spa-router `RouteDefinition['guard']` factories)
-export { requireAal2, requirePermission, requireSession } from './guards'
+export { hasFreshAal2, requireAal2, requirePermission, requireSession } from './guards'
 
 // Open-redirect guard
 export { safeReturnTo } from './return-to'

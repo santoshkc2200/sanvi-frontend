@@ -124,6 +124,40 @@ const routes: RouteDefinition[] = [
     load: () => import('./routes/AdvertisingSettings.svelte'),
   },
   {
+    // Phase 10 TASK-011: the connection screen — OAuth handoff, account
+    // picker, server-computed health, disconnect. Same permission gate as
+    // the catalog shell above.
+    path: 'advertising/connections',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/Connections.svelte'),
+  },
+  {
+    // The OAuth return route: the ad platform sends the browser back here.
+    // Session-gated only — a tenant bounced to sign-in mid-handoff loses
+    // the redemption; the page itself explains anything else that goes
+    // wrong. The backend rejects a replayed/expired state, so a reload of
+    // this URL can never re-finalize anything.
+    path: 'advertising/connect/:platform/callback',
+    guard: (params) => requireSession(router)(params),
+    load: () => import('./routes/advertising/OAuthCallback.svelte'),
+  },
+  {
+    // Account picker for a redeemed (pending) connection. The pending
+    // accounts travel in module state — a deep link here without one renders
+    // the restart state rather than an empty picker.
+    path: 'advertising/connect/:platform',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/AccountPicker.svelte'),
+  },
+  {
+    // Step-up (fresh aal2 re-authentication) for money-adjacent actions —
+    // advertising connection changes among them. `return_to` brings the
+    // operator straight back to the action they were on.
+    path: 'step-up',
+    guard: (params) => requireSession(router)(params),
+    load: () => import('./routes/StepUp.svelte'),
+  },
+  {
     path: 'domains',
     guard: (params) => requireSession(router)(params),
     load: () => import('./routes/Domains.svelte'),
