@@ -5,6 +5,7 @@ import { axe } from '@sanvi/test-config/axe'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Connections from '../src/routes/advertising/Connections.svelte'
+import { getToasts } from '@sanvi/ui'
 import {
   AD_PLATFORM_FIXTURES,
   fixturePlatformByKey,
@@ -76,7 +77,12 @@ const ORIGINAL_LOCATION = window.location
 function stubLocation(search = ''): void {
   Object.defineProperty(window, 'location', {
     configurable: true,
-    value: { origin: 'http://localhost:4175', search, assign },
+    value: {
+      origin: 'http://localhost:4175',
+      pathname: '/advertising/connections',
+      search,
+      assign,
+    },
   })
 }
 
@@ -494,5 +500,122 @@ describe('AdvertisingConnections screen (phase 10, TASK-011)', () => {
     for (const fixture of AD_PLATFORM_FIXTURES) {
       expect(await screen.findByRole('heading', { name: fixture.display_name })).toBeInTheDocument()
     }
+  })
+
+  it('prefers the active connection when a platform has multiple rows with disconnected one first', async () => {
+    const disconnectedRow = connection({
+      id: 'conn_google_old',
+      account_name: 'Tokyo Retail Old',
+      status: 'disconnected',
+    })
+    const activeRow = connection({
+      id: 'conn_google_active',
+      account_name: 'Tokyo Retail Active',
+      status: 'active',
+      health: { ...HEALTH },
+    })
+
+    setupStandardFetch({ connections: [disconnectedRow, activeRow] })
+    render(Connections)
+
+    const googleCard = (await screen.findByRole('heading', { name: GOOGLE.display_name })).closest(
+      'article',
+    ) as HTMLElement
+
+    // Active row is selected: healthy badge, not Disconnected
+    expect(within(googleCard).getByText('Healthy')).toBeInTheDocument()
+    expect(within(googleCard).queryByText('Disconnected')).not.toBeInTheDocument()
+    expect(screen.getByText(/Tokyo Retail Active/)).toBeInTheDocument()
+    expect(screen.queryByText(/Tokyo Retail Old/)).not.toBeInTheDocument()
+  })
+
+  it('shows permission denied toast on 403 when session is fresh and does not redirect to step-up', async () => {
+    setFreshSession()
+    const pushState = vi.spyOn(window.history, 'pushState')
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/ads/platforms')) return jsonResponse(catalog())
+      if (url.includes('/oauth/start')) return problemResponse(403)
+      if (url.endsWith('/api/v1/tenant/ads/connections')) return jsonResponse({ connections: [] })
+      return jsonResponse({})
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(Connections)
+
+    const metaCard = (await screen.findByRole('heading', { name: META.display_name })).closest(
+      'article',
+    ) as HTMLElement
+    await fireEvent.click(within(metaCard).getByRole('button', { name: 'Connect' }))
+
+    await waitFor(() => {
+      expect(
+        getToasts().some((t) =>
+          t.title.includes('You do not have permission to connect advertising platforms'),
+        ),
+      ).toBe(true)
+    })
+    expect(pushState).not.toHaveBeenCalledWith(
+      expect.anything(),
+      '',
+      expect.stringContaining('/step-up'),
+    )
+  })
+
+  it('keeps disconnect dialog open and shows permission denied error on 403 when session is fresh', async () => {
+    setFreshSession()
+    const pushState = vi.spyOn(window.history, 'pushState')
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/ads/platforms')) return jsonResponse(catalog())
+      if (url.includes('/ads/connections') && init?.method === 'DELETE') {
+        return problemResponse(403)
+      }
+      if (url.endsWith('/api/v1/tenant/ads/connections')) {
+        return jsonResponse({ connections: [connection()] })
+      }
+      return jsonResponse({})
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(Connections)
+
+    await fireEvent.click(await screen.findByRole('button', { name: 'Disconnect' }))
+    await fireEvent.input(screen.getByLabelText(/Type DISCONNECT/), {
+      target: { value: 'DISCONNECT' },
+    })
+    await fireEvent.click(screen.getByRole('button', { name: 'Disconnect account' }))
+
+    expect(
+      await screen.findByText('You do not have permission to disconnect advertising connections.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Disconnect account' })).toBeInTheDocument()
+    expect(pushState).not.toHaveBeenCalledWith(
+      expect.anything(),
+      '',
+      expect.stringContaining('/step-up'),
+    )
+  })
+
+  it('shows error toast when resuming an unknown platform connect', async () => {
+    setupStandardFetch({ connections: [] })
+    stubLocation('?connect=nonexistent_platform')
+    render(Connections)
+
+    await waitFor(() => {
+      expect(
+        getToasts().some((t) => t.title.includes('Could not resume connecting to the platform')),
+      ).toBe(true)
+    })
+  })
+
+  it('shows error toast when resuming a nonexistent connection disconnect', async () => {
+    setupStandardFetch({ connections: [] })
+    stubLocation('?disconnect=conn_nonexistent')
+    render(Connections)
+
+    await waitFor(() => {
+      expect(
+        getToasts().some((t) => t.title.includes('Could not resume disconnecting the account')),
+      ).toBe(true)
+    })
   })
 })

@@ -32,7 +32,7 @@ import { apiClient } from '../lib/api'
  * Since TASK-011 the connect action routes to the connections screen
  * (`/advertising/connections`) — the credential screen where the OAuth
  * handoff, health states, and disconnect live — rather than into the flow
- * directly, so the scope explainer is always seen before any grant.
+ * directly.
  */
 let loading = $state(true)
 let entitled = $state(true)

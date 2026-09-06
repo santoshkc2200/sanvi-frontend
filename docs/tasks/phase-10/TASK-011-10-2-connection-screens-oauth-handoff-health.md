@@ -137,7 +137,10 @@ dashboard's "sync failed" state (TASK-016 consumes the same fields).
   the re-consent case — where the acceptance criteria name them). Explanations are keyed by a slug
   of the scope value (`admin.advertising.scope.*`, resolve-or-fallback like the option labels), so
   when the catalog exposes scopes the same data path renders them pre-connect with zero new code.
-  Follow-up for the backend: add the adapter's `required_scopes()` to `PlatformView`.
+  Follow-up for the backend: add the adapter's `required_scopes()` to `PlatformView`. Pending that
+  backend contract addition, `admin.advertising.preConnectExplainer` was reworded to accurately
+  describe Sanvi's delegated access without promising an upfront scope enumeration that the client
+  cannot render.
 - **Step-up.** The admin console had no step-up route (only the platform console did). This task
   adds `apps/admin/src/routes/StepUp.svelte` + `/step-up`, mirroring the platform console's Kratos
   aal2 flow, and `hasFreshAal2` in `@sanvi/auth` — the backend's `FreshAal2Policy` (aal2 within

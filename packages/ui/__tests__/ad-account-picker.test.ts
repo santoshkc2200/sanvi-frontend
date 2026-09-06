@@ -18,9 +18,11 @@ const LABELS: AdPickerLabels = {
   currencyLabel: 'Account currency',
   currencyHint: 'ISO currency code, e.g. JPY or USD.',
   currencyPlaceholder: 'e.g. JPY',
+  currencyError: 'Currency must be three ASCII letters.',
   timezoneLabel: 'Account timezone',
   timezoneHint: 'IANA timezone name, e.g. Asia/Tokyo',
   timezonePlaceholder: 'e.g. Asia/Tokyo',
+  timezoneError: 'Timezone is required.',
   timezoneConsequence:
     'The timezone decides what counts as today in every report this platform gives you.',
   confirmLabel: 'Connect this account',
@@ -153,5 +155,57 @@ describe('AdAccountPicker', () => {
     })
     await screen.findByText('No accounts match your search.')
     expect(await axe(empty.container)).toHaveNoViolations()
+  })
+
+  it('disables confirmation and hides currency/timezone panel when the selected account is filtered out', async () => {
+    const onConfirm = vi.fn()
+    render(AdAccountPicker, {
+      props: { accounts: ACCOUNTS, labels: LABELS, onConfirm, onCancel: vi.fn() },
+    })
+    await screen.findByRole('radio', { name: /Tokyo Retail/ })
+    await fireEvent.click(screen.getByRole('radio', { name: /Tokyo Retail/ }))
+
+    const currencyInput = screen.getByLabelText(/Account currency \(Tokyo Retail\)/)
+    const timezoneInput = screen.getByLabelText(/Account timezone \(Tokyo Retail\)/)
+    await fireEvent.input(currencyInput, { target: { value: 'jpy' } })
+    await fireEvent.input(timezoneInput, { target: { value: 'Asia/Tokyo' } })
+
+    const confirm = screen.getByRole('button', { name: 'Connect this account' })
+    expect(confirm).toBeEnabled()
+
+    // Filter out Tokyo Retail by searching for Osaka
+    await fireEvent.input(screen.getByRole('searchbox'), { target: { value: 'osaka' } })
+    expect(screen.queryByRole('radio', { name: /Tokyo Retail/ })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Account currency/)).not.toBeInTheDocument()
+    expect(confirm).toBeDisabled()
+
+    await fireEvent.click(confirm)
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('renders field errors for invalid currency and empty timezone', async () => {
+    render(AdAccountPicker, {
+      props: { accounts: ACCOUNTS, labels: LABELS, onConfirm: vi.fn(), onCancel: vi.fn() },
+    })
+    await screen.findByRole('radio', { name: /Tokyo Retail/ })
+    await fireEvent.click(screen.getByRole('radio', { name: /Tokyo Retail/ }))
+
+    const currencyInput = screen.getByLabelText(/Account currency \(Tokyo Retail\)/)
+    const timezoneInput = screen.getByLabelText(/Account timezone \(Tokyo Retail\)/)
+
+    // Type invalid currency (2 letters)
+    await fireEvent.input(currencyInput, { target: { value: 'US' } })
+    expect(screen.getByRole('alert')).toHaveTextContent(LABELS.currencyError)
+    expect(currencyInput).toHaveAttribute('aria-invalid', 'true')
+
+    // Fix currency
+    await fireEvent.input(currencyInput, { target: { value: 'USD' } })
+    expect(screen.queryByText(LABELS.currencyError)).not.toBeInTheDocument()
+    expect(currencyInput).not.toHaveAttribute('aria-invalid')
+
+    // Touch timezone with empty / whitespace
+    await fireEvent.input(timezoneInput, { target: { value: '   ' } })
+    expect(screen.getByRole('alert')).toHaveTextContent(LABELS.timezoneError)
+    expect(timezoneInput).toHaveAttribute('aria-invalid', 'true')
   })
 })

@@ -1,4 +1,5 @@
 <script lang="ts">
+import { untrack } from 'svelte'
 import { ApiError, createAdConnection } from '@sanvi/api-client'
 import type { AdAccountView } from '@sanvi/api-client'
 import { hasFreshAal2, getSession } from '@sanvi/auth'
@@ -48,24 +49,25 @@ const labels: AdPickerLabels = $derived({
   currencyLabel: t['admin.advertising.pickerCurrencyLabel'](),
   currencyHint: t['admin.advertising.pickerCurrencyHint'](),
   currencyPlaceholder: t['admin.advertising.pickerCurrencyPlaceholder'](),
+  currencyError: t['admin.advertising.pickerCurrencyError'](),
   timezoneLabel: t['admin.advertising.pickerTimezoneLabel'](),
   timezoneHint: t['admin.advertising.pickerTimezoneHint'](),
   timezonePlaceholder: t['admin.advertising.pickerTimezonePlaceholder'](),
+  timezoneError: t['admin.advertising.pickerTimezoneError'](),
   timezoneConsequence: t['admin.advertising.pickerTimezoneConsequence'](),
   confirmLabel: t['admin.advertising.pickerConfirm'](),
   cancelLabel: t['common.cancel'](),
 })
 
 function backToConnections(): void {
-  clearPendingAdConnection()
   navigate('/advertising/connections')
+  clearPendingAdConnection()
 }
 
 $effect(() => {
-  // The pending connection is read once per mount — it exists by the time
-  // this route resolves (the callback navigated here in the same SPA
-  // session) or it does not exist at all.
-  const pending = peekPendingAdConnection(platform)
+  // Read once on mount via untrack so changes to the pending connection store
+  // (such as clearing on confirm or cancel) do not re-run this effect.
+  const pending = untrack(() => peekPendingAdConnection(platform))
   accounts = pending?.accounts ?? []
   loading = false
   pendingMissing = pending === null
@@ -89,7 +91,6 @@ async function handleConfirm(choice: {
       currency: choice.currency,
       timezone: choice.timezone,
     })
-    clearPendingAdConnection()
     showToast({
       title: t['admin.advertising.connectSuccessTitle']({
         account: choice.displayName,
@@ -97,6 +98,7 @@ async function handleConfirm(choice: {
       variant: 'success',
     })
     navigate('/advertising/connections')
+    clearPendingAdConnection()
   } catch (err) {
     submitting = false
     if (err instanceof ApiError && err.status === 403 && hasFreshAal2(getSession()) === false) {

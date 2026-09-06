@@ -74,8 +74,13 @@ export function adHealthState(
   if (!health.can_sync || !health.can_upload_conversions) return 'sync_failing'
   if (health.token_expires_at) {
     const expiresAt = Date.parse(health.token_expires_at)
-    if (Number.isFinite(expiresAt) && expiresAt - nowMs <= EXPIRING_SOON_SECS * 1000) {
-      return 'expiring'
+    if (Number.isFinite(expiresAt)) {
+      if (expiresAt <= nowMs) {
+        return 'reconnect_required'
+      }
+      if (expiresAt - nowMs <= EXPIRING_SOON_SECS * 1000) {
+        return 'expiring'
+      }
     }
   }
   return 'healthy'

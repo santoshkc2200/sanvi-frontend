@@ -65,6 +65,20 @@ describe('adHealthState — one state per connection, most urgent wins', () => {
     expect(adHealthState('active', health({ token_expires_at: soon }), NOW)).toBe('expiring')
   })
 
+  it('maps an already-lapsed token expiry in the past to reconnect_required', () => {
+    const lapsed = new Date(NOW - 60_000).toISOString()
+    expect(adHealthState('active', health({ token_expires_at: lapsed }), NOW)).toBe(
+      'reconnect_required',
+    )
+  })
+
+  it('maps a token expiry boundary exactly at nowMs to reconnect_required', () => {
+    const boundary = new Date(NOW).toISOString()
+    expect(adHealthState('active', health({ token_expires_at: boundary }), NOW)).toBe(
+      'reconnect_required',
+    )
+  })
+
   it('stays healthy for a token expiring further out than the warning window', () => {
     const later = new Date(NOW + 30 * 24 * 60 * 60 * 1000).toISOString()
     expect(adHealthState('active', health({ token_expires_at: later }), NOW)).toBe('healthy')
