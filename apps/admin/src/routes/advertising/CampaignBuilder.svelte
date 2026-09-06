@@ -126,6 +126,8 @@ let pendingKey: string | undefined
 
 let loadSeq = 0
 
+const writable = $derived(can('advertising.campaign.write', getActiveTenantId()))
+
 const connection = $derived(connections.find((candidate) => candidate.id === connectionId))
 const platform = $derived<PlatformView | undefined>(
   connection ? platforms.find((candidate) => candidate.key === connection.platform) : undefined,
@@ -133,7 +135,9 @@ const platform = $derived<PlatformView | undefined>(
 const matrix = $derived<AdCapabilityMatrix | undefined>(platform?.capability_matrix)
 const schema = $derived(matrix ? campaignFormSchema(matrix, platform?.key) : undefined)
 
-const stepIds = $derived<BuilderStepId[]>(schema ? builderSteps(schema) : [])
+const stepIds = $derived<BuilderStepId[]>(
+  schema ? builderSteps(schema, { mode: editMode ? 'edit' : 'new' }) : [],
+)
 const stepIndex = $derived(Math.max(0, stepIds.indexOf(step)))
 
 const stepGroups: Partial<Record<BuilderStepId, string[]>> = {
@@ -273,7 +277,23 @@ async function load(): Promise<void> {
 }
 
 function stepIdsFor(target: NonNullable<typeof schema>): BuilderStepId[] {
-  return builderSteps(target)
+  return builderSteps(target, { mode: editMode ? 'edit' : 'new' })
+}
+
+// `datetime-local` only accepts `YYYY-MM-DDTHH:mm`. Values this builder wrote are
+// already naive local wall-clock and just need truncating. A value carrying an
+// explicit offset (or `Z`) came from another writer and is a real instant, so it is
+// converted to local wall-clock first — truncating it would show a UTC time in a
+// field labelled local.
+function formatDatetimeLocal(value: string | null | undefined): string {
+  if (!value) return ''
+  if (/(?:Z|[+-]\d{2}:?\d{2})$/.test(value)) {
+    const instant = new Date(value)
+    if (Number.isNaN(instant.getTime())) return ''
+    const pad = (part: number): string => String(part).padStart(2, '0')
+    return `${instant.getFullYear()}-${pad(instant.getMonth() + 1)}-${pad(instant.getDate())}T${pad(instant.getHours())}:${pad(instant.getMinutes())}`
+  }
+  return value.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/)?.[1] ?? ''
 }
 
 // Continuous autosave: any draft, schedule, or step change persists. Cleared
@@ -454,6 +474,10 @@ async function submitReview(): Promise<void> {
 function handleSubmitError(err: unknown): void {
   if (err instanceof ApiError) {
     if (err.status === 409) {
+      if (!editId) {
+        submitError = t['admin.advertising.builder.duplicateCreateError']()
+        return
+      }
       // The campaign moved under us — show the current state and stop.
       // No retry, no merge: the operator decides from what is shown.
       void reloadConflict()
@@ -546,7 +570,7 @@ $effect(() => {
         title={t['admin.advertising.upgradeTitle']()}
         description={t['admin.advertising.upgradeDescription']()}
       />
-    {:else if forbidden}
+    {:else if forbidden || !writable}
       <EmptyState
         title={t['admin.advertising.campaigns.forbiddenTitle']()}
         description={t['admin.advertising.campaigns.forbiddenDescription']()}
@@ -670,7 +694,9 @@ $effect(() => {
               <div>
                 <dt>{t['admin.advertising.builder.reviewBudget']()}</dt>
                 <dd>
-                  {formatAdCurrency(Number(draft.budgetAmountMinor || '0'), connection.currency)}
+                  {Number.isFinite(Number(draft.budgetAmountMinor || '0'))
+                    ? formatAdCurrency(Number(draft.budgetAmountMinor || '0'), connection.currency)
+                    : '—'}
                   ·
                   {draft.budgetKind
                     ? dataLabel('admin.advertising.option.', draft.budgetKind)
@@ -683,7 +709,11 @@ $effect(() => {
               </div>
               <div>
                 <dt>{t['admin.advertising.builder.reviewTargeting']()}</dt>
-                <dd>{targetingSummary}</dd>
+                <dd>
+                  {editMode
+                    ? t['admin.advertising.builder.targetingEditNote']()
+                    : targetingSummary}
+                </dd>
               </div>
               <div>
                 <dt>{t['admin.advertising.builder.reviewConnection']()}</dt>
@@ -710,74 +740,88 @@ $effect(() => {
             {/if}
           </Stack>
         {:else if stepGroups[step]}
-          <CapabilityForm
-            matrix={matrix}
-            cacheKey={platform?.key}
-            currency={connection.currency}
-            bind:draft
-            visibleGroups={stepGroups[step]}
-            validateScope="visible"
-            submitVisible
-            optionLabels={optionLabelsFor()}
-            serverViolations={serverViolations}
-            labels={{
-              nameLabel: t['admin.advertising.builder.nameLabel'](),
-              objectiveLabel: t['admin.advertising.builder.objectiveLabel'](),
-              objectivePlaceholder: t['admin.advertising.builder.objectivePlaceholder'](),
-              budgetKindLabel: t['admin.advertising.builder.budgetKindLabel'](),
-              budgetKindPlaceholder: t['admin.advertising.builder.budgetKindPlaceholder'](),
-              budgetAmountLabel: t['admin.advertising.builder.budgetAmountLabel']({
-                currency: connection.currency,
-              }),
-              targetingLabel: t['admin.advertising.builder.targetingLabel'](),
-              requiredError: t['admin.advertising.builder.requiredError'](),
-              integerError: t['admin.advertising.builder.integerError'](),
-              unavailableOptionError: t['admin.advertising.builder.unavailableOptionError'](),
-              submitLabel: t['admin.advertising.builder.continue'](),
-            }}
-            formatCounter={(current, limit) => t['admin.advertising.builder.counter']({ current, limit })}
-            formatMinimumHint={(minimum) =>
-              t['admin.advertising.builder.minimumHint']({
-                minimum: formatAdCurrency(minimum, connection.currency),
-              })}
-            formatBelowMinimumError={(minimum) =>
-              t['admin.advertising.builder.belowMinimum']({
-                minimum: formatAdCurrency(minimum, connection.currency),
-              })}
-            formatTooLongError={(limit, current) =>
-              t['admin.advertising.builder.tooLong']({ limit, current })}
-            onSubmit={onSubmitStep}
-          />
-
-          {#if step === 'budget'}
-            <fieldset class="sanvi-ad-builder__schedule">
-              <legend>{t['admin.advertising.builder.scheduleLabel']()}</legend>
-              <p class="sanvi-ad-builder__schedule-hint">
-                {t['admin.advertising.builder.scheduleHint']({
-                  granularity: humanizeOptionValue(matrix.schedule_granularity),
+          {#if editMode && step === 'targeting'}
+            <Stack gap="4">
+              <Alert variant="info">
+                {t['admin.advertising.builder.targetingEditNote']()}
+              </Alert>
+              <Button variant="primary" onclick={goNext}>
+                {t['admin.advertising.builder.continue']()}
+              </Button>
+            </Stack>
+          {:else}
+            <CapabilityForm
+              matrix={matrix}
+              cacheKey={platform?.key}
+              currency={connection.currency}
+              bind:draft
+              visibleGroups={stepGroups[step]}
+              validateScope="visible"
+              submitVisible
+              optionLabels={optionLabelsFor()}
+              serverViolations={serverViolations}
+              labels={{
+                nameLabel: t['admin.advertising.builder.nameLabel'](),
+                objectiveLabel: t['admin.advertising.builder.objectiveLabel'](),
+                objectivePlaceholder: t['admin.advertising.builder.objectivePlaceholder'](),
+                budgetKindLabel: t['admin.advertising.builder.budgetKindLabel'](),
+                budgetKindPlaceholder: t['admin.advertising.builder.budgetKindPlaceholder'](),
+                budgetAmountLabel: t['admin.advertising.builder.budgetAmountLabel']({
+                  currency: connection.currency,
+                }),
+                targetingLabel: t['admin.advertising.builder.targetingLabel'](),
+                requiredError: t['admin.advertising.builder.requiredError'](),
+                integerError: t['admin.advertising.builder.integerError'](),
+                unavailableOptionError: t['admin.advertising.builder.unavailableOptionError'](),
+                submitLabel: t['admin.advertising.builder.continue'](),
+              }}
+              formatCounter={(current, limit) => t['admin.advertising.builder.counter']({ current, limit })}
+              formatMinimumHint={(minimum) =>
+                t['admin.advertising.builder.minimumHint']({
+                  minimum: formatAdCurrency(minimum, connection.currency),
                 })}
-              </p>
-              <label class="sanvi-ad-builder__schedule-field">
-                <span>{t['admin.advertising.builder.scheduleStart']()}</span>
-                <input
-                  type="datetime-local"
-                  value={schedule.startsAt ?? ''}
-                  onchange={(event) => {
-                    schedule = { ...schedule, startsAt: event.currentTarget.value || null }
-                  }}
-                />
-              </label>
-              <label class="sanvi-ad-builder__schedule-field">
-                <span>{t['admin.advertising.builder.scheduleEnd']()}</span>
-                <input
-                  type="datetime-local"
-                  value={schedule.endsAt ?? ''}
-                  onchange={(event) => {
-                    schedule = { ...schedule, endsAt: event.currentTarget.value || null }
-                  }}
-                />
-              </label>
-            </fieldset>
+              formatBelowMinimumError={(minimum) =>
+                t['admin.advertising.builder.belowMinimum']({
+                  minimum: formatAdCurrency(minimum, connection.currency),
+                })}
+              formatTooLongError={(limit, current) =>
+                t['admin.advertising.builder.tooLong']({ limit, current })}
+              onSubmit={onSubmitStep}
+            />
+
+            {#if step === 'budget'}
+              <fieldset class="sanvi-ad-builder__schedule">
+                <legend>{t['admin.advertising.builder.scheduleLabel']()}</legend>
+                <p class="sanvi-ad-builder__schedule-hint">
+                  {t['admin.advertising.builder.scheduleHint']({
+                    granularity: humanizeOptionValue(matrix.schedule_granularity),
+                  })}
+                </p>
+                <p class="sanvi-ad-builder__schedule-hint">
+                  {t['admin.advertising.builder.scheduleTimezoneHint']()}
+                </p>
+                <label class="sanvi-ad-builder__schedule-field">
+                  <span>{t['admin.advertising.builder.scheduleStart']()}</span>
+                  <input
+                    type="datetime-local"
+                    value={formatDatetimeLocal(schedule.startsAt)}
+                    onchange={(event) => {
+                      schedule = { ...schedule, startsAt: event.currentTarget.value || null }
+                    }}
+                  />
+                </label>
+                <label class="sanvi-ad-builder__schedule-field">
+                  <span>{t['admin.advertising.builder.scheduleEnd']()}</span>
+                  <input
+                    type="datetime-local"
+                    value={formatDatetimeLocal(schedule.endsAt)}
+                    onchange={(event) => {
+                      schedule = { ...schedule, endsAt: event.currentTarget.value || null }
+                    }}
+                  />
+                </label>
+              </fieldset>
+            {/if}
           {/if}
         {/if}
 

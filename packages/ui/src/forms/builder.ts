@@ -26,9 +26,14 @@ import type { CampaignFormDraft, FormIssue } from './types'
 export type BuilderStepId = 'basics' | 'targeting' | 'budget' | 'creatives' | 'review'
 
 /** The ordered steps for a schema: matrix-absent sections do not get a step. */
-export function builderSteps(schema: CampaignFormSchema): BuilderStepId[] {
+export function builderSteps(
+  schema: CampaignFormSchema,
+  options?: { mode?: 'new' | 'edit' },
+): BuilderStepId[] {
   const steps: BuilderStepId[] = ['basics']
-  if (schema.targetingOptions.length > 0) steps.push('targeting')
+  if (schema.targetingOptions.length > 0 && options?.mode !== 'edit') {
+    steps.push('targeting')
+  }
   steps.push('budget', 'creatives', 'review')
   return steps
 }

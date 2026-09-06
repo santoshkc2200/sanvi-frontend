@@ -157,8 +157,8 @@ async function confirmResolve(): Promise<void> {
       if (err.status === 409) {
         // The state moved again while the decision was being made — reload
         // the diff and let the tenant decide afresh. Never resolve twice.
-        conflictAgain = true
         await load()
+        conflictAgain = true
         return
       }
       if (err.status === 503) {
@@ -275,53 +275,55 @@ $effect(() => {
         {/if}
       </section>
 
-      <section>
-        <h2>{t['admin.advertising.drift.resolveHeading']()}</h2>
-        <p class="sanvi-ad-drift-page__note">{t['admin.advertising.drift.resolveLead']()}</p>
-        <fieldset class="sanvi-ad-drift-page__choices">
-          <legend class="sanvi-visually-hidden">{t['admin.advertising.drift.resolveHeading']()}</legend>
-          <div>
-            <Radio
-              name="drift-resolution"
-              value="keep_theirs"
-              bind:group={resolutionGroup}
+      {#if writable}
+        <section>
+          <h2>{t['admin.advertising.drift.resolveHeading']()}</h2>
+          <p class="sanvi-ad-drift-page__note">{t['admin.advertising.drift.resolveLead']()}</p>
+          <fieldset class="sanvi-ad-drift-page__choices">
+            <legend class="sanvi-visually-hidden">{t['admin.advertising.drift.resolveHeading']()}</legend>
+            <div>
+              <Radio
+                name="drift-resolution"
+                value="keep_theirs"
+                bind:group={resolutionGroup}
+              >
+                {t['admin.advertising.drift.keepTheirsLabel']()}
+              </Radio>
+              <p class="sanvi-ad-drift-page__choice-note">
+                {t['admin.advertising.drift.keepTheirsNote']()}
+              </p>
+            </div>
+            <div>
+              <Radio
+                name="drift-resolution"
+                value="reapply_ours"
+                bind:group={resolutionGroup}
+              >
+                {t['admin.advertising.drift.reapplyOursLabel']()}
+              </Radio>
+              <p class="sanvi-ad-drift-page__choice-note">
+                {t['admin.advertising.drift.reapplyOursNote']()}
+              </p>
+            </div>
+          </fieldset>
+          <Cluster gap="2">
+            <Button
+              variant="primary"
+              disabled={!resolution || resolving}
+              loading={resolving}
+              onclick={() => void confirmResolve()}
             >
-              {t['admin.advertising.drift.keepTheirsLabel']()}
-            </Radio>
-            <p class="sanvi-ad-drift-page__choice-note">
-              {t['admin.advertising.drift.keepTheirsNote']()}
-            </p>
-          </div>
-          <div>
-            <Radio
-              name="drift-resolution"
-              value="reapply_ours"
-              bind:group={resolutionGroup}
+              {t['admin.advertising.drift.resolveConfirm']()}
+            </Button>
+            <Button
+              variant="secondary"
+              onclick={() => navigate(`/advertising/campaigns/${campaign?.id ?? ''}`)}
             >
-              {t['admin.advertising.drift.reapplyOursLabel']()}
-            </Radio>
-            <p class="sanvi-ad-drift-page__choice-note">
-              {t['admin.advertising.drift.reapplyOursNote']()}
-            </p>
-          </div>
-        </fieldset>
-        <Cluster gap="2">
-          <Button
-            variant="primary"
-            disabled={!resolution || resolving}
-            loading={resolving}
-            onclick={() => void confirmResolve()}
-          >
-            {t['admin.advertising.drift.resolveConfirm']()}
-          </Button>
-          <Button
-            variant="secondary"
-            onclick={() => navigate(`/advertising/campaigns/${campaign?.id ?? ''}`)}
-          >
-            {t['common.cancel']()}
-          </Button>
-        </Cluster>
-      </section>
+              {t['common.cancel']()}
+            </Button>
+          </Cluster>
+        </section>
+      {/if}
     </Stack>
   {/if}
 </Container>

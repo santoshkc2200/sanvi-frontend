@@ -147,9 +147,9 @@ function statusTone(status: string): 'success' | 'neutral' | 'warning' {
 }
 
 function newCampaignHref(): string {
-  const active = connections.find((connection) => connection.status !== 'disconnected')
-  return active
-    ? `/advertising/campaigns/new?connection=${encodeURIComponent(active.id)}`
+  const selectable = connections.filter((connection) => connection.status !== 'disconnected')
+  return selectable.length === 1 && selectable[0]
+    ? `/advertising/campaigns/new?connection=${encodeURIComponent(selectable[0].id)}`
     : '/advertising/campaigns/new'
 }
 
@@ -228,7 +228,11 @@ function openBulk(
       platformAvailable(view) &&
       view.campaign.status === eligible,
   )
-  if (targets.length === 0) return
+  if (targets.length === 0) {
+    rowError = t['admin.advertising.campaigns.bulkNoneEligible']()
+    return
+  }
+  rowError = undefined
   bulkAction = action
   bulkTargets = targets
   bulkBudgetLines = combinedBudgetsByCurrency(targets, currencyFor)
@@ -246,17 +250,39 @@ async function confirmBulk(): Promise<void> {
     bulkTargets.map((view) => mutator(apiClient, view.id, crypto.randomUUID())),
   )
   bulkRunning = false
-  if (results.some((result) => result.status === 'rejected')) {
-    const failed = results.find((result) => result.status === 'rejected')
-    bulkError = mutationError(
-      failed && failed.status === 'rejected' ? failed.reason : undefined,
-      action === 'pause' ? 'bulk-pause' : 'bulk-resume',
-    )
-    return
-  }
-  bulkOpen = false
-  bulkTargets = []
+
+  const succeeded: CampaignView[] = []
+  const failed: CampaignView[] = []
+  let firstReason: unknown
+  results.forEach((result, i) => {
+    const target = bulkTargets[i]
+    if (target) {
+      if (result.status === 'fulfilled') {
+        succeeded.push(target)
+      } else {
+        failed.push(target)
+        if (firstReason === undefined) firstReason = result.reason
+      }
+    }
+  })
+
   await load()
+
+  if (failed.length === 0) {
+    bulkOpen = false
+    bulkTargets = []
+    selectedIds = []
+  } else {
+    bulkTargets = failed
+    bulkBudgetLines = combinedBudgetsByCurrency(failed, currencyFor)
+    selectedIds = failed.map((view) => view.id)
+    // Counts alone hide the reason; the shape-specific message carries the
+    // 503 "keeps spending" honesty rule, quota and permission cases.
+    bulkError = `${t['admin.advertising.campaigns.bulkPartialFailure']({
+      succeeded: succeeded.length,
+      failed: failed.length,
+    })} ${mutationError(firstReason, action === 'pause' ? 'bulk-pause' : 'bulk-resume')}`
+  }
 }
 
 $effect(() => {
@@ -464,7 +490,11 @@ $effect(() => {
 >
   {#snippet children()}
     <Stack gap="4">
-      <p>{t['admin.advertising.campaigns.bulkAffected']({ count: bulkTargets.length })}</p>
+      <p>
+        {bulkAction === 'pause'
+          ? t['admin.advertising.campaigns.bulkAffected']({ count: bulkTargets.length })
+          : t['admin.advertising.campaigns.bulkResumeAffected']({ count: bulkTargets.length })}
+      </p>
       {#if bulkBudgetLines.length > 0}
         <div>
           <p class="sanvi-ad-campaigns__budget-heading">
