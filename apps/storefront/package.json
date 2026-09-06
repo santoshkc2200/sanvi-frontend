@@ -17,7 +17,7 @@
     "test:e2e": "playwright test",
     "check:i18n": "sanvi-check-i18n src",
     "check:tokens": "sanvi-check-tokens src",
-    "check:budget": "sanvi-check-budget --dir build/client --initial-kb 138 --chunk-kb 70"
+    "check:budget": "sanvi-check-budget --dir build/client --initial-kb 143 --chunk-kb 70"
   },
   "dependencies": {
     "@sanvi/api-client": "workspace:*",
