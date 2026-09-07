@@ -156,6 +156,15 @@ const routes: RouteDefinition[] = [
     load: () => import('./routes/advertising/CampaignBuilder.svelte'),
   },
   {
+    // Phase 10 TASK-013: the creative library — assets, per-locale copy,
+    // placement previews. Reads gate on `advertising.read`; create/delete
+    // additionally check `advertising.campaign.write`, the same split the
+    // campaign routes make (the backend's 403 is the authority).
+    path: 'advertising/creatives',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/Creatives.svelte'),
+  },
+  {
     path: 'advertising/campaigns/:id/drift',
     guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
     load: () => import('./routes/advertising/CampaignDrift.svelte'),
@@ -373,6 +382,7 @@ type NavKey =
   | 'payments'
   | 'advertising'
   | 'advertisingCampaigns'
+  | 'advertisingCreatives'
   | 'domains'
   | 'privacy'
   | 'settings'
@@ -391,6 +401,11 @@ const NAV: { href: string; labelKey: NavKey; permission?: string }[] = [
   {
     href: '/advertising/campaigns',
     labelKey: 'advertisingCampaigns',
+    permission: 'advertising.read',
+  },
+  {
+    href: '/advertising/creatives',
+    labelKey: 'advertisingCreatives',
     permission: 'advertising.read',
   },
   { href: '/domains', labelKey: 'domains' },

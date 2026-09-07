@@ -7,6 +7,22 @@ export interface CourseApiContext {
   apiBaseUrl: string
   getToken: () => Promise<string>
   getTenantId: () => string | null
+  /**
+   * Which service this context addresses. The course API scopes by
+   * `X-Tenant-ID`; `hitox-media-service` scopes by `X-Namespace-ID` and its
+   * CORS preflight rejects any request header outside its own allow-list, so
+   * exactly one of the two travels. `api/assets.ts` sets this itself — a
+   * caller never has to.
+   */
+  target?: 'course' | 'media'
+  /**
+   * Passed straight to `fetch`. Cookie-authenticated deployments (the admin
+   * SPA behind a same-site media gateway) need `'include'`; the default
+   * leaves fetch's own `'same-origin'`, because a cross-origin service that
+   * does not answer `Access-Control-Allow-Credentials: true` fails CORS the
+   * moment credentials are requested.
+   */
+  credentials?: RequestCredentials
 }
 
 export class CourseApiError extends Error {
@@ -42,9 +58,18 @@ export async function courseApiRequest<T>(
   options: CourseApiRequestOptions = {},
 ): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  headers['Authorization'] = `Bearer ${await ctx.getToken()}`
+  const token = await ctx.getToken()
+  // An empty token means the caller authenticates some other way (e.g. a
+  // cookie the gateway reads) — sending `Authorization: Bearer ` empty
+  // would only confuse a strict backend, so the header is omitted instead.
+  if (token) headers['Authorization'] = `Bearer ${token}`
   const tenantId = ctx.getTenantId()
-  if (tenantId) headers['X-Tenant-ID'] = tenantId
+  // The same tenant id under whichever header name the target service
+  // scopes by — never both, since each service's CORS allow-list names only
+  // its own and an unlisted request header fails the preflight outright.
+  if (tenantId) {
+    headers[ctx.target === 'media' ? 'X-Namespace-ID' : 'X-Tenant-ID'] = tenantId
+  }
   Object.assign(headers, options.headers)
 
   const url = new URL(`${ctx.apiBaseUrl}${path}`)
@@ -58,6 +83,7 @@ export async function courseApiRequest<T>(
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     keepalive: options.keepalive,
     signal: options.signal,
+    credentials: ctx.credentials,
   })
   if (response.status === 204) return undefined as T
 

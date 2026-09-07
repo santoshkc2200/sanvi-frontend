@@ -1,6 +1,7 @@
 import { type Readable, writable } from 'svelte/store'
 import { abortUpload, completeUpload, createUpload } from '../api/media'
 import type { CourseApiContext } from '../context'
+import { measureImage } from '../image/measure'
 
 export const IMAGE_ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
@@ -12,19 +13,6 @@ export type ImageUploadState =
 
 function reasonFor(error: unknown): string {
   return error instanceof Error ? error.message : 'unknown_error'
-}
-
-function measure(file: File): Promise<{ url: string; width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file)
-    const image = new Image()
-    image.onload = () => resolve({ url, width: image.naturalWidth, height: image.naturalHeight })
-    image.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('unreadable_image'))
-    }
-    image.src = url
-  })
 }
 
 /**
@@ -86,7 +74,7 @@ export class ImageUploadController {
 
   private async upload(file: File, generation: number): Promise<void> {
     try {
-      const { url: localUrl, width, height } = await measure(file)
+      const { url: localUrl, width, height } = await measureImage(file)
       if (generation !== this.generation) {
         URL.revokeObjectURL(localUrl)
         return

@@ -79,6 +79,36 @@ let resumeError = $state<string | undefined>(undefined)
 let rowBusyId = $state<string | undefined>(undefined)
 let rowError = $state<string | undefined>(undefined)
 
+// Client-side column sorting (TASK-013): the list genuinely spans platforms
+// with different currencies, so only label-like columns sort — a budget
+// column's order would silently mix two currencies' magnitudes.
+let sortKey = $state<string | undefined>(undefined)
+let sortDirection = $state<'asc' | 'desc'>('asc')
+
+const sortedCampaigns = $derived.by(() => {
+  if (!sortKey) return campaigns
+  const factor = sortDirection === 'asc' ? 1 : -1
+  const key = sortKey
+  return [...campaigns].sort((left, right) => {
+    if (key === 'platform') {
+      return (
+        (names[left.platform] ?? left.platform).localeCompare(
+          names[right.platform] ?? right.platform,
+        ) * factor
+      )
+    }
+    if (key === 'status') {
+      return (
+        statusLabel(left.campaign.status).localeCompare(statusLabel(right.campaign.status)) * factor
+      )
+    }
+    if (key === 'name') {
+      return left.campaign.name.localeCompare(right.campaign.name) * factor
+    }
+    return 0
+  })
+})
+
 let loadSeq = 0
 
 const writable = $derived(can('advertising.campaign.write', getActiveTenantId()))
@@ -300,7 +330,7 @@ $effect(() => {
 {/snippet}
 
 {#snippet platformCell(row: CampaignRow)}
-  {names[row.platform] ?? row.platform}
+  <Badge variant="neutral">{names[row.platform] ?? row.platform}</Badge>
 {/snippet}
 
 {#snippet nameCell(row: CampaignRow)}
@@ -423,9 +453,20 @@ $effect(() => {
             header: t['admin.advertising.campaigns.nameColumn'](),
             cell: nameCell,
             alwaysVisible: true,
+            sortable: true,
           },
-          { key: 'platform', header: t['admin.advertising.campaigns.platformColumn'](), cell: platformCell },
-          { key: 'status', header: t['admin.advertising.campaigns.statusColumn'](), cell: statusCell },
+          {
+            key: 'platform',
+            header: t['admin.advertising.campaigns.platformColumn'](),
+            cell: platformCell,
+            sortable: true,
+          },
+          {
+            key: 'status',
+            header: t['admin.advertising.campaigns.statusColumn'](),
+            cell: statusCell,
+            sortable: true,
+          },
           { key: 'budget', header: t['admin.advertising.campaigns.budgetColumn'](), cell: budgetCell },
           {
             key: 'spend',
@@ -453,9 +494,15 @@ $effect(() => {
             alwaysVisible: true,
           },
         ]}
-        rows={campaigns as CampaignRow[]}
+        rows={sortedCampaigns as CampaignRow[]}
         getRowId={(row) => row.id}
         caption={t['admin.advertising.campaigns.tableCaption']()}
+        sortKey={sortKey}
+        sortDirection={sortDirection}
+        onSortChange={(key, direction) => {
+          sortKey = key
+          sortDirection = direction
+        }}
         selectable={writable}
         selectedIds={selectedIds}
         onSelectionChange={(ids) => {
