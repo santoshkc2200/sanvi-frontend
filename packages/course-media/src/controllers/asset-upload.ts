@@ -60,13 +60,19 @@ export class AssetUploadController {
   }
 
   start(file: File, ownerReference?: string): void {
+    // A rejected file replaces whatever was on screen, so the blob URL the
+    // previous attempt measured is released here too — the `failed` state
+    // renders no image, and nothing else holds the URL unless a consumer
+    // claimed it with `takeLocalUrl`.
     if (!IMAGE_ACCEPTED_TYPES.includes(file.type)) {
       this.stopActiveUpload()
+      this.releaseLocalUrl()
       this.stateStore.set({ phase: 'failed', reason: 'unsupported_file_type' })
       return
     }
     if (file.size === 0) {
       this.stopActiveUpload()
+      this.releaseLocalUrl()
       this.stateStore.set({ phase: 'failed', reason: 'empty_file' })
       return
     }

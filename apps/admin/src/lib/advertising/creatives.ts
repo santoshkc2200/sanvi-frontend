@@ -68,11 +68,16 @@ export function formatBytes(bytes: number): string {
   return `${fmt.number(Math.max(1, Math.ceil(bytes / 1024)))} KB`
 }
 
+/**
+ * "600 × 400 px" for a full pair, "600 px" for a spec that names only one
+ * side — the unit belongs to the whole measurement, so a lone width must
+ * carry it too rather than render as a bare number.
+ */
 export function formatDimensions(widthPx?: number | null, heightPx?: number | null): string {
   const parts: string[] = []
   if (widthPx !== null && widthPx !== undefined) parts.push(fmt.number(widthPx))
-  if (heightPx !== null && heightPx !== undefined) parts.push(`${fmt.number(heightPx)} px`)
-  return parts.join('×')
+  if (heightPx !== null && heightPx !== undefined) parts.push(fmt.number(heightPx))
+  return parts.length > 0 ? `${parts.join('×')} px` : ''
 }
 
 /** One requirement line, localized — what a placement demands of an asset. */

@@ -28,3 +28,17 @@ if (typeof HTMLDialogElement !== 'undefined') {
     }
   }
 }
+
+// jsdom ships no blob-URL store, so `URL.createObjectURL` / `revokeObjectURL`
+// are simply absent — any component that previews a picked file and revokes
+// the URL on teardown throws "URL.revokeObjectURL is not a function" during
+// cleanup. Minted URLs are unique and revoking is a no-op, which is all a
+// test can observe without a rendering engine behind the blob.
+if (typeof URL !== 'undefined') {
+  let blobUrlCounter = 0
+  URL.createObjectURL ??= () => {
+    blobUrlCounter += 1
+    return `blob:jsdom/${blobUrlCounter}`
+  }
+  URL.revokeObjectURL ??= () => {}
+}

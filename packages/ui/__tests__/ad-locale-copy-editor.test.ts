@@ -113,6 +113,53 @@ describe('AdLocaleCopyEditor', () => {
     expect(screen.queryByText('German')).toBeNull()
   })
 
+  it('keeps entries a parent restores after first render', async () => {
+    // The autosave-resume path: the parent renders unbound, then assigns the
+    // restored copy. A seeding effect that re-runs on that assignment would
+    // discard exactly the copy it was asked to show.
+    const { rerender } = render(AdLocaleCopyEditor, {
+      props: { limitsByLocale: LIMITS, optionLabels: LABELS, formatCounter: COUNTER },
+    })
+    await rerender({
+      entries: [{ locale: 'en', values: { headline: 'Restored headline' } }],
+      limitsByLocale: LIMITS,
+      optionLabels: LABELS,
+      formatCounter: COUNTER,
+    })
+
+    const [englishBox] = screen.getAllByLabelText('Headline')
+    expect((englishBox as HTMLTextAreaElement).value).toBe('Restored headline')
+  })
+
+  it('discards entries only when the limits themselves change', async () => {
+    // A binding parent always passes `entries` back; what varies is whether
+    // the limits object is merely a new object or a genuinely new matrix.
+    const entries = [{ locale: 'en', values: { headline: 'Typed copy' } }]
+    const props = (limitsByLocale: Record<string, Record<string, number>>) => ({
+      entries,
+      limitsByLocale,
+      optionLabels: LABELS,
+      formatCounter: COUNTER,
+    })
+    const { rerender } = render(AdLocaleCopyEditor, { props: props(LIMITS) })
+    expect((screen.getAllByLabelText('Headline')[0] as HTMLTextAreaElement).value).toBe(
+      'Typed copy',
+    )
+
+    // A fresh object with the same locales and fields is not a matrix change
+    // — the parent rebuilds this object on every recompute.
+    await rerender(props(structuredClone(LIMITS)))
+    expect((screen.getAllByLabelText('Headline')[0] as HTMLTextAreaElement).value).toBe(
+      'Typed copy',
+    )
+
+    // Dropping a locale is a real change: stale entries would bind to fields
+    // the new matrix does not have, so they go.
+    await rerender(props({ en: { ...LIMITS.en! } }))
+    expect((screen.getAllByLabelText('Headline')[0] as HTMLTextAreaElement).value).toBe('')
+    expect(screen.queryByText('Japanese')).toBeNull()
+  })
+
   it('has no axe violations', async () => {
     const { container } = render(AdLocaleCopyEditor, {
       props: { limitsByLocale: LIMITS, optionLabels: LABELS, formatCounter: COUNTER },

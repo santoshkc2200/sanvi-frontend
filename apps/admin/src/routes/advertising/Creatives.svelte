@@ -207,12 +207,22 @@ function dataLocaleLabel(value: string): string {
   return typeof label[key] === 'function' ? label[key]() : value
 }
 
+/**
+ * The media service connection. There is no bearer token to give: the SPA
+ * holds a Kratos session cookie, and the service's own API key is a server
+ * secret that must never reach a browser — so the empty token omits the
+ * `Authorization` header and `credentials: 'include'` sends the cookie for a
+ * same-site media gateway to exchange. A cross-origin media origin is not
+ * supported by this path (see the TASK-013 notes: it needs a token-minting
+ * endpoint on the backend).
+ */
 function mediaContext() {
   const env = getAppEnv()
   return {
     apiBaseUrl: env.mediaOrigin ?? env.apiOrigin,
     getToken: async () => '',
     getTenantId: () => getActiveTenantId() ?? null,
+    credentials: 'include' as const,
   }
 }
 
@@ -261,11 +271,26 @@ function uploadErrorMessage(): string | undefined {
   return t['admin.advertising.creatives.uploadFailed']()
 }
 
+/**
+ * Blob URLs claimed from the upload controller (`takeLocalUrl`) belong to
+ * this screen from that point on — nothing else will revoke them, and a
+ * full-size image stays in memory for the tab's life if we do not.
+ */
+function releaseAssetUrl(asset: EditorAsset | undefined): void {
+  if (asset?.localUrl.startsWith('blob:')) URL.revokeObjectURL(asset.localUrl)
+}
+
+function releaseAllAssetUrls(): void {
+  for (const asset of editorAssets) releaseAssetUrl(asset)
+}
+
 function removeAsset(index: number): void {
+  releaseAssetUrl(editorAssets[index])
   editorAssets = editorAssets.filter((_, candidate) => candidate !== index)
 }
 
 function openEditor(): void {
+  releaseAllAssetUrls()
   editorConnectionId = activeConnections.length === 1 ? activeConnections[0]?.id : undefined
   editorEntries = undefined
   editorPlacements = []
@@ -278,6 +303,8 @@ function openEditor(): void {
 
 function closeEditor(): void {
   editorOpen = false
+  releaseAllAssetUrls()
+  editorAssets = []
   mediaController?.destroy()
   mediaController = undefined
 }
@@ -353,10 +380,22 @@ async function submitEditor(): Promise<void> {
       editorError = createErrorMessage(failures[0])
       return
     }
-    if (failures.length > 0) {
-      editorError = t['admin.advertising.creatives.createError']()
+    if (failures.length > 0 && failures[0]) {
+      // Some placements were created and some were not. The editor stays
+      // open showing why, with the placements that succeeded dropped from
+      // the selection so a retry creates only what is still missing —
+      // announcing success here would hide a half-published creative.
+      const created = editorPlacementSpecs
+        .filter((_, index) => results[index]?.status === 'fulfilled')
+        .map((placement) => placement.key)
+      editorPlacements = editorPlacements.filter((key) => !created.includes(key))
+      editorError = createErrorMessage(failures[0])
+      await load()
+      return
     }
     editorOpen = false
+    releaseAllAssetUrls()
+    editorAssets = []
     mediaController?.destroy()
     mediaController = undefined
     showToast({ title: t['admin.advertising.creatives.createdToast'](), variant: 'success' })
@@ -416,19 +455,25 @@ let previewOpen = $state(false)
 let previewLoading = $state(false)
 let previewError = $state<string | undefined>(undefined)
 let previewPlacements = $state<CreativePreviewView[]>([])
+let previewSeq = 0
 
 async function openPreviews(view: CreativeView): Promise<void> {
+  // Same guard as `load()`: two quick clicks on different rows must not let
+  // the slower response paint under the newer row's dialog title.
+  const seq = ++previewSeq
   previewOpen = true
   previewLoading = true
   previewError = undefined
   previewPlacements = []
   try {
     const result = await getAdCreativePreviews(apiClient, view.id)
+    if (seq !== previewSeq) return
     previewPlacements = result?.previews ?? []
   } catch {
+    if (seq !== previewSeq) return
     previewError = t['admin.advertising.creatives.previewsLoadError']()
   } finally {
-    previewLoading = false
+    if (seq === previewSeq) previewLoading = false
   }
 }
 
@@ -474,6 +519,7 @@ $effect(() => {
   void getActiveTenantId()
   void load()
   return () => {
+    releaseAllAssetUrls()
     mediaController?.destroy()
     mediaController = undefined
   }
@@ -609,7 +655,7 @@ const columns: TableColumn<CreativeRow>[] = $derived([
           {editorError}
           {#if serverMessages.length > 0}
             <ul class="sanvi-ad-creatives__server-messages">
-              {#each serverMessages as message (message)}
+              {#each serverMessages as message, index (index)}
                 <li>{message}</li>
               {/each}
             </ul>
@@ -719,7 +765,7 @@ const columns: TableColumn<CreativeRow>[] = $derived([
             {#each violationsByPlacement as group (group.key)}
               <div class="sanvi-ad-creatives__violation-group">
                 <ul class="sanvi-ad-creatives__violations">
-                  {#each group.messages as message (message)}
+                  {#each group.messages as message, index (index)}
                     <li>{message}</li>
                   {/each}
                 </ul>

@@ -25,7 +25,7 @@ const META = fixturePlatformByKey('meta')!
 const DEMO = fixturePlatformByKey('asymmetric_demo')!
 
 // The fake uploader: `scenario` decides what the "measured" asset looks like.
-let scenario: 'ok' | 'tooSmall' = 'ok'
+let scenario: 'ok' | 'tooSmall' | 'portrait' = 'ok'
 let uploadCount = 0
 
 vi.mock('@sanvi/course-media', () => ({
@@ -34,6 +34,20 @@ vi.mock('@sanvi/course-media', () => ({
     start() {
       uploadCount += 1
       const n = uploadCount
+      if (scenario === 'portrait') {
+        // 9:16 — passes Meta's stories and reels specs at once, so a single
+        // upload can be assigned to two placements.
+        this.state.set({
+          phase: 'ready',
+          assetId: `asset_${n}`,
+          localUrl: `blob:asset_${n}`,
+          width: 1080,
+          height: 1920,
+          fileSizeBytes: 1_000_000,
+          contentType: 'image/jpeg',
+        })
+        return
+      }
       if (scenario === 'tooSmall') {
         this.state.set({
           phase: 'ready',
@@ -448,6 +462,59 @@ describe('AdvertisingCreatives editor (phase 10, TASK-013)', () => {
 
     expect(await screen.findByText(/rejected some details/)).toBeInTheDocument()
     expect(screen.getByText(/headline exceeds the 25-character ja limit/)).toBeInTheDocument()
+  })
+
+  it('keeps the editor open and says so when only some placements were created', async () => {
+    // One create of the two fails. Closing the dialog with a success toast
+    // here would tell the user everything shipped while a placement is
+    // missing — the half that succeeded must not be re-sent on retry either.
+    scenario = 'portrait'
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/ads/creatives') && init?.method === 'POST') {
+        const body = JSON.parse(String(init.body)) as { placement: string }
+        if (body.placement === 'reels') {
+          return jsonResponse(
+            {
+              type: 'about:blank',
+              title: 'Bad request',
+              status: 400,
+              violations: [
+                { field_path: 'placement', code: 'unsupported', message: 'reels is closed' },
+              ],
+            },
+            400,
+          )
+        }
+        return jsonResponse(creativeView({ id: `cre_${body.placement}` }))
+      }
+      if (url.includes('/ads/platforms')) return catalogResponse()
+      if (url.endsWith('/ads/connections')) return jsonResponse({ connections: [connection()] })
+      if (url.endsWith('/ads/creatives')) return jsonResponse({ creatives: [] })
+      return jsonResponse({})
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const dialog = await openEditor()
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Stories' }))
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Reels' }))
+    fireEvent.input(within(dialog).getAllByLabelText('Headline')[0]!, {
+      target: { value: 'Summer' },
+    })
+    fireEvent.change(within(dialog).getByLabelText('Upload image'), {
+      target: { files: [new File(['x'], 'a.jpg', { type: 'image/jpeg' })] },
+    })
+    await within(dialog).findByRole('button', { name: 'Remove image' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+    expect(await within(dialog).findByText(/reels is closed/)).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.queryByText('Creative created')).toBeNull()
+    // Stories shipped, so it is deselected; reels stays selected to retry.
+    await waitFor(() => {
+      expect(within(dialog).getByRole('checkbox', { name: 'Stories' })).not.toBeChecked()
+    })
+    expect(within(dialog).getByRole('checkbox', { name: 'Reels' })).toBeChecked()
   })
 
   it('has no axe violations in the editor', async () => {

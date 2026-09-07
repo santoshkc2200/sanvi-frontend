@@ -7,6 +7,22 @@ export interface CourseApiContext {
   apiBaseUrl: string
   getToken: () => Promise<string>
   getTenantId: () => string | null
+  /**
+   * Which service this context addresses. The course API scopes by
+   * `X-Tenant-ID`; `hitox-media-service` scopes by `X-Namespace-ID` and its
+   * CORS preflight rejects any request header outside its own allow-list, so
+   * exactly one of the two travels. `api/assets.ts` sets this itself — a
+   * caller never has to.
+   */
+  target?: 'course' | 'media'
+  /**
+   * Passed straight to `fetch`. Cookie-authenticated deployments (the admin
+   * SPA behind a same-site media gateway) need `'include'`; the default
+   * leaves fetch's own `'same-origin'`, because a cross-origin service that
+   * does not answer `Access-Control-Allow-Credentials: true` fails CORS the
+   * moment credentials are requested.
+   */
+  credentials?: RequestCredentials
 }
 
 export class CourseApiError extends Error {
@@ -48,12 +64,11 @@ export async function courseApiRequest<T>(
   // would only confuse a strict backend, so the header is omitted instead.
   if (token) headers['Authorization'] = `Bearer ${token}`
   const tenantId = ctx.getTenantId()
+  // The same tenant id under whichever header name the target service
+  // scopes by — never both, since each service's CORS allow-list names only
+  // its own and an unlisted request header fails the preflight outright.
   if (tenantId) {
-    // Both scoping headers travel together: the course API scopes by
-    // `X-Tenant-ID`, the media service by `X-Namespace-ID` — the same
-    // tenant id under two header names, so one context serves both.
-    headers['X-Tenant-ID'] = tenantId
-    headers['X-Namespace-ID'] = tenantId
+    headers[ctx.target === 'media' ? 'X-Namespace-ID' : 'X-Tenant-ID'] = tenantId
   }
   Object.assign(headers, options.headers)
 
@@ -68,9 +83,7 @@ export async function courseApiRequest<T>(
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     keepalive: options.keepalive,
     signal: options.signal,
-    // Cookie-authenticated deployments (the admin SPA's Kratos session) need
-    // the session cookie to travel; token callers are unaffected.
-    credentials: 'include',
+    credentials: ctx.credentials,
   })
   if (response.status === 204) return undefined as T
 
