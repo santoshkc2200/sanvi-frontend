@@ -658,3 +658,94 @@ export async function sendConversionBeacon(input: {
     return false
   }
 }
+
+// ---------------------------------------------------------------------------
+// Diagnostics & audiences (TASK-015 — slice 10.6)
+//
+// Gating: reads (diagnostics, conversions, audiences list) require
+// `advertising.metrics.read`; the retry and audience writes require
+// `advertising.campaign.write`. The retry endpoint is the one place this
+// contract deliberately refuses compliance-sensitive work server-side: it
+// answers 400/409 for a directive-suppressed or contact-identified event —
+// the UI's own retry-button rule is only a courtesy; the backend's refusal
+// is the enforcement.
+//
+// Suppression never appears in `upload_states`: a directive suppresses the
+// whole event, and the frozen `ConsentSnapshot` carries which purpose was
+// denied and by which signal source. A screen that finds itself looking for
+// a suppression inside a platform state is misreading the contract.
+// ---------------------------------------------------------------------------
+
+export type ConversionDiagnostics = components['schemas']['ConversionDiagnostics']
+export type Audience = components['schemas']['Audience']
+export type AudienceStatus = components['schemas']['AudienceStatus']
+export type CreateAudienceRequest = components['schemas']['CreateAudienceRequest']
+
+/**
+ * `GET /api/v1/tenant/ads/conversions/{id}/diagnostics` — the full
+ * per-event story: the event (click ids, value source, frozen directive
+ * snapshot, per-platform upload states) plus its capture timestamp. The
+ * identifiers on the event are already hashed server-side; a screen must
+ * never render anything that pretends to be raw customer data.
+ */
+export function getAdConversionDiagnostics(
+  client: TypedApiClient,
+  id: string,
+  signal?: AbortSignal,
+) {
+  return client.GET('/api/v1/tenant/ads/conversions/{id}/diagnostics', {
+    params: { path: { id } },
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `POST /api/v1/tenant/ads/conversions/{id}/retry` — re-queues a *parked*
+ * event for upload (parked platform states flip back to pending). The
+ * backend refuses anything else: a directive-suppressed event (400/409 —
+ * retrying it would override the subject's privacy directive), an event
+ * whose consent was withdrawn since capture, and an email-identified
+ * subject whose directive cannot be safely re-checked. Requires
+ * `advertising.campaign.write`. Returns the updated event.
+ */
+export function retryAdConversion(client: TypedApiClient, id: string) {
+  return client.POST('/api/v1/tenant/ads/conversions/{id}/retry', undefined, {
+    params: { path: { id } },
+  })
+}
+
+/**
+ * `GET /api/v1/tenant/ads/audiences` — every audience owned by the tenant.
+ * `included_identifiers` are server-side hashes; a UI renders them as the
+ * hashes they are and offers no export of this screen.
+ */
+export function listAdAudiences(client: TypedApiClient, signal?: AbortSignal) {
+  return client.GET('/api/v1/tenant/ads/audiences', signal ? { signal } : undefined)
+}
+
+/**
+ * `POST /api/v1/tenant/ads/audiences` — creates a draft audience for one
+ * platform. The backend builds it from subjects whose `sale_or_share` and
+ * `targeted_advertising` directives are both allowed; subjects opted out
+ * are excluded at build time and removed from existing lists on refresh.
+ */
+export function createAdAudience(
+  client: TypedApiClient,
+  body: CreateAudienceRequest,
+  signal?: AbortSignal,
+) {
+  return client.POST('/api/v1/tenant/ads/audiences', body, signal ? { signal } : undefined)
+}
+
+/**
+ * `POST /api/v1/tenant/ads/audiences/{id}/refresh` — re-evaluates every
+ * subject against the live directives and syncs the diff to the platform.
+ * This is where opted-out subjects are *removed* from an existing list —
+ * the removal is one-way, which is why the UI states the rule before the
+ * first refresh button renders.
+ */
+export function refreshAdAudience(client: TypedApiClient, id: string) {
+  return client.POST('/api/v1/tenant/ads/audiences/{id}/refresh', undefined, {
+    params: { path: { id } },
+  })
+}

@@ -181,12 +181,32 @@ const routes: RouteDefinition[] = [
     load: () => import('./routes/advertising/TrackingSetup.svelte'),
   },
   {
-    // Phase 10 TASK-014: captured conversions, newest first. Upload status
-    // columns render their "available after upload is enabled" label until
-    // TASK-015 lights them up.
+    // Phase 10 TASK-014: captured conversions, newest first. The upload
+    // column renders the real per-platform states since TASK-015 lit it
+    // up; the deep story lives on the diagnostics screen it links to.
     path: 'advertising/conversions',
     guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
     load: () => import('./routes/advertising/Conversions.svelte'),
+  },
+  {
+    // Phase 10 TASK-015: conversion diagnostics — the full upload story per
+    // event: reason taxonomy (directive-decided vs. fixable), per-platform
+    // upload states, health banner, and the parked-only retry. Gated inside
+    // on the `advertising.conversion_tracking` flag (paused state, not an
+    // empty table), with the backend's `advertising.metrics.read` as the
+    // read authority.
+    path: 'advertising/diagnostics',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/Diagnostics.svelte'),
+  },
+  {
+    // Phase 10 TASK-015: audience management. The opt-out removal rule
+    // renders before any build/refresh control; writes check
+    // `advertising.campaign.write` client-side (the backend's 403 is the
+    // authority).
+    path: 'advertising/audiences',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/Audiences.svelte'),
   },
   {
     // The OAuth return route: the ad platform sends the browser back here.
@@ -403,6 +423,8 @@ type NavKey =
   | 'advertisingCampaigns'
   | 'advertisingCreatives'
   | 'advertisingTracking'
+  | 'advertisingDiagnostics'
+  | 'advertisingAudiences'
   | 'domains'
   | 'privacy'
   | 'settings'
@@ -431,6 +453,16 @@ const NAV: { href: string; labelKey: NavKey; permission?: string }[] = [
   {
     href: '/advertising/tracking',
     labelKey: 'advertisingTracking',
+    permission: 'advertising.read',
+  },
+  {
+    href: '/advertising/diagnostics',
+    labelKey: 'advertisingDiagnostics',
+    permission: 'advertising.read',
+  },
+  {
+    href: '/advertising/audiences',
+    labelKey: 'advertisingAudiences',
     permission: 'advertising.read',
   },
   { href: '/domains', labelKey: 'domains' },

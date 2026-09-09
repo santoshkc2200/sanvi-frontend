@@ -1,6 +1,6 @@
 <script lang="ts">
-import { ApiError, listAdConversions } from '@sanvi/api-client'
-import type { ConversionEvent } from '@sanvi/api-client'
+import { ApiError, listAdConversions, listAdPlatforms } from '@sanvi/api-client'
+import type { ConversionEvent, UploadState } from '@sanvi/api-client'
 import { fmt, t } from '@sanvi/i18n'
 import { navigate } from '@sanvi/spa-router'
 import { getActiveTenantId } from '@sanvi/tenant'
@@ -8,6 +8,7 @@ import {
   Alert,
   Badge,
   Button,
+  Cluster,
   Container,
   DataTable,
   EmptyState,
@@ -27,19 +28,21 @@ import {
 } from '../../lib/advertising/tracking'
 
 /**
- * The captured-conversions list (phase 10, TASK-014 / slice 10.5).
+ * The captured-conversions list (phase 10, TASK-014 / slice 10.5, upload
+ * columns lit by TASK-015).
  *
  * Every row is an event the storefront captured, newest first, shown with
- * its value, where that value came from, and the directive outcome the
- * capture-time gate froze onto it. The upload status column is present but
- * deliberately labelled "available after upload is enabled" — upload
- * lands with TASK-015, and an empty column that looks like missing data is
- * exactly the misreading this screen must not invite.
+ * its value, where that value came from, the directive outcome the
+ * capture-time gate froze onto it, and — since TASK-015 — the per-platform
+ * upload states. A partial success renders each platform independently,
+ * never as one blended status; the full story (taxonomy, attempt history,
+ * retry) lives on the diagnostics screen this list links to.
  */
 let loading = $state(true)
 let entitled = $state(true)
 let error = $state<string | undefined>(undefined)
 let events = $state<ConversionEvent[]>([])
+let platformNames = $state<Record<string, string>>({})
 let sortKey = $state('occurred_at')
 let sortDirection = $state<'asc' | 'desc'>('desc')
 
@@ -64,9 +67,17 @@ async function load(): Promise<void> {
   entitled = true
   events = []
   try {
-    const result = await listAdConversions(apiClient)
+    const [list, catalog] = await Promise.all([
+      listAdConversions(apiClient),
+      listAdPlatforms(apiClient).catch(() => undefined),
+    ])
     if (seq !== loadSeq) return
-    events = result ?? []
+    events = list ?? []
+    const names: Record<string, string> = {}
+    for (const platform of catalog?.platforms ?? []) {
+      names[platform.key] = platform.display_name
+    }
+    platformNames = names
   } catch (err) {
     if (seq !== loadSeq) return
     if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
@@ -90,6 +101,27 @@ function valueText(event: ConversionEvent): string {
   const currency = conversionCurrency(event)
   if (amountMinor === null || !currency) return NO_VALUE
   return formatAdCurrency(amountMinor, currency)
+}
+
+function statusLabel(state: UploadState): string {
+  switch (state.status) {
+    case 'pending':
+      return t['admin.advertising.diagnostics.status.pending']()
+    case 'uploaded':
+      return t['admin.advertising.diagnostics.status.uploaded']()
+    case 'failed':
+      return t['admin.advertising.diagnostics.status.failed']()
+    case 'parked':
+      return t['admin.advertising.diagnostics.status.parked']()
+    case 'retracted':
+      return t['admin.advertising.diagnostics.status.retracted']()
+    case 'unpropagated':
+      return t['admin.advertising.diagnostics.status.unpropagated']()
+  }
+}
+
+function platformEntries(event: ConversionEvent): [string, UploadState][] {
+  return Object.entries(event.upload_states ?? {})
 }
 
 $effect(() => {
@@ -130,10 +162,23 @@ $effect(() => {
   {/if}
 {/snippet}
 
-{#snippet uploadPendingCell()}
-  <span class="sanvi-conversions__upload-pending">
-    {t['admin.advertising.conversions.uploadPendingLabel']()}
-  </span>
+{#snippet uploadCell(row: ConversionEvent)}
+  {#if platformEntries(row).length === 0}
+    <span class="sanvi-conversions__upload-pending">
+      {t['admin.advertising.conversions.uploadSuppressedNote']()}
+    </span>
+  {:else}
+    <Stack gap="1">
+      {#each platformEntries(row) as [platform, state] (platform)}
+        <span class="sanvi-conversions__upload-state">
+          <span class="sanvi-conversions__platform">
+            {platformNames[platform] ?? humanizeOptionValue(platform)}:
+          </span>
+          {statusLabel(state)}
+        </span>
+      {/each}
+    </Stack>
+  {/if}
 {/snippet}
 
 <Container size="lg" padding="6">
@@ -198,7 +243,7 @@ $effect(() => {
           {
             key: 'upload',
             header: t['admin.advertising.conversions.columnUpload'](),
-            cell: uploadPendingCell,
+            cell: uploadCell,
           },
         ]}
         rows={sortedEvents}
@@ -212,11 +257,14 @@ $effect(() => {
         }}
       />
 
-      <div>
+      <Cluster gap="4">
         <Button variant="secondary" onclick={() => navigate('/advertising/tracking')}>
           {t['admin.advertising.conversions.backToSetup']()}
         </Button>
-      </div>
+        <Button variant="primary" onclick={() => navigate('/advertising/diagnostics')}>
+          {t['admin.advertising.conversions.diagnosticsLink']()}
+        </Button>
+      </Cluster>
     {/if}
   </Stack>
 </Container>
@@ -225,5 +273,13 @@ $effect(() => {
   .sanvi-conversions__upload-pending {
     color: var(--sanvi-color-text-secondary);
     font-size: var(--sanvi-font-size-sm);
+  }
+
+  .sanvi-conversions__upload-state {
+    font-size: var(--sanvi-font-size-sm);
+  }
+
+  .sanvi-conversions__platform {
+    color: var(--sanvi-color-text-secondary);
   }
 </style>

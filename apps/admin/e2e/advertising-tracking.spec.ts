@@ -70,7 +70,7 @@ test.describe('advertising conversion tracking (TASK-014)', () => {
     await expect(result.getByText('gclid-e2e-1')).toBeVisible()
   })
 
-  test('the conversions list shows outcomes and labels the upload column', async ({ page }) => {
+  test('the conversions list shows outcomes and per-platform upload states', async ({ page }) => {
     mockAdvertisingBackend(page, { seedConnection: true })
     await page.goto('/advertising/conversions')
 
@@ -78,8 +78,8 @@ test.describe('advertising conversion tracking (TASK-014)', () => {
     await expect(table).toBeVisible()
 
     // Permitted event: value rendered natively in the account currency.
-    await expect(table.getByText('¥4,800')).toBeVisible()
-    await expect(table.getByText('Captured — uploads permitted')).toBeVisible()
+    await expect(table.getByText('¥4,800').first()).toBeVisible()
+    await expect(table.getByText('Captured — uploads permitted').first()).toBeVisible()
 
     // The suppressed event names the denying purpose and the signal source.
     await expect(
@@ -87,9 +87,10 @@ test.describe('advertising conversion tracking (TASK-014)', () => {
     ).toBeVisible()
     await expect(table.getByText(/signal: Gpc/)).toBeVisible()
 
-    // Upload status: present and labelled, never blank.
-    await expect(table.getByText('Available after upload is enabled').first()).toBeVisible()
-    expect(await table.getByText('Available after upload is enabled').count()).toBe(2)
+    // Upload status (lit by TASK-015): the permitted event shows its uploaded
+    // state; the suppressed one a labelled note — never blank.
+    await expect(table.getByText('Uploaded').first()).toBeVisible()
+    await expect(table.getByText('Not uploaded — no platform attempts recorded')).toBeVisible()
   })
 
   test('the tracking screen can be reached from the primary nav', async ({ page }) => {

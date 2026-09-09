@@ -43,6 +43,11 @@ export {
   putAdTrackingSettings,
   testAdTrackingEvent,
   listAdConversions,
+  getAdConversionDiagnostics,
+  retryAdConversion,
+  listAdAudiences,
+  createAdAudience,
+  refreshAdAudience,
   sendConversionBeacon,
 } from './advertising'
 export type {
@@ -97,6 +102,10 @@ export type {
   ConsentSnapshot,
   UploadState,
   ValueSource,
+  ConversionDiagnostics,
+  Audience,
+  AudienceStatus,
+  CreateAudienceRequest,
 } from './advertising'
 export {
   createCheckoutSession,

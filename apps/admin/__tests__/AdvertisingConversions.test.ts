@@ -36,6 +36,7 @@ function conversionEvent(overrides: Record<string, unknown> = {}) {
       resolver_version: '2026-08-01',
       signal_source: 'ui',
     },
+    upload_states: { meta: { status: 'uploaded', attempt_count: 1 } },
     value: { amount_minor: 4800, currency: 'USD' },
     value_source: 'payment_record',
     order_ref: 'ord-1',
@@ -113,12 +114,32 @@ describe('conversions list', () => {
     ).toBeVisible()
   })
 
-  it('the upload status column is labelled as pending, never blank', async () => {
-    setupFetch([conversionEvent()])
+  it('renders the real per-platform upload states once upload is enabled (TASK-015)', async () => {
+    setupFetch([
+      conversionEvent(),
+      conversionEvent({
+        id: '9007199254740994',
+        name: 'signup_lead',
+        value: null,
+        value_source: null,
+        consent: {
+          answers: { ads_measurement: 'denied' },
+          jurisdiction: 'us-ca',
+          purposes_asked: ['ads_measurement'],
+          resolver_version: '2026-08-01',
+          signal_source: 'gpc',
+        },
+        upload_states: {},
+      }),
+    ])
     render(Conversions)
 
     const table = await screen.findByRole('table', { name: 'Captured conversion events' })
-    expect(within(table).getAllByText('Available after upload is enabled').length).toBe(1)
+    // The permitted event renders its uploaded state per platform.
+    expect(within(table).getByText('Meta:')).toBeVisible()
+    expect(within(table).getByText('Uploaded')).toBeVisible()
+    // The suppressed event was never uploaded — a labelled note, never blank.
+    expect(within(table).getByText('Not uploaded — no platform attempts recorded')).toBeVisible()
   })
 
   it('renders the empty state when nothing has been captured yet', async () => {

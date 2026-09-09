@@ -22,6 +22,17 @@ export type { AdChangeItem } from './advertising/AdChangeTimeline.svelte'
 // Advertising creatives & placement previews (phase 10, TASK-013)
 export { default as AdLocaleCopyEditor } from './advertising/AdLocaleCopyEditor.svelte'
 export { default as PlacementPreview } from './advertising/PlacementPreview.svelte'
+// Conversion diagnostics (phase 10, TASK-015)
+export { default as ReasonBadge } from './advertising/ReasonBadge.svelte'
+export { default as HealthBanner } from './advertising/HealthBanner.svelte'
+export type { AdHealthFigure } from './advertising/HealthBanner.svelte'
+export {
+  AD_DIRECTIVE_CATEGORIES,
+  AD_REASON_CATEGORIES,
+  AD_REASON_TONES,
+  isDirectiveCategory,
+  type AdReasonCategory,
+} from './advertising/reasons'
 export {
   aspectRatioFromDimensions,
   assetMetadataFromMeasured,

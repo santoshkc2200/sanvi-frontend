@@ -67,6 +67,8 @@ export interface AdvertisingMockControls {
   simulatePlatformEdit: (campaignId: string) => void
   /** How many times the tracking settings were PUT — the round-trip assertion. */
   settingsSavedCount: () => number
+  /** How many times an audience refresh was POSTed. */
+  audienceRefreshCount: () => number
 }
 
 export function mockAdvertisingBackend(
@@ -79,6 +81,9 @@ export function mockAdvertisingBackend(
     seedTwoConnections?: boolean
     /** One draft campaign per seeded connection, each in its account's currency. */
     seedTwoCampaigns?: boolean
+    /** Flips the `advertising.conversion_tracking` entitlement off — the
+        rollback/paused-state specs. */
+    trackingDisabled?: boolean
   } = {},
 ): AdvertisingMockControls {
   const connections: MockAdConnection[] = []
@@ -249,7 +254,7 @@ export function mockAdvertisingBackend(
   )
   void page.route('**/api/v1/tenant/entitlements', (route) =>
     route.fulfill({
-      json: [{ feature: 'advertising.conversion_tracking', enabled: true }],
+      json: [{ feature: 'advertising.conversion_tracking', enabled: !options.trackingDisabled }],
     }),
   )
 
@@ -938,6 +943,7 @@ export function mockAdvertisingBackend(
         resolver_version: '2026-08-01',
         signal_source: 'ui',
       },
+      upload_states: { meta: { status: 'uploaded', attempt_count: 1 } },
       value: { amount_minor: 4800, currency: 'JPY' },
       value_source: 'payment_record',
       order_ref: 'ord-permitted-1',
@@ -957,9 +963,58 @@ export function mockAdvertisingBackend(
         resolver_version: '2026-08-01',
         signal_source: 'gpc',
       },
+      upload_states: {},
       value: { amount_minor: 1200, currency: 'JPY' },
       value_source: 'payment_record',
       order_ref: 'ord-suppressed-1',
+    },
+    {
+      id: '873698342314721284',
+      tenant_id: 'dev-acme',
+      event_id: 'conv-e2e-parked',
+      name: 'add_payment_info',
+      occurred_at: '2026-09-06T09:00:00Z',
+      click_ids: { gclid: 'gclid-e2e-parked' },
+      hashed_identifiers: {},
+      consent: {
+        answers: { ads_measurement: 'allowed' },
+        jurisdiction: 'jp',
+        purposes_asked: ['ads_measurement'],
+        resolver_version: '2026-08-01',
+        signal_source: 'ui',
+      },
+      upload_states: {
+        meta: { status: 'parked', attempts: 5, reason: 'platform returned 500' },
+      },
+      value: { amount_minor: 900, currency: 'JPY' },
+      value_source: 'payment_record',
+      order_ref: 'ord-parked-1',
+    },
+    {
+      id: '873698342314721286',
+      tenant_id: 'dev-acme',
+      event_id: 'conv-e2e-late',
+      name: 'add_to_cart',
+      occurred_at: '2026-09-07T09:00:00Z',
+      click_ids: { gclid: 'gclid-e2e-late' },
+      hashed_identifiers: {},
+      consent: {
+        answers: { ads_measurement: 'allowed' },
+        jurisdiction: 'jp',
+        purposes_asked: ['ads_measurement'],
+        resolver_version: '2026-08-01',
+        signal_source: 'ui',
+      },
+      upload_states: {
+        meta: {
+          status: 'failed',
+          attempt_count: 2,
+          reason: 'suppressed_late: consent withdrawn since capture',
+        },
+      },
+      value: { amount_minor: 700, currency: 'JPY' },
+      value_source: 'payment_record',
+      order_ref: 'ord-late-1',
     },
   ]
 
@@ -972,8 +1027,114 @@ export function mockAdvertisingBackend(
     await route.fulfill({ json: {} })
   })
 
+  // --- Diagnostics & audiences (TASK-015) ----------------------------------
+  //
+  // The per-event diagnostics story, the parked-only retry (409 for
+  // anything else — the backend is the compliance authority), and a small
+  // stateful audience store.
+
+  let audienceRefreshes = 0
+  const audiences = [
+    {
+      id: 'aud_e2e_1',
+      tenant_id: 'dev-acme',
+      name: 'Purchasers 90d',
+      platform: 'meta',
+      status: { status: 'building' },
+      included_identifiers: ['8f3a1c', '9d2e4b', 'c7a105'],
+      external_ref: null,
+      last_synced_at: null,
+      created_at: '2026-09-06T08:00:00Z',
+    },
+    {
+      id: 'aud_e2e_2',
+      tenant_id: 'dev-acme',
+      name: 'Repeat buyers',
+      platform: 'meta',
+      status: { status: 'active' },
+      included_identifiers: ['5e8d20'],
+      external_ref: 'meta-list-42',
+      last_synced_at: '2026-09-07T10:30:00Z',
+      created_at: '2026-09-05T08:00:00Z',
+    },
+  ]
+
+  void page.route('**/api/v1/tenant/ads/conversions/*/diagnostics', async (route) => {
+    const url = route.request().url()
+    const id = url.split('/ads/conversions/')[1]?.split('/')[0] ?? ''
+    const matched = conversions.find((candidate) => candidate.id === id) ?? conversions[0]
+    await route.fulfill({
+      json: { captured_at: '2026-09-07T09:00:05Z', event: matched },
+    })
+  })
+
+  void page.route('**/api/v1/tenant/ads/conversions/*/retry', async (route) => {
+    const request = route.request()
+    const url = request.url()
+    const id = url.split('/ads/conversions/')[1]?.split('/')[0] ?? ''
+    const matched = conversions.find((candidate) => candidate.id === id)
+    const parked = matched?.upload_states as Record<string, Record<string, unknown>> | undefined
+    if (!matched || !parked || !Object.values(parked).some((s) => s.status === 'parked')) {
+      await route.fulfill({ status: 409, json: { title: 'advertising/retry-refused' } })
+      return
+    }
+    for (const state of Object.values(parked)) {
+      if (state.status === 'parked') {
+        delete state.reason
+        delete state.attempts
+        state.status = 'pending'
+        state.attempt_count = 6
+      }
+    }
+    await route.fulfill({ json: matched })
+  })
+
+  void page.route('**/api/v1/tenant/ads/audiences/*/refresh', async (route) => {
+    const request = route.request()
+    const url = request.url()
+    const id = url.split('/ads/audiences/')[1]?.split('/')[0] ?? ''
+    const matched = audiences.find((candidate) => candidate.id === id)
+    if (!matched) {
+      await route.fulfill({ status: 404, json: { title: 'audience-not-found' } })
+      return
+    }
+    audienceRefreshes += 1
+    matched.status = { status: 'active' }
+    matched.last_synced_at = '2026-09-08T10:00:00Z'
+    // The refresh pass removed the opted-out subject's hash.
+    matched.included_identifiers = matched.included_identifiers.slice(0, 2)
+    await route.fulfill({ json: matched })
+  })
+
+  void page.route('**/api/v1/tenant/ads/audiences', async (route) => {
+    const request = route.request()
+    if (request.method() === 'GET') {
+      await route.fulfill({ json: audiences })
+      return
+    }
+    if (request.method() === 'POST') {
+      const body = request.postDataJSON() as { name: string; platform: string }
+      const created = {
+        id: `aud_e2e_new_${audiences.length + 1}`,
+        tenant_id: 'dev-acme',
+        name: body.name,
+        platform: body.platform,
+        status: { status: 'building' },
+        included_identifiers: [] as string[],
+        external_ref: null,
+        last_synced_at: null,
+        created_at: new Date().toISOString(),
+      }
+      audiences.unshift(created)
+      await route.fulfill({ json: created, status: 201 })
+      return
+    }
+    await route.fulfill({ json: {} })
+  })
+
   return {
     settingsSavedCount: () => settingsSaved,
+    audienceRefreshCount: () => audienceRefreshes,
     simulatePlatformEdit: (campaignId: string) => {
       const campaign = campaigns.find((candidate) => candidate.id === campaignId)
       if (!campaign) return
