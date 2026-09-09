@@ -295,6 +295,65 @@ describe('AdvertisingCampaignDetail (phase 10, TASK-012)', () => {
     ).toBeInTheDocument()
   })
 
+  it('reuses the same idempotency key when retrying publish after non-definitive error', async () => {
+    let callCount = 0
+    const fetchMock = setupFetch({
+      campaign: campaignView({ campaign: { status: 'draft' } }),
+      onCall: (url) => {
+        if (url.includes('/publish')) {
+          callCount++
+          if (callCount === 1) {
+            return problemResponse(503, { title: 'Platform unavailable' })
+          }
+          return jsonResponse({ id: 'camp_1', status: 'publishing' })
+        }
+        return undefined
+      },
+    })
+    render(CampaignDetail, { id: 'camp_1' })
+
+    await screen.findByRole('heading', { name: 'Summer sale' })
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
+    const dialog = await screen.findByRole('dialog')
+
+    // First attempt fails with 503
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publish now' }))
+    await waitFor(() => {
+      expect(screen.getByText(/not accepting changes/i)).toBeInTheDocument()
+    })
+
+    // Retry attempt
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publish now' }))
+    await waitFor(() => {
+      const publishCalls = fetchMock.mock.calls.filter(([input]) =>
+        String(input).includes('/publish'),
+      )
+      expect(publishCalls.length).toBe(2)
+    })
+
+    const publishCalls = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes('/publish'),
+    )
+    const key1 = (publishCalls[0]![1] as RequestInit).headers as Record<string, string>
+    const key2 = (publishCalls[1]![1] as RequestInit).headers as Record<string, string>
+    expect(key1['idempotency-key']).toBeDefined()
+    expect(key1['idempotency-key']).toBe(key2['idempotency-key'])
+  })
+
+  it('renders publishing state with badge and verifying affordance without presenting as failed', async () => {
+    setupFetch({
+      campaign: campaignView({
+        campaign: { status: 'publishing', drift: { drifted: false, changes: [] } },
+      }),
+    })
+    render(CampaignDetail, { id: 'camp_1' })
+
+    await screen.findByRole('heading', { name: 'Summer sale' })
+    expect(screen.getByText('Publishing')).toBeInTheDocument()
+    expect(screen.getByText('Verifying with the platform…')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('has no axe violations', async () => {
     setupFetch()
     const { container } = render(CampaignDetail, { id: 'camp_1' })

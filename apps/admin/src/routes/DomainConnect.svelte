@@ -67,6 +67,7 @@ let elapsedTimeSec = $state(0)
 let elapsedTimer: ReturnType<typeof setInterval> | undefined
 
 let poller: Poller<CustomDomainView[]> | undefined
+let isStalled = $state(false)
 
 const selectedGuide = $derived(getGuide(selectedRegistrarId))
 
@@ -272,6 +273,7 @@ function syncPolledDomain(list: CustomDomainView[]): void {
 
 function startPolling(): void {
   if (poller) poller.stop()
+  isStalled = false
 
   poller = pollWithBackoff(
     async (signal) => {
@@ -288,6 +290,18 @@ function startPolling(): void {
       minDelayMs: 2000,
       maxDelayMs: 20000,
       backoffFactor: 1.5,
+      stallTimeoutMs: 10 * 60 * 1000,
+      hasChanged: (prev, next) => {
+        const prevDomain = prev.find((d) => d.id === domain?.id || d.hostname === domain?.hostname)
+        const nextDomain = next.find((d) => d.id === domain?.id || d.hostname === domain?.hostname)
+        return (
+          prevDomain?.status !== nextDomain?.status ||
+          prevDomain?.updated_at !== nextDomain?.updated_at
+        )
+      },
+      onStalled: () => {
+        isStalled = true
+      },
       onUpdate: (list) => {
         syncPolledDomain(list)
       },
@@ -360,7 +374,7 @@ $effect(() => {
 $effect(() => {
   if (step === 3 || step === 4) {
     if (!elapsedTimer) startElapsedTimer()
-    if (!poller?.isRunning()) startPolling()
+    if (!poller?.isRunning() && !isStalled) startPolling()
   } else if (step === 5) {
     stopElapsedTimer()
     if (poller) poller.stop()
@@ -659,6 +673,13 @@ function handleAddedRecords(): void {
               </Alert>
             {/if}
 
+            {#if isStalled}
+              <Alert variant="warning">
+                <strong>{t['admin.common.stalledPending']()}</strong>
+                <p>{t['admin.common.stalledNotice']()}</p>
+              </Alert>
+            {/if}
+
             <DomainRecordTable
               records={domainRecords}
               typeHeader={t['admin.domains.detail.recordsTypeHeader']()}
@@ -710,10 +731,17 @@ function handleAddedRecords(): void {
               <p class="sanvi-connect__card-desc">{t['admin.domains.connect.step4Description']()}</p>
             </div>
 
-            <div class="sanvi-connect__spinner-box">
-              <Spinner size="md" label={t['admin.domains.connect.issuingStatus']()} />
-              <p>{t['admin.domains.connect.issuingStatus']()}</p>
-            </div>
+            {#if isStalled}
+              <Alert variant="warning">
+                <strong>{t['admin.common.stalledPending']()}</strong>
+                <p>{t['admin.common.stalledNotice']()}</p>
+              </Alert>
+            {:else}
+              <div class="sanvi-connect__spinner-box">
+                <Spinner size="md" label={t['admin.domains.connect.issuingStatus']()} />
+                <p>{t['admin.domains.connect.issuingStatus']()}</p>
+              </div>
+            {/if}
 
             <div class="sanvi-connect__leave-panel">
               <p>{t['admin.domains.connect.leaveNotice']()}</p>

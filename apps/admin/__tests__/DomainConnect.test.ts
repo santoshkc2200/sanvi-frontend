@@ -110,6 +110,7 @@ describe('Admin DomainConnect Wizard Component', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
@@ -530,6 +531,29 @@ describe('Admin DomainConnect Wizard Component', () => {
     render(DomainConnect)
 
     expect(await screen.findByText('Custom domains require an upgrade')).toBeInTheDocument()
+  })
+
+  it('displays stalled warning alert when poller stalls in step 4', async () => {
+    vi.useFakeTimers()
+    const securingDomain = makeDomain({ status: 'issuing_cert' })
+    domainsList = [securingDomain]
+
+    render(DomainConnect, { props: { id: 'dom_conn123' } })
+
+    await vi.advanceTimersByTimeAsync(10)
+    expect(
+      await screen.findByRole('heading', { name: 'Step 4: Securing your domain', level: 2 }),
+    ).toBeInTheDocument()
+
+    for (let i = 0; i < 35; i++) {
+      await vi.advanceTimersByTimeAsync(20000)
+    }
+
+    expect(
+      await screen.findByText('Still pending after 10 minutes — contact support'),
+    ).toBeInTheDocument()
+
+    vi.useRealTimers()
   })
 
   it('has no accessibility violations across wizard steps', async () => {

@@ -9,6 +9,18 @@ export interface PollOptions<T> {
   jitterRatio?: number
   onUpdate?: (result: T) => void
   onError?: (error: unknown) => void
+  /**
+   * Optional stall timeout in milliseconds.
+   * After this duration with no change in the polled result, polling stops
+   * and reports a distinct "stalled" state.
+   */
+  stallTimeoutMs?: number
+  /**
+   * Custom change detector. Return true if `next` differs from `prev`.
+   * Defaults to deep JSON comparison.
+   */
+  hasChanged?: (prev: T, next: T) => boolean
+  onStalled?: (lastResult: T | undefined) => void
 }
 
 export interface Poller<T> {
@@ -17,6 +29,7 @@ export interface Poller<T> {
   checkNow(): Promise<T | undefined>
   getCurrent(): T | undefined
   isRunning(): boolean
+  isStalled(): boolean
 }
 
 export function pollWithBackoff<T>(
@@ -33,8 +46,10 @@ export function pollWithBackoff<T>(
   let timer: ReturnType<typeof setTimeout> | undefined
   let abortController: AbortController | undefined
   let running = false
+  let stalled = false
   let current: T | undefined
   let lastFetchTime = 0
+  let lastChangeTime = 0
 
   /** Arm the next tick at the current delay, then widen the delay for the tick after it. */
   function scheduleNext(): void {
@@ -60,6 +75,17 @@ export function pollWithBackoff<T>(
       const result = await fetchFn(abortController.signal)
       if (!running) return undefined
 
+      if (current === undefined) {
+        lastChangeTime = Date.now()
+      } else {
+        const changed = options.hasChanged
+          ? options.hasChanged(current, result)
+          : JSON.stringify(current) !== JSON.stringify(result)
+        if (changed) {
+          lastChangeTime = Date.now()
+        }
+      }
+
       current = result
       options.onUpdate?.(result)
 
@@ -68,11 +94,26 @@ export function pollWithBackoff<T>(
         return result
       }
 
+      if (options.stallTimeoutMs && Date.now() - lastChangeTime >= options.stallTimeoutMs) {
+        stalled = true
+        stop()
+        options.onStalled?.(result)
+        return result
+      }
+
       scheduleNext()
       return result
     } catch (err) {
       if (!running) return undefined
       options.onError?.(err)
+
+      if (options.stallTimeoutMs && Date.now() - lastChangeTime >= options.stallTimeoutMs) {
+        stalled = true
+        stop()
+        options.onStalled?.(current)
+        return undefined
+      }
+
       scheduleNext()
       return undefined
     }
@@ -81,6 +122,8 @@ export function pollWithBackoff<T>(
   function start(): void {
     if (running) return
     running = true
+    stalled = false
+    lastChangeTime = Date.now()
     currentDelay = minDelayMs
     void executePoll()
   }
@@ -105,7 +148,12 @@ export function pollWithBackoff<T>(
    * follow a manual check are as responsive as a fresh start.
    */
   async function checkNow(): Promise<T | undefined> {
-    if (!running) return current
+    if (!running && !stalled) return current
+    if (stalled) {
+      stalled = false
+      running = true
+      lastChangeTime = Date.now()
+    }
     if (timer) {
       clearTimeout(timer)
       timer = undefined
@@ -125,5 +173,6 @@ export function pollWithBackoff<T>(
     checkNow,
     getCurrent: () => current,
     isRunning: () => running,
+    isStalled: () => stalled,
   }
 }

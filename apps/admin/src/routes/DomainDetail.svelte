@@ -1,4 +1,5 @@
 <script lang="ts">
+import { onDestroy } from 'svelte'
 import {
   ApiError,
   getDomainInstructions,
@@ -26,6 +27,7 @@ import {
   Stack,
 } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
+import { pollWithBackoff, type Poller } from '../lib/domains/poll'
 import { failureMessage as failureMessageFor, toRecordItems } from '../lib/domains/records'
 
 type CustomDomainView = components['schemas']['CustomDomainView']
@@ -62,6 +64,49 @@ let removing = $state(false)
 let removeError = $state<string | undefined>(undefined)
 let typedHostname = $state('')
 
+let poller: Poller<CustomDomainView | null> | undefined
+let isStalled = $state(false)
+
+function startPolling(domainId: string): void {
+  if (poller) poller.stop()
+  isStalled = false
+  poller = pollWithBackoff(
+    async (signal) => {
+      const list = await listCustomDomains(apiClient, signal)
+      return (list ?? []).find((d) => d.id === domainId || d.hostname === domainId) ?? null
+    },
+    (d) => {
+      if (!d) return true
+      return d.status !== 'verifying' && d.status !== 'issuing_cert'
+    },
+    {
+      minDelayMs: 2000,
+      maxDelayMs: 20000,
+      backoffFactor: 1.5,
+      stallTimeoutMs: 10 * 60 * 1000,
+      hasChanged: (prev, next) => {
+        return prev?.status !== next?.status || prev?.updated_at !== next?.updated_at
+      },
+      onStalled: () => {
+        isStalled = true
+      },
+      onUpdate: (updated) => {
+        if (updated) {
+          domain = updated
+          if (updated.status !== 'verifying' && updated.status !== 'issuing_cert') {
+            void load()
+          }
+        }
+      },
+    },
+  )
+  poller.start()
+}
+
+onDestroy(() => {
+  if (poller) poller.stop()
+})
+
 let loadSeq = 0
 
 async function load(): Promise<void> {
@@ -86,11 +131,17 @@ async function load(): Promise<void> {
         locale: currentLocale(),
       }).catch(() => null)
       if (seq !== loadSeq) return
+      if (match.status === 'verifying' || match.status === 'issuing_cert') {
+        startPolling(match.id)
+      } else if (poller) {
+        poller.stop()
+      }
     } else {
       domain = null
       order = null
       instructions = null
       error = t['admin.domains.detail.notFoundTitle']()
+      if (poller) poller.stop()
     }
   } catch (err) {
     if (seq !== loadSeq) return
@@ -304,6 +355,13 @@ const certBadgeLabel = $derived(
           </Stack>
         </Cluster>
       </div>
+
+      {#if isStalled}
+        <Alert variant="warning">
+          <strong>{t['admin.common.stalledPending']()}</strong>
+          <p>{t['admin.common.stalledNotice']()}</p>
+        </Alert>
+      {/if}
 
       {#if domain.status === 'degraded'}
         <Alert variant="warning">

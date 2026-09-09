@@ -336,6 +336,75 @@ describe('AdvertisingCampaigns list (phase 10, TASK-012)', () => {
     expect(screen.getByText(/\$90\.00/)).toBeInTheDocument()
   })
 
+  it('filters campaigns by status including publishing and renders verifying affordance', async () => {
+    setupFetch({
+      campaigns: [
+        campaignView({ id: 'camp_1', campaign: { name: 'Active camp', status: 'active' } }),
+        campaignView({ id: 'camp_2', campaign: { name: 'Publishing camp', status: 'publishing' } }),
+      ],
+    })
+    render(Campaigns)
+
+    await screen.findByText('Active camp')
+    expect(screen.getByText('Publishing camp')).toBeInTheDocument()
+    expect(screen.getByText('Verifying with the platform…')).toBeInTheDocument()
+
+    // Filter by publishing
+    const select = screen.getByRole('combobox', { name: /Status/i })
+    fireEvent.change(select, { target: { value: 'publishing' } })
+
+    await waitFor(() => {
+      expect(screen.queryByText('Active camp')).not.toBeInTheDocument()
+      expect(screen.getByText('Publishing camp')).toBeInTheDocument()
+    })
+  })
+
+  it('bulk pause retries reuse the same idempotency key for failed campaigns', async () => {
+    let callCount = 0
+    const fetchMock = setupFetch({
+      campaigns: [campaignView({ id: 'camp_1', campaign: { status: 'active' } })],
+      mutate: (url) => {
+        if (url.includes('/pause')) {
+          callCount++
+          if (callCount === 1) {
+            return new Response(
+              JSON.stringify({ type: 'about:blank', title: 'Temporary error', status: 503 }),
+              {
+                status: 503,
+                headers: { 'content-type': 'application/problem+json' },
+              },
+            )
+          }
+          return jsonResponse({ id: 'camp_1', status: 'paused' })
+        }
+        return undefined
+      },
+    })
+    render(Campaigns)
+
+    await screen.findByText('Summer sale')
+    for (const box of screen.getAllByRole('checkbox')) {
+      if (!(box as HTMLInputElement).checked) fireEvent.click(box)
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Pause selected' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Pause campaigns' }))
+
+    // First attempt failed with 503
+    await screen.findByText(/not accepting changes/i)
+
+    // Retry bulk pause
+    fireEvent.click(screen.getByRole('button', { name: 'Pause campaigns' }))
+    await waitFor(() => {
+      const pauseCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/pause'))
+      expect(pauseCalls.length).toBe(2)
+    })
+
+    const pauseCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/pause'))
+    const key1 = (pauseCalls[0]![1] as RequestInit).headers as Record<string, string>
+    const key2 = (pauseCalls[1]![1] as RequestInit).headers as Record<string, string>
+    expect(key1['idempotency-key']).toBe(key2['idempotency-key'])
+  })
+
   it('has no axe violations', async () => {
     setupFetch()
     const { container } = render(Campaigns)

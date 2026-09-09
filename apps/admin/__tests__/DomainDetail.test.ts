@@ -89,6 +89,7 @@ describe('Admin DomainDetail Route Component', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
@@ -586,6 +587,27 @@ describe('Admin DomainDetail Route Component', () => {
     expect(
       await screen.findByText('Could not load custom domains. Please try again in a moment.'),
     ).toBeInTheDocument()
+  })
+
+  it('displays stalled notice when domain verification stalls beyond timeout', async () => {
+    vi.useFakeTimers()
+    const verifyingDomain = makeDomain({ status: 'verifying' })
+    domainsList = [verifyingDomain]
+
+    render(DomainDetail, { props: { id: 'dom_123' } })
+
+    await vi.advanceTimersByTimeAsync(10)
+    expect(await screen.findByText('Verifying')).toBeInTheDocument()
+
+    for (let i = 0; i < 35; i++) {
+      await vi.advanceTimersToNextTimerAsync()
+    }
+
+    expect(
+      await screen.findByText('Still pending after 10 minutes — contact support'),
+    ).toBeInTheDocument()
+
+    vi.useRealTimers()
   })
 
   it('has no accessibility violations on live detail view', async () => {

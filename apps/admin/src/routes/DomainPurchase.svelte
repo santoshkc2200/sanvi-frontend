@@ -84,6 +84,9 @@ let currentOrder = $state<OrderView | null>(null)
 let domain = $state<CustomDomainView | null>(null)
 let orderPoller: Poller<OrderView[]> | undefined
 let domainPoller: Poller<CustomDomainView[]> | undefined
+let isOrderStalled = $state(false)
+let isDomainStalled = $state(false)
+const isStalled = $derived(isOrderStalled || isDomainStalled)
 let elapsedTimeSec = $state(0)
 let elapsedTimer: ReturnType<typeof setInterval> | undefined
 
@@ -246,6 +249,7 @@ function formatElapsedTime(seconds: number): string {
 
 function startOrderPolling(): void {
   if (orderPoller) orderPoller.stop()
+  isOrderStalled = false
 
   orderPoller = pollWithBackoff(
     async (signal) => {
@@ -264,6 +268,19 @@ function startOrderPolling(): void {
       minDelayMs: 2000,
       maxDelayMs: 20000,
       backoffFactor: 1.5,
+      stallTimeoutMs: 10 * 60 * 1000,
+      hasChanged: (prev, next) => {
+        const p = prev.find(
+          (o) => o.id === currentOrder?.id || o.hostname === currentOrder?.hostname,
+        )
+        const n = next.find(
+          (o) => o.id === currentOrder?.id || o.hostname === currentOrder?.hostname,
+        )
+        return p?.status !== n?.status
+      },
+      onStalled: () => {
+        isOrderStalled = true
+      },
       onUpdate: (orders) => {
         if (!currentOrder) return
         const match = orders.find(
@@ -283,6 +300,7 @@ function startOrderPolling(): void {
 
 function startDomainPolling(): void {
   if (domainPoller) domainPoller.stop()
+  isDomainStalled = false
 
   domainPoller = pollWithBackoff(
     async (signal) => {
@@ -300,6 +318,16 @@ function startDomainPolling(): void {
       minDelayMs: 2000,
       maxDelayMs: 20000,
       backoffFactor: 1.5,
+      stallTimeoutMs: 10 * 60 * 1000,
+      hasChanged: (prev, next) => {
+        const targetHostname = currentOrder?.hostname || domain?.hostname
+        const p = prev.find((d) => d.hostname === targetHostname || d.id === domain?.id)
+        const n = next.find((d) => d.hostname === targetHostname || d.id === domain?.id)
+        return p?.status !== n?.status || p?.updated_at !== n?.updated_at
+      },
+      onStalled: () => {
+        isDomainStalled = true
+      },
       onUpdate: (domains) => {
         const targetHostname = currentOrder?.hostname || domain?.hostname
         if (!targetHostname) return
@@ -957,6 +985,11 @@ onDestroy(() => {
               <Button variant="primary" onclick={handleResetToSearch}>
                 {t['admin.domains.purchase.tryAgainButton']()}
               </Button>
+            {:else if isStalled}
+              <Alert variant="warning">
+                <strong>{t['admin.common.stalledPending']()}</strong>
+                <p>{t['admin.common.stalledNotice']()}</p>
+              </Alert>
             {:else}
               <div class="sanvi-purchase__spinner-box" aria-live="polite">
                 <Spinner size="md" label={provisioningStatusText} />

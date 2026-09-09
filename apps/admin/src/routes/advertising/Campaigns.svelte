@@ -21,12 +21,15 @@ import {
   DataTable,
   Dialog,
   EmptyState,
+  Field,
   NO_VALUE,
+  Select,
   Spinner,
   Stack,
 } from '@sanvi/ui'
 import type { TableColumn } from '@sanvi/ui'
 import { apiClient } from '../../lib/api'
+import { ActionKeyTracker, isDefinitiveError } from '../../lib/idempotency'
 import {
   budgetLine,
   combinedBudgetsByCurrency,
@@ -85,11 +88,18 @@ let rowError = $state<string | undefined>(undefined)
 let sortKey = $state<string | undefined>(undefined)
 let sortDirection = $state<'asc' | 'desc'>('asc')
 
+let statusFilter = $state<string>('all')
+
+const filteredCampaigns = $derived.by(() => {
+  if (!statusFilter || statusFilter === 'all') return campaigns
+  return campaigns.filter((c) => c.campaign.status === statusFilter)
+})
+
 const sortedCampaigns = $derived.by(() => {
-  if (!sortKey) return campaigns
+  if (!sortKey) return filteredCampaigns
   const factor = sortDirection === 'asc' ? 1 : -1
   const key = sortKey
-  return [...campaigns].sort((left, right) => {
+  return [...filteredCampaigns].sort((left, right) => {
     if (key === 'platform') {
       return (
         (names[left.platform] ?? left.platform).localeCompare(
@@ -170,11 +180,18 @@ function currencyFor(view: CampaignView): string | undefined {
   return connectionFor(view, connections)?.currency
 }
 
-function statusTone(status: string): 'success' | 'neutral' | 'warning' {
+function statusTone(status: string): 'success' | 'neutral' | 'warning' | 'info' {
   if (status === 'active') return 'success'
   if (status === 'paused') return 'warning'
+  if (status === 'publishing') return 'info'
   return 'neutral'
 }
+
+function isPublishing(status: string): boolean {
+  return status === 'publishing'
+}
+
+const actionTracker = new ActionKeyTracker()
 
 function newCampaignHref(): string {
   const active = connections.find((connection) => connection.status !== 'disconnected')
@@ -205,10 +222,15 @@ async function pauseRow(view: CampaignView): Promise<void> {
   if (rowBusyId) return
   rowBusyId = view.id
   rowError = undefined
+  const key = actionTracker.getOrMint(view.id, 'pause')
   try {
-    await pauseAdCampaign(apiClient, view.id, crypto.randomUUID())
+    await pauseAdCampaign(apiClient, view.id, key)
+    actionTracker.clear(view.id, 'pause')
     await load()
   } catch (err) {
+    if (isDefinitiveError(err)) {
+      actionTracker.clear(view.id, 'pause')
+    }
     rowError = mutationError(err, 'pause')
   } finally {
     rowBusyId = undefined
@@ -233,12 +255,17 @@ async function confirmResume(): Promise<void> {
   const view = resumeTarget
   if (!view || resumeRunning) return
   resumeRunning = true
+  const key = actionTracker.getOrMint(view.id, 'resume')
   try {
-    await resumeAdCampaign(apiClient, view.id, crypto.randomUUID())
+    await resumeAdCampaign(apiClient, view.id, key)
+    actionTracker.clear(view.id, 'resume')
     resumeOpen = false
     resumeTarget = null
     await load()
   } catch (err) {
+    if (isDefinitiveError(err)) {
+      actionTracker.clear(view.id, 'resume')
+    }
     resumeError = mutationError(err, 'resume')
   } finally {
     resumeRunning = false
@@ -273,15 +300,32 @@ async function confirmBulk(): Promise<void> {
   const action = bulkAction
   const mutator = action === 'pause' ? pauseAdCampaign : resumeAdCampaign
   const results = await Promise.allSettled(
-    bulkTargets.map((view) => mutator(apiClient, view.id, crypto.randomUUID())),
+    bulkTargets.map((view) => {
+      const key = actionTracker.getOrMint(view.id, action)
+      return mutator(apiClient, view.id, key)
+    }),
   )
   bulkRunning = false
+  results.forEach((result, i) => {
+    const view = bulkTargets[i]
+    if (!view) return
+    if (result.status === 'fulfilled' || isDefinitiveError(result.reason)) {
+      actionTracker.clear(view.id, action)
+    }
+  })
   if (results.some((result) => result.status === 'rejected')) {
+    const failedIndices = results.reduce((acc, result, i) => {
+      if (result.status === 'rejected') acc.push(i)
+      return acc
+    }, [] as number[])
+    bulkTargets = bulkTargets.filter((_, i) => failedIndices.includes(i))
+    bulkBudgetLines = combinedBudgetsByCurrency(bulkTargets, currencyFor)
     const failed = results.find((result) => result.status === 'rejected')
     bulkError = mutationError(
       failed && failed.status === 'rejected' ? failed.reason : undefined,
       action === 'pause' ? 'bulk-pause' : 'bulk-resume',
     )
+    await load()
     return
   }
   bulkOpen = false
@@ -300,7 +344,14 @@ $effect(() => {
 </svelte:head>
 
 {#snippet statusCell(row: CampaignRow)}
-  <Badge variant={statusTone(row.campaign.status)}>{statusLabel(row.campaign.status)}</Badge>
+  <Cluster gap="2" align="center">
+    <Badge variant={statusTone(row.campaign.status)}>{statusLabel(row.campaign.status)}</Badge>
+    {#if isPublishing(row.campaign.status)}
+      <span class="sanvi-ad-campaigns__verifying">
+        {t['admin.advertising.campaigns.verifyingWithPlatform']()}
+      </span>
+    {/if}
+  </Cluster>
 {/snippet}
 
 {#snippet platformCell(row: CampaignRow)}
@@ -417,9 +468,30 @@ $effect(() => {
         description={t['admin.advertising.campaigns.emptyDescription']()}
       />
     {:else}
-      <p class="sanvi-ad-campaigns__metrics-note">
-        {t['admin.advertising.campaigns.metricsPendingNote']()}
-      </p>
+      <Cluster justify="space-between" align="center" gap="4">
+        <p class="sanvi-ad-campaigns__metrics-note">
+          {t['admin.advertising.campaigns.metricsPendingNote']()}
+        </p>
+        <div class="sanvi-ad-campaigns__filter">
+          <Field label={t['admin.advertising.campaigns.statusColumn']()}>
+            {#snippet children(controlProps)}
+              <Select
+                {...controlProps}
+                bind:value={statusFilter}
+                options={[
+                  { value: 'all', label: t['admin.advertising.campaigns.filterStatusAll']() },
+                  { value: 'active', label: t['admin.advertising.status.active']() },
+                  { value: 'paused', label: t['admin.advertising.status.paused']() },
+                  { value: 'publishing', label: t['admin.advertising.status.publishing']() },
+                  { value: 'draft', label: t['admin.advertising.status.draft']() },
+                  { value: 'ended', label: t['admin.advertising.status.ended']() },
+                  { value: 'archived', label: t['admin.advertising.status.archived']() },
+                ]}
+              />
+            {/snippet}
+          </Field>
+        </div>
+      </Cluster>
       <DataTable
         columns={[
           {
@@ -627,5 +699,14 @@ $effect(() => {
   .sanvi-ad-campaigns__drift-link {
     color: var(--sanvi-color-text-primary);
     font-weight: var(--sanvi-font-weight-medium);
+  }
+
+  .sanvi-ad-campaigns__verifying {
+    font-size: var(--sanvi-font-size-xs);
+    color: var(--sanvi-color-text-secondary);
+  }
+
+  .sanvi-ad-campaigns__filter {
+    min-width: var(--sanvi-spacing-48);
   }
 </style>

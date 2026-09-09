@@ -7,6 +7,7 @@ import { t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
 import { Alert, Button, Cluster, Dialog, Field, Input, Select, showToast, Stack } from '@sanvi/ui'
 import { apiClient } from '../../lib/api'
+import { mintIdempotencyKey } from '../idempotency'
 import { sumSucceededRefundsMinor } from './helpers'
 
 interface Props {
@@ -31,16 +32,6 @@ interface LastAttemptPayload {
   reason: string
 }
 let lastFailedAttempt = $state<LastAttemptPayload | undefined>(undefined)
-
-function mintIdempotencyKey(): string {
-  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-        const r = (Math.random() * 16) | 0
-        const v = c === 'x' ? r : (r & 0x3) | 0x8
-        return v.toString(16)
-      })
-}
 
 const currency = $derived(payment.currency)
 

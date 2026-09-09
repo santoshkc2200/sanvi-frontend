@@ -32,6 +32,7 @@ import {
   type AdChangeItem,
 } from '@sanvi/ui'
 import { apiClient } from '../../lib/api'
+import { ActionKeyTracker, isDefinitiveError } from '../../lib/idempotency'
 import {
   budgetKindLabel,
   changeItems,
@@ -179,13 +180,20 @@ const budget = $derived(
     : '—',
 )
 
-function statusTone(status: string): 'success' | 'neutral' | 'warning' {
+function statusTone(status: string): 'success' | 'neutral' | 'warning' | 'info' {
   if (status === 'active') return 'success'
   if (status === 'paused') return 'warning'
+  if (status === 'publishing') return 'info'
   return 'neutral'
 }
 
+function isPublishing(status: string | undefined): boolean {
+  return status === 'publishing'
+}
+
 // --- Mutations --------------------------------------------------------------
+
+const actionTracker = new ActionKeyTracker()
 
 function mutationError(err: unknown): string {
   if (err instanceof ApiError) {
@@ -201,11 +209,16 @@ async function confirmPublish(): Promise<void> {
   if (!campaign || publishRunning) return
   publishRunning = true
   publishError = undefined
+  const key = actionTracker.getOrMint(campaign.id, 'publish')
   try {
-    await publishAdCampaign(apiClient, campaign.id, crypto.randomUUID())
+    await publishAdCampaign(apiClient, campaign.id, key)
+    actionTracker.clear(campaign.id, 'publish')
     publishOpen = false
     await load()
   } catch (err) {
+    if (isDefinitiveError(err)) {
+      actionTracker.clear(campaign.id, 'publish')
+    }
     if (err instanceof ApiError && err.status === 400 && err.problem) {
       // Platform-side validation failure: the platform's field messages,
       // verbatim — paraphrasing a rejection is how people ship broken ads.
@@ -226,10 +239,15 @@ async function pause(): Promise<void> {
   if (!campaign || mutating) return
   mutating = true
   actionError = undefined
+  const key = actionTracker.getOrMint(campaign.id, 'pause')
   try {
-    await pauseAdCampaign(apiClient, campaign.id, crypto.randomUUID())
+    await pauseAdCampaign(apiClient, campaign.id, key)
+    actionTracker.clear(campaign.id, 'pause')
     await load()
   } catch (err) {
+    if (isDefinitiveError(err)) {
+      actionTracker.clear(campaign.id, 'pause')
+    }
     actionError = mutationError(err)
   } finally {
     mutating = false
@@ -244,11 +262,16 @@ function openResume(): void {
 async function confirmResume(): Promise<void> {
   if (!campaign || resumeRunning) return
   resumeRunning = true
+  const key = actionTracker.getOrMint(campaign.id, 'resume')
   try {
-    await resumeAdCampaign(apiClient, campaign.id, crypto.randomUUID())
+    await resumeAdCampaign(apiClient, campaign.id, key)
+    actionTracker.clear(campaign.id, 'resume')
     resumeOpen = false
     await load()
   } catch (err) {
+    if (isDefinitiveError(err)) {
+      actionTracker.clear(campaign.id, 'resume')
+    }
     resumeError = mutationError(err)
   } finally {
     resumeRunning = false
@@ -325,6 +348,11 @@ $effect(() => {
           <Badge variant={statusTone(campaign?.campaign.status ?? '')}>
             {statusLabel(campaign?.campaign.status ?? '')}
           </Badge>
+          {#if isPublishing(campaign?.campaign.status)}
+            <Badge variant="info">
+              {t['admin.advertising.campaigns.verifyingWithPlatform']()}
+            </Badge>
+          {/if}
           {#if campaign?.campaign.drift.drifted}
             <Badge variant="warning">{t['admin.advertising.campaigns.driftedBadge']()}</Badge>
           {/if}

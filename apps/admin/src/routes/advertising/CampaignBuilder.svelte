@@ -54,6 +54,7 @@ import {
   type ServerViolation,
 } from '@sanvi/ui'
 import { apiClient } from '../../lib/api'
+import { mintIdempotencyKey } from '../../lib/idempotency'
 import {
   budgetIncrease,
   dataLabel,
@@ -276,6 +277,20 @@ function stepIdsFor(target: NonNullable<typeof schema>): BuilderStepId[] {
   return builderSteps(target)
 }
 
+function formatDatetimeLocal(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function toIsoTimestamp(val: string | null | undefined): string | null {
+  if (!val) return null
+  const d = new Date(val)
+  return Number.isNaN(d.getTime()) ? val : d.toISOString()
+}
+
 // Continuous autosave: any draft, schedule, or step change persists. Cleared
 // only by a successful submit (or an explicit discard after a conflict).
 $effect(() => {
@@ -324,7 +339,10 @@ async function advanceTo(next: BuilderStepId): Promise<void> {
       // validated against that same matrix, so the boundary cast is safe.
       const payload = draftToPatchPayload(draft, {
         currency: active.currency,
-        schedule,
+        schedule: {
+          startsAt: toIsoTimestamp(schedule.startsAt),
+          endsAt: toIsoTimestamp(schedule.endsAt),
+        },
       }) as unknown as PatchCampaignRequest
       const result = await validateAdCampaign(apiClient, campaign.id, payload)
       if (result && result.violations.length > 0) {
@@ -399,13 +417,16 @@ async function submitReview(): Promise<void> {
   submitting = true
   submitError = undefined
   serverViolations = []
-  pendingKey = pendingKey ?? crypto.randomUUID()
+  pendingKey = pendingKey ?? mintIdempotencyKey()
 
   try {
     if (editMode && campaign && editId) {
       const payload = draftToPatchPayload(draft, {
         currency: active.currency,
-        schedule,
+        schedule: {
+          startsAt: toIsoTimestamp(schedule.startsAt),
+          endsAt: toIsoTimestamp(schedule.endsAt),
+        },
       }) as unknown as PatchCampaignRequest
       const updated = await patchAdCampaign(apiClient, campaign.id, payload, {
         revision: campaign.revision,
@@ -420,7 +441,10 @@ async function submitReview(): Promise<void> {
     const payload = draftToCreatePayload(draft, {
       connectionId: active.id,
       currency: active.currency,
-      schedule,
+      schedule: {
+        startsAt: toIsoTimestamp(schedule.startsAt),
+        endsAt: toIsoTimestamp(schedule.endsAt),
+      },
     }) as unknown as CreateCampaignRequest
     const created = await createAdCampaign(apiClient, payload, pendingKey)
     // The targeting selection rides on a seeded first ad group — targeting
@@ -456,7 +480,11 @@ function handleSubmitError(err: unknown): void {
     if (err.status === 409) {
       // The campaign moved under us — show the current state and stop.
       // No retry, no merge: the operator decides from what is shown.
-      void reloadConflict()
+      if (editId) {
+        void reloadConflict()
+      } else {
+        submitError = t['admin.advertising.builder.submitError']()
+      }
       return
     }
     if (err.status === 400 && err.problem && hasViolations(err.problem)) {
@@ -767,7 +795,7 @@ $effect(() => {
                 <span>{t['admin.advertising.builder.scheduleStart']()}</span>
                 <input
                   type="datetime-local"
-                  value={schedule.startsAt ?? ''}
+                  value={formatDatetimeLocal(schedule.startsAt)}
                   onchange={(event) => {
                     schedule = { ...schedule, startsAt: event.currentTarget.value || null }
                   }}
@@ -777,7 +805,7 @@ $effect(() => {
                 <span>{t['admin.advertising.builder.scheduleEnd']()}</span>
                 <input
                   type="datetime-local"
-                  value={schedule.endsAt ?? ''}
+                  value={formatDatetimeLocal(schedule.endsAt)}
                   onchange={(event) => {
                     schedule = { ...schedule, endsAt: event.currentTarget.value || null }
                   }}

@@ -205,4 +205,106 @@ describe('pollWithBackoff helper', () => {
     expect(mockFetch).toHaveBeenCalledTimes(2)
     expect(poller.isRunning()).toBe(false)
   })
+
+  it('stops and reports stalled after stallTimeoutMs with no change in polled result', async () => {
+    const mockFetch = vi.fn(async () => ({ status: 'verifying' }))
+    const onStalled = vi.fn()
+    const onUpdate = vi.fn()
+
+    const poller = pollWithBackoff(mockFetch, () => false, {
+      minDelayMs: 100,
+      maxDelayMs: 200,
+      backoffFactor: 1.5,
+      jitterRatio: 0,
+      stallTimeoutMs: 1000,
+      onStalled,
+      onUpdate,
+    })
+
+    poller.start()
+    expect(poller.isRunning()).toBe(true)
+    expect(poller.isStalled()).toBe(false)
+
+    // Advance 500ms: still running and polling
+    await vi.advanceTimersByTimeAsync(500)
+    expect(poller.isRunning()).toBe(true)
+    expect(poller.isStalled()).toBe(false)
+    expect(onStalled).not.toHaveBeenCalled()
+
+    // Advance past stallTimeoutMs (1000ms total)
+    await vi.advanceTimersByTimeAsync(600)
+    expect(poller.isRunning()).toBe(false)
+    expect(poller.isStalled()).toBe(true)
+    expect(onStalled).toHaveBeenCalledWith({ status: 'verifying' })
+
+    const countWhenStalled = mockFetch.mock.calls.length
+
+    // Polling has stopped, advancing time produces no more calls
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(mockFetch).toHaveBeenCalledTimes(countWhenStalled)
+  })
+
+  it('resets stall timer when the polled result changes', async () => {
+    let callIndex = 0
+    const mockFetch = vi.fn(async () => {
+      callIndex++
+      // Value changes at t=400ms (call 3)
+      return { step: callIndex <= 2 ? 1 : 2 }
+    })
+    const onStalled = vi.fn()
+
+    const poller = pollWithBackoff(mockFetch, () => false, {
+      minDelayMs: 100,
+      maxDelayMs: 100,
+      jitterRatio: 0,
+      stallTimeoutMs: 300,
+      onStalled,
+    })
+
+    poller.start()
+    // t=0 (call 1, step 1)
+    await vi.advanceTimersByTimeAsync(10)
+    // t=100 (call 2, step 1)
+    await vi.advanceTimersByTimeAsync(100)
+    // t=200 (call 3, step 2 - changed! stall timer resets to t=200)
+    await vi.advanceTimersByTimeAsync(100)
+    expect(poller.isRunning()).toBe(true)
+    expect(poller.isStalled()).toBe(false)
+
+    // At t=400ms (200ms after step 2 change), still under 300ms stallTimeout
+    await vi.advanceTimersByTimeAsync(200)
+    expect(poller.isRunning()).toBe(true)
+    expect(poller.isStalled()).toBe(false)
+
+    // At t=550ms (350ms after step 2 change), stall timeout exceeded
+    await vi.advanceTimersByTimeAsync(150)
+    expect(poller.isRunning()).toBe(false)
+    expect(poller.isStalled()).toBe(true)
+    expect(onStalled).toHaveBeenCalledWith({ step: 2 })
+  })
+
+  it('can resume polling via checkNow or start after stalling', async () => {
+    let callCount = 0
+    const mockFetch = vi.fn(async () => {
+      callCount++
+      return { count: callCount }
+    })
+    const poller = pollWithBackoff(mockFetch, () => false, {
+      minDelayMs: 50,
+      maxDelayMs: 50,
+      jitterRatio: 0,
+      stallTimeoutMs: 100,
+      hasChanged: () => false, // simulate unchanged result
+    })
+
+    poller.start()
+    await vi.advanceTimersByTimeAsync(150)
+    expect(poller.isStalled()).toBe(true)
+
+    // checkNow resets stalled state and triggers fetch
+    await poller.checkNow()
+    expect(poller.isStalled()).toBe(false)
+    expect(poller.isRunning()).toBe(true)
+    poller.stop()
+  })
 })
