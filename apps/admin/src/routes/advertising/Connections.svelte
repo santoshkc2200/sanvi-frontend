@@ -120,7 +120,14 @@ function platformEntitled(platform: PlatformView): boolean {
 }
 
 function connectionFor(platform: PlatformView): ConnectionView | undefined {
-  return connections.find((connection) => connection.platform === platform.key)
+  const matches = connections.filter((connection) => connection.platform === platform.key)
+  if (matches.length === 0) return undefined
+  matches.sort((a, b) => {
+    if (a.status !== 'disconnected' && b.status === 'disconnected') return -1
+    if (a.status === 'disconnected' && b.status !== 'disconnected') return 1
+    return 0
+  })
+  return matches[0]
 }
 
 /** Per-platform entitlement labels for the card, keyed by connection state value. */
@@ -264,9 +271,13 @@ async function connectFlow(platform: PlatformView): Promise<void> {
   } catch (err) {
     startingPlatform = undefined
     if (err instanceof ApiError && err.status === 403) {
-      // Freshness lapsed mid-flight (or step-up was skipped) — route to
-      // step-up and come straight back into this connect.
-      navigate(stepUpReturnTo(`?connect=${encodeURIComponent(platform.key)}`))
+      if (!freshAal2()) {
+        // Freshness lapsed mid-flight (or step-up was skipped) — route to
+        // step-up and come straight back into this connect.
+        navigate(stepUpReturnTo(`?connect=${encodeURIComponent(platform.key)}`))
+        return
+      }
+      showToast({ title: t['admin.advertising.campaigns.forbidden'](), variant: 'error' })
       return
     }
     if (err instanceof ApiError && err.status === 503) {
@@ -319,8 +330,12 @@ async function handleDisconnectConfirm(): Promise<void> {
     await load()
   } catch (err) {
     if (err instanceof ApiError && err.status === 403) {
-      disconnectOpen = false
-      navigate(stepUpReturnTo(`?disconnect=${connection.id}`))
+      if (!freshAal2()) {
+        disconnectOpen = false
+        navigate(stepUpReturnTo(`?disconnect=${connection.id}`))
+        return
+      }
+      disconnectError = t['admin.advertising.campaigns.forbidden']()
       return
     }
     disconnectError = t['admin.advertising.disconnectError']()

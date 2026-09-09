@@ -53,16 +53,25 @@ let {
 // object means the matrix changed under us — stale entries would bind
 // values to fields that no longer exist, so they are discarded wholesale.
 let limitsObserved = false
+let prevLimitsJson = ''
 $effect.pre(() => {
-  void limitsByLocale
+  const currentLimitsJson = JSON.stringify(limitsByLocale)
   if (!limitsObserved) {
     if (entries === undefined) {
       entries = Object.keys(limitsByLocale).map((locale) => ({ locale, values: {} }))
     }
     limitsObserved = true
+    prevLimitsJson = currentLimitsJson
     return
   }
-  entries = Object.keys(limitsByLocale).map((locale) => ({ locale, values: {} }))
+  if (currentLimitsJson !== prevLimitsJson) {
+    const oldEntries = entries ?? []
+    entries = Object.keys(limitsByLocale).map((locale) => {
+      const existing = oldEntries.find((e) => e.locale === locale)
+      return existing || { locale, values: {} }
+    })
+    prevLimitsJson = currentLimitsJson
+  }
 })
 
 const visible = $derived(entries ?? [])

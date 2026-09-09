@@ -43,6 +43,18 @@ let events = $state<ConversionEvent[]>([])
 let sortKey = $state('occurred_at')
 let sortDirection = $state<'asc' | 'desc'>('desc')
 
+const sortedEvents = $derived.by(() => {
+  if (!sortKey) return events
+  const factor = sortDirection === 'asc' ? 1 : -1
+  const key = sortKey
+  return [...events].sort((left, right) => {
+    if (key === 'occurred_at') {
+      return (Date.parse(left.occurred_at) - Date.parse(right.occurred_at)) * factor
+    }
+    return 0
+  })
+})
+
 let loadSeq = 0
 
 async function load(): Promise<void> {
@@ -189,7 +201,7 @@ $effect(() => {
             cell: uploadPendingCell,
           },
         ]}
-        rows={events}
+        rows={sortedEvents}
         getRowId={(row) => row.id}
         caption={t['admin.advertising.conversions.caption']()}
         sortKey={sortKey}
