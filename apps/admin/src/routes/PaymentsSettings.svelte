@@ -600,14 +600,15 @@ async function handleDisconnect(): Promise<void> {
       if (isBlockerArray(blockers)) {
         disconnectBlockers = blockers
       } else {
-        disconnectError = err.message || t['admin.payments.disconnectError']()
+        disconnectError = t['admin.payments.disconnectError']()
       }
     } else if (err instanceof ApiError && err.type === 'payments/provider-unavailable') {
       degradedMode = true
       disconnectError = t['admin.payments.disconnectError']()
-    } else if (err instanceof Error) {
-      disconnectError = err.message
     } else {
+      // Neither `ApiError.message` (the backend problem.title, untranslated
+      // English) nor a raw network string ("Failed to fetch") belongs in a
+      // merchant-facing dialog.
       disconnectError = t['admin.payments.disconnectError']()
     }
   } finally {

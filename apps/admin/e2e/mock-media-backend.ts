@@ -78,13 +78,21 @@ export function mockMediaBackend(page: Page): void {
       await route.fulfill({ status: 400, json: { code: 'invalid_input' } })
       return
     }
-    assetCounter += 1
-    const body = request.postDataJSON() as { kind?: string; visibility?: string }
-    if (!body.visibility) {
-      await route.fulfill({ status: 400, json: { code: 'invalid_input' } })
+    // The refusals the real service makes, so the mock cannot green-light a
+    // request `hitox-media-service` would reject. Its namespace middleware
+    // reads `X-Namespace-ID`, and `NewGenericAsset` demands a visibility of
+    // exactly `private` or `public` — an absent one is an invalid asset, not
+    // a default.
+    if (!request.headers()['x-namespace-id']) {
+      await route.fulfill({ status: 400, json: { code: 'invalid_namespace' } })
       return
     }
-    void body
+    assetCounter += 1
+    const body = request.postDataJSON() as { kind?: string; visibility?: string }
+    if (body.visibility !== 'private' && body.visibility !== 'public') {
+      await route.fulfill({ status: 400, json: { code: 'invalid_asset' } })
+      return
+    }
     await route.fulfill({
       status: 201,
       json: {

@@ -35,6 +35,10 @@ describe('builderSteps (matrix-driven stepper composition)', () => {
     const bare = { ...ASYMMETRIC, targeting_dimensions: [] }
     expect(builderSteps(campaignFormSchema(bare, 'bare'))).not.toContain('targeting')
   })
+
+  it('drops the targeting step in edit mode', () => {
+    expect(builderSteps(campaignFormSchema(GOOGLE), { mode: 'edit' })).not.toContain('targeting')
+  })
 })
 
 describe('validateStep (per-step gating from whole-form rules)', () => {

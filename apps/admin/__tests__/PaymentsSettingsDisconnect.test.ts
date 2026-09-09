@@ -291,7 +291,9 @@ describe('PaymentsSettings - Disconnect Flow and Degraded Mode (TASK-008)', () =
     await waitFor(() => {
       expect(callCount).toBe(1)
     })
-    expect(await screen.findByText('Invalid request')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Failed to disconnect payment provider. Please try again.'),
+    ).toBeInTheDocument()
 
     // Second attempt (retry)
     await fireEvent.click(dialogConfirmBtn)

@@ -48,14 +48,30 @@ export function assetMetadataFromMeasured(measured: {
   }
 }
 
+/**
+ * `W:H` as a number, mirroring the backend's `parse_aspect_ratio`: both sides
+ * are parsed as floats, so a decimal ratio (`1.91:1`, which several
+ * placements use) is as valid here as it is there. An integers-only reader
+ * would reject every asset for such a placement while the backend accepted
+ * it, leaving the form unsubmittable.
+ */
 function parseAspectRatio(ratio: string): number | undefined {
-  const match = /^(\d+):(\d+)$/.exec(ratio.trim())
-  if (!match) return undefined
-  const height = Number(match[2])
-  if (!Number.isFinite(height) || height <= 0) return undefined
-  const width = Number(match[1])
-  if (!Number.isFinite(width) || width <= 0) return undefined
+  const separator = ratio.indexOf(':')
+  if (separator < 0) return undefined
+  const width = numericSide(ratio.slice(0, separator))
+  const height = numericSide(ratio.slice(separator + 1))
+  if (width === undefined || height === undefined) return undefined
   return width / height
+}
+
+/** One side of a ratio — a finite, positive decimal, and nothing else. */
+function numericSide(raw: string): number | undefined {
+  const trimmed = raw.trim()
+  // `Number('')` is 0 and `Number('1e3')`/`Number('0x10')` are not ratio
+  // syntax, so the shape is checked before the value.
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) return undefined
+  const value = Number(trimmed)
+  return Number.isFinite(value) && value > 0 ? value : undefined
 }
 
 /** The dimension a failing asset check is named after — the backend's vocabulary. */
@@ -151,9 +167,13 @@ export function validateAssetAgainstSpec(
     const hasBounds =
       (spec.min_duration_seconds !== null && spec.min_duration_seconds !== undefined) ||
       (spec.max_duration_seconds !== null && spec.max_duration_seconds !== undefined)
-    if (metadata.duration_seconds === null && hasBounds) {
+    // `== null` covers both an explicit null and an absent field: metadata
+    // echoed back from the API decodes a missing `duration_seconds` to
+    // `undefined`, and an unknown duration must fail here rather than pass
+    // the client and be rejected by the backend.
+    if (metadata.duration_seconds == null && hasBounds) {
       issues.push({ dimension: 'duration_seconds' })
-    } else if (metadata.duration_seconds !== null && metadata.duration_seconds !== undefined) {
+    } else if (metadata.duration_seconds != null) {
       if (
         spec.min_duration_seconds !== null &&
         spec.min_duration_seconds !== undefined &&
@@ -253,12 +273,10 @@ export function specRequirements(spec: AdAssetSpec): AdSpecRequirement[] {
 export function previewFrameAspectRatio(spec: AdAssetSpec): string | undefined {
   const first = spec.aspect_ratios[0]
   if (!first) return undefined
-  const match = /^(\d+):(\d+)$/.exec(first.trim())
-  if (!match) return undefined
-  const width = Number(match[1])
-  const height = Number(match[2])
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    return undefined
-  }
+  const separator = first.indexOf(':')
+  if (separator < 0) return undefined
+  const width = numericSide(first.slice(0, separator))
+  const height = numericSide(first.slice(separator + 1))
+  if (width === undefined || height === undefined) return undefined
   return `${width} / ${height}`
 }

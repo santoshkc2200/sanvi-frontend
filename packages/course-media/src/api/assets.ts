@@ -10,9 +10,23 @@
  * carries an `Idempotency-Key` — the media service refuses a create without
  * one, and a retried mint answers the original asset, never a duplicate.
  */
-import { type CourseApiContext, courseApiRequest } from '../context'
+import { type CourseApiContext, courseApiRequest, type CourseApiRequestOptions } from '../context'
 import type { CompletedPart, UploadPart } from '../model/asset'
 import type { AssetUpload, GenericAsset } from '../model/generic-asset'
+
+/**
+ * Every call in this module addresses `hitox-media-service`, so the target is
+ * fixed here rather than trusted from the caller: the service scopes by
+ * `X-Namespace-ID` and its CORS preflight rejects `X-Tenant-ID`, so a context
+ * built for the course API would fail before the request left the browser.
+ */
+function mediaRequest<T>(
+  ctx: CourseApiContext,
+  path: string,
+  options: CourseApiRequestOptions = {},
+): Promise<T> {
+  return courseApiRequest<T>({ ...ctx, target: 'media' }, path, options)
+}
 
 interface UploadPartWire {
   part_number: number
@@ -80,9 +94,16 @@ export interface CreateAssetUploadInput {
   contentType: string
   filename: string
   sizeBytes: number
+  /**
+   * Who may read the finished asset. The media service demands one of the
+   * two values — an omitted or empty visibility is an invalid asset, not a
+   * default — so this module sends `'private'` unless the caller says
+   * otherwise; a private asset is delivered through a presigned URL, a
+   * public one through a stable, unauthenticated path.
+   */
+  visibility?: 'private' | 'public'
   /** Free-form owner scope for the asset (e.g. the creating surface's id). */
   ownerReference?: string
-  visibility: 'public' | 'private'
 }
 
 /** `POST /v1/assets` — mints the asset and presigns its upload (PUT or parts). */
@@ -91,15 +112,15 @@ export async function createAssetUpload(
   input: CreateAssetUploadInput,
   idempotencyKey: string,
 ): Promise<AssetUpload> {
-  const wire = await courseApiRequest<UploadWire>(ctx, '/v1/assets', {
+  const wire = await mediaRequest<UploadWire>(ctx, '/v1/assets', {
     method: 'POST',
     headers: { 'Idempotency-Key': idempotencyKey },
     body: {
       kind: input.kind,
+      visibility: input.visibility ?? 'private',
       content_type: input.contentType,
       filename: input.filename,
       size_bytes: input.sizeBytes,
-      visibility: input.visibility,
       ...(input.ownerReference ? { owner_id: input.ownerReference } : {}),
     },
   })
@@ -112,7 +133,7 @@ export async function presignAssetParts(
   assetId: string,
   partNumbers: number[],
 ): Promise<UploadPart[]> {
-  const wire = await courseApiRequest<{ part_urls: UploadPartWire[] }>(
+  const wire = await mediaRequest<{ part_urls: UploadPartWire[] }>(
     ctx,
     `/v1/assets/${assetId}/parts`,
     { method: 'POST', body: { part_numbers: partNumbers } },
@@ -126,7 +147,7 @@ export async function completeAssetUpload(
   assetId: string,
   parts: CompletedPart[],
 ): Promise<GenericAsset> {
-  const wire = await courseApiRequest<AssetWire>(ctx, `/v1/assets/${assetId}/complete`, {
+  const wire = await mediaRequest<AssetWire>(ctx, `/v1/assets/${assetId}/complete`, {
     method: 'POST',
     body: { parts: parts.map((part) => ({ part_number: part.partNumber, etag: part.etag })) },
   })
@@ -135,7 +156,7 @@ export async function completeAssetUpload(
 
 /** `DELETE /v1/assets/{assetID}` — aborts an in-progress upload, schedules cleanup. */
 export async function abortAssetUpload(ctx: CourseApiContext, assetId: string): Promise<void> {
-  await courseApiRequest<void>(ctx, `/v1/assets/${assetId}`, { method: 'DELETE' })
+  await mediaRequest<void>(ctx, `/v1/assets/${assetId}`, { method: 'DELETE' })
 }
 
 /** `GET /v1/assets/{assetID}` — the asset's current processing state. */
@@ -143,7 +164,7 @@ export async function getGenericAsset(
   ctx: CourseApiContext,
   assetId: string,
 ): Promise<GenericAsset> {
-  const wire = await courseApiRequest<AssetWire>(ctx, `/v1/assets/${assetId}`)
+  const wire = await mediaRequest<AssetWire>(ctx, `/v1/assets/${assetId}`)
   return toGenericAsset(wire)
 }
 
@@ -153,9 +174,16 @@ export interface AssetDelivery {
   expiresAt: string
 }
 
+interface RenditionWire {
+  name?: string
+  content_type?: string
+  url?: string
+}
+
 interface DeliveryWire {
   url?: string
   expires_at?: string
+  renditions?: RenditionWire[]
 }
 
 /**
@@ -168,8 +196,12 @@ export async function createAssetDelivery(
   ctx: CourseApiContext,
   assetId: string,
 ): Promise<AssetDelivery> {
-  const wire = await courseApiRequest<DeliveryWire>(ctx, `/v1/assets/${assetId}/delivery`, {
+  const wire = await mediaRequest<DeliveryWire>(ctx, `/v1/assets/${assetId}/delivery`, {
     method: 'POST',
   })
-  return { url: wire.url ?? '', expiresAt: wire.expires_at ?? '' }
+  // The top-level `url` is the video streaming entry point and is populated
+  // for public HLS only; an image answers its URLs in `renditions` — so the
+  // renditions are the fallback, not the other way round.
+  const rendition = (wire.renditions ?? []).find((candidate) => candidate.url)
+  return { url: wire.url || (rendition?.url ?? ''), expiresAt: wire.expires_at ?? '' }
 }

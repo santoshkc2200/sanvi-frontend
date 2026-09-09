@@ -142,13 +142,35 @@ abort-on-teardown semantics as `ImageUploadController`; blob ownership is transf
 `takeLocalUrl` so the editor's previews survive reset). The legacy course functions are untouched —
 migrating them is that future phase's work, not this slice's.
 
-**Media-service auth from the admin SPA (a finding, deferred).** The media service authenticates
-with Bearer tokens; the admin SPA's session is a Kratos cookie. `courseApiRequest` now omits an
-empty `Authorization` header and sends `credentials: 'include'`, so a cookie-reading same-site
-gateway works today, but a direct-to-media deployment needs a token-minting path (backend work).
-The e2e webServer pins `VITE_MEDIA_ORIGIN` to the preview server to mirror the same-site gateway
-shape. Saved-creative previews render the server's spec+copy and degrade to text-only frames when a
-delivery URL cannot be resolved — never a broken image.
+**Media-service auth from the admin SPA (a finding, still deferred).** The media service
+authenticates with a *service API key* (`auth.Middleware.Require` accepts nothing else, and it
+guards every `/v1/assets` route); the admin SPA's session is a Kratos cookie, and the key is a
+server secret that must never reach a browser. `courseApiRequest` omits an empty `Authorization`
+header and the admin's context sets `credentials: 'include'`, so a cookie-reading **same-site**
+gateway works today — the e2e webServer pins `VITE_MEDIA_ORIGIN` to the preview server to mirror
+that shape. A direct-to-media deployment still needs a token-minting path or a backend proxy
+(backend work, not present in `sanvi-backend`); until then a cross-origin `VITE_MEDIA_ORIGIN` is
+unsupported, not merely untested.
+
+**Scoping headers and credentials are per-target, not global (review follow-up).** The first cut
+sent `X-Tenant-ID` *and* `X-Namespace-ID` on every `courseApiRequest` and forced
+`credentials: 'include'` for all callers. Both break the media service in a cross-origin
+deployment and regressed the package's existing course-API callers: its
+`Access-Control-Allow-Headers` list does not contain `X-Tenant-ID` (so the preflight fails), and it
+answers no `Access-Control-Allow-Credentials: true` while defaulting `CORS_ALLOWED_ORIGINS` to `*`
+(so any credentialed cross-origin call is blocked). `CourseApiContext` now carries `target` and
+`credentials`: exactly one scoping header travels, and credentials are opt-in. `api/assets.ts`
+pins `target: 'media'` itself rather than trusting the caller, and sends the `visibility` the
+service demands (`private` by default) — an omitted one is `ErrInvalidAsset`, not a default. The
+e2e media mock now enforces those same refusals so it can no longer green-light a request the real
+service would reject.
+
+**Saved-creative preview images are not wired (a finding, deferred with the auth gap).**
+Saved-creative previews render the server's spec+copy and degrade to text-only frames — the
+preview dialog passes no `imageUrl`. `createAssetDelivery` resolves the URL correctly now (an
+image's URLs come back in `renditions[]`; the top-level `url` is populated only for public HLS
+video), but nothing calls it: every call would 401 until the auth path above exists, so wiring it
+would only turn a text-only frame into a failed request.
 
 **Contract deltas.** `CreateCreativeRequest` is one-placement-per-creative, so the editor's
 placement multi-select creates one creative per selected placement. The contract's `CreativeText`

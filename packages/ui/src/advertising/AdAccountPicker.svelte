@@ -39,9 +39,11 @@ export interface AdPickerLabels {
   currencyLabel: string
   currencyHint: string
   currencyPlaceholder: string
+  currencyError: string
   timezoneLabel: string
   timezoneHint: string
   timezonePlaceholder: string
+  timezoneError: string
   timezoneConsequence: string
   confirmLabel: string
   cancelLabel: string
@@ -77,8 +79,8 @@ let selectedId = $state('')
 let currency = $state('')
 let timezone = $state('')
 let currencyTouched = $state(false)
+let timezoneTouched = $state(false)
 
-const selected = $derived(accounts.find((account) => account.external_id === selectedId))
 const matches = $derived.by(() => {
   const query = search.trim().toLowerCase()
   if (!query) return accounts
@@ -88,6 +90,7 @@ const matches = $derived.by(() => {
       account.external_id.toLowerCase().includes(query),
   )
 })
+const selected = $derived(matches.find((account) => account.external_id === selectedId))
 
 const currencyValid = $derived(/^[A-Za-z]{3}$/.test(currency.trim()))
 const timezoneValid = $derived(timezone.trim().length > 0)
@@ -154,40 +157,51 @@ function handleCancel(): void {
         {selected.display_name}
         <span class="sanvi-ad-picker__account-id">{selected.external_id}</span>
       </p>
-      <Field label="{labels.currencyLabel} ({selected.display_name})" required>
-        {#snippet children({ id })}
+      <Field
+        label="{labels.currencyLabel} ({selected.display_name})"
+        hint={labels.currencyHint}
+        error={currencyTouched && !currencyValid ? labels.currencyError : undefined}
+        required
+      >
+        {#snippet children({ id, describedBy, invalid })}
           <Input
             {id}
             bind:value={currency}
             oninput={() => (currencyTouched = true)}
             onblur={() => {
+              currencyTouched = true
               currency = currency.trim().toUpperCase()
             }}
             placeholder={labels.currencyPlaceholder}
             inputmode="text"
             autocomplete="off"
-            invalid={currencyTouched && currency.trim() !== '' && !currencyValid}
-            describedBy="sanvi-ad-picker__currency-hint"
+            {invalid}
+            {describedBy}
             disabled={submitting}
           />
-          <p id="sanvi-ad-picker__currency-hint" class="sanvi-ad-picker__hint">
-            {labels.currencyHint}
-          </p>
         {/snippet}
       </Field>
-      <Field label="{labels.timezoneLabel} ({selected.display_name})" required>
-        {#snippet children({ id })}
+      <Field
+        label="{labels.timezoneLabel} ({selected.display_name})"
+        hint={labels.timezoneHint}
+        error={timezoneTouched && !timezoneValid ? labels.timezoneError : undefined}
+        required
+      >
+        {#snippet children({ id, describedBy, invalid })}
           <Input
             {id}
             bind:value={timezone}
+            oninput={() => (timezoneTouched = true)}
+            onblur={() => {
+              timezoneTouched = true
+              timezone = timezone.trim()
+            }}
             placeholder={labels.timezonePlaceholder}
             autocomplete="off"
-            describedBy="sanvi-ad-picker__timezone-hint"
+            {invalid}
+            {describedBy}
             disabled={submitting}
           />
-          <p id="sanvi-ad-picker__timezone-hint" class="sanvi-ad-picker__hint">
-            {labels.timezoneHint}
-          </p>
         {/snippet}
       </Field>
       <Alert variant="info">{labels.timezoneConsequence}</Alert>
@@ -235,12 +249,6 @@ function handleCancel(): void {
     margin: 0;
     font-weight: var(--sanvi-font-weight-medium);
     color: var(--sanvi-color-text-primary);
-  }
-
-  .sanvi-ad-picker__hint {
-    margin: var(--sanvi-spacing-1) 0 0;
-    font-size: var(--sanvi-font-size-xs);
-    color: var(--sanvi-color-text-secondary);
   }
 
   .sanvi-ad-picker__empty {

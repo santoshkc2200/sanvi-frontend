@@ -140,14 +140,19 @@ describe('AdvertisingSettings platform catalog (phase 10, TASK-010)', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('falls back to the UpgradePrompt when the advertising flag is off and the route is absent (404)', async () => {
+  it('falls back to the empty state when the advertising flag is off and the route is absent (404)', async () => {
     const { listAdPlatforms } = await import('@sanvi/api-client')
     vi.mocked(listAdPlatforms).mockRejectedValue(
       new ApiError(404, { type: 'about:blank', title: 'Not found', status: 404 }, undefined),
     )
     render(AdvertisingSettings)
 
-    expect(await screen.findByText('Upgrade required')).toBeInTheDocument()
+    // A missing route means the feature is not deployed, not that the tenant is
+    // on too small a plan — an upgrade prompt would misdescribe it.
+    expect(
+      await screen.findByText("Advertising connections aren't available yet."),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Upgrade required')).not.toBeInTheDocument()
   })
 
   it('renders a retryable error on unexpected failures', async () => {

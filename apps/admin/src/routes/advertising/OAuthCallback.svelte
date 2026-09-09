@@ -26,6 +26,8 @@ let { platform }: { platform: string } = $props()
 let loading = $state(true)
 let errorMessage = $state<string | undefined>(undefined)
 let invalidRequest = $state(false)
+let accessDenied = $state(false)
+let platformError = $state(false)
 
 function backToConnections(): void {
   navigate('/advertising/connections')
@@ -35,13 +37,24 @@ $effect(() => {
   // Runs once per mount: the query is read here rather than reactively —
   // the authorization response is a single, consumable event.
   const query = new URLSearchParams(window.location.search)
+  const errorParam = query.get('error')
+
+  if (errorParam === 'access_denied') {
+    loading = false
+    accessDenied = true
+    return
+  }
+
+  if (errorParam) {
+    loading = false
+    platformError = true
+    return
+  }
+
   const state = query.get('state')
   const code = query.get('code')
 
   if (!state || !code) {
-    // The platform also redirects back with `?error=access_denied` (and
-    // friends) when the tenant cancels — same screen, no redemption
-    // attempt, plainly worded.
     loading = false
     invalidRequest = true
     return
@@ -86,6 +99,18 @@ $effect(() => {
     {#if loading}
       <Spinner label={t['admin.advertising.connectingProgress']()} />
       <p role="status">{t['admin.advertising.connectingProgress']()}</p>
+    {:else if accessDenied}
+      <Alert variant="warning">{t['admin.advertising.oauthCallbackAccessDenied']()}</Alert>
+      <p>{t['admin.advertising.oauthCallbackRestartHint']()}</p>
+      <Button variant="primary" onclick={backToConnections}>
+        {t['admin.advertising.backToConnections']()}
+      </Button>
+    {:else if platformError}
+      <Alert variant="error">{t['admin.advertising.oauthCallbackPlatformError']()}</Alert>
+      <p>{t['admin.advertising.oauthCallbackRestartHint']()}</p>
+      <Button variant="primary" onclick={backToConnections}>
+        {t['admin.advertising.backToConnections']()}
+      </Button>
     {:else if invalidRequest}
       <Alert variant="error">{t['admin.advertising.oauthCallbackMissingParams']()}</Alert>
       <Button variant="primary" onclick={backToConnections}>

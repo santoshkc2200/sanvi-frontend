@@ -154,6 +154,50 @@ describe('validateAssetAgainstSpec', () => {
     )
     expect(issues).toContainEqual({ dimension: 'duration_seconds' })
   })
+
+  it('treats an absent duration the same as an explicit null', () => {
+    // API-echoed metadata decodes a missing `duration_seconds` to
+    // `undefined`; letting that through would pass the client and be
+    // rejected by the backend instead.
+    const { duration_seconds: _omitted, ...withoutDuration } = metadata({ is_video: true })
+    const issues = validateAssetAgainstSpec(
+      withoutDuration as AdAssetMetadata,
+      placementSpec('stories'),
+    )
+    expect(issues).toContainEqual({ dimension: 'duration_seconds' })
+  })
+
+  it('accepts a decimal aspect ratio, as the backend parser does', () => {
+    // The backend parses both sides of `W:H` as floats — `1.91:1` is a real
+    // placement ratio, and an integers-only reader would reject every asset
+    // for such a placement while the API accepted it.
+    const spec: AdAssetSpec = { ...placementSpec('feed'), aspect_ratios: ['1.91:1'] }
+    expect(
+      validateAssetAgainstSpec(
+        metadata({ aspect_ratio: '1.91:1', width_px: 1910, height_px: 1000 }),
+        spec,
+      ),
+    ).toEqual([])
+    const mismatch = validateAssetAgainstSpec(
+      metadata({ aspect_ratio: '1:1', width_px: 1080, height_px: 1080 }),
+      spec,
+    )
+    expect(mismatch).toContainEqual({
+      dimension: 'aspect_ratio',
+      actual: '1:1',
+      required: '1.91:1',
+    })
+  })
+
+  it('still rejects a ratio that is not W:H', () => {
+    const spec = placementSpec('feed')
+    for (const ratio of ['', '1', '1:', ':1', '1:0', 'a:b', '1e3:1', '-1:1']) {
+      expect(validateAssetAgainstSpec(metadata({ aspect_ratio: ratio }), spec)).toContainEqual({
+        dimension: 'aspect_ratio',
+        actual: ratio,
+      })
+    }
+  })
 })
 
 describe('validateAssetSetAgainstSpec', () => {
@@ -195,5 +239,11 @@ describe('specRequirements and preview frames', () => {
   it('gives the preview frame the spec first ratio as a CSS aspect-ratio', () => {
     expect(previewFrameAspectRatio(placementSpec('stories'))).toBe('9 / 16')
     expect(previewFrameAspectRatio({ ...placementSpec('feed'), aspect_ratios: [] })).toBeUndefined()
+  })
+
+  it('keeps a decimal ratio in the preview frame rather than dropping it', () => {
+    expect(previewFrameAspectRatio({ ...placementSpec('feed'), aspect_ratios: ['1.91:1'] })).toBe(
+      '1.91 / 1',
+    )
   })
 })

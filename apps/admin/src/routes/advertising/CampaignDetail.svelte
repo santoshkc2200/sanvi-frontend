@@ -82,6 +82,7 @@ let resumeError = $state<string | undefined>(undefined)
 
 let mutating = $state(false)
 let actionError = $state<string | undefined>(undefined)
+let changesError = $state<string | undefined>(undefined)
 
 let loadSeq = 0
 
@@ -96,6 +97,7 @@ async function load(): Promise<void> {
   error = undefined
   notFound = false
   actionError = undefined
+  changesError = undefined
 
   if (!campaignId) {
     notFound = true
@@ -145,6 +147,7 @@ async function load(): Promise<void> {
     // History failing to load must not hide the campaign — the timeline
     // section shows the retriable error instead.
     changes = []
+    changesError = t['admin.advertising.detail.changesError']()
   }
 
   // Actor names resolve best-effort: an operator without directory
@@ -451,10 +454,22 @@ $effect(() => {
 
       <section>
         <h2>{t['admin.advertising.detail.changesHeading']()}</h2>
-        {#if timelineItems.length === 0}
+        {#if changesError}
+          <Alert variant="error">
+            {changesError}
+            <Button variant="secondary" onclick={() => void load()}>{t['common.retry']()}</Button>
+          </Alert>
+        {:else if timelineItems.length === 0}
           <p class="sanvi-ad-detail__placeholder">{t['admin.advertising.detail.changesEmpty']()}</p>
         {:else}
-          <AdChangeTimeline items={timelineItems} labels={{ listLabel: t['admin.advertising.detail.changesListLabel']() }} />
+          <AdChangeTimeline
+            items={timelineItems}
+            labels={{
+              listLabel: t['admin.advertising.detail.changesListLabel'](),
+              beforeLabel: t['admin.advertising.detail.changeBefore'](),
+              afterLabel: t['admin.advertising.detail.changeAfter'](),
+            }}
+          />
         {/if}
       </section>
       {/if}

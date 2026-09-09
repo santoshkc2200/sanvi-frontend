@@ -101,6 +101,66 @@ describe('AssetUploadController', () => {
     expect((states[1] as { phase: string }).phase).toBe('uploading')
   })
 
+  it('mints against the media service contract: namespace scope and a visibility', async () => {
+    // The service rejects an asset whose visibility is neither `private` nor
+    // `public`, and its CORS allow-list names `X-Namespace-ID` only — a
+    // request carrying `X-Tenant-ID` never leaves the browser.
+    const controller = new AssetUploadController(ctx(), {
+      measureImage: async () => ({ url: 'blob:mint', width: 10, height: 10 }),
+    })
+    controller.start(jpegFile())
+    await flush()
+    await flush()
+    await flush()
+
+    const mint = (
+      globalThis.fetch as unknown as { mock: { calls: [string, RequestInit][] } }
+    ).mock.calls.find(
+      ([url, init]) => String(url).endsWith('/v1/assets') && init?.method === 'POST',
+    )
+    expect(mint).toBeDefined()
+    const [, init] = mint!
+    expect(JSON.parse(String(init.body))).toMatchObject({ kind: 'image', visibility: 'private' })
+    expect(init.headers).toHaveProperty('X-Namespace-ID', 'tenant-1')
+    expect(init.headers).not.toHaveProperty('X-Tenant-ID')
+  })
+
+  it('sends credentials only when the context asks for them', async () => {
+    const deps = { measureImage: async () => ({ url: 'blob:c', width: 10, height: 10 }) }
+    const initFor = async (context: CourseApiContext): Promise<RequestInit> => {
+      const controller = new AssetUploadController(context, deps)
+      controller.start(jpegFile())
+      await flush()
+      await flush()
+      await flush()
+      const calls = (globalThis.fetch as unknown as { mock: { calls: [string, RequestInit][] } })
+        .mock.calls
+      // The last mint, not the first — this helper runs more than once.
+      return calls.findLast(
+        ([url, init]) => String(url).endsWith('/v1/assets') && init?.method === 'POST',
+      )![1]
+    }
+    // The media service answers no `Access-Control-Allow-Credentials`, so an
+    // unconditional `include` would fail CORS for every cross-origin caller.
+    expect((await initFor(ctx())).credentials).toBeUndefined()
+    expect((await initFor({ ...ctx(), credentials: 'include' })).credentials).toBe('include')
+  })
+
+  it('releases the measured blob when the next file is rejected outright', async () => {
+    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL')
+    const controller = new AssetUploadController(ctx(), {
+      measureImage: async () => ({ url: 'blob:stale', width: 10, height: 10 }),
+    })
+    controller.start(jpegFile())
+    await flush()
+    await flush()
+    await flush()
+
+    controller.start(new File(['x'], 'a.bmp', { type: 'image/bmp' }))
+    expect(revokeSpy).toHaveBeenCalledWith('blob:stale')
+    revokeSpy.mockRestore()
+  })
+
   it('takeLocalUrl transfers blob ownership so reset keeps the preview alive', async () => {
     const revokeSpy = vi.spyOn(URL, 'revokeObjectURL')
     const controller = new AssetUploadController(ctx(), {

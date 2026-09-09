@@ -271,9 +271,8 @@ describe('AdvertisingCampaignBuilder (phase 10, TASK-012)', () => {
     const name = await screen.findByLabelText(/^Campaign name/)
     expect(name).toHaveValue('Existing campaign')
 
-    // Walk to review with a 10× budget (threshold is +20%).
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-    await screen.findByText('Who should see these ads')
+    // Walk to review with a 10× budget (threshold is +20%). Edit mode has no
+    // targeting step, so Continue lands on budget.
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     const budgetInput = await screen.findByLabelText(/budget amount/i)
     fireEvent.input(budgetInput, { target: { value: '10000' } })
@@ -332,8 +331,6 @@ describe('AdvertisingCampaignBuilder (phase 10, TASK-012)', () => {
 
     const name = await screen.findByLabelText(/^Campaign name/)
     fireEvent.input(name, { target: { value: 'Renamed in a hurry' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-    await screen.findByText('Who should see these ads')
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     const budgetInput = await screen.findByLabelText(/budget amount/i)
     fireEvent.input(budgetInput, { target: { value: '1100' } })

@@ -32,10 +32,11 @@ import { apiClient } from '../lib/api'
  * Since TASK-011 the connect action routes to the connections screen
  * (`/advertising/connections`) — the credential screen where the OAuth
  * handoff, health states, and disconnect live — rather than into the flow
- * directly, so the scope explainer is always seen before any grant.
+ * directly.
  */
 let loading = $state(true)
 let entitled = $state(true)
+let notAvailable = $state(false)
 let error = $state<string | undefined>(undefined)
 let platforms = $state<PlatformView[]>([])
 
@@ -48,6 +49,7 @@ async function load(): Promise<void> {
   loading = true
   error = undefined
   entitled = true
+  notAvailable = false
   platforms = []
 
   try {
@@ -56,9 +58,13 @@ async function load(): Promise<void> {
     platforms = result?.platforms ?? []
   } catch (err) {
     if (seq !== loadSeq) return
-    if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
-      // 403: no platform entitlement; 404: the advertising flag is off and
-      // the route does not exist — the feature is simply not there.
+    if (err instanceof ApiError && err.status === 404) {
+      notAvailable = true
+      platforms = []
+    } else if (err instanceof ApiError && err.status === 403) {
+      // The contract folds two cases into one 403 ("Missing advertising.read
+      // permission or both advertising platform entitlements"), and emits no
+      // problem type to tell them apart, so this stays the upgrade path.
       entitled = false
       platforms = []
     } else {
@@ -126,10 +132,13 @@ $effect(() => {
         {error}
         <Button variant="secondary" onclick={retry}>{t['common.retry']()}</Button>
       </Alert>
-    {/if}
-
-    {#if loading}
+    {:else if loading}
       <Spinner label={t['admin.advertising.loading']()} />
+    {:else if notAvailable}
+      <EmptyState
+        title={t['admin.advertising.empty']()}
+        description={t['admin.advertising.emptyDescription']()}
+      />
     {:else if !entitled}
       <UpgradePrompt
         title={t['admin.advertising.upgradeTitle']()}

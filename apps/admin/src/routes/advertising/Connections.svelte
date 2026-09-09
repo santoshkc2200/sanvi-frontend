@@ -1,4 +1,5 @@
 <script lang="ts">
+import { untrack } from 'svelte'
 import {
   ApiError,
   deleteAdConnection,
@@ -122,12 +123,8 @@ function platformEntitled(platform: PlatformView): boolean {
 function connectionFor(platform: PlatformView): ConnectionView | undefined {
   const matches = connections.filter((connection) => connection.platform === platform.key)
   if (matches.length === 0) return undefined
-  matches.sort((a, b) => {
-    if (a.status !== 'disconnected' && b.status === 'disconnected') return -1
-    if (a.status === 'disconnected' && b.status !== 'disconnected') return 1
-    return 0
-  })
-  return matches[0]
+  const active = matches.find((c) => adHealthState(c.status, c.health) !== 'disconnected')
+  return active ?? matches[0]
 }
 
 /** Per-platform entitlement labels for the card, keyed by connection state value. */
@@ -277,7 +274,10 @@ async function connectFlow(platform: PlatformView): Promise<void> {
         navigate(stepUpReturnTo(`?connect=${encodeURIComponent(platform.key)}`))
         return
       }
-      showToast({ title: t['admin.advertising.campaigns.forbidden'](), variant: 'error' })
+      showToast({
+        title: t['admin.advertising.connectPermissionDenied'](),
+        variant: 'error',
+      })
       return
     }
     if (err instanceof ApiError && err.status === 503) {
@@ -335,7 +335,7 @@ async function handleDisconnectConfirm(): Promise<void> {
         navigate(stepUpReturnTo(`?disconnect=${connection.id}`))
         return
       }
-      disconnectError = t['admin.advertising.campaigns.forbidden']()
+      disconnectError = t['admin.advertising.disconnectPermissionDenied']()
       return
     }
     disconnectError = t['admin.advertising.disconnectError']()
@@ -347,30 +347,51 @@ async function handleDisconnectConfirm(): Promise<void> {
 // The step-up round trip comes back to `?connect=<key>` / `?disconnect=<id>`
 // on this route. Both resume exactly where the operator left off, then the
 // URL is cleaned so a refresh never re-triggers the action.
+let resumed = false
+
 $effect(() => {
   void getActiveTenantId()
   void load()
 })
 
 $effect(() => {
-  if (loading || startingPlatform) return
+  if (loading || startingPlatform || resumed) return
 
   const query = new URLSearchParams(window.location.search)
   const connectKey = query.get('connect')
   const disconnectId = query.get('disconnect')
   if (!connectKey && !disconnectId) return
 
+  resumed = true
   window.history.replaceState(null, '', '/advertising/connections')
 
   if (connectKey) {
     const platform = platforms.find((candidate) => candidate.key === connectKey)
-    if (platform && platformEntitled(platform)) void connectFlow(platform)
+    if (platform && platformEntitled(platform)) {
+      void connectFlow(platform)
+    } else {
+      untrack(() => {
+        showToast({
+          title: t['admin.advertising.resumeConnectFailed'](),
+          variant: 'error',
+        })
+      })
+    }
     return
   }
 
   if (disconnectId) {
     const connection = connections.find((candidate) => candidate.id === disconnectId)
-    if (connection) openDisconnect(connection)
+    if (connection) {
+      openDisconnect(connection)
+    } else {
+      untrack(() => {
+        showToast({
+          title: t['admin.advertising.resumeDisconnectFailed'](),
+          variant: 'error',
+        })
+      })
+    }
   }
 })
 
@@ -484,9 +505,7 @@ const disconnectConsequence = $derived(
                     <Spinner label={t['admin.advertising.connectStarting']()} />
                   {:else}
                     <p class="sanvi-ad-connections__preconnect">
-                      {t['admin.advertising.preConnectExplainer']({
-                        platform: platform.display_name,
-                      })}
+                      {t['admin.advertising.preConnectExplainer']()}
                     </p>
                   {/if}
                 {/snippet}

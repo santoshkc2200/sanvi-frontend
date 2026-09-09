@@ -1,4 +1,5 @@
 <script lang="ts">
+import { untrack } from 'svelte'
 import Field from '../Field.svelte'
 import Textarea from '../Textarea.svelte'
 import { codePointLength } from '../forms/schema'
@@ -48,30 +49,33 @@ let {
   class: className = '',
 }: Props = $props()
 
+/**
+ * The locales and fields the current limits define, as a comparable string.
+ * The parent rebuilds `limitsByLocale` as a fresh object on every recompute,
+ * so object identity says nothing about whether the matrix actually changed
+ * — only its contents do.
+ */
+function limitsSignature(limits: Record<string, Record<string, number>>): string {
+  return Object.entries(limits)
+    .map(([locale, fields]) => `${locale}:${Object.keys(fields).join(',')}`)
+    .join('|')
+}
+
 // First render: seed only when unbound, so a parent can pass restored
 // entries (the autosave-resume path). After that, a change to the limits
-// object means the matrix changed under us — stale entries would bind
+// *contents* means the matrix changed under us — stale entries would bind
 // values to fields that no longer exist, so they are discarded wholesale.
-let limitsObserved = false
-let prevLimitsJson = ''
+// `entries` is deliberately not read reactively: a parent assigning restored
+// entries after first render must not look like a matrix change and wipe
+// the very copy it just restored.
+let seededSignature: string | undefined
 $effect.pre(() => {
-  const currentLimitsJson = JSON.stringify(limitsByLocale)
-  if (!limitsObserved) {
-    if (entries === undefined) {
-      entries = Object.keys(limitsByLocale).map((locale) => ({ locale, values: {} }))
-    }
-    limitsObserved = true
-    prevLimitsJson = currentLimitsJson
-    return
-  }
-  if (currentLimitsJson !== prevLimitsJson) {
-    const oldEntries = entries ?? []
-    entries = Object.keys(limitsByLocale).map((locale) => {
-      const existing = oldEntries.find((e) => e.locale === locale)
-      return existing || { locale, values: {} }
-    })
-    prevLimitsJson = currentLimitsJson
-  }
+  const signature = limitsSignature(limitsByLocale)
+  if (signature === seededSignature) return
+  const first = seededSignature === undefined
+  seededSignature = signature
+  if (first && untrack(() => entries) !== undefined) return
+  entries = Object.keys(limitsByLocale).map((locale) => ({ locale, values: {} }))
 })
 
 const visible = $derived(entries ?? [])

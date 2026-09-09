@@ -184,6 +184,7 @@ $effect.pre(() => {
   if (shouldSeed || schemaObserved) {
     draft = emptyDraft(schema)
     activeLocale = schema.texts.locales[0] ?? ''
+    // Issues belong to the draft they were raised against; a reseed drops them.
     clientIssues = []
   }
   schemaObserved = true
@@ -222,6 +223,14 @@ const activeTextFields = $derived(
 )
 
 const mappedServer = $derived(mapViolations(schema, form, serverViolations))
+
+function issueMessages(path: string): string[] {
+  return [
+    ...clientIssues.filter((issue) => issue.path === path).map((issue) => clientMessage(issue)),
+    ...(mappedServer.fieldMessages[path] ?? []),
+  ]
+}
+
 function localeHasErrors(locale: string): boolean {
   const index = form.texts.findIndex((entry) => entry.locale === locale)
   if (index === -1) return false
@@ -251,13 +260,6 @@ const targetingMessages = $derived([
   ...issueMessages(FIELD_PATHS.targeting),
   ...form.targeting.flatMap((dimension) => issueMessages(`${FIELD_PATHS.targeting}.${dimension}`)),
 ])
-
-function issueMessages(path: string): string[] {
-  return [
-    ...clientIssues.filter((issue) => issue.path === path).map((issue) => clientMessage(issue)),
-    ...(mappedServer.fieldMessages[path] ?? []),
-  ]
-}
 
 function clientMessage(issue: FormIssue): string {
   switch (issue.code) {
