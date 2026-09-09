@@ -82,6 +82,7 @@ export interface CreateAssetUploadInput {
   sizeBytes: number
   /** Free-form owner scope for the asset (e.g. the creating surface's id). */
   ownerReference?: string
+  visibility: 'public' | 'private'
 }
 
 /** `POST /v1/assets` — mints the asset and presigns its upload (PUT or parts). */
@@ -98,6 +99,7 @@ export async function createAssetUpload(
       content_type: input.contentType,
       filename: input.filename,
       size_bytes: input.sizeBytes,
+      visibility: input.visibility,
       ...(input.ownerReference ? { owner_id: input.ownerReference } : {}),
     },
   })

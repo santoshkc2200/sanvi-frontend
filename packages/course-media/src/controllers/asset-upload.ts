@@ -138,6 +138,7 @@ export class AssetUploadController {
           contentType: file.type,
           filename: file.name,
           sizeBytes: file.size,
+          visibility: 'private',
           ...(ownerReference ? { ownerReference } : {}),
         },
         crypto.randomUUID(),

@@ -79,7 +79,11 @@ export function mockMediaBackend(page: Page): void {
       return
     }
     assetCounter += 1
-    const body = request.postDataJSON() as { kind?: string }
+    const body = request.postDataJSON() as { kind?: string; visibility?: string }
+    if (!body.visibility) {
+      await route.fulfill({ status: 400, json: { code: 'invalid_input' } })
+      return
+    }
     void body
     await route.fulfill({
       status: 201,
