@@ -36,6 +36,7 @@ import {
   canRetry,
   diagnosticsHealth,
   failureCategory,
+  hasUnpropagatedState,
   healthBannerLevel,
   primaryCategory,
   rowOutcome,
@@ -43,7 +44,12 @@ import {
   uploadCategory,
   type RowOutcome,
 } from '../../lib/advertising/diagnostics'
-import { conversionCurrency, conversionValue, purposeLabel } from '../../lib/advertising/tracking'
+import {
+  conversionCurrency,
+  conversionValue,
+  isSuppressed,
+  purposeLabel,
+} from '../../lib/advertising/tracking'
 
 /**
  * The conversion-diagnostics screen (phase 10, TASK-015 / slice 10.6).
@@ -309,6 +315,9 @@ async function toggleExpanded(event: ConversionEvent): Promise<void> {
   const cached = detailCache.get(event.id)
   if (cached) {
     detail = cached
+    events = events.map((candidate) =>
+      candidate.id === cached.event.id ? cached.event : candidate,
+    )
     return
   }
   detail = null
@@ -316,7 +325,12 @@ async function toggleExpanded(event: ConversionEvent): Promise<void> {
   try {
     const result = await getAdConversionDiagnostics(apiClient, event.id)
     detailCache.set(event.id, result)
-    if (expandedId === event.id) detail = result
+    if (expandedId === event.id) {
+      detail = result
+      events = events.map((candidate) =>
+        candidate.id === result.event.id ? result.event : candidate,
+      )
+    }
   } catch {
     if (expandedId === event.id) detailError = true
   } finally {
@@ -375,6 +389,25 @@ function platformCategory(event: ConversionEvent, platformKey: string): AdReason
 
 function uploadStateOf(event: ConversionEvent, platformKey: string): UploadState | null {
   return event.upload_states?.[platformKey] ?? null
+}
+
+/**
+ * The event the expanded story renders: the fresh diagnostics response when
+ * it belongs to this row, otherwise the list copy. A worker may upload,
+ * park, or suppress an event after the list loads — rendering only the
+ * stale list copy would freeze the "full story" at page-load time.
+ */
+function displayedEvent(listEvent: ConversionEvent): ConversionEvent {
+  if (detail && detail.event.id === listEvent.id) return detail.event
+  return listEvent
+}
+
+/** The first unsupported-removal reason, for the platform-limitation copy. */
+function firstUnpropagatedReason(event: ConversionEvent): string {
+  for (const state of Object.values(event.upload_states ?? {})) {
+    if (state.status === 'unpropagated') return state.reason
+  }
+  return ''
 }
 
 $effect(() => {
@@ -562,20 +595,32 @@ $effect(() => {
                                 {t['admin.advertising.genericError']()}
                               </Alert>
                             {:else}
+                              {@const displayed = displayedEvent(event)}
                               <h2 id={'diagnostics-detail-heading-' + event.id}>
                                 {t['admin.advertising.diagnostics.detail.regionLabel']({
-                                  event: event.name,
+                                  event: displayed.name,
                                 })}
                               </h2>
 
-                              {@const category = primaryCategory(event)}
+                              {@const category = primaryCategory(displayed)}
                               {#if category}
                                 <ReasonBadge
                                   category={category}
                                   label={categoryCopy(category).label()}
                                 />
-                                <p>{categoryCopy(category).what()}</p>
-                                <p>{categoryCopy(category).action()}</p>
+                                {#if category === 'withdrawn_after_capture' && hasUnpropagatedState(displayed)}
+                                  <p>
+                                    {t['admin.advertising.diagnostics.detail.unpropagatedWhat']({
+                                      reason: firstUnpropagatedReason(displayed),
+                                    })}
+                                  </p>
+                                  <p>
+                                    {t['admin.advertising.diagnostics.detail.unpropagatedAction']()}
+                                  </p>
+                                {:else}
+                                  <p>{categoryCopy(category).what()}</p>
+                                  <p>{categoryCopy(category).action()}</p>
+                                {/if}
                               {/if}
 
                               <div>
@@ -585,17 +630,17 @@ $effect(() => {
                                     <dt>{t['admin.advertising.diagnostics.detail.capturedAt']()}</dt>
                                     <dd>
                                       {fmt.datetime(
-                                        new Date(detail?.captured_at ?? event.occurred_at),
+                                        new Date(detail?.captured_at ?? displayed.occurred_at),
                                       )}
                                     </dd>
                                   </div>
                                   <div class="sanvi-diagnostics__row">
                                     <dt>{t['admin.advertising.diagnostics.detail.eventId']()}</dt>
-                                    <dd class="sanvi-diagnostics__mono">{event.event_id}</dd>
+                                    <dd class="sanvi-diagnostics__mono">{displayed.event_id}</dd>
                                   </div>
                                   <div class="sanvi-diagnostics__row">
                                     <dt>{t['admin.advertising.diagnostics.detail.orderRef']()}</dt>
-                                    <dd>{event.order_ref ?? NO_VALUE}</dd>
+                                    <dd>{displayed.order_ref ?? NO_VALUE}</dd>
                                   </div>
                                 </dl>
                                 <p class="sanvi-diagnostics__note">
@@ -605,11 +650,11 @@ $effect(() => {
 
                               <div>
                                 <h3>{t['admin.advertising.diagnostics.detail.clickIdsHeading']()}</h3>
-                                {#if clickIdEntries(event).length === 0}
+                                {#if clickIdEntries(displayed).length === 0}
                                   <p>{t['admin.advertising.diagnostics.detail.clickIdsNone']()}</p>
                                 {:else}
                                   <ul class="sanvi-diagnostics__mono-list">
-                                    {#each clickIdEntries(event) as [name, masked] (name)}
+                                    {#each clickIdEntries(displayed) as [name, masked] (name)}
                                       <li>
                                         <span class="sanvi-diagnostics__key">{name}</span>
                                         {masked}
@@ -624,9 +669,11 @@ $effect(() => {
                                   {t['admin.advertising.diagnostics.detail.valueSource']()}
                                 </h3>
                                 <p>
-                                  {event.value_source ? sourceLabel(event.value_source) : NO_VALUE}
+                                  {displayed.value_source
+                                    ? sourceLabel(displayed.value_source)
+                                    : NO_VALUE}
                                   ·
-                                  {valueText(event)}
+                                  {valueText(displayed)}
                                 </p>
                               </div>
 
@@ -635,11 +682,11 @@ $effect(() => {
                                   {t['admin.advertising.diagnostics.detail.snapshotHeading']()}
                                 </h3>
                                 <dl class="sanvi-diagnostics__list">
-                                  {#each event.consent.purposes_asked as purpose (purpose)}
+                                  {#each displayed.consent.purposes_asked as purpose (purpose)}
                                     <div class="sanvi-diagnostics__row">
                                       <dt>{purposeLabel(purpose)}</dt>
                                       <dd>
-                                        {event.consent.answers[purpose] === 'denied'
+                                        {displayed.consent.answers[purpose] === 'denied'
                                           ? t['admin.advertising.tracking.resultAnswerDenied']()
                                           : t['admin.advertising.tracking.resultAnswerAllowed']()}
                                       </dd>
@@ -649,20 +696,20 @@ $effect(() => {
                                     <dt>
                                       {t['admin.advertising.tracking.resultJurisdictionLabel']()}
                                     </dt>
-                                    <dd>{event.consent.jurisdiction}</dd>
+                                    <dd>{displayed.consent.jurisdiction}</dd>
                                   </div>
                                   <div class="sanvi-diagnostics__row">
                                     <dt>
                                       {t['admin.advertising.tracking.resultSignalSourceLabel']()}
                                     </dt>
-                                    <dd>{humanizeOptionValue(event.consent.signal_source)}</dd>
+                                    <dd>{humanizeOptionValue(displayed.consent.signal_source)}</dd>
                                   </div>
                                   <div class="sanvi-diagnostics__row">
                                     <dt>
                                       {t['admin.advertising.tracking.resultResolverVersionLabel']()}
                                     </dt>
                                     <dd class="sanvi-diagnostics__mono">
-                                      {event.consent.resolver_version}
+                                      {displayed.consent.resolver_version}
                                     </dd>
                                   </div>
                                 </dl>
@@ -672,11 +719,17 @@ $effect(() => {
                                 <h3>
                                   {t['admin.advertising.diagnostics.detail.platformsHeading']()}
                                 </h3>
-                                {#if Object.keys(event.upload_states ?? {}).length === 0}
-                                  <p>{suppressedText(event)}</p>
+                                {#if Object.keys(displayed.upload_states ?? {}).length === 0}
+                                  {#if isSuppressed(displayed.consent)}
+                                    <p>{suppressedText(displayed)}</p>
+                                  {:else}
+                                    <p>
+                                      {t['admin.advertising.diagnostics.detail.noPlatforms']()}
+                                    </p>
+                                  {/if}
                                 {:else}
                                   <dl class="sanvi-diagnostics__list">
-                                    {#each Object.entries(event.upload_states ?? {}) as [platformKey, state] (platformKey)}
+                                    {#each Object.entries(displayed.upload_states ?? {}) as [platformKey, state] (platformKey)}
                                       <div class="sanvi-diagnostics__row">
                                         <dt>
                                           {platformNames[platformKey] ??
@@ -693,6 +746,12 @@ $effect(() => {
                                                     )
                                                   : categoryCopy(failureCategory(state.reason)).what()}
                                               </span>
+                                            {:else if state.status === 'unpropagated'}
+                                              <span class="sanvi-diagnostics__note">
+                                                {t['admin.advertising.diagnostics.detail.platformError'](
+                                                  { error: state.reason },
+                                                )}
+                                              </span>
                                             {/if}
                                           </Stack>
                                         </dd>
@@ -704,11 +763,11 @@ $effect(() => {
 
                               <div>
                                 <h3>{t['admin.advertising.diagnostics.detail.hashedHeading']()}</h3>
-                                {#if hashedEntries(event).length === 0}
+                                {#if hashedEntries(displayed).length === 0}
                                   <p>{t['admin.advertising.diagnostics.detail.hashedNone']()}</p>
                                 {:else}
                                   <ul class="sanvi-diagnostics__mono-list">
-                                    {#each hashedEntries(event) as [name, hash] (name)}
+                                    {#each hashedEntries(displayed) as [name, hash] (name)}
                                       <li>
                                         <span class="sanvi-diagnostics__key">{name}</span>
                                         {hash}

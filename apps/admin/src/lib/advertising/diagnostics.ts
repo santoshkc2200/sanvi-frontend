@@ -28,15 +28,20 @@ import { type AdReasonCategory, isDirectiveCategory } from '@sanvi/ui'
 import { deniedPurposes, isSuppressed } from './tracking'
 
 /**
- * The taxonomy category a capture-time suppression belongs to, derived only
- * from the snapshot's signal source: a universal opt-out mechanism is a
- * sale/share opt-out, a GPC browser signal is a browser privacy signal, and
- * anything else (the consent UI, a tenant API call, a guardian, an import)
- * means measurement consent was simply not granted.
+ * The taxonomy category a capture-time suppression belongs to, derived from
+ * the snapshot's signal source alongside its denied purposes: a GPC browser
+ * signal is a browser privacy signal whatever purpose it denied (a
+ * GPC-driven sale/share denial is still the browser deciding), a denied
+ * sale/share purpose from any other source is a sale/share opt-out (the
+ * consent UI records exactly this combination), a universal opt-out
+ * mechanism is a sale/share opt-out, and anything else (the consent UI, a
+ * tenant API call, a guardian, an import) means measurement consent was
+ * simply not granted.
  */
 export function suppressionCategory(consent: ConsentSnapshot): AdReasonCategory {
-  if (consent.signal_source === 'uoom') return 'opted_out_sale_share'
   if (consent.signal_source === 'gpc') return 'browser_privacy_signal'
+  if (deniedPurposes(consent).includes('sale_or_share')) return 'opted_out_sale_share'
+  if (consent.signal_source === 'uoom') return 'opted_out_sale_share'
   return 'missing_consent'
 }
 
@@ -119,12 +124,49 @@ export function rowOutcome(event: ConversionEvent): RowOutcome {
  * a directive answer (retrying it would override the subject's withdrawal),
  * and an email-identified subject stored nothing this context can safely
  * re-check — the backend refuses all three, so the button never shows.
+ * A known withdrawal on any platform (late suppression, retraction, or an
+ * unsupported removal) also hides the control: the worker leaves other
+ * platforms' parked states untouched during suppression, so a surviving
+ * parked state must not offer a retry the backend will refuse.
  */
 export function canRetry(event: ConversionEvent): boolean {
   if (deniedPurposes(event.consent).length > 0) return false
   if (event.subject_key?.kind === 'contact') return false
   const states = Object.values(event.upload_states ?? {})
+  if (states.some((state) => uploadCategory(state) === 'withdrawn_after_capture')) return false
   return states.some((state) => state.status === 'parked')
+}
+
+/**
+ * True when any platform recorded an unsupported removal: the subject
+ * withdrew after upload but the platform has no retraction path, so the
+ * conversion may still exist there. The taxonomy category stays
+ * `withdrawn_after_capture` — this only selects the platform-limitation
+ * explanation instead of the automatic-removal one.
+ */
+export function hasUnpropagatedState(event: ConversionEvent): boolean {
+  return Object.values(event.upload_states ?? {}).some((state) => state.status === 'unpropagated')
+}
+
+/**
+ * Evidence of an actual upload attempt for one platform state. Capture
+ * creates `pending` states with `attempt_count: 0` before any worker picks
+ * the event up, and the worker can record a `failed: suppressed_late` with
+ * `attempt_count: 0` when consent is withdrawn before the first upload —
+ * both are never-attempted and must not dilute the failure denominator. A
+ * `pending` or `failed` state only counts once its counter moves past zero;
+ * every other status implies a prior attempt.
+ */
+export function wasAttempted(state: UploadState): boolean {
+  switch (state.status) {
+    case 'pending':
+    case 'failed':
+      return (state.attempt_count ?? 0) > 0
+    case 'parked':
+      return (state.attempts ?? 0) > 0
+    default:
+      return true
+  }
 }
 
 /** The banner's figures, computed over the currently loaded conversions. */
@@ -178,7 +220,7 @@ export function diagnosticsHealth(events: ConversionEvent[]): DiagnosticsHealth 
       continue
     }
     const states = Object.values(event.upload_states ?? {})
-    if (states.length === 0) continue
+    if (!states.some((state) => wasAttempted(state))) continue
     attempted += 1
     if (
       states.some((state) => {

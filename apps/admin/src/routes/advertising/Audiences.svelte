@@ -125,12 +125,16 @@ function statusTone(audience: Audience): 'neutral' | 'success' | 'error' {
 
 async function build(): Promise<void> {
   if (!newPlatform || !newName.trim()) return
+  if (!writable || !trackingEnabled) return
+  const tenantAtStart = getActiveTenantId()
+  const seqAtStart = loadSeq
   saving = true
   try {
     const created = await createAdAudience(apiClient, {
       name: newName.trim(),
       platform: newPlatform,
     })
+    if (tenantAtStart !== getActiveTenantId() || seqAtStart !== loadSeq) return
     audiences = [created, ...audiences]
     newName = ''
     newPlatform = ''
@@ -150,8 +154,11 @@ async function build(): Promise<void> {
 
 async function refresh(audience: Audience): Promise<void> {
   refreshingId = audience.id
+  const tenantAtStart = getActiveTenantId()
+  const seqAtStart = loadSeq
   try {
     const updated = await refreshAdAudience(apiClient, audience.id)
+    if (tenantAtStart !== getActiveTenantId() || seqAtStart !== loadSeq) return
     audiences = audiences.map((candidate) => (candidate.id === updated.id ? updated : candidate))
     showToast({
       title: t['admin.advertising.audiences.refreshSuccessToast'](),
@@ -286,7 +293,7 @@ $effect(() => {
               title={t['admin.advertising.audiences.buildHeading']()}
               description={t['admin.advertising.audiences.noPlatformsBody']()}
             />
-          {:else}
+          {:else if writable && trackingEnabled}
             <form
               class="audiences-build-form"
               onsubmit={(event) => {
