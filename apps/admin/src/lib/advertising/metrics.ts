@@ -291,6 +291,8 @@ export function chartGroups(rows: MetricPoint[]): CurrencyChartGroup[] {
 export interface CampaignMetricRow {
   campaignId: string
   currency: string
+  /** Platform key from the rows (`MetricPoint.platform`) — the breakdown renders its catalog display name. */
+  platform: string | null
   spendMinor: number
   clicks: number
   impressions: number
@@ -328,29 +330,22 @@ export function campaignRows(rows: MetricPoint[]): CampaignMetricRow[] {
         0,
       )
       const conversions = campaignPoints.reduce((total, row) => total + row.conversions, 0)
-      const explicitPlatform = campaignPoints.find(
-        (row) => row.roas_platform !== null && row.roas_platform !== undefined,
-      )?.roas_platform
-      const explicitSanvi = campaignPoints.find(
-        (row) => row.roas_sanvi !== null && row.roas_sanvi !== undefined,
-      )?.roas_sanvi
+      // ROAS is a ratio of period totals — revenue total over spend total.
+      // A per-day `roas_platform` is a daily ratio; reusing the first day's
+      // value weights every day equally and misstates the period (e.g.
+      // ¥4,000 / ¥2,000 must be 2.0, not day one's 3.0).
       return {
         campaignId,
         currency: campaignPoints[0]?.spend.currency ?? '',
+        platform: campaignPoints[0]?.platform ?? null,
         spendMinor,
         clicks: campaignPoints.reduce((total, row) => total + row.clicks, 0),
         impressions: campaignPoints.reduce((total, row) => total + row.impressions, 0),
         conversions,
         platformValueMinor,
         sanviRevenueMinor,
-        roasPlatform:
-          explicitPlatform !== null && explicitPlatform !== undefined
-            ? explicitPlatform
-            : ratioOf(platformValueMinor, spendMinor),
-        roasSanvi:
-          explicitSanvi !== null && explicitSanvi !== undefined
-            ? explicitSanvi
-            : ratioOf(sanviRevenueMinor, spendMinor),
+        roasPlatform: ratioOf(platformValueMinor, spendMinor),
+        roasSanvi: ratioOf(sanviRevenueMinor, spendMinor),
         restating: campaignPoints.some((row) => row.restating),
       }
     })

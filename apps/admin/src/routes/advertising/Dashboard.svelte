@@ -237,21 +237,25 @@ async function applyCustomRange(): Promise<void> {
 }
 
 async function applyRange(range: DateRange): Promise<void> {
+  const seq = ++loadSeq
   activeRange = range
-  await loadMetrics(loadSeq)
+  await loadMetrics(seq)
 }
 
 async function exportCsv(): Promise<void> {
   if (exporting) return
   exporting = true
   exportError = undefined
+  // Snapshot once: a range change mid-export must not mix the old request
+  // with the new filename (or vice versa).
+  const range = { ...activeRange }
   try {
     const csv = await getAdMetricsExport(apiClient, {
-      from: activeRange.from,
-      to: activeRange.to,
+      from: range.from,
+      to: range.to,
       groupBy: 'campaign',
     })
-    download(csv, `sanvi-ads-${activeRange.from}-to-${activeRange.to}.csv`)
+    download(csv, `sanvi-ads-${range.from}-to-${range.to}.csv`)
   } catch (err) {
     exportError =
       err instanceof ApiError && err.status === 403
@@ -298,7 +302,10 @@ const timezoneStatement = $derived.by(() => {
 })
 
 const rangeText = $derived(
-  `${fmt.date(activeRange.from, 'medium')} — ${fmt.date(activeRange.to, 'medium')}`,
+  // Calendar dates (`YYYY-MM-DD`) parsed bare are UTC midnight — formatting
+  // them in the browser zone shifts the day west of UTC (Sep 1 → Aug 31 in
+  // New York). Local midnight keeps the calendar day the API was asked for.
+  `${fmt.date(`${activeRange.from}T00:00:00`, 'medium')} — ${fmt.date(`${activeRange.to}T00:00:00`, 'medium')}`,
 )
 
 function chartFor(currency: string): CurrencyChartGroup | undefined {
@@ -465,6 +472,11 @@ const explainerRows = $derived.by(() => {
   </button>
 {/snippet}
 
+{#snippet breakdownPlatformCell(row: BreakdownRow)}
+  {@const platform = row.platform as string | null}
+  {platform ? (names[platform] ?? platform) : NO_VALUE}
+{/snippet}
+
 <!-- Money cells carry the currency and locale rules; ratio cells carry the
      one-click explainer so every ROAS figure reaches the methodology. -->
 {#snippet roasPlatformCell(row: BreakdownRow)}
@@ -509,7 +521,7 @@ const explainerRows = $derived.by(() => {
       />
     {:else if !entitled}
       <UpgradePrompt title={t['admin.advertising.upgradeTitle']()} />
-    {:else if !hasActiveConnection}
+    {:else if !hasActiveConnection && !error}
       <EmptyState
         title={t['admin.advertising.campaigns.noConnectionTitle']()}
         description={t['admin.advertising.campaigns.noConnectionDescription']()}
@@ -824,6 +836,7 @@ const explainerRows = $derived.by(() => {
                 {
                   key: 'platform',
                   header: t['admin.advertising.dashboard.breakdown.platformColumn'](),
+                  cell: breakdownPlatformCell,
                 },
                 {
                   key: 'spend',

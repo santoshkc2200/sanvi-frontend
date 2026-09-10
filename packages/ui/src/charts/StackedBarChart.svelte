@@ -33,6 +33,12 @@ let {
   class: className = '',
 }: Props = $props()
 
+// Scopes the hatch pattern IDs to this chart instance — two currency charts
+// on one page share platform keys, and bare `sanvi-hatch-<key>` IDs collide
+// across documents, letting a later chart reference an earlier chart's
+// pattern (wrong colour/hatch when platform subsets differ).
+const uid = $props.id()
+
 const cellFormat = $derived(valueFormat ?? yFormat)
 
 const VB_W = 640
@@ -113,7 +119,7 @@ const flaggedIndexes = $derived.by(() => {
       <defs>
         {#each series as entry, seriesIndex (entry.key)}
           <pattern
-            id="sanvi-hatch-{entry.key}"
+            id="sanvi-hatch-{uid}-{entry.key}"
             width="6"
             height="6"
             patternUnits="userSpaceOnUse"
@@ -148,7 +154,7 @@ const flaggedIndexes = $derived.by(() => {
             y={VB_H - PLOT.bottom - segment.bottom - segment.height}
             width={slotWidth()}
             height={segment.height}
-            fill="url(#sanvi-hatch-{segment.entry.key})"
+            fill="url(#sanvi-hatch-{uid}-{segment.entry.key})"
           >
             <title>{segment.entry.label}: {yFormat(segment.entry.values[index] ?? 0)}</title>
           </rect>
@@ -180,7 +186,7 @@ const flaggedIndexes = $derived.by(() => {
       {#each series as entry, seriesIndex (entry.key)}
         <li class="sanvi-stacked-bar__legend-item">
           <svg viewBox="0 0 12 12" aria-hidden="true" class="sanvi-stacked-bar__legend-swatch">
-            <rect width="12" height="12" fill="url(#sanvi-hatch-{entry.key})" />
+            <rect width="12" height="12" fill="url(#sanvi-hatch-{uid}-{entry.key})" />
           </svg>
           <span>{entry.label}</span>
         </li>

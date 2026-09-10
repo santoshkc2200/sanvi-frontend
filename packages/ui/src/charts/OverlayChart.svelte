@@ -97,8 +97,9 @@ function barHeight(value: number): number {
 }
 
 function xOf(index: number): number {
-  if (categories.length <= 1) return PLOT.left + plotWidth / 2
-  return PLOT.left + (index / (categories.length - 1)) * plotWidth
+  // Lines share the bar category centers — edge-to-edge mapping would draw
+  // revenue and spend for the same day at different x positions.
+  return xCenter(index)
 }
 
 function yOf(value: number): number {
