@@ -219,6 +219,25 @@ const routes: RouteDefinition[] = [
     load: () => import('./routes/advertising/Audiences.svelte'),
   },
   {
+    // Phase 10 TASK-017: budget-cap configuration. Reads gate on
+    // `advertising.read`; writes need `advertising.budget.manage` (the
+    // backend answers 403 to anything less — money-adjacent). The
+    // `advertising.budget_guardrails` entitlement flag is the on/off
+    // switch inside the page: off renders a disabled state naming the
+    // reason, and caps already in place keep guarding server-side.
+    path: 'advertising/budget',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/BudgetCaps.svelte'),
+  },
+  {
+    // Phase 10 TASK-017: the alert history with acknowledgement. Same flag
+    // and permission split as the caps screen; acknowledging requires
+    // `advertising.budget.manage`.
+    path: 'advertising/budget/alerts',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/BudgetAlerts.svelte'),
+  },
+  {
     // The OAuth return route: the ad platform sends the browser back here.
     // Session-gated only — a tenant bounced to sign-in mid-handoff loses
     // the redemption; the page itself explains anything else that goes
@@ -436,6 +455,8 @@ type NavKey =
   | 'advertisingTracking'
   | 'advertisingDiagnostics'
   | 'advertisingAudiences'
+  | 'advertisingBudget'
+  | 'advertisingBudgetAlerts'
   | 'domains'
   | 'privacy'
   | 'settings'
@@ -479,6 +500,16 @@ const NAV: { href: string; labelKey: NavKey; permission?: string }[] = [
   {
     href: '/advertising/audiences',
     labelKey: 'advertisingAudiences',
+    permission: 'advertising.read',
+  },
+  {
+    href: '/advertising/budget',
+    labelKey: 'advertisingBudget',
+    permission: 'advertising.read',
+  },
+  {
+    href: '/advertising/budget/alerts',
+    labelKey: 'advertisingBudgetAlerts',
     permission: 'advertising.read',
   },
   { href: '/domains', labelKey: 'domains' },

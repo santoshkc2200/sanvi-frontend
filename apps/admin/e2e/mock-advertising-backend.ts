@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test'
+import type { BudgetPeriod } from '@sanvi/api-client'
 import { AD_PLATFORM_FIXTURES, platformViewFixture } from '@sanvi/ui/test-fixtures'
+import { BUDGET_PERIOD_DAILY, BUDGET_PERIOD_MONTHLY } from '../src/lib/budget-periods'
 
 /**
  * Hermetic advertising backend for the TASK-011 connection-flow specs —
@@ -62,6 +64,45 @@ export interface MockCampaignChange {
   metadata: unknown
 }
 
+export interface MockBudgetCap {
+  id: string
+  tenant_id: string
+  campaign_id: string | null
+  period: BudgetPeriod
+  amount: { amount_minor: number; currency: string }
+  effective_currency: string
+  declared_fx_basis: string | null
+  fx_rate_date: string | null
+  auto_pause: boolean
+  auto_resume_on_rollover: boolean
+  version: number
+  created_at: string
+  updated_at: string
+}
+
+export interface MockBudgetAlert {
+  id: string
+  tenant_id: string
+  campaign_id: string | null
+  cap_id: string | null
+  cap_amount: { amount_minor: number; currency: string }
+  spend: { amount_minor: number; currency: string }
+  condition: string
+  threshold: number
+  period: BudgetPeriod
+  period_start: string
+  auto_paused: boolean
+  data_freshness: {
+    is_settled: boolean
+    is_stale: boolean
+    lag_hours: number | null
+    last_synced_at: string | null
+  }
+  created_at: string
+  acknowledged_at: string | null
+  acknowledged_by: string | null
+}
+
 export interface AdvertisingMockControls {
   /** Simulates a native-tool edit on the platform side: the campaign drifts. */
   simulatePlatformEdit: (campaignId: string) => void
@@ -73,6 +114,11 @@ export interface AdvertisingMockControls {
   stallConnection: (connectionId?: string) => void
   /** The last CSV the export endpoint streamed (the spec asserts its columns). */
   lastExportCsv: () => string | undefined
+  /** The last budget-cap PUT's body and path — the spec asserts the FX
+      basis and the below-spend confirmation flag the UI must send. */
+  lastCapPut: () => { path: string; body: Record<string, unknown> } | undefined
+  /** How many alerts have been acknowledged through the API. */
+  acknowledgedCount: () => number
 }
 
 export function mockAdvertisingBackend(
@@ -91,6 +137,19 @@ export function mockAdvertisingBackend(
     /** Flips the `advertising.dashboard` entitlement off — the TASK-016
         rollback/paused-state spec. */
     dashboardDisabled?: boolean
+    /** Flips the `advertising.budget_guardrails` entitlement off — the
+        TASK-017 rollback/paused-state spec. */
+    budgetGuardrailsDisabled?: boolean
+    /** Seeds caps in place (tenant monthly + one campaign monthly) with
+        spend status to match: the tenant cap sits at 80%, the campaign cap
+        is breached. Pairs with `seedTwoCampaigns`. */
+    seedCaps?: boolean
+    /** With `seedCaps`, seeds the tenant cap only — the highest-severity
+        banner is then the 80% warning instead of a 100% breach. */
+    seedCapsWarnOnly?: boolean
+    /** Seeds a three-row alert history: an unacknowledged 80%, an
+        unacknowledged breach, and an acknowledged stale-data warning. */
+    seedAlerts?: boolean
   } = {},
 ): AdvertisingMockControls {
   const connections: MockAdConnection[] = []
@@ -229,6 +288,7 @@ export function mockAdvertisingBackend(
           'advertising.read',
           'advertising.connect',
           'advertising.campaign.write',
+          'advertising.budget.manage',
           'advertising.metrics.read',
           'billing.subscription.read',
           'tenancy.settings.read',
@@ -271,6 +331,10 @@ export function mockAdvertisingBackend(
       json: [
         { feature: 'advertising.conversion_tracking', enabled: !options.trackingDisabled },
         { feature: 'advertising.dashboard', enabled: !options.dashboardDisabled },
+        {
+          feature: 'advertising.budget_guardrails',
+          enabled: !options.budgetGuardrailsDisabled,
+        },
       ],
     }),
   )
@@ -1351,6 +1415,390 @@ export function mockAdvertisingBackend(
     await route.fulfill({ json: { rows: buildMetricRows() } })
   })
 
+  // --- Budget guardrails (TASK-017) ---------------------------------------
+  //
+  // A stateful cap store with the backend's guard rails modelled: dry_run
+  // answers the evaluation without writing, a cap below the period's spend
+  // is a 409 until `confirm_below_current_spend` arrives, and spend-status
+  // supplies every figure the screens render (percentage included — the UI
+  // must not recompute them). Registered after the campaigns routes so the
+  // campaign budget-cap subpath is answered here, not by `campaigns/**`.
+
+  const budgetCaps: MockBudgetCap[] = []
+  const budgetAlerts: MockBudgetAlert[] = []
+  let capCounter = 0
+  let alertCounter = 0
+  let acknowledgedCount = 0
+  let lastCapPut: { path: string; body: Record<string, unknown> } | undefined
+
+  function capScopeStale(campaignId: string | null): boolean {
+    if (campaignId) {
+      const campaign = campaigns.find((candidate) => candidate.id === campaignId)
+      const connection = connections.find((entry) => entry.id === campaign?.connection_id)
+      return connection ? stalledConnectionIds.has(connection.id) : false
+    }
+    return connections.some((entry) => stalledConnectionIds.has(entry.id))
+  }
+
+  function capSpendFor(
+    campaignId: string | null,
+    period: BudgetPeriod,
+  ): {
+    spend: number
+    settled: number
+    provisional: number
+    projected: number
+  } {
+    return campaignId === null
+      ? period === 'monthly'
+        ? { spend: 40_000, settled: 34_000, provisional: 6_000, projected: 62_000 }
+        : { spend: 3_000, settled: 1_500, provisional: 1_500, projected: 9_000 }
+      : period === 'monthly'
+        ? { spend: 21_000, settled: 18_000, provisional: 3_000, projected: 30_000 }
+        : { spend: 2_100, settled: 1_000, provisional: 1_100, projected: 3_000 }
+  }
+
+  function spendStatusItem(
+    cap: MockBudgetCap | null,
+    campaignId: string | null,
+    period: BudgetPeriod,
+  ) {
+    const stale = capScopeStale(campaignId)
+    const figures = capSpendFor(campaignId, period)
+    const percentage =
+      cap && cap.amount.amount_minor > 0 ? (figures.spend / cap.amount.amount_minor) * 100 : null
+    return {
+      scope: campaignId === null ? 'tenant' : `campaign:${campaignId}`,
+      campaign_id: campaignId ?? undefined,
+      period,
+      cap,
+      spend_to_date: { amount_minor: figures.spend, currency: 'JPY' },
+      settled_spend: { amount_minor: figures.settled, currency: 'JPY' },
+      provisional_spend: { amount_minor: figures.provisional, currency: 'JPY' },
+      provisional_lower_bound: {
+        amount_minor: figures.settled + Math.round(figures.provisional * 0.8),
+        currency: 'JPY',
+      },
+      projected_spend: { amount_minor: figures.projected, currency: 'JPY' },
+      percentage,
+      data_freshness: {
+        is_settled: period === BUDGET_PERIOD_DAILY && !stale,
+        is_stale: stale,
+        lag_hours: stale ? 150 : 4,
+        last_synced_at: stale ? `${isoDaysAgo(6)}T00:00:00Z` : `${isoDaysAgo(0)}T06:00:00Z`,
+      },
+      actions_configured: {
+        auto_pause: cap?.auto_pause ?? false,
+        auto_resume_on_rollover: cap?.auto_resume_on_rollover ?? false,
+        threshold_80: 'notify',
+        threshold_100: cap?.auto_pause ? 'pause' : 'notify',
+      },
+      unconvertible_spend_currencies: [],
+    }
+  }
+
+  if (options.seedCaps) {
+    capCounter += 1
+    budgetCaps.push({
+      id: `cap_${capCounter}`,
+      tenant_id: 'dev-acme',
+      campaign_id: null,
+      period: 'monthly',
+      amount: { amount_minor: 50_000, currency: 'JPY' },
+      effective_currency: 'JPY',
+      declared_fx_basis: null,
+      fx_rate_date: null,
+      auto_pause: true,
+      auto_resume_on_rollover: false,
+      version: 1,
+      created_at: `${isoDaysAgo(20)}T00:00:00Z`,
+      updated_at: `${isoDaysAgo(20)}T00:00:00Z`,
+    })
+    const firstCampaign = campaigns[0]
+    if (firstCampaign && !options.seedCapsWarnOnly) {
+      capCounter += 1
+      budgetCaps.push({
+        id: `cap_${capCounter}`,
+        tenant_id: 'dev-acme',
+        campaign_id: firstCampaign.id,
+        period: 'monthly',
+        amount: { amount_minor: 20_000, currency: 'JPY' },
+        effective_currency: 'JPY',
+        declared_fx_basis: null,
+        fx_rate_date: null,
+        auto_pause: false,
+        auto_resume_on_rollover: false,
+        version: 1,
+        created_at: `${isoDaysAgo(10)}T00:00:00Z`,
+        updated_at: `${isoDaysAgo(10)}T00:00:00Z`,
+      })
+    }
+  }
+
+  if (options.seedAlerts) {
+    const rows: Array<Partial<MockBudgetAlert> & { condition: string }> = [
+      {
+        condition: 'threshold80',
+        threshold: 80,
+        campaign_id: null,
+        cap_id: 'cap_1',
+        cap_amount: { amount_minor: 50_000, currency: 'JPY' },
+        spend: { amount_minor: 40_000, currency: 'JPY' },
+        period: 'monthly',
+        auto_paused: false,
+        created_at: `${isoDaysAgo(0)}T07:00:00Z`,
+        acknowledged_at: null,
+        data_freshness: {
+          is_settled: false,
+          is_stale: false,
+          lag_hours: 4,
+          last_synced_at: `${isoDaysAgo(0)}T06:00:00Z`,
+        },
+      },
+      {
+        condition: 'settled_breach',
+        threshold: 100,
+        campaign_id: campaigns[0]?.id ?? null,
+        cap_id: 'cap_2',
+        cap_amount: { amount_minor: 20_000, currency: 'JPY' },
+        spend: { amount_minor: 21_000, currency: 'JPY' },
+        period: 'monthly',
+        auto_paused: false,
+        created_at: `${isoDaysAgo(1)}T09:00:00Z`,
+        acknowledged_at: null,
+        data_freshness: {
+          is_settled: true,
+          is_stale: false,
+          lag_hours: 4,
+          last_synced_at: `${isoDaysAgo(1)}T06:00:00Z`,
+        },
+      },
+      {
+        condition: 'stale_data_warning',
+        threshold: 80,
+        campaign_id: null,
+        cap_id: null,
+        cap_amount: { amount_minor: 5_000, currency: 'JPY' },
+        spend: { amount_minor: 3_000, currency: 'JPY' },
+        period: BUDGET_PERIOD_DAILY,
+        auto_paused: false,
+        created_at: `${isoDaysAgo(2)}T12:00:00Z`,
+        acknowledged_at: `${isoDaysAgo(1)}T08:00:00Z`,
+        acknowledged_by: me.user_id,
+        data_freshness: {
+          is_settled: false,
+          is_stale: true,
+          lag_hours: 150,
+          last_synced_at: `${isoDaysAgo(6)}T00:00:00Z`,
+        },
+      },
+    ]
+    for (const row of rows) {
+      alertCounter += 1
+      budgetAlerts.push({
+        id: `alert_${alertCounter}`,
+        tenant_id: 'dev-acme',
+        campaign_id: row.campaign_id ?? null,
+        cap_id: row.cap_id ?? null,
+        cap_amount: row.cap_amount!,
+        spend: row.spend!,
+        condition: row.condition,
+        threshold: row.threshold ?? 80,
+        period: row.period ?? 'monthly',
+        period_start:
+          row.period === BUDGET_PERIOD_DAILY ? isoDaysAgo(2) : `${isoDaysAgo(0).slice(0, 8)}01`,
+        auto_paused: row.auto_paused ?? false,
+        data_freshness: row.data_freshness!,
+        created_at: row.created_at!,
+        acknowledged_at: row.acknowledged_at ?? null,
+        acknowledged_by: row.acknowledged_by ?? null,
+      })
+    }
+  }
+
+  async function handleCapPut(
+    path: string,
+    campaignId: string | null,
+    body: Record<string, unknown>,
+  ) {
+    lastCapPut = { path, body }
+    const period = (body.period as BudgetPeriod) ?? BUDGET_PERIOD_MONTHLY
+    const amount = (body.amount ?? {}) as { amount_minor?: number; currency?: string }
+    const amountMinor = Number(amount.amount_minor ?? 0)
+    const currency = amount.currency ?? 'JPY'
+
+    if (!amountMinor || amountMinor <= 0) {
+      return { status: 400, json: { type: 'about:blank', title: 'Bad request', status: 400 } }
+    }
+
+    const spend = capSpendFor(campaignId, period, currency).spend
+    if (body.dry_run === true) {
+      const percentage = (spend / amountMinor) * 100
+      const wouldBreach80 = percentage >= 80
+      const wouldBreach100 = percentage >= 100
+      return {
+        status: 200,
+        json: {
+          scope: campaignId === null ? 'tenant' : `campaign:${campaignId}`,
+          period,
+          cap_amount: { amount_minor: amountMinor, currency },
+          current_spend: { amount_minor: spend, currency },
+          percentage,
+          would_breach_80: wouldBreach80,
+          would_breach_100: wouldBreach100,
+          would_auto_pause: body.auto_pause === true && wouldBreach100,
+          condition: wouldBreach100 ? 'breach' : wouldBreach80 ? 'warning_80' : 'ok',
+        },
+      }
+    }
+
+    if (amountMinor < spend && body.confirm_below_current_spend !== true) {
+      return {
+        status: 409,
+        json: {
+          type: 'about:blank',
+          title: 'Conflict',
+          status: 409,
+          detail: 'New cap is below current period spend and confirmation is required',
+        },
+      }
+    }
+
+    const existing = budgetCaps.find(
+      (candidate) => candidate.campaign_id === campaignId && candidate.period === period,
+    )
+    if (existing) {
+      existing.amount = { amount_minor: amountMinor, currency }
+      existing.effective_currency = currency
+      existing.declared_fx_basis = (body.declared_fx_basis as string | undefined) ?? null
+      existing.fx_rate_date = (body.fx_rate_date as string | undefined) ?? null
+      existing.auto_pause = body.auto_pause === true
+      existing.auto_resume_on_rollover = body.auto_resume_on_rollover === true
+      existing.version += 1
+      existing.updated_at = new Date().toISOString()
+      return { status: 200, json: existing }
+    }
+    capCounter += 1
+    const created: MockBudgetCap = {
+      id: `cap_${capCounter}`,
+      tenant_id: 'dev-acme',
+      campaign_id: campaignId,
+      period,
+      amount: { amount_minor: amountMinor, currency },
+      effective_currency: currency,
+      declared_fx_basis: (body.declared_fx_basis as string | undefined) ?? null,
+      fx_rate_date: (body.fx_rate_date as string | undefined) ?? null,
+      auto_pause: body.auto_pause === true,
+      auto_resume_on_rollover: body.auto_resume_on_rollover === true,
+      version: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    budgetCaps.push(created)
+    return { status: 200, json: created }
+  }
+
+  void page.route('**/api/v1/tenant/ads/budget-caps', async (route) => {
+    const request = route.request()
+    if (request.method() === 'GET') {
+      await route.fulfill({ json: { caps: budgetCaps } })
+      return
+    }
+    if (request.method() === 'PUT') {
+      const result = await handleCapPut(
+        '/api/v1/tenant/ads/budget-caps',
+        null,
+        (request.postDataJSON() ?? {}) as Record<string, unknown>,
+      )
+      await route.fulfill({ status: result.status, json: result.json })
+      return
+    }
+    await route.fulfill({ json: {} })
+  })
+
+  void page.route('**/api/v1/tenant/ads/campaigns/*/budget-cap*', async (route) => {
+    const request = route.request()
+    const match = request.url().match(/\/ads\/campaigns\/([^/]+)\/budget-cap/)
+    const campaignId = match?.[1] ?? null
+    if (request.method() === 'GET') {
+      const period = new URL(request.url()).searchParams.get('period') ?? 'monthly'
+      const cap = budgetCaps.find(
+        (candidate) => candidate.campaign_id === campaignId && candidate.period === period,
+      )
+      if (!cap) {
+        await route.fulfill({
+          status: 404,
+          json: { type: 'about:blank', title: 'Not found', status: 404 },
+        })
+        return
+      }
+      await route.fulfill({ json: cap })
+      return
+    }
+    if (request.method() === 'PUT') {
+      const result = await handleCapPut(
+        request.url(),
+        campaignId,
+        (request.postDataJSON() ?? {}) as Record<string, unknown>,
+      )
+      await route.fulfill({ status: result.status, json: result.json })
+      return
+    }
+    await route.fulfill({ json: {} })
+  })
+
+  void page.route('**/api/v1/tenant/ads/spend-status*', async (route) => {
+    const periodParam = new URL(route.request().url()).searchParams.get('period')
+    const periods: BudgetPeriod[] =
+      periodParam === BUDGET_PERIOD_DAILY || periodParam === BUDGET_PERIOD_MONTHLY
+        ? [periodParam]
+        : [BUDGET_PERIOD_DAILY, BUDGET_PERIOD_MONTHLY]
+    const items: ReturnType<typeof spendStatusItem>[] = []
+    for (const period of periods) {
+      const tenantCap =
+        budgetCaps.find(
+          (candidate) => candidate.campaign_id === null && candidate.period === period,
+        ) ?? null
+      items.push(spendStatusItem(tenantCap, null, period))
+      for (const campaign of campaigns) {
+        const campaignCap =
+          budgetCaps.find(
+            (candidate) => candidate.campaign_id === campaign.id && candidate.period === period,
+          ) ?? null
+        items.push(spendStatusItem(campaignCap, campaign.id, period))
+      }
+    }
+    await route.fulfill({ json: { tenant_id: 'dev-acme', items } })
+  })
+
+  void page.route('**/api/v1/tenant/ads/budget-alerts*', async (route) => {
+    const query = new URL(route.request().url()).searchParams
+    const unacknowledgedOnly = query.get('unacknowledged_only') === 'true'
+    const alerts = unacknowledgedOnly
+      ? budgetAlerts.filter((alert) => alert.acknowledged_at === null)
+      : budgetAlerts
+    await route.fulfill({ json: { alerts } })
+  })
+
+  void page.route('**/api/v1/tenant/ads/budget-alerts/*/acknowledge', async (route) => {
+    const match = route
+      .request()
+      .url()
+      .match(/\/budget-alerts\/([^/]+)\/acknowledge/)
+    const alert = budgetAlerts.find((candidate) => candidate.id === match?.[1])
+    if (!alert) {
+      await route.fulfill({
+        status: 404,
+        json: { type: 'about:blank', title: 'Not found', status: 404 },
+      })
+      return
+    }
+    if (alert.acknowledged_at === null) acknowledgedCount += 1
+    alert.acknowledged_at = new Date().toISOString()
+    alert.acknowledged_by = me.user_id
+    await route.fulfill({ json: alert })
+  })
+
   return {
     settingsSavedCount: () => settingsSaved,
     audienceRefreshCount: () => audienceRefreshes,
@@ -1358,6 +1806,8 @@ export function mockAdvertisingBackend(
       stalledConnectionIds.add(connectionId ?? connections[0]?.id ?? 'conn_live_0')
     },
     lastExportCsv: () => exportCsv,
+    lastCapPut: () => lastCapPut,
+    acknowledgedCount: () => acknowledgedCount,
     simulatePlatformEdit: (campaignId: string) => {
       const campaign = campaigns.find((candidate) => candidate.id === campaignId)
       if (!campaign) return
