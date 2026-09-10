@@ -163,10 +163,74 @@ describe('AdvertisingCampaigns list (phase 10, TASK-012)', () => {
     expect(screen.getByText(/¥1,500/)).toBeInTheDocument()
     expect(screen.getByText(/\$90\.00/)).toBeInTheDocument()
     // Platform display names come from the catalog, not raw keys.
-    expect(screen.getByText(GOOGLE.display_name)).toBeInTheDocument()
-    expect(screen.getByText(META.display_name)).toBeInTheDocument()
-    // Performance columns stand empty until TASK-016 — an em dash, not a zero.
-    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(4)
+    expect(screen.getAllByText(GOOGLE.display_name).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(META.display_name).length).toBeGreaterThan(0)
+  })
+
+  it('with the dashboard flag off the metric columns vanish instead of rendering zeros', async () => {
+    // setEntitlements([]) in beforeEach leaves `advertising.dashboard` off.
+    setupFetch()
+    render(Campaigns)
+
+    await screen.findByText('Summer sale')
+    expect(screen.queryByText('Spend')).not.toBeInTheDocument()
+    expect(screen.queryByText('ROAS')).not.toBeInTheDocument()
+    expect(screen.queryByText(/last 30 days/)).not.toBeInTheDocument()
+  })
+
+  it('with the dashboard flag on the metric columns render real per-campaign figures', async () => {
+    setEntitlements([{ feature: 'advertising.dashboard', enabled: true }])
+    const fetchMock = setupFetch({
+      campaigns: [campaignView()],
+      mutate: undefined,
+    })
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/ads/metrics')) {
+        return jsonResponse({
+          rows: [
+            {
+              campaign_id: 'camp_1',
+              clicks: 120,
+              conversion_value: { amount_minor: 6000, currency: 'JPY' },
+              conversions: 3,
+              date: '2026-09-01',
+              impressions: 2000,
+              platform: GOOGLE.key,
+              rendered_spend: null,
+              restating: true,
+              roas_platform: 2,
+              roas_sanvi: 1.5,
+              sanvi_revenue: { amount_minor: 4500, currency: 'JPY' },
+              spend: { amount_minor: 3000, currency: 'JPY' },
+            },
+          ],
+        })
+      }
+      if (url.includes('/ads/platforms')) {
+        return jsonResponse({
+          platforms: [platformViewFixture(GOOGLE, { connection_state: 'connected' })],
+        })
+      }
+      if (url.endsWith('/ads/connections')) return jsonResponse({ connections: [connection()] })
+      if (url.endsWith('/ads/campaigns')) return jsonResponse({ campaigns: [campaignView()] })
+      return jsonResponse({})
+    })
+    render(Campaigns)
+
+    await screen.findByText('Summer sale')
+    // Spend in the account's own currency; JPY never grows decimals.
+    expect(screen.getByText('¥3,000')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Spend' })).toBeInTheDocument()
+    // Conversions from the same rollup.
+    expect(screen.getByText('3')).toBeInTheDocument()
+    // Both ROAS numbers, each labelled where it is displayed.
+    expect(screen.getByText('Platform 2.00')).toBeInTheDocument()
+    expect(screen.getByText('Sanvi 1.50')).toBeInTheDocument()
+    // The restating day is flagged, never rendered as settled.
+    expect(screen.getAllByTitle('Still updating').length).toBeGreaterThan(0)
+    // One click from every ROAS figure reaches the attribution explainer.
+    expect(screen.getAllByRole('button', { name: 'About these numbers' }).length).toBeGreaterThan(0)
   })
 
   it('shows a drift indicator linked to the drift view when the platform changed a campaign', async () => {

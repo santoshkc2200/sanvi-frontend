@@ -26,6 +26,22 @@ export { default as PlacementPreview } from './advertising/PlacementPreview.svel
 export { default as ReasonBadge } from './advertising/ReasonBadge.svelte'
 export { default as HealthBanner } from './advertising/HealthBanner.svelte'
 export type { AdHealthFigure } from './advertising/HealthBanner.svelte'
+// Attribution methodology (phase 10, TASK-016)
+export { default as AttributionExplainer } from './advertising/AttributionExplainer.svelte'
+export type { AttributionPlatformRow } from './advertising/AttributionExplainer.svelte'
+// Chart primitives (phase 10, TASK-016) — tokenized layer, accessible tables
+export { default as BarChart } from './charts/BarChart.svelte'
+export { default as ChartDataTable } from './charts/ChartDataTable.svelte'
+export { default as LineChart } from './charts/LineChart.svelte'
+export { default as OverlayChart } from './charts/OverlayChart.svelte'
+export { default as Sparkline } from './charts/Sparkline.svelte'
+export { default as StackedBarChart } from './charts/StackedBarChart.svelte'
+export { CHART_SERIES_COLORS } from './charts/math'
+export type {
+  ChartFrameLabels,
+  ChartSeries,
+  ChartTableLabels,
+} from './charts/types'
 export {
   AD_DIRECTIVE_CATEGORIES,
   AD_REASON_CATEGORIES,

@@ -120,24 +120,48 @@
     "solid": {
       "$description": "Interactive solid fills (Button) paired with `color.text.inverse`. Deliberately theme-invariant — a fill dark enough for white text to clear 4.5:1 in light mode is exactly as dark in dark mode, so light.json and dark.json repeat the same values rather than reusing the theme-adaptive `primary`/`secondary` tokens (which are tuned for text/icon-on-background use, not fill-with-white-text — see ui-tokens-contrast.test.mjs).",
       "primary": {
-        "base": { "$value": "{primitive.color.blue.600}", "$type": "color" },
-        "hover": { "$value": "{primitive.color.blue.700}", "$type": "color" }
+        "base": {
+          "$value": "{primitive.color.blue.600}",
+          "$type": "color"
+        },
+        "hover": {
+          "$value": "{primitive.color.blue.700}",
+          "$type": "color"
+        }
       },
       "secondary": {
-        "base": { "$value": "{primitive.color.purple.600}", "$type": "color" },
-        "hover": { "$value": "{primitive.color.purple.700}", "$type": "color" }
+        "base": {
+          "$value": "{primitive.color.purple.600}",
+          "$type": "color"
+        },
+        "hover": {
+          "$value": "{primitive.color.purple.700}",
+          "$type": "color"
+        }
       },
       "danger": {
-        "base": { "$value": "{primitive.color.red.600}", "$type": "color" },
-        "hover": { "$value": "{primitive.color.red.800}", "$type": "color" }
+        "base": {
+          "$value": "{primitive.color.red.600}",
+          "$type": "color"
+        },
+        "hover": {
+          "$value": "{primitive.color.red.800}",
+          "$type": "color"
+        }
       },
       "success": {
         "$description": "Badge/Alert solid fill only (not interactive, no hover) — green.600 fails 4.5:1 against white text (3.30:1), so this uses green.800 instead of mirroring color.status.success.",
-        "base": { "$value": "{primitive.color.green.800}", "$type": "color" }
+        "base": {
+          "$value": "{primitive.color.green.800}",
+          "$type": "color"
+        }
       },
       "warning": {
         "$description": "Badge/Alert solid fill only — amber.600 fails 4.5:1 against white text (3.19:1), so this uses amber.800 instead of mirroring color.status.warning.",
-        "base": { "$value": "{primitive.color.amber.800}", "$type": "color" }
+        "base": {
+          "$value": "{primitive.color.amber.800}",
+          "$type": "color"
+        }
       }
     },
     "status": {
@@ -224,6 +248,44 @@
       "pending": {
         "$value": "{primitive.color.amber.600}",
         "$type": "color"
+      }
+    },
+    "chart": {
+      "$description": "Chart primitives (phase 10, TASK-016) — the only colors chart components may reference, so charts cannot drift into a second design system. All series tokens clear 3:1 (WCAG non-text) against color.background.primary in both themes; asserted in ui-tokens-contrast.test.mjs.",
+      "spend": {
+        "$value": "{primitive.color.blue.600}",
+        "$type": "color",
+        "$description": "Chart series — spend (bars/lines). Non-text graphic: clears 3:1 against color.background.primary in both themes."
+      },
+      "revenue": {
+        "$value": "{primitive.color.green.600}",
+        "$type": "color",
+        "$description": "Chart series — revenue (bars/lines). Non-text graphic: clears 3:1 against color.background.primary in both themes."
+      },
+      "grid": {
+        "$value": "{primitive.color.gray.200}",
+        "$type": "color",
+        "$description": "Chart gridlines and axis baselines — decorative, exempt from the 3:1 non-text minimum."
+      },
+      "series.1": {
+        "$value": "{primitive.color.blue.600}",
+        "$type": "color",
+        "$description": "Categorical chart series 1 — multi-series charts (platform breakdown). Colour is never the only encoding: charts pair these with distinct dash patterns/fills and an accessible data table. Clears 3:1 against color.background.primary in both themes."
+      },
+      "series.2": {
+        "$value": "{primitive.color.purple.600}",
+        "$type": "color",
+        "$description": "Categorical chart series 2 — multi-series charts (platform breakdown). Colour is never the only encoding: charts pair these with distinct dash patterns/fills and an accessible data table. Clears 3:1 against color.background.primary in both themes."
+      },
+      "series.3": {
+        "$value": "{primitive.color.teal.600}",
+        "$type": "color",
+        "$description": "Categorical chart series 3 — multi-series charts (platform breakdown). Colour is never the only encoding: charts pair these with distinct dash patterns/fills and an accessible data table. Clears 3:1 against color.background.primary in both themes."
+      },
+      "series.4": {
+        "$value": "{primitive.color.amber.600}",
+        "$type": "color",
+        "$description": "Categorical chart series 4 — multi-series charts (platform breakdown). Colour is never the only encoding: charts pair these with distinct dash patterns/fills and an accessible data table. Clears 3:1 against color.background.primary in both themes."
       }
     }
   }

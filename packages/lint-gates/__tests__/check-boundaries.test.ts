@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { checkWorkspace } from '../src/check-boundaries.mjs'
+import { scanWorkspace as scanBlendedAttribution } from '../src/check-no-blended-attribution.mjs'
 import { isFormPath, scanWorkspace } from '../src/check-platform-literals.mjs'
 
 const FIXTURES = fileURLToPath(new URL('../__fixtures__/', import.meta.url))
@@ -93,5 +94,24 @@ describe('check:platform-literals gate (phase 10, TASK-010)', () => {
     expect(isFormPath('packages/ui/src/advertising/AdPlatformCard.svelte')).toBe(true)
     expect(isFormPath('apps/admin/src/routes/AdvertisingSettings.svelte')).toBe(true)
     expect(isFormPath('apps/admin/src/lib/payments/helpers.ts')).toBe(false)
+  })
+})
+
+describe('check:no-blended-attribution gate (phase 10, TASK-016, NFR-1002)', () => {
+  it('fails on its violation fixture — a lint nobody has seen fail is a lint nobody trusts', () => {
+    const violations = scanBlendedAttribution(`${FIXTURES}attribution`)
+    expect(violations.length).toBeGreaterThan(0)
+  })
+
+  it('catches both spellings of a blended figure in code', () => {
+    const violations = scanBlendedAttribution(`${FIXTURES}attribution`)
+    const identifiers = [...new Set(violations.map((v) => v.identifier))].sort()
+    expect(identifiers).toEqual(['blended_roas', 'totalConversionValue'])
+  })
+
+  it('exempts comments — documentation may speak the rule code may not', () => {
+    const violations = scanBlendedAttribution(`${FIXTURES}attribution`)
+    const svelteHits = violations.filter((v) => v.file.endsWith('TwoNumbers.svelte'))
+    expect(svelteHits).toEqual([])
   })
 })

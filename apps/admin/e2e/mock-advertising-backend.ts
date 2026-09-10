@@ -69,6 +69,10 @@ export interface AdvertisingMockControls {
   settingsSavedCount: () => number
   /** How many times an audience refresh was POSTed. */
   audienceRefreshCount: () => number
+  /** Marks a connection's ingestion stalled — the dashboard's "sync failed". */
+  stallConnection: (connectionId?: string) => void
+  /** The last CSV the export endpoint streamed (the spec asserts its columns). */
+  lastExportCsv: () => string | undefined
 }
 
 export function mockAdvertisingBackend(
@@ -84,6 +88,9 @@ export function mockAdvertisingBackend(
     /** Flips the `advertising.conversion_tracking` entitlement off — the
         rollback/paused-state specs. */
     trackingDisabled?: boolean
+    /** Flips the `advertising.dashboard` entitlement off — the TASK-016
+        rollback/paused-state spec. */
+    dashboardDisabled?: boolean
   } = {},
 ): AdvertisingMockControls {
   const connections: MockAdConnection[] = []
@@ -120,14 +127,19 @@ export function mockAdvertisingBackend(
     return AD_PLATFORM_FIXTURES.find((candidate) => candidate.key !== 'meta')!
   }
 
-  function seedConnectionRecord(id: string, fixture: { key: string }, currency: string): void {
+  function seedConnectionRecord(
+    id: string,
+    fixture: { key: string },
+    currency: string,
+    timezone = 'Asia/Tokyo',
+  ): void {
     connections.push({
       id,
       platform: fixture.key,
       external_account_id: '999-888',
       account_name: `Acme ${currency} Account`,
       currency,
-      timezone: 'Asia/Tokyo',
+      timezone,
       status: 'active',
       health: {
         can_sync: true,
@@ -145,7 +157,9 @@ export function mockAdvertisingBackend(
     connectionCounter += 1
     seedConnectionRecord('conn_live_0', { key: 'meta' }, 'JPY')
     connectionCounter += 1
-    seedConnectionRecord('conn_live_1', otherPlatformFixture(), 'USD')
+    // Different timezone on purpose: the dashboard states differing
+    // timezones rather than reconciling them, and this is what it states.
+    seedConnectionRecord('conn_live_1', otherPlatformFixture(), 'USD', 'America/New_York')
   }
 
   // Stateful campaign store (TASK-012): the fake adapter's semantics —
@@ -254,7 +268,10 @@ export function mockAdvertisingBackend(
   )
   void page.route('**/api/v1/tenant/entitlements', (route) =>
     route.fulfill({
-      json: [{ feature: 'advertising.conversion_tracking', enabled: !options.trackingDisabled }],
+      json: [
+        { feature: 'advertising.conversion_tracking', enabled: !options.trackingDisabled },
+        { feature: 'advertising.dashboard', enabled: !options.dashboardDisabled },
+      ],
     }),
   )
 
@@ -1132,9 +1149,215 @@ export function mockAdvertisingBackend(
     await route.fulfill({ json: {} })
   })
 
+  // --- Performance metrics (TASK-016) --------------------------------------
+  //
+  // Deterministic per-connection rollups generated relative to *now*, so the
+  // dashboard's default last-30-days range always contains them. The summary
+  // is one row per currency (the contract refuses cross-currency totals),
+  // export streams CSV with both ROAS columns labelled, and freshness
+  // carries the backend's `stalled` flag — the dashboard's "sync failed"
+  // state renders from it, never from a clock guess.
+  const stalledConnectionIds = new Set<string>()
+  let exportCsv: string | undefined
+
+  function isoDaysAgo(days: number): string {
+    const date = new Date()
+    date.setUTCDate(date.getUTCDate() - days)
+    return date.toISOString().slice(0, 10)
+  }
+
+  interface MockMetricDay {
+    spendMinor: number
+    valueMinor: number
+    revenueMinor: number
+    conversions: number
+    clicks: number
+    impressions: number
+  }
+
+  function metricDaysFor(
+    connection: MockAdConnection,
+    campaignId: string,
+  ): Map<string, MockMetricDay> {
+    const days = new Map<string, MockMetricDay>()
+    const base = connection.id.length + campaignId.length
+    for (let ago = 0; ago < 3; ago += 1) {
+      days.set(isoDaysAgo(ago), {
+        spendMinor: base * 100,
+        valueMinor: base * 260,
+        revenueMinor: base * 200,
+        conversions: 2,
+        clicks: base,
+        impressions: base * 30,
+      })
+    }
+    return days
+  }
+
+  function buildMetricRows(): Record<string, unknown>[] {
+    const rows: Record<string, unknown>[] = []
+    const sources = campaigns.length > 0 ? campaigns : []
+    for (const connection of connections) {
+      const connectionCampaigns =
+        sources.length > 0 ? sources.filter((view) => view.connection_id === connection.id) : []
+      const targets =
+        connectionCampaigns.length > 0
+          ? connectionCampaigns.map((view) => ({ id: view.id, name: view.campaign.name }))
+          : [{ id: `${connection.id}_rollup`, name: `${connection.currency} rollup` }]
+      for (const target of targets) {
+        const days = metricDaysFor(connection, target.id)
+        for (const [date, day] of days) {
+          const ago = Math.round(
+            (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${isoDaysAgo(0)}T00:00:00Z`)) /
+              86_400_000,
+          )
+          rows.push({
+            campaign_id: target.id,
+            clicks: day.clicks,
+            conversion_value: { amount_minor: day.valueMinor, currency: connection.currency },
+            conversions: day.conversions,
+            date,
+            impressions: day.impressions,
+            platform: connection.platform,
+            rendered_spend: null,
+            restating: ago <= 1,
+            roas_platform: day.valueMinor / day.spendMinor,
+            roas_sanvi: day.revenueMinor / day.spendMinor,
+            sanvi_revenue: { amount_minor: day.revenueMinor, currency: connection.currency },
+            spend: { amount_minor: day.spendMinor, currency: connection.currency },
+          })
+        }
+      }
+    }
+    return rows
+  }
+
+  function buildSummaryRows(): Record<string, unknown>[] {
+    const rows = buildMetricRows() as {
+      spend: { amount_minor: number; currency: string }
+      conversion_value: { amount_minor: number }
+      sanvi_revenue: { amount_minor: number }
+      conversions: number
+      clicks: number
+      impressions: number
+      restating: boolean
+    }[]
+    const byCurrency = new Map<
+      string,
+      {
+        spend: number
+        value: number
+        revenue: number
+        conversions: number
+        clicks: number
+        impressions: number
+        restating: boolean
+      }
+    >()
+    for (const row of rows) {
+      const bucket = byCurrency.get(row.spend.currency) ?? {
+        spend: 0,
+        value: 0,
+        revenue: 0,
+        conversions: 0,
+        clicks: 0,
+        impressions: 0,
+        restating: false,
+      }
+      bucket.spend += row.spend.amount_minor
+      bucket.value += row.conversion_value.amount_minor
+      bucket.revenue += row.sanvi_revenue.amount_minor
+      bucket.conversions += row.conversions
+      bucket.clicks += row.clicks
+      bucket.impressions += row.impressions
+      bucket.restating = bucket.restating || row.restating
+      byCurrency.set(row.spend.currency, bucket)
+    }
+    return [...byCurrency.entries()].map(([currency, bucket]) => ({
+      clicks: bucket.clicks,
+      conversion_value: { amount_minor: bucket.value, currency },
+      conversions: bucket.conversions,
+      currency,
+      impressions: bucket.impressions,
+      restating: bucket.restating,
+      roas_platform: bucket.value / bucket.spend,
+      roas_sanvi: bucket.revenue / bucket.spend,
+      sanvi_revenue: { amount_minor: bucket.revenue, currency },
+      spend: { amount_minor: bucket.spend, currency },
+    }))
+  }
+
+  void page.route('**/api/v1/tenant/ads/metrics/freshness', async (route) => {
+    await route.fulfill({
+      json: {
+        connections: connections.map((connection) => ({
+          connection_id: connection.id,
+          platform: connection.platform,
+          last_ingested_at: stalledConnectionIds.has(connection.id)
+            ? `${isoDaysAgo(6)}T00:00:00Z`
+            : `${isoDaysAgo(0)}T06:00:00Z`,
+          lag_hours: stalledConnectionIds.has(connection.id) ? 150 : 4,
+          stalled: stalledConnectionIds.has(connection.id),
+        })),
+      },
+    })
+  })
+
+  void page.route('**/api/v1/tenant/ads/metrics/export**', async (route) => {
+    const rows = buildMetricRows()
+    const header =
+      'date,campaign_id,platform,currency,impressions,clicks,conversions,conversion_value_minor,spend_minor,sanvi_revenue_minor,roas_platform,roas_sanvi,restating'
+    const body = rows
+      .map((row) => {
+        const record = row as Record<string, unknown>
+        return [
+          record.date,
+          record.campaign_id,
+          record.platform,
+          (record.spend as { currency: string }).currency,
+          record.impressions,
+          record.clicks,
+          record.conversions,
+          (record.conversion_value as { amount_minor: number }).amount_minor,
+          (record.spend as { amount_minor: number }).amount_minor,
+          (record.sanvi_revenue as { amount_minor: number }).amount_minor,
+          record.roas_platform,
+          record.roas_sanvi,
+          record.restating,
+        ].join(',')
+      })
+      .join('\n')
+    exportCsv = `${header}\n${body}\n`
+    await route.fulfill({
+      body: exportCsv,
+      headers: { 'content-type': 'text/csv' },
+    })
+  })
+
+  void page.route('**/api/v1/tenant/ads/metrics/summary**', async (route) => {
+    const url = new URL(route.request().url())
+    const compare = url.searchParams.get('compare_to')
+    await route.fulfill({
+      json: {
+        current: buildSummaryRows(),
+        compared: compare ? buildSummaryRows() : null,
+      },
+    })
+  })
+
+  void page.route('**/api/v1/tenant/ads/metrics*', async (route) => {
+    // `*` does not match '/', so this answers the bare rollup endpoint only —
+    // summary/freshness/export above keep their subpaths.
+    await route.fulfill({ json: { rows: buildMetricRows() } })
+  })
+
   return {
     settingsSavedCount: () => settingsSaved,
     audienceRefreshCount: () => audienceRefreshes,
+    stallConnection: (connectionId?: string) => {
+      stalledConnectionIds.add(connectionId ?? connections[0]?.id ?? 'conn_live_0')
+    },
+    lastExportCsv: () => exportCsv,
     simulatePlatformEdit: (campaignId: string) => {
       const campaign = campaigns.find((candidate) => candidate.id === campaignId)
       if (!campaign) return

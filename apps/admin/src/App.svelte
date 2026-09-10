@@ -132,6 +132,16 @@ const routes: RouteDefinition[] = [
     load: () => import('./routes/advertising/Connections.svelte'),
   },
   {
+    // Phase 10 TASK-016: the ROAS dashboard. The route itself gates on
+    // `advertising.read`; the `advertising.dashboard` entitlement flag is
+    // the on/off switch inside the page (rollback: a paused state, and the
+    // metrics endpoints answer 503), and the backend's
+    // `advertising.metrics.read` is the read authority for the data.
+    path: 'advertising/dashboard',
+    guard: (params) => requirePermission(router, 'advertising.read', getActiveTenantId())(params),
+    load: () => import('./routes/advertising/Dashboard.svelte'),
+  },
+  {
     // Phase 10 TASK-012: the campaign manager. Reads gate on
     // `advertising.read`; the write actions inside additionally check
     // `advertising.campaign.write` (a 403 from the backend is the
@@ -420,6 +430,7 @@ type NavKey =
   | 'billing'
   | 'payments'
   | 'advertising'
+  | 'advertisingDashboard'
   | 'advertisingCampaigns'
   | 'advertisingCreatives'
   | 'advertisingTracking'
@@ -440,6 +451,11 @@ const NAV: { href: string; labelKey: NavKey; permission?: string }[] = [
   { href: '/billing', labelKey: 'billing', permission: 'billing.subscription.read' },
   { href: '/payments', labelKey: 'payments', permission: 'payments.read' },
   { href: '/advertising/settings', labelKey: 'advertising', permission: 'advertising.read' },
+  {
+    href: '/advertising/dashboard',
+    labelKey: 'advertisingDashboard',
+    permission: 'advertising.read',
+  },
   {
     href: '/advertising/campaigns',
     labelKey: 'advertisingCampaigns',

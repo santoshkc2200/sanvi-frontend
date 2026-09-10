@@ -749,3 +749,121 @@ export function refreshAdAudience(client: TypedApiClient, id: string) {
     params: { path: { id } },
   })
 }
+
+// ---------------------------------------------------------------------------
+// Performance metrics (TASK-016 — slice 10.7)
+//
+// Gating: every metrics route requires `advertising.metrics.read`; the
+// whole section answers 503 while the `advertising.dashboard` flag is off
+// (rollback: the screens hide, the campaign list drops its spend columns —
+// it never renders zeros, which would read as "you spent nothing").
+//
+// The invariant the shapes enforce: **two numbers, never one.** Every row
+// carries the platform-reported `conversion_value` *and* the Sanvi-observed
+// `sanvi_revenue` as separate fields with separate `roas_platform` /
+// `roas_sanvi` ratios. No endpoint returns a merged attribution figure, and
+// a client that sums the two — or computes a ratio across them — is the bug
+// the grep gate exists to catch.
+//
+// Money is never summed across currencies either: rows are grouped per
+// currency by the backend (`MetricsSummaryRow` is one row *per currency*),
+// and each `MetricPoint`'s amounts stay in the ad account's own currency.
+// ---------------------------------------------------------------------------
+export type MetricPoint = components['schemas']['MetricPoint']
+export type MetricsQueryResponse = components['schemas']['MetricsQueryResponse']
+export type MetricsSummaryResponse = components['schemas']['MetricsSummaryResponse']
+export type MetricsSummaryRow = components['schemas']['MetricsSummaryRow']
+export type MetricsFreshnessView = components['schemas']['MetricsFreshnessView']
+export type ConnectionFreshnessView = components['schemas']['ConnectionFreshnessView']
+export type RenderedMoneyView = components['schemas']['RenderedMoneyView']
+
+/** Query shared by the metrics routes — inclusive `YYYY-MM-DD` bounds. */
+export interface AdMetricsQuery {
+  from: string
+  to: string
+  /** `campaign` (default), `platform`, or `tenant`. */
+  groupBy?: 'campaign' | 'platform' | 'tenant'
+  platform?: string
+  campaignId?: string
+}
+
+function adMetricsQueryParams(query: AdMetricsQuery) {
+  return {
+    from: query.from,
+    to: query.to,
+    ...(query.groupBy ? { group_by: query.groupBy } : {}),
+    ...(query.platform ? { platform: query.platform } : {}),
+    ...(query.campaignId ? { campaign_id: query.campaignId } : {}),
+  }
+}
+
+/**
+ * `GET /api/v1/tenant/ads/metrics` — rollup rows for the requested range
+ * and grain. Each row carries source currency, the ad account's platform,
+ * and the `restating` marker: a day still inside the platform's
+ * restatement window whose numbers may still change. A span past the
+ * backend's configured maximum is a 400 — render its problem detail, never
+ * a spinner.
+ */
+export function getAdMetrics(client: TypedApiClient, query: AdMetricsQuery, signal?: AbortSignal) {
+  return client.GET('/api/v1/tenant/ads/metrics', {
+    params: { query: adMetricsQueryParams(query) },
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `GET /api/v1/tenant/ads/metrics/summary?compare_to` — whole-range totals,
+ * one row per currency, with an optional equal-length prior period to
+ * compare against. `restating` is true when *any* day in the range is still
+ * inside its restatement window.
+ */
+export function getAdMetricsSummary(
+  client: TypedApiClient,
+  query: { from: string; to: string; compareTo?: string },
+  signal?: AbortSignal,
+) {
+  return client.GET('/api/v1/tenant/ads/metrics/summary', {
+    params: {
+      query: {
+        from: query.from,
+        to: query.to,
+        ...(query.compareTo ? { compare_to: query.compareTo } : {}),
+      },
+    },
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `GET /api/v1/tenant/ads/metrics/export?format=csv` — the same labelled
+ * columns as `/ads/metrics`, streamed as CSV with **no blended ROAS
+ * column**. The backend 403s without `advertising.metrics.read`, so the
+ * download button is permission-gated client-side too. The generated types
+ * cannot express a `text/csv` success body (they resolve it to `undefined`)
+ * while the runtime client returns the CSV text for that content type — the
+ * cast below is the one place that gap is bridged, as in
+ * `exportTenantPayments`.
+ */
+export function getAdMetricsExport(
+  client: TypedApiClient,
+  query: AdMetricsQuery,
+  signal?: AbortSignal,
+): Promise<string> {
+  return client.GET('/api/v1/tenant/ads/metrics/export', {
+    params: { query: adMetricsQueryParams(query) },
+    ...(signal ? { signal } : {}),
+  }) as unknown as Promise<string>
+}
+
+/**
+ * `GET /api/v1/tenant/ads/metrics/freshness` — per-connection
+ * `last_ingested_at`, `lag_hours`, and the backend-computed `stalled`
+ * marker. The dashboard's "still updating" and "sync failed" states render
+ * from this, never from a clock-based guess: if a screen finds itself
+ * comparing timestamps to decide staleness, the fix is this endpoint, not
+ * client-side arithmetic.
+ */
+export function getAdMetricsFreshness(client: TypedApiClient, signal?: AbortSignal) {
+  return client.GET('/api/v1/tenant/ads/metrics/freshness', signal ? { signal } : undefined)
+}
