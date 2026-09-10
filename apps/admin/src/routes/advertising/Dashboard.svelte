@@ -52,7 +52,12 @@ import {
   type AttributionPlatformRow,
 } from '@sanvi/ui'
 import { apiClient } from '../../lib/api'
-import { capStatusFor, freshnessFacts, scopeCampaignId } from '../../lib/advertising/budget'
+import {
+  capStatusFor,
+  freshnessFacts,
+  scopeCampaignId,
+  thresholdActionFor,
+} from '../../lib/advertising/budget'
 import { BUDGET_PERIOD_DAILY } from '../../lib/budget-periods'
 import {
   campaignRows,
@@ -129,6 +134,7 @@ let sortKey = $state<string | undefined>(undefined)
 let sortDirection = $state<'asc' | 'desc'>('asc')
 
 let loadSeq = 0
+let spendGen = 0
 
 const hasActiveConnection = $derived(
   connections.some((connection) => connection.status !== 'disconnected'),
@@ -145,6 +151,9 @@ async function load(): Promise<void> {
   dashboardEnabled = hasFeature('advertising.dashboard')
   guardrailsEnabled = hasFeature('advertising.budget_guardrails')
   spendItems = []
+  // Drop any in-flight optional request from a previous load — a late
+  // arrival must never repopulate the section after a reload.
+  spendGen += 1
 
   if (!dashboardEnabled) {
     loading = false
@@ -153,11 +162,24 @@ async function load(): Promise<void> {
 
   // Spend status is best-effort here: a failure degrades to "no cap
   // indicators" rather than failing the whole dashboard — the caps have
-  // their own configuration screen for the full story.
+  // their own configuration screen for the full story. It settles
+  // independently: fire-and-forget, never awaited with the core requests,
+  // so a slow or retrying optional endpoint blocks neither the core
+  // results, nor the metrics load, nor the spinner's removal — the cap
+  // section simply appears when its data arrives. It carries its own
+  // generation counter because range changes bump the shared `loadSeq`
+  // without reissuing spend status: tying the late result to `loadSeq`
+  // would discard it and leave the cap section absent until a full reload.
   if (guardrailsEnabled) {
-    const status = await getAdSpendStatus(apiClient).catch(() => undefined)
-    if (seq !== loadSeq) return
-    spendItems = status?.items ?? []
+    const spendToken = ++spendGen
+    void getAdSpendStatus(apiClient).then(
+      (status) => {
+        if (spendToken === spendGen) spendItems = status?.items ?? []
+      },
+      () => {
+        if (spendToken === spendGen) spendItems = []
+      },
+    )
   }
 
   const [connectionsResult, platformsResult, campaignsResult, freshnessResult] =
@@ -490,11 +512,19 @@ function capFreshness(item: SpendStatusItem): string {
         : t['admin.advertising.budget.freshness.staleNoTime'](),
     })
   }
-  return facts.lastSyncedAt
-    ? t['admin.advertising.budget.freshness.current']({
+  if (facts.lastSyncedAt) {
+    // Monthly caps normally carry a provisional tail (recent days still
+    // updating): surface it instead of a plain "last synced".
+    if (!facts.settled || facts.provisionalMinor > 0) {
+      return t['admin.advertising.budget.freshness.currentProvisional']({
         time: fmt.datetime(facts.lastSyncedAt),
       })
-    : t['admin.advertising.budget.freshness.noData']()
+    }
+    return t['admin.advertising.budget.freshness.current']({
+      time: fmt.datetime(facts.lastSyncedAt),
+    })
+  }
+  return t['admin.advertising.budget.freshness.noData']()
 }
 
 function capStatusLabel(status: 'ok' | 'warning' | 'hit'): string {
@@ -791,6 +821,7 @@ function capPeriodLabel(item: SpendStatusItem): string {
               {#each cappedItems as item (item.scope + ':' + item.period)}
                 {@const cap = item.cap!}
                 {@const status = capStatusFor(item.percentage)}
+                {@const reachedAction = thresholdActionFor(item.percentage, item.actions_configured)}
                 <CapProgress
                   heading={capScopeHeading(item)}
                   periodLabel={capPeriodLabel(item)}
@@ -805,13 +836,11 @@ function capPeriodLabel(item: SpendStatusItem): string {
                   {status}
                   statusLabel={capStatusLabel(status)}
                   actionText={
-                    item.percentage !== undefined &&
-                    item.percentage !== null &&
-                    item.percentage >= 80
-                      ? item.actions_configured.threshold_100 === 'pause'
-                        ? t['admin.advertising.budget.actions.pause']()
+                    reachedAction === 'pause'
+                      ? t['admin.advertising.budget.actions.pause']()
+                      : reachedAction === undefined
+                        ? undefined
                         : t['admin.advertising.budget.actions.notify']()
-                      : undefined
                   }
                   actionLabel={t['admin.advertising.budget.actions.configuredLabel']()}
                   ratio={cap.amount.amount_minor > 0

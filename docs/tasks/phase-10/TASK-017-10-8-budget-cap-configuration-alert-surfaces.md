@@ -128,8 +128,9 @@ breach date from the backend's own spend-to-date and run-rate figures
 labelled projected with the freshness caveat inline, and the authoritative evaluation stays the
 backend's on save. Raising a cap opens a `ConsequenceDialog` with the period delta and its 30-day
 projection; enabling auto-pause requires typing the pause figure, and the consequence copy states
-the scope, that delivery stops immediately, and the no-auto-resume rule (or the opt-in
-`auto_resume_on_rollover` behaviour, stated instead). Lowering below current spend warns before
+the scope, that delivery stops immediately, and the no-auto-resume rule — the backend keeps
+`auto_resume_on_rollover` for compatibility only and never resumes a paused campaign, so the
+form offers no resume control and never sends the flag. Lowering below current spend warns before
 applying — and the backend's 409 forces the same `confirm_below_current_spend` round-trip even if
 the client check were wrong.
 
@@ -138,15 +139,25 @@ is picked automatically; with several, the form leaves it unselected and blocks 
 tenant chooses — the acceptance criterion is enforced by the form, and the choice reaches the API
 as `declared_fx_basis: "explicit:<currency>"` (the backend treats the basis as an opaque
 declaration; the format is self-describing by design). Optional `fx_rate_date` pins conversions to
-one day's rates.
+one day's rates. The live preview for a cross-currency tenant cap evaluates the proposed
+currency/basis with the backend's dry-run (current spend in the proposed currency — the dry-run
+carries no projected spend, and its `would_breach_*` flags compare current spend only, so they
+are never rendered as the verdict), converts the spend-status run rate at the dry-run's own
+factor (`convertRunRateToDryRunBasis`), and interpolates the breach from the converted pair —
+all three figures stay in the proposed currency, labelled projected with the FX-basis note.
+The conversion declines — falling back to the unavailable note — when the backend's minor-unit
+rounding of the projected total stops being negligible, so a near-flat run rate never prints an
+amplified guess. A `projected_spend` field on the backend's dry-run result would retire the
+client-side conversion and its rounding entirely (contract delta to fix upstream).
 
 **Flag and disclosure.** `advertising.budget_guardrails` off renders the disabled state naming the
 reason, with the permanent note that caps already in place keep guarding server-side and
 guardrail-paused campaigns stay paused. The second-line disclosure (caps supplement the platforms'
 own controls and depend on Sanvi's ingestion) is a permanent paragraph, not a tooltip or accordion.
 
-**Dashboard integration.** `Dashboard.svelte` fetches spend status best-effort when the flag is on
-and renders cap progress cards alongside the KPIs; a failure degrades to *no cap section*, never to
+**Dashboard integration.** `Dashboard.svelte` fetches spend status best-effort when the flag is on,
+settling independently of the core requests — a slow optional endpoint blocks neither the core
+results, the metrics load, nor the spinner's removal — and renders cap progress cards alongside the KPIs; a failure degrades to *no cap section*, never to
 a broken dashboard, and the flag-off case renders nothing (the caps screen owns the rollback
 state).
 

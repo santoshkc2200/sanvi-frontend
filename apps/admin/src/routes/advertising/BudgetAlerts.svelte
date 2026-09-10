@@ -115,7 +115,8 @@ function conditionLabel(condition: AlertCondition): string {
 }
 
 /** The freshness of the data behind the alert's figure — a stale alert's
-    figure may still move, and the row says so. */
+    figure may still move, and the row says so. Unsettled figures carry the
+    same "still updating" language as the cap screens. */
 function freshnessLabel(alert: BudgetAlert): string {
   if (alert.data_freshness.is_stale) {
     return t['admin.advertising.budget.freshness.staleLabel']({
@@ -126,11 +127,17 @@ function freshnessLabel(alert: BudgetAlert): string {
         : t['admin.advertising.budget.freshness.staleNoTime'](),
     })
   }
-  return alert.data_freshness.last_synced_at
-    ? t['admin.advertising.budget.freshness.current']({
+  if (alert.data_freshness.last_synced_at) {
+    if (!alert.data_freshness.is_settled) {
+      return t['admin.advertising.budget.freshness.currentProvisional']({
         time: fmt.datetime(alert.data_freshness.last_synced_at),
       })
-    : t['admin.advertising.budget.freshness.noData']()
+    }
+    return t['admin.advertising.budget.freshness.current']({
+      time: fmt.datetime(alert.data_freshness.last_synced_at),
+    })
+  }
+  return t['admin.advertising.budget.freshness.noData']()
 }
 
 function actionLabel(alert: BudgetAlert): string {

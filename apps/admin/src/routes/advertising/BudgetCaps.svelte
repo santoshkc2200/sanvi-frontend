@@ -8,7 +8,12 @@ import {
   putAdBudgetCap,
   putAdCampaignBudgetCap,
 } from '@sanvi/api-client'
-import type { BudgetPeriod, ConnectionView, SpendStatusItem } from '@sanvi/api-client'
+import type {
+  BudgetPeriod,
+  ConnectionView,
+  DryRunEvaluationResult,
+  SpendStatusItem,
+} from '@sanvi/api-client'
 import { fmt, t } from '@sanvi/i18n'
 import { navigate } from '@sanvi/spa-router'
 import { getActiveTenantId, hasFeature } from '@sanvi/tenant'
@@ -41,9 +46,12 @@ import {
 import {
   capDeltaRows,
   capStatusFor,
+  convertRunRateToDryRunBasis,
   freshnessFacts,
+  isCapAmountValid,
   projectedBreachDate,
   scopeCampaignId,
+  thresholdActionFor,
 } from '../../lib/advertising/budget'
 
 /**
@@ -68,7 +76,11 @@ import {
  * The live preview interpolates the projected breach date from the
  * backend's own spend-to-date and run-rate figures (see
  * `lib/advertising/budget.ts`) so it can follow typing; the authoritative
- * evaluation is always the backend's on save.
+ * evaluation is always the backend's on save. When the tenant spends in
+ * several currencies and the chosen cap currency has no converted basis in
+ * `spend-status` yet, the preview instead evaluates the proposed
+ * currency/basis with the backend's dry-run — it never relabels one
+ * currency's figures as another's.
  */
 
 let loading = $state(true)
@@ -87,7 +99,6 @@ let campaignId = $state('')
 let periodChoice = $state<BudgetPeriod>(BUDGET_PERIOD_MONTHLY)
 let amountMinor = $state('')
 let autoPauseChoice = $state('false')
-let autoResumeChoice = $state('false')
 let capCurrency = $state('')
 let fxRateDate = $state('')
 let saving = $state(false)
@@ -95,7 +106,11 @@ let formError = $state<string | undefined>(undefined)
 
 const period = $derived(periodChoice)
 const autoPause = $derived(autoPauseChoice === 'true')
-const autoResume = $derived(autoResumeChoice === 'true')
+// The backend keeps `auto_resume_on_rollover` for compatibility only and
+// never resumes a paused campaign: a paused campaign stays paused until an
+// operator brings it back. The form therefore offers no resume control and
+// never sends the flag — offering it would promise a lifecycle the server
+// does not run.
 
 // --- Confirmation state -----------------------------------------------------
 let confirmOpen = $state(false)
@@ -104,9 +119,20 @@ let confirmError = $state<string | undefined>(undefined)
 let belowSpendOpen = $state(false)
 
 let loadSeq = 0
+let loadedTenantId: string | undefined
 
 async function load(): Promise<void> {
   const seq = ++loadSeq
+  const tenantId = getActiveTenantId()
+  if (loadedTenantId !== undefined && loadedTenantId !== tenantId) {
+    // Tenant switched while the route stayed mounted: the draft (amount,
+    // currency, scope, period, auto-pause) belongs to the previous tenant
+    // and must not leak into the new one — a stuck JPY basis with a typed
+    // amount could otherwise save one tenant's cap against another without
+    // an FX basis. Post-save reloads keep the tenant, so they keep the draft.
+    resetForm()
+  }
+  loadedTenantId = tenantId
   loading = true
   error = undefined
   entitled = true
@@ -193,19 +219,149 @@ const formItem = $derived.by(() => {
   )
 })
 
-const formAmountValid = $derived(/^\d+$/.test(amountMinor.trim()) && Number(amountMinor.trim()) > 0)
+const formAmountValid = $derived(isCapAmountValid(amountMinor))
 
 // --- Live preview (backend figures + labelled interpolation) ----------------
+//
+// Single-basis previews interpolate locally from the spend-status item
+// whose currency already matches the form. A cross-currency tenant preview
+// has no converted basis: spend-status reports the existing cap's
+// currency — or the first connection's currency with unconvertible spend
+// excluded when no cap exists — so relabelling those amounts with the
+// newly selected currency would print one currency's figures as another's.
+// Those previews evaluate the proposed currency/basis with the backend's
+// dry-run instead (see the effect below). The dry-run answers current
+// spend in the proposed currency but carries no projected spend, and its
+// `would_breach_*` flags compare current spend against the cap only —
+// rendering them as the verdict would call a 60,000 cap with 40,000 spent
+// "safe" while the 62,000 run rate breaches it. So the preview converts
+// the spend-status run rate at the dry-run's own factor
+// (`convertRunRateToDryRunBasis`) and interpolates the breach from the
+// converted pair: all three figures — current, projected, breach date —
+// stay in the proposed currency and stay labelled projected, with the
+// FX-basis note inline. (A `projected_spend` field on the backend's
+// dry-run result would retire the client-side conversion; the
+// authoritative evaluation is the backend's on save either way.)
+
+interface DryRunPreview {
+  spendMinor: number
+  currency: string
+}
+
+let dryRun = $state<DryRunPreview | undefined>(undefined)
+let dryRunPending = $state(false)
+let dryRunFailed = $state(false)
+let dryRunSeq = 0
+
+/** True while the form asks for a currency the spend-status item cannot supply. */
+const needsDryRun = $derived(
+  Boolean(formAmountValid && formCurrency && crossCurrency && scope === 'tenant'),
+)
+
+$effect(() => {
+  const wantDryRun = needsDryRun
+  const snapshot = {
+    amount: amountMinor.trim(),
+    currency: formCurrency,
+    periodChoice: period,
+    fxRateDate,
+    autoPause,
+    crossCurrency,
+  }
+  if (!wantDryRun || !snapshot.amount || !snapshot.currency) {
+    dryRunSeq += 1
+    dryRun = undefined
+    dryRunPending = false
+    dryRunFailed = false
+    return
+  }
+  const seq = ++dryRunSeq
+  dryRunPending = true
+  dryRunFailed = false
+  const timer = setTimeout(() => {
+    void (async () => {
+      const body = {
+        period: snapshot.periodChoice,
+        amount: { amount_minor: Number(snapshot.amount), currency: snapshot.currency },
+        auto_pause: snapshot.autoPause,
+        dry_run: true as const,
+        declared_fx_basis: `explicit:${snapshot.currency}`,
+        ...(snapshot.fxRateDate ? { fx_rate_date: snapshot.fxRateDate } : {}),
+      }
+      try {
+        const result = await putAdBudgetCap(apiClient, body)
+        if (seq !== dryRunSeq) return
+        if (isDryRunResult(result)) {
+          dryRun = {
+            spendMinor: result.current_spend.amount_minor,
+            currency: result.current_spend.currency,
+          }
+          dryRunFailed = false
+        } else {
+          dryRun = undefined
+          dryRunFailed = true
+        }
+      } catch {
+        if (seq !== dryRunSeq) return
+        dryRun = undefined
+        dryRunFailed = true
+      } finally {
+        if (seq === dryRunSeq) dryRunPending = false
+      }
+    })()
+  }, 250)
+  return () => clearTimeout(timer)
+})
+
+function isDryRunResult(
+  value: unknown,
+): value is DryRunEvaluationResult & { current_spend: { amount_minor: number; currency: string } } {
+  if (typeof value !== 'object' || value === null) return false
+  const record = value as Record<string, unknown>
+  const current = record['current_spend']
+  if (typeof current !== 'object' || current === null) return false
+  const spend = current as Record<string, unknown>
+  return (
+    typeof spend['amount_minor'] === 'number' && typeof record['would_breach_100'] === 'boolean'
+  )
+}
 
 const preview = $derived.by(() => {
   if (!formAmountValid || !formCurrency) return undefined
   const capMinor = Number(amountMinor.trim())
+  if (needsDryRun) {
+    if (dryRunPending || dryRunFailed || !dryRun || !formItem) return undefined
+    // No convertible run rate (period start with nothing spent yet, or a
+    // near-flat rate whose rounding the factor would amplify): fall back
+    // to the unavailable note rather than an unconverted figure.
+    const converted = convertRunRateToDryRunBasis(
+      formItem.spend_to_date.amount_minor,
+      formItem.projected_spend.amount_minor,
+      dryRun.spendMinor,
+    )
+    if (!converted) return undefined
+    const breach = projectedBreachDate(
+      period,
+      capMinor,
+      converted.spendMinor,
+      converted.projectedMinor,
+    )
+    return {
+      usesDryRun: true as const,
+      currency: dryRun.currency,
+      spendText: formatAdCurrency(converted.spendMinor, dryRun.currency),
+      projectedText: formatAdCurrency(converted.projectedMinor, dryRun.currency),
+      breachDate: breach?.date,
+      facts: freshnessFacts(formItem),
+    }
+  }
   const item = formItem
   const spendMinor = item?.spend_to_date.amount_minor ?? 0
   const projectedMinor = item?.projected_spend.amount_minor ?? 0
   const breach = projectedBreachDate(period, capMinor, spendMinor, projectedMinor)
   const facts = item ? freshnessFacts(item) : undefined
   return {
+    usesDryRun: false as const,
     spendText: formatAdCurrency(spendMinor, formCurrency),
     projectedText: formatAdCurrency(projectedMinor, formCurrency),
     breachDate: breach?.date,
@@ -221,6 +377,14 @@ function freshnessSentence(facts: ReturnType<typeof freshnessFacts> | undefined)
       : t['admin.advertising.budget.freshness.staleNoTime']()
   }
   if (facts.lastSyncedAt) {
+    // A normal monthly status carries a provisional tail (recent days still
+    // updating, `is_settled: false`) — "last synced" alone hides that the
+    // figures may still move, so unsettled or provisional figures say so.
+    if (!facts.settled || facts.provisionalMinor > 0) {
+      return t['admin.advertising.budget.freshness.currentProvisional']({
+        time: fmt.datetime(facts.lastSyncedAt),
+      })
+    }
     return t['admin.advertising.budget.freshness.current']({
       time: fmt.datetime(facts.lastSyncedAt),
     })
@@ -318,12 +482,6 @@ const confirmConsequence = $derived.by(() => {
       period: periodLabelOf(period),
     })
   }
-  if (autoResume) {
-    return t['admin.advertising.budget.confirm.pauseRolloverConsequence']({
-      figure,
-      scope: scopeLabel,
-    })
-  }
   return t['admin.advertising.budget.confirm.pauseConsequence']({ figure, scope: scopeLabel })
 })
 
@@ -376,7 +534,9 @@ async function doSave(options: { confirmBelowCurrentSpend: boolean }): Promise<v
     period,
     amount: { amount_minor: Number(amountMinor.trim()), currency: formCurrency },
     auto_pause: autoPause,
-    auto_resume_on_rollover: autoResume,
+    // No `auto_resume_on_rollover`: the backend never resumes a paused
+    // campaign (the field is compatibility-only), so the form must not let
+    // an operator save — or believe — otherwise.
     // A cross-currency cap is only saveable with the tenant's explicit FX
     // basis: the form blocks the save without one (acceptance criterion),
     // and the declaration names the chosen basis currency explicitly — the
@@ -427,7 +587,6 @@ function editCap(item: SpendStatusItem): void {
   capCurrency = item.cap?.amount.currency ?? item.cap?.effective_currency ?? ''
   amountMinor = String(item.cap?.amount.amount_minor ?? '')
   autoPauseChoice = item.cap?.auto_pause ? 'true' : 'false'
-  autoResumeChoice = item.cap?.auto_resume_on_rollover ? 'true' : 'false'
   formError = undefined
 }
 
@@ -437,9 +596,19 @@ function resetForm(): void {
   periodChoice = BUDGET_PERIOD_MONTHLY
   amountMinor = ''
   autoPauseChoice = 'false'
-  autoResumeChoice = 'false'
+  capCurrency = ''
   fxRateDate = ''
   formError = undefined
+  // Pending confirmations and the FX dry-run belong to the discarded draft
+  // too — a confirmation saved after the switch would carry the old scope.
+  confirmOpen = false
+  confirmSubmitting = false
+  confirmError = undefined
+  belowSpendOpen = false
+  dryRunSeq += 1
+  dryRun = undefined
+  dryRunPending = false
+  dryRunFailed = false
 }
 
 function periodLabelOf(value: BudgetPeriod): string {
@@ -530,6 +699,7 @@ $effect(() => {
                 {@const currency = cap.amount.currency}
                 {@const facts = freshnessFacts(item)}
                 {@const status = capStatusFor(item.percentage)}
+                {@const reachedAction = thresholdActionFor(item.percentage, item.actions_configured)}
                 <div class="budget__cap">
                   <CapProgress
                     heading={scopeHeading(item)}
@@ -556,11 +726,7 @@ $effect(() => {
                           : t['admin.advertising.budget.status.ok']()
                     }
                     actionText={
-                      item.percentage !== undefined &&
-                      item.percentage !== null &&
-                      item.percentage >= 80
-                        ? thresholdActionLabel(item.actions_configured.threshold_100)
-                        : undefined
+                      reachedAction !== undefined ? thresholdActionLabel(reachedAction) : undefined
                     }
                     actionLabel={t['admin.advertising.budget.actions.configuredLabel']()}
                     ratio={cap.amount.amount_minor > 0
@@ -705,53 +871,85 @@ $effect(() => {
                   {/snippet}
                 </Field>
 
-                {#if autoPause}
-                  <Field
-                    label={t['admin.advertising.budget.form.autoResumeLabel']()}
-                    hint={t['admin.advertising.budget.form.autoResumeHint']()}
-                  >
-                    {#snippet children(controlProps)}
-                      <Select
-                        {...controlProps}
-                        bind:value={autoResumeChoice}
-                        options={[
-                          { value: 'false', label: t['admin.advertising.budget.form.off']() },
-                          { value: 'true', label: t['admin.advertising.budget.form.on']() },
-                        ]}
-                      />
-                    {/snippet}
-                  </Field>
-                {/if}
-
                 {#if formAmountValid && formCurrency}
                   <div class="budget__preview">
                     <h3>{t['admin.advertising.budget.preview.heading']()}</h3>
-                    <dl class="budget__preview-list">
-                      <div>
-                        <dt>{t['admin.advertising.budget.preview.currentLabel']()}</dt>
-                        <dd>{preview?.spendText}</dd>
-                      </div>
-                      <div>
-                        <dt>{t['admin.advertising.budget.preview.projectedLabel']}</dt>
-                        <dd>{preview?.projectedText}</dd>
-                      </div>
-                      <div>
-                        <dt>{t['admin.advertising.budget.preview.breachLabel']}</dt>
-                        <dd>
-                          {#if preview?.breachDate}
-                            {t['admin.advertising.budget.preview.breachValue']({
-                              date: fmt.date(`${preview.breachDate}T00:00:00`, 'medium'),
-                            })}
-                          {:else}
-                            {t['admin.advertising.budget.preview.noBreach']()}
-                          {/if}
-                        </dd>
-                      </div>
-                    </dl>
-                    <p class="budget__preview-freshness">
-                      {t['admin.advertising.budget.preview.projectedNote']()}
-                      {freshnessSentence(preview?.facts)}
-                    </p>
+                    {#if needsDryRun}
+                      <!-- Cross-currency basis: the dry-run counts current
+                           spend in the proposed currency/basis — never a
+                           relabelled spend-status amount — the run rate is
+                           converted at the dry-run's own factor, and the
+                           breach is interpolated from the converted pair,
+                           so all three figures stay in one currency. -->
+                      {#if dryRunPending}
+                        <p class="budget__preview-freshness">
+                          {t['admin.advertising.budget.preview.dryRunLoading']()}
+                        </p>
+                      {:else if preview?.usesDryRun}
+                        <dl class="budget__preview-list">
+                          <div>
+                            <dt>{t['admin.advertising.budget.preview.currentLabel']()}</dt>
+                            <dd>{preview.spendText}</dd>
+                          </div>
+                          <div>
+                            <dt>{t['admin.advertising.budget.preview.projectedLabel']()}</dt>
+                            <dd>{preview.projectedText}</dd>
+                          </div>
+                          <div>
+                            <dt>{t['admin.advertising.budget.preview.breachLabel']()}</dt>
+                            <dd>
+                              {#if preview.breachDate}
+                                {t['admin.advertising.budget.preview.breachValue']({
+                                  date: fmt.date(`${preview.breachDate}T00:00:00`, 'medium'),
+                                })}
+                              {:else}
+                                {t['admin.advertising.budget.preview.noBreach']()}
+                              {/if}
+                            </dd>
+                          </div>
+                        </dl>
+                        <p class="budget__preview-freshness">
+                          {t['admin.advertising.budget.preview.fxBasisNote']({
+                            currency: preview.currency,
+                          })}
+                          {freshnessSentence(preview.facts)}
+                        </p>
+                      {:else}
+                        <p class="budget__preview-freshness">
+                          {t['admin.advertising.budget.preview.dryRunUnavailable']()}
+                          {freshnessSentence(formItem ? freshnessFacts(formItem) : undefined)}
+                        </p>
+                      {/if}
+                    {:else}
+                      <dl class="budget__preview-list">
+                        <div>
+                          <dt>{t['admin.advertising.budget.preview.currentLabel']()}</dt>
+                          <dd>{preview?.spendText}</dd>
+                        </div>
+                        <div>
+                          <dt>{t['admin.advertising.budget.preview.projectedLabel']()}</dt>
+                          <dd>
+                            {#if preview && !preview.usesDryRun}{preview.projectedText}{/if}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>{t['admin.advertising.budget.preview.breachLabel']()}</dt>
+                          <dd>
+                            {#if preview && !preview.usesDryRun && preview.breachDate}
+                              {t['admin.advertising.budget.preview.breachValue']({
+                                date: fmt.date(`${preview.breachDate}T00:00:00`, 'medium'),
+                              })}
+                            {:else}
+                              {t['admin.advertising.budget.preview.noBreach']()}
+                            {/if}
+                          </dd>
+                        </div>
+                      </dl>
+                      <p class="budget__preview-freshness">
+                        {t['admin.advertising.budget.preview.projectedNote']()}
+                        {freshnessSentence(preview?.facts)}
+                      </p>
+                    {/if}
                   </div>
                 {/if}
 

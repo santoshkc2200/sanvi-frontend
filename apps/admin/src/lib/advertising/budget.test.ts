@@ -4,9 +4,12 @@ import { describe, expect, it } from 'vitest'
 import {
   capDeltaRows,
   capStatusFor,
+  convertRunRateToDryRunBasis,
   freshnessFacts,
+  isCapAmountValid,
   projectedBreachDate,
   scopeCampaignId,
+  thresholdActionFor,
 } from './budget'
 
 describe('capStatusFor', () => {
@@ -70,11 +73,12 @@ describe('projectedBreachDate', () => {
   // 2026-09-10 UTC; September has 30 days.
   const now = new Date('2026-09-10T12:00:00Z')
 
-  it('interpolates the breach day inside the month for a monthly cap', () => {
-    // Spend 300k, projected 900k: cap 600k is growth's midpoint — half of
-    // September (15 days) after its start → Sep 16 00:00 UTC.
+  it('interpolates the breach day from now, not period start, for a monthly cap', () => {
+    // Spend 300k at Sep 10 12:00 UTC, projected 900k at Sep 30 end: cap
+    // 600k is growth's midpoint — half the *remaining* 20.5 days after now
+    // → Sep 20 18:00 UTC.
     const projection = projectedBreachDate(MONTHLY, 600_000, 300_000, 900_000, now)
-    expect(projection?.date).toBe('2026-09-16')
+    expect(projection?.date).toBe('2026-09-20')
   })
 
   it('interpolates within the day for a daily cap', () => {
@@ -96,6 +100,110 @@ describe('projectedBreachDate', () => {
 
   it('guards a non-positive cap', () => {
     expect(projectedBreachDate(MONTHLY, 0, 0, 100, now)).toBeUndefined()
+  })
+})
+
+describe('isCapAmountValid', () => {
+  it('accepts whole minor-unit amounts with surrounding whitespace', () => {
+    expect(isCapAmountValid('50000')).toBe(true)
+    expect(isCapAmountValid('  50000  ')).toBe(true)
+    expect(isCapAmountValid('007')).toBe(true)
+  })
+
+  it('rejects empty, non-digit, fractional, and non-positive input', () => {
+    expect(isCapAmountValid('')).toBe(false)
+    expect(isCapAmountValid('   ')).toBe(false)
+    expect(isCapAmountValid('0')).toBe(false)
+    expect(isCapAmountValid('-50')).toBe(false)
+    expect(isCapAmountValid('50.5')).toBe(false)
+    expect(isCapAmountValid('1e3')).toBe(false)
+    expect(isCapAmountValid('50,000')).toBe(false)
+  })
+
+  it('rejects digit input beyond the safe-integer range — it would save a different cap', () => {
+    // Parses to 9007199254740992: the operator's figure would not survive.
+    expect(isCapAmountValid('9007199254740993')).toBe(false)
+    // Parses to Infinity, which serializes as null.
+    expect(isCapAmountValid('9'.repeat(400))).toBe(false)
+    expect(isCapAmountValid(String(Number.MAX_SAFE_INTEGER))).toBe(true)
+  })
+})
+
+describe('convertRunRateToDryRunBasis', () => {
+  // 2026-09-10 UTC; September has 30 days.
+  const now = new Date('2026-09-10T12:00:00Z')
+
+  it('converts the run-rate pair at the backend-established factor', () => {
+    // Spend-status basis: 40,000 → 62,000. Dry-run counts 400 in the
+    // proposed currency: factor 0.01, projected 620 in the same currency.
+    expect(convertRunRateToDryRunBasis(40_000, 62_000, 400)).toEqual({
+      spendMinor: 400,
+      projectedMinor: 620,
+    })
+  })
+
+  it('keeps the run-rate breach a current-spend check would miss', () => {
+    // The review's case: cap 60,000, current 40,000, projected 62,000.
+    // `would_breach_100` (40,000 < 60,000) says no breach; the run rate
+    // breaches, and the converted pair fed to the breach interpolation
+    // must say so too — in whatever currency the dry-run counted in.
+    const converted = convertRunRateToDryRunBasis(40_000, 62_000, 40_000)!
+    expect(converted.projectedMinor).toBeGreaterThan(60_000)
+    expect(
+      projectedBreachDate(MONTHLY, 60_000, converted.spendMinor, converted.projectedMinor, now),
+    ).toBeDefined()
+  })
+
+  it('is undefined with no basis for a factor — never an unconverted figure', () => {
+    expect(convertRunRateToDryRunBasis(0, 62_000, 400)).toBeUndefined()
+    expect(convertRunRateToDryRunBasis(-1, 62_000, 400)).toBeUndefined()
+    expect(convertRunRateToDryRunBasis(40_000, 62_000, -5)).toBeUndefined()
+    expect(convertRunRateToDryRunBasis(40_000, Number.NaN, 400)).toBeUndefined()
+  })
+
+  it('declines when backend rounding stops being negligible — never an amplified guess', () => {
+    // Review case: elapsed fraction 0.4, source spend 1, backend-rounded
+    // projected 3 (true 2.5±0.5), dry-run 1,001. The naive factor gives
+    // 3,003 against a backend-equivalent ~2,503: rounding alone owns 25%
+    // of the growth, so the helper declines and the preview shows the
+    // unavailable note instead.
+    expect(convertRunRateToDryRunBasis(1, 3, 1_001)).toBeUndefined()
+    // Near-flat run rate: ±0.5 on a growth of 10 could move the breach
+    // date materially, so this declines too…
+    expect(convertRunRateToDryRunBasis(100_000, 100_010, 100_000)).toBeUndefined()
+    // …while a growth of 25 — rounding exactly a 2% share — still converts.
+    expect(convertRunRateToDryRunBasis(1_000, 1_025, 1_000)).toEqual({
+      spendMinor: 1_000,
+      projectedMinor: 1_025,
+    })
+  })
+
+  it('declines a flat or negative rounded growth — it can hide a boundary breach', () => {
+    // Review case: spend and projected both round to 26, dry-run 2,600 at
+    // true elapsed fraction 0.9815 — backend-equivalent projection ~2,649,
+    // so a 2,625 cap breaches while the naive conversion prints 2,600 and
+    // reports no breach. Only a backend-provided converted projection could
+    // decide this boundary.
+    expect(convertRunRateToDryRunBasis(26, 26, 2_600)).toBeUndefined()
+    expect(convertRunRateToDryRunBasis(40_000, 40_000, 400)).toBeUndefined()
+    expect(convertRunRateToDryRunBasis(40_000, 39_000, 400)).toBeUndefined()
+  })
+})
+
+describe('thresholdActionFor', () => {
+  const actions = { threshold_80: 'notify', threshold_100: 'pause' }
+
+  it('renders the reached threshold — 80% notifies even on an auto-pause cap', () => {
+    expect(thresholdActionFor(80, actions)).toBe('notify')
+    expect(thresholdActionFor(99.9, actions)).toBe('notify')
+    expect(thresholdActionFor(100, actions)).toBe('pause')
+    expect(thresholdActionFor(240, actions)).toBe('pause')
+  })
+
+  it('renders no action below the first threshold or without a percentage', () => {
+    expect(thresholdActionFor(79.9, actions)).toBeUndefined()
+    expect(thresholdActionFor(null, actions)).toBeUndefined()
+    expect(thresholdActionFor(undefined, actions)).toBeUndefined()
   })
 })
 
