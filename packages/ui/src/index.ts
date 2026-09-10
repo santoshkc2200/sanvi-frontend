@@ -29,6 +29,10 @@ export type { AdHealthFigure } from './advertising/HealthBanner.svelte'
 // Attribution methodology (phase 10, TASK-016)
 export { default as AttributionExplainer } from './advertising/AttributionExplainer.svelte'
 export type { AttributionPlatformRow } from './advertising/AttributionExplainer.svelte'
+// Budget guardrails (phase 10, TASK-017)
+export { default as CapProgress } from './advertising/CapProgress.svelte'
+export { default as ConsequenceDialog } from './advertising/ConsequenceDialog.svelte'
+export type { ConsequenceFigure } from './advertising/ConsequenceDialog.svelte'
 // Chart primitives (phase 10, TASK-016) — tokenized layer, accessible tables
 export { default as BarChart } from './charts/BarChart.svelte'
 export { default as ChartDataTable } from './charts/ChartDataTable.svelte'

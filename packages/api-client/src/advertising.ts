@@ -867,3 +867,169 @@ export function getAdMetricsExport(
 export function getAdMetricsFreshness(client: TypedApiClient, signal?: AbortSignal) {
   return client.GET('/api/v1/tenant/ads/metrics/freshness', signal ? { signal } : undefined)
 }
+
+// ---------------------------------------------------------------------------
+// Budget caps, alerts & spend status (TASK-017 — slice 10.8)
+//
+// Gating: reads require `advertising.read`; cap writes require
+// `advertising.budget.manage` (owner/manager roles — a member role's write
+// is a 403). This is money-adjacent surface, so the screens confirm before
+// the figures change, and every figure is rendered with the
+// `data_freshness` the backend attaches to it.
+//
+// The division of labour the shapes enforce: the backend computes the
+// figures (spend to date, run-rate projection, percentage, the exact action
+// configured at each threshold) and the frontend renders them — a client
+// that re-derives a percentage or a threshold action is the bug this
+// contract shape exists to prevent. The one derivation left to the UI is a
+// *preview* for a cap that does not exist yet (see the screens' live
+// preview), which is always labelled projected.
+//
+// Contract delta to fix upstream: `get_budget_alerts`, `get_campaign_budget_cap`,
+// and `get_spend_status` declare their filters (`campaign_id`,
+// `unacknowledged_only`, `limit`, `period`) as **path** parameters in the
+// generated types — utoipa's `IntoParams` emits `in: path` for the backend's
+// `web::Query` structs — while the handlers read them from the query string.
+// The runtime client sends `params.query` as the query string, so those three
+// call sites bridge the mismatch with a narrow `as never` on the options
+// object (the one-place escape hatch, as in `getAdMetricsExport`). Once the
+// contract says `in: query`, regenerate and drop the casts.
+// ---------------------------------------------------------------------------
+export type BudgetCap = components['schemas']['BudgetCap']
+export type BudgetCapsView = components['schemas']['BudgetCapsView']
+export type BudgetPeriod = components['schemas']['BudgetPeriod']
+export type BudgetAlert = components['schemas']['BudgetAlert']
+export type BudgetAlertsView = components['schemas']['BudgetAlertsView']
+export type AlertCondition = components['schemas']['AlertCondition']
+export type DataFreshness = components['schemas']['DataFreshness']
+export type BudgetActionsConfigured = components['schemas']['BudgetActionsConfigured']
+export type SpendStatusItem = components['schemas']['SpendStatusItem']
+export type SpendStatusReport = components['schemas']['SpendStatusReport']
+export type PutBudgetCapRequest = components['schemas']['PutBudgetCapRequest']
+export type PutBudgetCapResponse = components['schemas']['PutBudgetCapResponse']
+export type DryRunEvaluationResult = components['schemas']['DryRunEvaluationResult']
+
+/**
+ * `GET /api/v1/tenant/ads/budget-caps` — every cap defined for the tenant,
+ * tenant-wide and per campaign, daily and monthly.
+ */
+export function getAdBudgetCaps(client: TypedApiClient, signal?: AbortSignal) {
+  return client.GET('/api/v1/tenant/ads/budget-caps', signal ? { signal } : undefined)
+}
+
+/**
+ * `PUT /api/v1/tenant/ads/budget-caps` — creates or updates the
+ * tenant-wide cap for one period. The request carries the cap's currency;
+ * when the tenant's campaigns spend in several currencies the cap names an
+ * explicit `declared_fx_basis` (+ optional `fx_rate_date`) — the UI never
+ * picks a conversion basis silently. `dry_run: true` answers a
+ * `DryRunEvaluationResult` (the live preview) instead of writing. Two
+ * guarded paths, both confirmation-shaped:
+ *   - `confirm_below_current_spend` — the backend answers 409
+ *     (`advertising/cap-below-current-spend`-shaped conflict) when the new
+ *     cap is below the period's spend so far; the retry carries the flag
+ *     after the operator confirms a change that may pause campaigns at once.
+ *   - `auto_pause: true` — enabling it is the typed-confirmation flow the
+ *     caps screen owns; the backend records the cap version either way.
+ */
+export function putAdBudgetCap(
+  client: TypedApiClient,
+  body: PutBudgetCapRequest,
+  signal?: AbortSignal,
+) {
+  return client.PUT('/api/v1/tenant/ads/budget-caps', body, signal ? { signal } : undefined)
+}
+
+/**
+ * `GET /api/v1/tenant/ads/campaigns/{campaign_id}/budget-cap?period` — one
+ * campaign's cap for a period; 404 when none is set (a missing cap is a
+ * state, not an error — the caps screen renders "no cap" rather than a
+ * failure).
+ */
+export function getAdCampaignBudgetCap(
+  client: TypedApiClient,
+  campaignId: string,
+  period?: BudgetPeriod,
+  signal?: AbortSignal,
+) {
+  return client.GET('/api/v1/tenant/ads/campaigns/{campaign_id}/budget-cap', {
+    params: {
+      path: { campaign_id: campaignId },
+      ...(period ? { query: { period } } : {}),
+    },
+    ...(signal ? { signal } : {}),
+  } as never)
+}
+
+/**
+ * `PUT /api/v1/tenant/ads/campaigns/{campaign_id}/budget-cap` — the
+ * campaign-scoped twin of {@link putAdBudgetCap}: same body semantics, same
+ * dry-run and 409 confirmation paths, scoped to one campaign.
+ */
+export function putAdCampaignBudgetCap(
+  client: TypedApiClient,
+  campaignId: string,
+  body: PutBudgetCapRequest,
+  signal?: AbortSignal,
+) {
+  return client.PUT('/api/v1/tenant/ads/campaigns/{campaign_id}/budget-cap', body, {
+    params: { path: { campaign_id: campaignId } },
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
+ * `GET /api/v1/tenant/ads/budget-alerts` — the alert history, newest
+ * first. `unacknowledgedOnly` narrows to the entries still needing an
+ * operator's eyes; `limit` caps the page.
+ */
+export function getAdBudgetAlerts(
+  client: TypedApiClient,
+  options?: { campaignId?: string; unacknowledgedOnly?: boolean; limit?: number },
+  signal?: AbortSignal,
+) {
+  return client.GET('/api/v1/tenant/ads/budget-alerts', {
+    params: {
+      query: {
+        ...(options?.campaignId ? { campaign_id: options.campaignId } : {}),
+        ...(options?.unacknowledgedOnly !== undefined
+          ? { unacknowledged_only: options.unacknowledgedOnly }
+          : {}),
+        ...(options?.limit !== undefined ? { limit: options.limit } : {}),
+      },
+    },
+    ...(signal ? { signal } : {}),
+  } as never)
+}
+
+/**
+ * `POST /api/v1/tenant/ads/budget-alerts/{alert_id}/acknowledge` — marks one
+ * alert acknowledged. Requires `advertising.budget.manage`; answers the
+ * updated alert, which is what the history re-renders from (the
+ * round-trip, not an optimistic local flip).
+ */
+export function acknowledgeAdBudgetAlert(client: TypedApiClient, alertId: string) {
+  return client.POST('/api/v1/tenant/ads/budget-alerts/{alert_id}/acknowledge', undefined, {
+    params: { path: { alert_id: alertId } },
+  })
+}
+
+/**
+ * `GET /api/v1/tenant/ads/spend-status?period` — per scope (tenant and each
+ * campaign), the cap, spend to date, projected spend at the run rate,
+ * percentage, `data_freshness`, the exact actions configured at each
+ * threshold, and the currencies whose spend could not be converted to the
+ * cap currency. Figures are render-only: the percentage and the threshold
+ * actions arrive computed because a client-side recomputation is where
+ * "the cap held" quietly becomes "the cap sort of held".
+ */
+export function getAdSpendStatus(
+  client: TypedApiClient,
+  period?: BudgetPeriod,
+  signal?: AbortSignal,
+) {
+  return client.GET('/api/v1/tenant/ads/spend-status', {
+    params: { ...(period ? { query: { period } } : {}) },
+    ...(signal ? { signal } : {}),
+  } as never)
+}

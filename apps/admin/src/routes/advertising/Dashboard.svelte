@@ -6,6 +6,7 @@ import {
   getAdMetricsExport,
   getAdMetricsFreshness,
   getAdMetricsSummary,
+  getAdSpendStatus,
   listAdCampaigns,
   listAdConnections,
   listAdPlatforms,
@@ -16,6 +17,7 @@ import type {
   MetricPoint,
   MetricsSummaryRow,
   PlatformView,
+  SpendStatusItem,
 } from '@sanvi/api-client'
 import { currentLocale, fmt, t } from '@sanvi/i18n'
 import { navigate } from '@sanvi/spa-router'
@@ -25,6 +27,7 @@ import {
   AttributionExplainer,
   Badge,
   Button,
+  CapProgress,
   Cluster,
   Container,
   DataTable,
@@ -49,6 +52,13 @@ import {
   type AttributionPlatformRow,
 } from '@sanvi/ui'
 import { apiClient } from '../../lib/api'
+import {
+  capStatusFor,
+  freshnessFacts,
+  scopeCampaignId,
+  thresholdActionFor,
+} from '../../lib/advertising/budget'
+import { BUDGET_PERIOD_DAILY } from '../../lib/budget-periods'
 import {
   campaignRows,
   chartGroups,
@@ -98,11 +108,13 @@ let entitled = $state(true)
 let error = $state<string | undefined>(undefined)
 let rangeError = $state<string | undefined>(undefined)
 let dashboardEnabled = $state(true)
+let guardrailsEnabled = $state(false)
 
 let connections = $state<ConnectionView[]>([])
 let platforms = $state<PlatformView[]>([])
 let campaigns = $state<{ id: string; name: string }[]>([])
 let freshness = $state<ConnectionFreshnessView[]>([])
+let spendItems = $state<SpendStatusItem[]>([])
 
 let summaryCurrent = $state<MetricsSummaryRow[]>([])
 let summaryCompared = $state<MetricsSummaryRow[] | undefined>(undefined)
@@ -122,6 +134,7 @@ let sortKey = $state<string | undefined>(undefined)
 let sortDirection = $state<'asc' | 'desc'>('asc')
 
 let loadSeq = 0
+let spendGen = 0
 
 const hasActiveConnection = $derived(
   connections.some((connection) => connection.status !== 'disconnected'),
@@ -136,10 +149,37 @@ async function load(): Promise<void> {
   rangeError = undefined
   entitled = true
   dashboardEnabled = hasFeature('advertising.dashboard')
+  guardrailsEnabled = hasFeature('advertising.budget_guardrails')
+  spendItems = []
+  // Drop any in-flight optional request from a previous load — a late
+  // arrival must never repopulate the section after a reload.
+  spendGen += 1
 
   if (!dashboardEnabled) {
     loading = false
     return
+  }
+
+  // Spend status is best-effort here: a failure degrades to "no cap
+  // indicators" rather than failing the whole dashboard — the caps have
+  // their own configuration screen for the full story. It settles
+  // independently: fire-and-forget, never awaited with the core requests,
+  // so a slow or retrying optional endpoint blocks neither the core
+  // results, nor the metrics load, nor the spinner's removal — the cap
+  // section simply appears when its data arrives. It carries its own
+  // generation counter because range changes bump the shared `loadSeq`
+  // without reissuing spend status: tying the late result to `loadSeq`
+  // would discard it and leave the cap section absent until a full reload.
+  if (guardrailsEnabled) {
+    const spendToken = ++spendGen
+    void getAdSpendStatus(apiClient).then(
+      (status) => {
+        if (spendToken === spendGen) spendItems = status?.items ?? []
+      },
+      () => {
+        if (spendToken === spendGen) spendItems = []
+      },
+    )
   }
 
   const [connectionsResult, platformsResult, campaignsResult, freshnessResult] =
@@ -443,6 +483,61 @@ const explainerRows = $derived.by(() => {
   }
   return rows
 })
+
+// --- Budget caps (TASK-017) -------------------------------------------------
+
+/** Caps in place, tenant scope first. */
+const cappedItems = $derived(
+  spendItems
+    .filter((item) => item.cap !== null && item.cap !== undefined)
+    .sort((left, right) => {
+      if (left.scope === 'tenant') return -1
+      if (right.scope === 'tenant') return 1
+      return capScopeHeading(left).localeCompare(capScopeHeading(right))
+    }),
+)
+
+function capScopeHeading(item: SpendStatusItem): string {
+  const campaign = scopeCampaignId(item.scope)
+  if (!campaign) return t['admin.advertising.budget.scope.tenant']()
+  return campaigns.find((entry) => entry.id === campaign)?.name ?? campaign
+}
+
+function capFreshness(item: SpendStatusItem): string {
+  const facts = freshnessFacts(item)
+  if (facts.stale) {
+    return t['admin.advertising.budget.freshness.staleLabel']({
+      detail: facts.lastSyncedAt
+        ? t['admin.advertising.budget.freshness.stale']({ time: fmt.datetime(facts.lastSyncedAt) })
+        : t['admin.advertising.budget.freshness.staleNoTime'](),
+    })
+  }
+  if (facts.lastSyncedAt) {
+    // Monthly caps normally carry a provisional tail (recent days still
+    // updating): surface it instead of a plain "last synced".
+    if (!facts.settled || facts.provisionalMinor > 0) {
+      return t['admin.advertising.budget.freshness.currentProvisional']({
+        time: fmt.datetime(facts.lastSyncedAt),
+      })
+    }
+    return t['admin.advertising.budget.freshness.current']({
+      time: fmt.datetime(facts.lastSyncedAt),
+    })
+  }
+  return t['admin.advertising.budget.freshness.noData']()
+}
+
+function capStatusLabel(status: 'ok' | 'warning' | 'hit'): string {
+  if (status === 'hit') return t['admin.advertising.budget.status.hit']()
+  if (status === 'warning') return t['admin.advertising.budget.status.warning']()
+  return t['admin.advertising.budget.status.ok']()
+}
+
+function capPeriodLabel(item: SpendStatusItem): string {
+  return item.period === BUDGET_PERIOD_DAILY
+    ? t['admin.advertising.budget.period.daily']()
+    : t['admin.advertising.budget.period.monthly']()
+}
 </script>
 
 <svelte:head>
@@ -713,6 +808,54 @@ const explainerRows = $derived.by(() => {
             </div>
           </section>
         {/each}
+
+        <!-- Budget caps (TASK-017): progress indicators alongside the KPIs.
+             The state is carried by words and the percentage — never colour
+             alone — and every figure renders its data freshness inline. -->
+        {#if guardrailsEnabled && cappedItems.length > 0}
+          <section>
+            <h2 class="sanvi-ad-dashboard__currency-heading">
+              {t['admin.advertising.budget.dashboardHeading']()}
+            </h2>
+            <div class="sanvi-ad-dashboard__kpis">
+              {#each cappedItems as item (item.scope + ':' + item.period)}
+                {@const cap = item.cap!}
+                {@const status = capStatusFor(item.percentage)}
+                {@const reachedAction = thresholdActionFor(item.percentage, item.actions_configured)}
+                <CapProgress
+                  heading={capScopeHeading(item)}
+                  periodLabel={capPeriodLabel(item)}
+                  spendText="{formatAdCurrency(item.spend_to_date.amount_minor, cap.amount.currency)} / {formatAdCurrency(cap.amount.amount_minor, cap.amount.currency)}"
+                  percentText={item.percentage === null || item.percentage === undefined
+                    ? NO_VALUE
+                    : fmt.number(item.percentage / 100, {
+                        style: 'percent',
+                        maximumFractionDigits: 0,
+                      })}
+                  freshnessText={capFreshness(item)}
+                  {status}
+                  statusLabel={capStatusLabel(status)}
+                  actionText={
+                    reachedAction === 'pause'
+                      ? t['admin.advertising.budget.actions.pause']()
+                      : reachedAction === undefined
+                        ? undefined
+                        : t['admin.advertising.budget.actions.notify']()
+                  }
+                  actionLabel={t['admin.advertising.budget.actions.configuredLabel']()}
+                  ratio={cap.amount.amount_minor > 0
+                    ? item.spend_to_date.amount_minor / cap.amount.amount_minor
+                    : 0}
+                />
+              {/each}
+            </div>
+            <Cluster>
+              <Button variant="secondary" size="sm" onclick={() => navigate('/advertising/budget')}>
+                {t['admin.advertising.budget.manageCta']()}
+              </Button>
+            </Cluster>
+          </section>
+        {/if}
 
         <!-- Charts: one spend-vs-revenue overlay + one platform stack per currency. -->
         {#each charts as chart (chart.currency)}

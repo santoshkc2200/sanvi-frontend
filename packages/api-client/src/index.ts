@@ -53,6 +53,13 @@ export {
   getAdMetricsSummary,
   getAdMetricsExport,
   getAdMetricsFreshness,
+  getAdBudgetCaps,
+  putAdBudgetCap,
+  getAdCampaignBudgetCap,
+  putAdCampaignBudgetCap,
+  getAdBudgetAlerts,
+  acknowledgeAdBudgetAlert,
+  getAdSpendStatus,
 } from './advertising'
 export type {
   AdAccountView,
@@ -117,6 +124,19 @@ export type {
   MetricsFreshnessView,
   ConnectionFreshnessView,
   RenderedMoneyView,
+  BudgetCap,
+  BudgetCapsView,
+  BudgetPeriod,
+  BudgetAlert,
+  BudgetAlertsView,
+  AlertCondition,
+  DataFreshness,
+  BudgetActionsConfigured,
+  SpendStatusItem,
+  SpendStatusReport,
+  PutBudgetCapRequest,
+  PutBudgetCapResponse,
+  DryRunEvaluationResult,
 } from './advertising'
 export {
   createCheckoutSession,
