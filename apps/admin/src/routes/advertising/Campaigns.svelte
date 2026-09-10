@@ -1,6 +1,7 @@
 <script lang="ts">
 import {
   ApiError,
+  getAdMetrics,
   listAdCampaigns,
   listAdConnections,
   listAdPlatforms,
@@ -9,11 +10,12 @@ import {
 } from '@sanvi/api-client'
 import type { CampaignView, ConnectionView, PlatformView } from '@sanvi/api-client'
 import { Can, can } from '@sanvi/auth'
-import { t } from '@sanvi/i18n'
+import { fmt, t } from '@sanvi/i18n'
 import { navigate } from '@sanvi/spa-router'
-import { getActiveTenantId } from '@sanvi/tenant'
+import { getActiveTenantId, hasFeature } from '@sanvi/tenant'
 import {
   Alert,
+  AttributionExplainer,
   Badge,
   Button,
   Cluster,
@@ -26,10 +28,12 @@ import {
   Select,
   Spinner,
   Stack,
+  formatRatio,
 } from '@sanvi/ui'
 import type { TableColumn } from '@sanvi/ui'
 import { apiClient } from '../../lib/api'
 import { ActionKeyTracker, isDefinitiveError } from '../../lib/idempotency'
+import { campaignRows, rangeForPreset, type CampaignMetricRow } from '../../lib/advertising/metrics'
 import {
   budgetLine,
   combinedBudgetsByCurrency,
@@ -42,9 +46,14 @@ import {
 /**
  * The campaign list (phase 10, TASK-012) — cross-platform from day one: one
  * table, a platform badge per row, each row's budget rendered in its ad
- * account's own currency. Performance columns (spend, conversions, ROAS)
- * stand empty until the dashboard slice (TASK-016) supplies real numbers;
- * an em dash renders, never a fabricated zero.
+ * account's own currency.
+ *
+ * The performance columns (TASK-016) render real spend, conversions, and
+ * ROAS for the last 30 days once the `advertising.dashboard` flag is on —
+ * with both ROAS numbers, platform-reported and Sanvi-observed, labelled
+ * at the cell. When the flag is off the columns drop entirely: showing
+ * zeros would read as "you spent nothing", which is exactly the lie the
+ * rollback must not tell.
  *
  * This is the first surface where a click spends real money, so the bulk
  * actions name what they affect — the campaign count *and* the combined
@@ -61,6 +70,13 @@ let error = $state<string | undefined>(undefined)
 let platforms = $state<PlatformView[]>([])
 let connections = $state<ConnectionView[]>([])
 let campaigns = $state<CampaignView[]>([])
+
+// Performance columns (TASK-016): per-campaign aggregates for the last 30
+// days, keyed by campaign id. Empty when the flag is off or the metrics
+// call fails — the cells fall back to an em dash, never a zero.
+let metricsEnabled = $state(true)
+let metrics = $state<Record<string, CampaignMetricRow>>({})
+let explainerOpen = $state(false)
 
 let selectedIds = $state<string[]>([])
 
@@ -134,6 +150,8 @@ async function load(): Promise<void> {
   entitled = true
   selectedIds = []
   rowError = undefined
+  metricsEnabled = hasFeature('advertising.dashboard')
+  metrics = {}
 
   try {
     const catalog = await listAdPlatforms(apiClient)
@@ -164,6 +182,27 @@ async function load(): Promise<void> {
     connectionsResult.status === 'rejected' || campaignsResult.status === 'rejected'
       ? t['admin.advertising.campaigns.loadError']()
       : undefined
+
+  if (metricsEnabled) {
+    const range = rangeForPreset('30d')
+    try {
+      const result = await getAdMetrics(apiClient, {
+        from: range.from,
+        to: range.to,
+        groupBy: 'campaign',
+      })
+      if (seq !== loadSeq) return
+      metrics = Object.fromEntries(
+        campaignRows(result?.rows ?? []).map((row) => [row.campaignId, row]),
+      )
+    } catch {
+      // Metrics are supplementary to this list — a failure renders em
+      // dashes rather than failing the whole screen.
+      if (seq !== loadSeq) return
+      metrics = {}
+    }
+  }
+
   loading = false
 }
 
@@ -388,8 +427,59 @@ $effect(() => {
   {currency ? budgetLine(row.campaign, currency) : NO_VALUE}
 {/snippet}
 
-{#snippet pendingMetricCell()}
-  {NO_VALUE}
+{#snippet spendCell(row: CampaignRow)}
+  {@const metric = metrics[row.id]}
+  {#if metric}
+    <span class="sanvi-ad-campaigns__metric">
+      {money(metric.spendMinor, metric.currency)}
+      {#if metric.restating}
+        <span
+          class="sanvi-ad-campaigns__restating"
+          title={t['admin.advertising.dashboard.chart.restatingFlag']()}
+        >
+          ◆<span class="sanvi-visually-hidden">
+            {t['admin.advertising.dashboard.chart.restatingFlag']()}
+          </span>
+        </span>
+      {/if}
+    </span>
+  {:else}
+    {NO_VALUE}
+  {/if}
+{/snippet}
+
+{#snippet conversionsCell(row: CampaignRow)}
+  {@const metric = metrics[row.id]}
+  {#if metric}
+    {fmt.number(metric.conversions, { maximumFractionDigits: 1 })}
+  {:else}
+    {NO_VALUE}
+  {/if}
+{/snippet}
+
+{#snippet roasCell(row: CampaignRow)}
+  {@const metric = metrics[row.id]}
+  {#if metric}
+    <span class="sanvi-ad-campaigns__roas">
+      <span>
+        {t['admin.advertising.dashboard.attribution.shortPlatform']()}
+        {formatRatio(metric.roasPlatform, 1)}
+      </span>
+      <span>
+        {t['admin.advertising.dashboard.attribution.shortSanvi']()}
+        {formatRatio(metric.roasSanvi, 1)}
+      </span>
+      <button
+        class="sanvi-ad-campaigns__info"
+        onclick={() => (explainerOpen = true)}
+        aria-label={t['admin.advertising.dashboard.attribution.openLabel']()}
+      >
+        ⓘ
+      </button>
+    </span>
+  {:else}
+    {NO_VALUE}
+  {/if}
 {/snippet}
 
 {#snippet driftCell(row: CampaignRow)}
@@ -485,9 +575,11 @@ $effect(() => {
       />
     {:else}
       <Cluster justify="space-between" align="center" gap="4">
-        <p class="sanvi-ad-campaigns__metrics-note">
-          {t['admin.advertising.campaigns.metricsPendingNote']()}
-        </p>
+        {#if metricsEnabled}
+          <p class="sanvi-ad-campaigns__metrics-note">
+            {t['admin.advertising.campaigns.metricsNote']()}
+          </p>
+        {/if}
         <div class="sanvi-ad-campaigns__filter">
           <Field label={t['admin.advertising.campaigns.statusColumn']()}>
             {#snippet children(controlProps)}
@@ -530,24 +622,31 @@ $effect(() => {
             sortable: true,
           },
           { key: 'budget', header: t['admin.advertising.campaigns.budgetColumn'](), cell: budgetCell },
-          {
-            key: 'spend',
-            header: t['admin.advertising.campaigns.spendColumn'](),
-            align: 'end',
-            cell: pendingMetricCell,
-          },
-          {
-            key: 'conversions',
-            header: t['admin.advertising.campaigns.conversionsColumn'](),
-            align: 'end',
-            cell: pendingMetricCell,
-          },
-          {
-            key: 'roas',
-            header: t['admin.advertising.campaigns.roasColumn'](),
-            align: 'end',
-            cell: pendingMetricCell,
-          },
+          // Rollback rule (TASK-016): with the dashboard flag off these
+          // columns disappear instead of rendering zeros — an empty cell
+          // reads as "no data", a zero reads as "you spent nothing".
+          ...(metricsEnabled
+            ? [
+                {
+                  key: 'spend',
+                  header: t['admin.advertising.campaigns.spendColumn'](),
+                  align: 'end' as const,
+                  cell: spendCell,
+                },
+                {
+                  key: 'conversions',
+                  header: t['admin.advertising.campaigns.conversionsColumn'](),
+                  align: 'end' as const,
+                  cell: conversionsCell,
+                },
+                {
+                  key: 'roas',
+                  header: t['admin.advertising.campaigns.roasColumn'](),
+                  align: 'end' as const,
+                  cell: roasCell,
+                },
+              ]
+            : []),
           { key: 'drift', header: t['admin.advertising.campaigns.driftColumn'](), cell: driftCell },
           {
             key: 'actions',
@@ -678,11 +777,78 @@ $effect(() => {
   {/snippet}
 </Dialog>
 
+{#if metricsEnabled}
+  <Dialog
+    bind:open={explainerOpen}
+    titleText={t['admin.advertising.dashboard.attribution.openLabel']()}
+  >
+    {#snippet children()}
+      <AttributionExplainer
+        title={t['admin.advertising.dashboard.attribution.title']()}
+        intro={[
+          t['admin.advertising.dashboard.attribution.intro1'](),
+          t['admin.advertising.dashboard.attribution.intro2'](),
+        ]}
+        platformHeading={t['admin.advertising.dashboard.attribution.platformHeading']()}
+        sanviHeading={t['admin.advertising.dashboard.attribution.sanviHeading']()}
+        platformRows={connections
+          .filter((connection) => connection.status !== 'disconnected')
+          .map((connection, index) => ({
+            key: connection.platform + String(index),
+            platform: names[connection.platform] ?? connection.platform,
+            attribution: t['admin.advertising.dashboard.attribution.platformRow']({
+              platform: names[connection.platform] ?? connection.platform,
+            }),
+          }))}
+        sanviDescription={t['admin.advertising.dashboard.attribution.sanviDescription']()}
+        whyDifferent={t['admin.advertising.dashboard.attribution.whyDifferent']()}
+        restatement={t['admin.advertising.dashboard.attribution.restatement']()}
+      />
+    {/snippet}
+    {#snippet footer()}
+      <Button variant="secondary" onclick={() => (explainerOpen = false)}>
+        {t['admin.advertising.dashboard.attribution.closeCta']()}
+      </Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
 <style>
   .sanvi-ad-campaigns__metrics-note {
     margin: 0;
     font-size: var(--sanvi-font-size-sm);
     color: var(--sanvi-color-text-secondary);
+  }
+
+  .sanvi-ad-campaigns__metric {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sanvi-ad-campaigns__restating {
+    color: var(--sanvi-color-status-warning);
+    font-size: var(--sanvi-font-size-xs);
+  }
+
+  .sanvi-ad-campaigns__roas {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: end;
+    gap: 0;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--sanvi-font-size-xs);
+  }
+
+  .sanvi-ad-campaigns__info {
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: var(--sanvi-color-text-secondary);
+    cursor: pointer;
+  }
+
+  .sanvi-ad-campaigns__info:hover {
+    color: var(--sanvi-color-text-primary);
   }
 
   .sanvi-ad-campaigns__budget-heading {

@@ -49,6 +49,10 @@ export {
   createAdAudience,
   refreshAdAudience,
   sendConversionBeacon,
+  getAdMetrics,
+  getAdMetricsSummary,
+  getAdMetricsExport,
+  getAdMetricsFreshness,
 } from './advertising'
 export type {
   AdAccountView,
@@ -106,6 +110,13 @@ export type {
   Audience,
   AudienceStatus,
   CreateAudienceRequest,
+  MetricPoint,
+  MetricsQueryResponse,
+  MetricsSummaryResponse,
+  MetricsSummaryRow,
+  MetricsFreshnessView,
+  ConnectionFreshnessView,
+  RenderedMoneyView,
 } from './advertising'
 export {
   createCheckoutSession,

@@ -113,4 +113,16 @@ describe.each([
       )
     },
   )
+
+  // Chart series are non-text graphics (WCAG 1.4.11): every stroke a chart
+  // can draw clears 3:1 against the page background, in both themes. The
+  // gridlines stay exempt — decorative.
+  it.each(['spend', 'revenue', 'series.1', 'series.2', 'series.3', 'series.4'])(
+    'color.chart.%s clears 3:1 against the page background (chart stroke)',
+    (series) => {
+      expect(contrastRatio(resolve(theme.chart[series]), background)).toBeGreaterThanOrEqual(
+        NON_TEXT_MIN,
+      )
+    },
+  )
 })

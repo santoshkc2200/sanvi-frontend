@@ -4,8 +4,9 @@
  * §2: `apps → packages → design-tokens`, never upward, never sideways.
  *
  * Since phase 10 (TASK-010) this CLI also runs the matrix-is-the-only-source
- * gate (`check-platform-literals.mjs`): `pnpm check:boundaries` reports both
- * violation kinds and fails on either.
+ * gate (`check-platform-literals.mjs`), and since TASK-016 the
+ * two-numbers-never-one gate (`check-no-blended-attribution.mjs`):
+ * `pnpm check:boundaries` reports every violation kind and fails on any.
  *
  *   - `ui` never imports `api-client` (never fetches, never touches server state).
  *   - Apps never import each other — shared code moves into a package.
@@ -22,6 +23,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve, sep } from 'node:path'
 import { isMainEntryPoint, walkFiles } from './walk-files.mjs'
 import { scanWorkspace as scanPlatformLiterals } from './check-platform-literals.mjs'
+import { scanWorkspace as scanBlendedAttribution } from './check-no-blended-attribution.mjs'
 
 const IMPORT_PATTERN =
   /(?:import|export)(?:[^'";]*?from)?\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g
@@ -171,9 +173,16 @@ async function main() {
   const resolvedRoot = resolve(root)
   const violations = checkWorkspace(resolvedRoot)
   const literalViolations = scanPlatformLiterals(resolvedRoot)
+  const blendedViolations = scanBlendedAttribution(resolvedRoot)
 
-  if (violations.length === 0 && literalViolations.length === 0) {
-    console.log('✓ check:boundaries — no import-boundary or platform-literal violations found')
+  if (
+    violations.length === 0 &&
+    literalViolations.length === 0 &&
+    blendedViolations.length === 0
+  ) {
+    console.log(
+      '✓ check:boundaries — no import-boundary, platform-literal, or blended-attribution violations found',
+    )
     return
   }
 
@@ -189,6 +198,16 @@ async function main() {
       console.error(
         `  ${v.file}:${v.line}  "${v.literal}" (tier ${v.tier}, ${v.scope})\n` +
           `    platform data belongs to the backend matrix, not to frontend source`,
+      )
+    }
+  }
+  if (blendedViolations.length > 0) {
+    console.error(`\n✗ check:no-blended-attribution — ${blendedViolations.length} violation(s):\n`)
+    for (const v of blendedViolations) {
+      console.error(
+        `  ${v.file}:${v.line}  "${v.identifier}"\n` +
+          `    platform-reported conversion value and Sanvi-observed revenue are separate,` +
+          ` separately-labelled numbers — no blended ROAS or conversion value may exist`,
       )
     }
   }

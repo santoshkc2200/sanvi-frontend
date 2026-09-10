@@ -111,22 +111,46 @@
     "solid": {
       "$description": "Same values as semantic.json — see that file's description.",
       "primary": {
-        "base": { "$value": "{primitive.color.blue.600}", "$type": "color" },
-        "hover": { "$value": "{primitive.color.blue.700}", "$type": "color" }
+        "base": {
+          "$value": "{primitive.color.blue.600}",
+          "$type": "color"
+        },
+        "hover": {
+          "$value": "{primitive.color.blue.700}",
+          "$type": "color"
+        }
       },
       "secondary": {
-        "base": { "$value": "{primitive.color.purple.600}", "$type": "color" },
-        "hover": { "$value": "{primitive.color.purple.700}", "$type": "color" }
+        "base": {
+          "$value": "{primitive.color.purple.600}",
+          "$type": "color"
+        },
+        "hover": {
+          "$value": "{primitive.color.purple.700}",
+          "$type": "color"
+        }
       },
       "danger": {
-        "base": { "$value": "{primitive.color.red.600}", "$type": "color" },
-        "hover": { "$value": "{primitive.color.red.800}", "$type": "color" }
+        "base": {
+          "$value": "{primitive.color.red.600}",
+          "$type": "color"
+        },
+        "hover": {
+          "$value": "{primitive.color.red.800}",
+          "$type": "color"
+        }
       },
       "success": {
-        "base": { "$value": "{primitive.color.green.800}", "$type": "color" }
+        "base": {
+          "$value": "{primitive.color.green.800}",
+          "$type": "color"
+        }
       },
       "warning": {
-        "base": { "$value": "{primitive.color.amber.800}", "$type": "color" }
+        "base": {
+          "$value": "{primitive.color.amber.800}",
+          "$type": "color"
+        }
       }
     },
     "status": {
@@ -208,6 +232,36 @@
         "$type": "color"
       },
       "pending": {
+        "$value": "{primitive.color.amber.500}",
+        "$type": "color"
+      }
+    },
+    "chart": {
+      "spend": {
+        "$value": "{primitive.color.blue.500}",
+        "$type": "color"
+      },
+      "revenue": {
+        "$value": "{primitive.color.green.500}",
+        "$type": "color"
+      },
+      "grid": {
+        "$value": "{primitive.color.gray.700}",
+        "$type": "color"
+      },
+      "series.1": {
+        "$value": "{primitive.color.blue.500}",
+        "$type": "color"
+      },
+      "series.2": {
+        "$value": "{primitive.color.purple.500}",
+        "$type": "color"
+      },
+      "series.3": {
+        "$value": "{primitive.color.teal.500}",
+        "$type": "color"
+      },
+      "series.4": {
         "$value": "{primitive.color.amber.500}",
         "$type": "color"
       }
