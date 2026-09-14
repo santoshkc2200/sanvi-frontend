@@ -112,7 +112,7 @@ let guardrailsEnabled = $state(false)
 
 let connections = $state<ConnectionView[]>([])
 let platforms = $state<PlatformView[]>([])
-let campaigns = $state<{ id: string; name: string }[]>([])
+let campaigns = $state<{ id: string; name: string; platform: string }[]>([])
 let freshness = $state<ConnectionFreshnessView[]>([])
 let spendItems = $state<SpendStatusItem[]>([])
 
@@ -199,6 +199,7 @@ async function load(): Promise<void> {
       ? (campaignsResult.value?.campaigns ?? []).map((view) => ({
           id: view.id,
           name: view.campaign.name,
+          platform: view.platform,
         }))
       : []
   freshness =
@@ -508,15 +509,21 @@ const anyRestating = $derived(breakdown.some((row) => row.restating))
 const anySpend = $derived(charts.some((group) => group.hasSpend))
 
 const stalledFigures = $derived.by(() => {
-  const figures: AdHealthFigure[] = freshnessView.stalled.map((connection) => ({
-    key: connection.connection_id,
-    value: t['admin.advertising.dashboard.freshness.itemStalled']({
-      platform: names[connection.platform] ?? connection.platform,
-      time: connection.last_ingested_at ? fmt.datetime(connection.last_ingested_at) : '—',
-    }),
-    label: names[connection.platform] ?? connection.platform,
-    description: t['admin.advertising.dashboard.freshness.stalledDescription'](),
-  }))
+  const figures: AdHealthFigure[] = freshnessView.stalled.map((connection) => {
+    const platform = names[connection.platform] ?? connection.platform
+    return {
+      key: connection.connection_id,
+      value: t['admin.advertising.dashboard.freshness.itemStalled']({
+        platform,
+        time: connection.last_ingested_at ? fmt.datetime(connection.last_ingested_at) : '—',
+      }),
+      label: platform,
+      // What is stale, per platform: the numbers on this screen, the cap
+      // progress, and this platform's conversion uploads — not the
+      // campaigns themselves, which keep delivering regardless.
+      description: t['admin.advertising.freshness.staleScopeDescription']({ platform }),
+    }
+  })
   return figures
 })
 
@@ -570,9 +577,32 @@ function capScopeHeading(item: SpendStatusItem): string {
   return campaigns.find((entry) => entry.id === campaign)?.name ?? campaign
 }
 
+/** The platform(s) behind a stale cap figure (TASK-018): a campaign-scoped
+    cap names its own platform; the tenant cap names every stalled one. */
+function stalePlatformNames(item: SpendStatusItem): string[] {
+  const campaignId = scopeCampaignId(item.scope)
+  if (campaignId) {
+    const platform = campaigns.find((campaign) => campaign.id === campaignId)?.platform
+    return platform ? [names[platform] ?? platform] : []
+  }
+  return [...new Set(freshnessView.stalled.map((entry) => names[entry.platform] ?? entry.platform))]
+}
+
 function capFreshness(item: SpendStatusItem): string {
   const facts = freshnessFacts(item)
   if (facts.stale) {
+    const platforms = stalePlatformNames(item)
+    if (platforms.length > 0) {
+      const platform = platforms.length === 1 ? platforms[0]! : fmt.list(platforms)
+      return t['admin.advertising.budget.freshness.staleLabel']({
+        detail: facts.lastSyncedAt
+          ? t['admin.advertising.budget.freshness.stalePlatform']({
+              platform,
+              time: fmt.datetime(facts.lastSyncedAt),
+            })
+          : t['admin.advertising.budget.freshness.stalePlatformNoTime']({ platform }),
+      })
+    }
     return t['admin.advertising.budget.freshness.staleLabel']({
       detail: facts.lastSyncedAt
         ? t['admin.advertising.budget.freshness.stale']({ time: fmt.datetime(facts.lastSyncedAt) })
@@ -757,6 +787,8 @@ function capPeriodLabel(item: SpendStatusItem): string {
           title={t['admin.advertising.dashboard.freshness.stalledTitle']()}
           figures={stalledFigures}
           tone="error"
+          actionLabel={t['admin.advertising.freshness.refreshCta']()}
+          onAction={retry}
         />
       {/if}
 

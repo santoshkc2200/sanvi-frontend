@@ -112,6 +112,17 @@ export interface AdvertisingMockControls {
   audienceRefreshCount: () => number
   /** Marks a connection's ingestion stalled — the dashboard's "sync failed". */
   stallConnection: (connectionId?: string) => void
+  /** A platform going **unreachable**: its ingestion stalls *and* its
+      connection health records the failure — the degraded-mode screens name
+      the platform and what is stale. `restorePlatform` undoes both so a
+      spec can assert recovery without a reload. */
+  unreachablePlatform: (connectionId?: string) => void
+  restorePlatform: (connectionId?: string) => void
+  /** Fires the tenant monthly cap's 100% threshold with auto-pause on:
+      spend crosses the cap, a `settled_breach` alert is recorded with
+      `auto_paused: true`, and the governed campaigns are paused with a
+      system-sourced change entry (no human actor). */
+  fireThresholdAutoPause: () => void
   /** The last CSV the export endpoint streamed (the spec asserts its columns). */
   lastExportCsv: () => string | undefined
   /** The last budget-cap PUT's body and path — the spec asserts the FX
@@ -148,8 +159,14 @@ export function mockAdvertisingBackend(
         banner is then the 80% warning instead of a 100% breach. */
     seedCapsWarnOnly?: boolean
     /** Seeds a three-row alert history: an unacknowledged 80%, an
-        unacknowledged breach, and an acknowledged stale-data warning. */
+      unacknowledged breach, and an acknowledged stale-data warning. */
     seedAlerts?: boolean
+    /** Adds two more captured conversions whose frozen consent snapshots
+      exercise the other suppression categories: one with measurement
+      consent simply not granted (`missing_consent`), one with a universal
+      opt-out mechanism denying sale/share (`opted_out_sale_share`). The
+      TASK-018 journey asserts both name their purpose and signal source. */
+    seedConsentVariants?: boolean
   } = {},
 ): AdvertisingMockControls {
   const connections: MockAdConnection[] = []
@@ -354,12 +371,19 @@ export function mockAdvertisingBackend(
     }),
   )
 
+  // The connect flow tracks which platform's OAuth was started: the
+  // callback's pending view and the connection the POST creates both carry
+  // it, so a second platform can connect through the same UI flow instead
+  // of only seeded records existing for it. It defaults to `meta`, the
+  // flow the earlier connection specs exercise.
+  let pendingPlatform = 'meta'
+
   void page.route('**/api/v1/tenant/ads/connections/*/oauth/start', (route) => {
     const request = route.request()
     const url = new URL(request.url())
     const platform = url.pathname.split('/')[6] ?? 'meta'
     const body = request.postDataJSON() as { redirect_uri?: string }
-    void platform
+    pendingPlatform = platform
     // The backend builds the platform URL; here it points back at this
     // app's callback route carrying the platform's "authorization response".
     const redirectUri = body.redirect_uri ?? ''
@@ -370,12 +394,11 @@ export function mockAdvertisingBackend(
   })
 
   void page.route('**/api/v1/tenant/ads/connections/*/oauth/callback**', (route) => {
-    const platform = new URL(route.request().url()).pathname.split('/')[6] ?? 'meta'
-    void platform
+    void new URL(route.request().url()).pathname.split('/')[6]
     void route.fulfill({
       json: {
         id: `conn_pending_${pendingCounter}`,
-        platform: 'meta',
+        platform: pendingPlatform,
         status: 'pending',
         accounts: [
           { external_id: '111-222', display_name: 'Acme Main Ad Account' },
@@ -411,7 +434,7 @@ export function mockAdvertisingBackend(
       }
       const connection: MockAdConnection = {
         id: `conn_live_${connectionCounter}`,
-        platform: 'meta',
+        platform: pendingPlatform,
         external_account_id: body.external_account_id,
         account_name: account.display_name,
         currency: body.currency.toUpperCase(),
@@ -428,6 +451,7 @@ export function mockAdvertisingBackend(
         },
       }
       connectionCounter += 1
+      pendingPlatform = 'meta'
       connections.push(connection)
       await route.fulfill({ json: connection })
       return
@@ -1099,6 +1123,56 @@ export function mockAdvertisingBackend(
     },
   ]
 
+  // The other suppression categories (TASK-018 journey): measurement
+  // consent simply not granted — the consent *conversation*, not a browser
+  // decision — and a universal opt-out mechanism denying sale/share. The
+  // taxonomy derives both from the frozen snapshot: denied purposes plus
+  // the signal source decide.
+  if (options.seedConsentVariants) {
+    conversions.push(
+      {
+        id: '873698342314721288',
+        tenant_id: 'dev-acme',
+        event_id: 'conv-e2e-consent-absent',
+        name: 'purchase',
+        occurred_at: '2026-09-08T09:00:00Z',
+        click_ids: {},
+        hashed_identifiers: {},
+        consent: {
+          answers: { ads_measurement: 'denied' },
+          jurisdiction: 'jp',
+          purposes_asked: ['ads_measurement'],
+          resolver_version: '2026-08-01',
+          signal_source: 'ui',
+        },
+        upload_states: {},
+        value: { amount_minor: 3000, currency: 'JPY' },
+        value_source: 'payment_record',
+        order_ref: 'ord-consent-absent-1',
+      },
+      {
+        id: '873698342314721290',
+        tenant_id: 'dev-acme',
+        event_id: 'conv-e2e-uoom',
+        name: 'purchase',
+        occurred_at: '2026-09-09T09:00:00Z',
+        click_ids: {},
+        hashed_identifiers: {},
+        consent: {
+          answers: { ads_measurement: 'allowed', sale_or_share: 'denied' },
+          jurisdiction: 'us-ca',
+          purposes_asked: ['ads_measurement', 'sale_or_share'],
+          resolver_version: '2026-08-01',
+          signal_source: 'uoom',
+        },
+        upload_states: {},
+        value: { amount_minor: 2500, currency: 'JPY' },
+        value_source: 'payment_record',
+        order_ref: 'ord-uoom-1',
+      },
+    )
+  }
+
   void page.route('**/api/v1/tenant/ads/conversions', async (route) => {
     const request = route.request()
     if (request.method() === 'GET') {
@@ -1430,6 +1504,9 @@ export function mockAdvertisingBackend(
   let alertCounter = 0
   let acknowledgedCount = 0
   let lastCapPut: { path: string; body: Record<string, unknown> } | undefined
+  // Set by `fireThresholdAutoPause`: the tenant monthly cap is over 100%
+  // from here on, so spend-status and any dry run read the breached basis.
+  let autoPauseFired = false
 
   function capScopeStale(campaignId: string | null): boolean {
     if (campaignId) {
@@ -1443,12 +1520,18 @@ export function mockAdvertisingBackend(
   function capSpendFor(
     campaignId: string | null,
     period: BudgetPeriod,
+    _currency?: string,
   ): {
     spend: number
     settled: number
     provisional: number
     projected: number
   } {
+    if (autoPauseFired && campaignId === null && period === 'monthly') {
+      // Past the 50,000 tenant cap: 104% of it, settled — the state a
+      // fired threshold_100 with auto-pause leaves behind.
+      return { spend: 52_000, settled: 52_000, provisional: 0, projected: 70_000 }
+    }
     return campaignId === null
       ? period === 'monthly'
         ? { spend: 40_000, settled: 34_000, provisional: 6_000, projected: 62_000 }
@@ -1799,11 +1882,72 @@ export function mockAdvertisingBackend(
     await route.fulfill({ json: alert })
   })
 
+  function setConnectionUnreachable(id: string, unreachable: boolean): void {
+    if (unreachable) stalledConnectionIds.add(id)
+    else stalledConnectionIds.delete(id)
+    const connection = connections.find((candidate) => candidate.id === id)
+    if (connection) {
+      connection.health.last_error = unreachable ? 'platform unreachable (simulated)' : null
+      connection.health.can_sync = !unreachable
+    }
+  }
+
   return {
     settingsSavedCount: () => settingsSaved,
     audienceRefreshCount: () => audienceRefreshes,
     stallConnection: (connectionId?: string) => {
       stalledConnectionIds.add(connectionId ?? connections[0]?.id ?? 'conn_live_0')
+    },
+    unreachablePlatform: (connectionId?: string) => {
+      setConnectionUnreachable(connectionId ?? connections[0]?.id ?? 'conn_live_0', true)
+    },
+    restorePlatform: (connectionId?: string) => {
+      setConnectionUnreachable(connectionId ?? connections[0]?.id ?? 'conn_live_0', false)
+    },
+    fireThresholdAutoPause: () => {
+      autoPauseFired = true
+      const tenantCap =
+        budgetCaps.find(
+          (candidate) => candidate.campaign_id === null && candidate.period === 'monthly',
+        ) ?? null
+      alertCounter += 1
+      budgetAlerts.unshift({
+        id: `alert_${alertCounter}`,
+        tenant_id: 'dev-acme',
+        campaign_id: null,
+        cap_id: tenantCap?.id ?? null,
+        cap_amount: tenantCap?.amount ?? { amount_minor: 50_000, currency: 'JPY' },
+        spend: { amount_minor: 52_000, currency: 'JPY' },
+        condition: 'settled_breach',
+        threshold: 100,
+        period: 'monthly',
+        period_start: `${isoDaysAgo(0).slice(0, 8)}01`,
+        auto_paused: true,
+        data_freshness: {
+          is_settled: true,
+          is_stale: false,
+          lag_hours: 4,
+          last_synced_at: `${isoDaysAgo(0)}T06:00:00Z`,
+        },
+        created_at: new Date().toISOString(),
+        acknowledged_at: null,
+        acknowledged_by: null,
+      })
+      // The guardrail itself pauses delivery — the change is Sanvi-side and
+      // has no human actor, which the change log renders as an automated
+      // Sanvi action rather than attributing it to a person.
+      for (const campaign of campaigns) {
+        if (campaign.campaign.status !== 'active') continue
+        campaign.revision += 1
+        recordChange(campaign, 'sanvi', ['status'], (state) => {
+          state.status = 'paused'
+        })
+        const recorded = campaignChanges[0]
+        if (recorded) {
+          recorded.actor_id = null
+          recorded.metadata = { automated: 'budget_guardrail' }
+        }
+      }
     },
     lastExportCsv: () => exportCsv,
     lastCapPut: () => lastCapPut,

@@ -7,6 +7,7 @@ import type {
 } from '@sanvi/api-client'
 import {
   ApiError,
+  getAdMetricsFreshness,
   getAdSpendStatus,
   listAdCampaigns,
   listAdConnections,
@@ -94,6 +95,9 @@ let campaigns = $state<{ id: string; name: string; currency: string; connectionI
 let connections = $state<ConnectionView[]>([])
 // The tenant's calendar timezone for the breach preview (see `load`).
 let tenantTimezone = $state<string | undefined>(undefined)
+// connection_id → platform for the connections whose ingestion has
+// stalled (TASK-018): stale figure labels name the platform behind them.
+let stalledPlatformNames = $state<Map<string, string | null>>(new Map())
 
 // --- The cap form -----------------------------------------------------------
 // The selects bind plain strings, so the two switches are string-backed.
@@ -144,6 +148,7 @@ async function load(): Promise<void> {
   campaigns = []
   connections = []
   tenantTimezone = undefined
+  stalledPlatformNames = new Map()
   guardrailsEnabled = hasFeature('advertising.budget_guardrails')
 
   if (!guardrailsEnabled) {
@@ -151,11 +156,13 @@ async function load(): Promise<void> {
     return
   }
 
-  const [statusResult, campaignsResult, connectionsResult] = await Promise.allSettled([
-    getAdSpendStatus(apiClient),
-    listAdCampaigns(apiClient),
-    listAdConnections(apiClient),
-  ])
+  const [statusResult, campaignsResult, connectionsResult, freshnessResult] =
+    await Promise.allSettled([
+      getAdSpendStatus(apiClient),
+      listAdCampaigns(apiClient),
+      listAdConnections(apiClient),
+      getAdMetricsFreshness(apiClient),
+    ])
   if (seq !== loadSeq) return
 
   if (statusResult.status === 'rejected') {
@@ -167,6 +174,14 @@ async function load(): Promise<void> {
     }
   }
   spendItems = statusResult.status === 'fulfilled' ? (statusResult.value?.items ?? []) : []
+  // Which platforms' ingestion has stalled (TASK-018 degraded mode): the
+  // stale labels on cap figures name the platform behind them. Optional —
+  // a freshness failure keeps the labels working, just unnamed.
+  stalledPlatformNames = (() => {
+    if (freshnessResult.status !== 'fulfilled') return new Map<string, string | null>()
+    const stalled = (freshnessResult.value?.connections ?? []).filter((entry) => entry.stalled)
+    return new Map(stalled.map((entry) => [entry.connection_id, entry.platform]))
+  })()
   // The tenant's own calendar timezone, carried by the spend-status report
   // itself: the same clock the backend's spend windows, dedupe keys, and
   // run-rate projections use (TASK-017), so the live preview cannot disagree
@@ -389,9 +404,34 @@ const preview = $derived.by(() => {
   }
 })
 
-function freshnessSentence(facts: ReturnType<typeof freshnessFacts> | undefined): string {
+/** The platform(s) behind a stale figure (TASK-018): a campaign-scoped cap
+    names its own platform; the tenant cap names every stalled one. */
+function stalePlatformNames(item: SpendStatusItem): string[] {
+  const campaignId = scopeCampaignId(item.scope)
+  if (campaignId) {
+    const connectionId = campaigns.find((entry) => entry.id === campaignId)?.connectionId
+    const platform = connectionId ? (stalledPlatformNames.get(connectionId) ?? null) : null
+    return platform ? [platform] : []
+  }
+  return [...stalledPlatformNames.values()].filter((entry): entry is string => entry !== null)
+}
+
+function freshnessSentence(
+  facts: ReturnType<typeof freshnessFacts> | undefined,
+  item?: SpendStatusItem,
+): string {
   if (!facts) return t['admin.advertising.budget.freshness.noData']()
   if (facts.stale) {
+    const platformList = item ? stalePlatformNames(item) : []
+    if (platformList.length > 0) {
+      const platform = platformList.length === 1 ? platformList[0]! : fmt.list(platformList)
+      return facts.lastSyncedAt
+        ? t['admin.advertising.budget.freshness.stalePlatform']({
+            platform,
+            time: fmt.datetime(facts.lastSyncedAt),
+          })
+        : t['admin.advertising.budget.freshness.stalePlatformNoTime']({ platform })
+    }
     return facts.lastSyncedAt
       ? t['admin.advertising.budget.freshness.stale']({ time: fmt.datetime(facts.lastSyncedAt) })
       : t['admin.advertising.budget.freshness.staleNoTime']()
@@ -466,7 +506,7 @@ const bannerFigures = (item: SpendStatusItem): AdHealthFigure[] => {
       key: item.scope,
       value: `${formatAdCurrency(item.spend_to_date.amount_minor, currency)} / ${formatAdCurrency(item.cap?.amount.amount_minor ?? 0, currency)}`,
       label: scopeHeading(item),
-      description: freshnessSentence(freshnessFacts(item)),
+      description: freshnessSentence(freshnessFacts(item), item),
     },
   ]
 }
@@ -776,9 +816,9 @@ $effect(() => {
                     freshnessText={
                       facts.stale
                         ? t['admin.advertising.budget.freshness.staleLabel']({
-                            detail: freshnessSentence(facts),
+                            detail: freshnessSentence(facts, item),
                           })
-                        : freshnessSentence(facts)
+                        : freshnessSentence(facts, item)
                     }
                     {status}
                     statusLabel={
@@ -984,7 +1024,7 @@ $effect(() => {
                       {:else}
                         <p class="budget__preview-freshness">
                           {t['admin.advertising.budget.preview.dryRunUnavailable']()}
-                          {freshnessSentence(formItem ? freshnessFacts(formItem) : undefined)}
+                          {freshnessSentence(formItem ? freshnessFacts(formItem) : undefined, formItem ?? undefined)}
                         </p>
                       {/if}
                     {:else}
