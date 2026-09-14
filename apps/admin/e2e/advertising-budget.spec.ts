@@ -214,7 +214,7 @@ test.describe('budget cap configuration (TASK-017)', () => {
     await page.goto('/advertising/budget')
 
     await expect(page.getByText('Budget guardrails are not enabled yet')).toBeVisible()
-    await expect(page.getByText(/Caps already in place keep guarding/)).toBeVisible()
+    await expect(page.getByText(/stop being evaluated while the capability is off/)).toBeVisible()
   })
 })
 

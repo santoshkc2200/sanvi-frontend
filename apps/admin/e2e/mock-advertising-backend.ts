@@ -1768,7 +1768,7 @@ export function mockAdvertisingBackend(
         items.push(spendStatusItem(campaignCap, campaign.id, period))
       }
     }
-    await route.fulfill({ json: { tenant_id: 'dev-acme', items } })
+    await route.fulfill({ json: { tenant_id: 'dev-acme', timezone: 'Asia/Tokyo', items } })
   })
 
   void page.route('**/api/v1/tenant/ads/budget-alerts*', async (route) => {

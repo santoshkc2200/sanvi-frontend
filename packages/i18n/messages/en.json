@@ -2197,7 +2197,7 @@
   "admin.advertising.budget.formUnavailable": "The campaign list could not be loaded, so campaign caps cannot be configured right now. Existing caps are unaffected.",
   "admin.advertising.budget.flagOffTitle": "Budget guardrails are not enabled yet",
   "admin.advertising.budget.flagOffDescription": "This capability is being rolled out gradually. Campaign management and reporting are unaffected.",
-  "admin.advertising.budget.flagOffNote": "Caps already in place keep guarding on the server, and campaigns a guardrail has paused stay paused. Alerts are not evaluated while the capability is off.",
+  "admin.advertising.budget.flagOffNote": "Caps already in place stop being evaluated while the capability is off, and affected tenants are notified by email. Campaigns a guardrail has paused stay paused; caps and alert history are retained.",
   "admin.advertising.budget.secondLine": "These caps are a second line of defence: they supplement the ad platforms' own budget controls and depend on Sanvi's metrics ingestion running. The platforms' controls remain your first line — check them too.",
   "admin.advertising.budget.alertHistoryCta": "Alert history",
   "admin.advertising.budget.manageCta": "Manage caps",

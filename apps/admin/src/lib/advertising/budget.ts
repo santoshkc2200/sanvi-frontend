@@ -81,13 +81,137 @@ export function capDeltaRows(
   }
 }
 
+export interface PreviousCapFigure {
+  amountMinor: number
+  currency: string
+}
+
+/**
+ * Whether saving `nextMinor` in `nextCurrency` over `previous` needs the
+ * raise confirmation. Minor units compare only within one currency — a
+ * currency change always confirms, since no client-side conversion can say
+ * whether 100,000 JPY → 1,000 USD is a raise — while a same-currency save
+ * confirms only when the figure actually grows.
+ */
+export function isCapRaise(
+  previous: PreviousCapFigure | undefined,
+  nextMinor: number,
+  nextCurrency: string,
+): boolean {
+  if (!previous) return false
+  if (previous.currency !== nextCurrency) return true
+  return nextMinor > previous.amountMinor
+}
+
 export interface BreachProjection {
-  /** UTC calendar date (`YYYY-MM-DD`) the cap would be hit at the run rate. */
+  /** Calendar date (`YYYY-MM-DD`) the cap would be hit at the run rate, in
+      the account's timezone when one was supplied, UTC otherwise. */
   date: string
 }
 
 function utcDateKey(date: Date): string {
   return date.toISOString().slice(0, 10)
+}
+
+function tzParts(timeZone: string, date: Date): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(date)
+  const get = (type: string): number => Number(parts.find((p) => p.type === type)?.value ?? NaN)
+  return { year: get('year'), month: get('month'), day: get('day') }
+}
+
+/** The tz wall-clock reading of `date`, expressed back as a UTC instant, minus
+    the instant itself: the zone's offset at that instant. */
+function tzOffsetMs(timeZone: string, date: Date): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(date)
+  const get = (type: string): number => Number(parts.find((p) => p.type === type)?.value ?? '0')
+  // `hour12: false` renders midnight as `24` in some ICU builds.
+  const wallAsUtc = Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    get('hour') % 24,
+    get('minute'),
+    get('second'),
+  )
+  return wallAsUtc - date.getTime()
+}
+
+/** The UTC instant of local midnight starting (`year`-`month`-`day`) in
+    `timeZone`. Two fixed-point passes settle the DST fold: the offset can
+    move the instant across a transition, but one correction lands within the
+    right offset regime for every real zone. */
+function wallMidnightToUtcMs(timeZone: string, year: number, month: number, day: number): number {
+  const wallAsUtc = Date.UTC(year, month - 1, day)
+  const once = wallAsUtc - tzOffsetMs(timeZone, new Date(wallAsUtc))
+  return wallAsUtc - tzOffsetMs(timeZone, new Date(once))
+}
+
+/** Period end as a UTC instant, measured on the account's clock: next
+    midnight for a daily cap, the first of next month for a monthly one. */
+function zonedPeriodEndMs(
+  period: BudgetPeriod,
+  now: Date,
+  timeZone: string,
+): { endMs: number; valid: boolean } {
+  try {
+    const { year, month, day } = tzParts(timeZone, now)
+    if (!Number.isSafeInteger(year) || !Number.isSafeInteger(month) || !Number.isSafeInteger(day))
+      return { endMs: NaN, valid: false }
+    if (period === BUDGET_PERIOD_MONTHLY) {
+      const next = month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 }
+      return { endMs: wallMidnightToUtcMs(timeZone, next.year, next.month, 1), valid: true }
+    }
+    // Next midnight: overflow normalises (Jan 32 → Feb 1) in UTC date math,
+    // and the parts are re-read in-zone by `wallMidnightToUtcMs`.
+    const nextDay = new Date(Date.UTC(year, month - 1, day + 1))
+    return {
+      endMs: wallMidnightToUtcMs(
+        timeZone,
+        nextDay.getUTCFullYear(),
+        nextDay.getUTCMonth() + 1,
+        nextDay.getUTCDate(),
+      ),
+      valid: true,
+    }
+  } catch {
+    return { endMs: NaN, valid: false }
+  }
+}
+
+function zonedDateKey(date: Date, timeZone: string): string | undefined {
+  try {
+    const { year, month, day } = tzParts(timeZone, date)
+    if (!Number.isSafeInteger(year) || !Number.isSafeInteger(month) || !Number.isSafeInteger(day))
+      return undefined
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  } catch {
+    return undefined
+  }
+}
+
+/** Whether `timeZone` names a real IANA zone in this runtime. */
+function isValidTimeZone(timeZone: string | undefined): timeZone is string {
+  if (!timeZone) return false
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone })
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -99,6 +223,12 @@ function utcDateKey(date: Date): string {
  * *projected*, with the freshness caveat attached. Undefined when the run
  * rate never reaches the cap this period. A cap already consumed reads as
  * breached today.
+ *
+ * Period end is measured on the ad account's clock (`timeZone`, an IANA
+ * name): a JST daily cap ends at JST midnight, not UTC midnight — the UTC
+ * fallback can misplace the breach by a day for far-from-UTC tenants. An
+ * unknown or missing zone falls back to the previous UTC behaviour rather
+ * than refusing the preview.
  */
 export function projectedBreachDate(
   period: BudgetPeriod,
@@ -106,15 +236,29 @@ export function projectedBreachDate(
   spendToDateMinor: number,
   projectedSpendMinor: number,
   now: Date = new Date(),
+  timeZone?: string,
 ): BreachProjection | undefined {
   if (!Number.isFinite(capMinor) || capMinor <= 0) return undefined
-  if (capMinor <= spendToDateMinor) return { date: utcDateKey(now) }
+  if (capMinor <= spendToDateMinor)
+    return {
+      date: isValidTimeZone(timeZone)
+        ? (zonedDateKey(now, timeZone) ?? utcDateKey(now))
+        : utcDateKey(now),
+    }
   const growth = projectedSpendMinor - spendToDateMinor
   if (growth <= 0 || projectedSpendMinor < capMinor) return undefined
 
   // Spend-to-date is the figure *now*; the remaining growth plays out
   // between now and period end — never from period start, which would
   // backdate the breach into days already spent.
+  if (isValidTimeZone(timeZone)) {
+    const { endMs, valid } = zonedPeriodEndMs(period, now, timeZone)
+    if (!valid || !(endMs > now.getTime()))
+      return { date: zonedDateKey(now, timeZone) ?? utcDateKey(now) }
+    const fraction = (capMinor - spendToDateMinor) / growth
+    const breach = new Date(now.getTime() + fraction * (endMs - now.getTime()))
+    return { date: zonedDateKey(breach, timeZone) ?? utcDateKey(breach) }
+  }
   const end = period === BUDGET_PERIOD_MONTHLY ? utcMonthEnd(now) : utcDayEnd(now)
   if (end.getTime() <= now.getTime()) return { date: utcDateKey(now) }
   const fraction = (capMinor - spendToDateMinor) / growth

@@ -2475,6 +2475,86 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/tenant/media/v1/assets': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['create_media_asset']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/media/v1/assets/{asset_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get: operations['get_media_asset']
+    put?: never
+    post?: never
+    delete: operations['delete_media_asset']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/media/v1/assets/{asset_id}/complete': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['complete_media_asset_upload']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/media/v1/assets/{asset_id}/delivery': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['create_media_asset_delivery']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/media/v1/assets/{asset_id}/parts': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post: operations['presign_media_asset_parts']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/tenant/members': {
     parameters: {
       query?: never
@@ -3320,6 +3400,11 @@ export interface components {
       requested_by: string
       status: components['schemas']['ApprovalStatus']
     }
+    AssetDeliveryView: {
+      expires_at?: string | null
+      renditions?: components['schemas']['RenditionView'][]
+      url?: string | null
+    }
     AssetMetadata: {
       aspect_ratio: string
       /** Format: int32 */
@@ -3332,6 +3417,40 @@ export interface components {
       /** Format: int32 */
       width_px: number
     }
+    AssetUploadView: {
+      asset_id: string
+      expires_at: string
+      /** Format: int64 */
+      part_size?: number | null
+      part_urls?: components['schemas']['UploadPartView'][] | null
+      upload_id?: string | null
+      upload_url?: string | null
+    }
+    AssetView: {
+      /** Format: int64 */
+      duration_ms?: number | null
+      error_message?: string | null
+      external_ref?: string | null
+      /** Format: int64 */
+      height?: number | null
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      kind: string
+      owner_id?: string | null
+      /** Format: int64 */
+      progress_percent: number
+      status: string
+      updated_at?: string | null
+      /** Format: int64 */
+      version: number
+      /** Format: int64 */
+      width?: number | null
+    }
+    /** @enum {string} */
+    AssetVisibility: 'private' | 'public'
     Audience: {
       /** Format: date-time */
       created_at: string
@@ -3693,7 +3812,7 @@ export interface components {
       changes: components['schemas']['CampaignChange'][]
     }
     /** @enum {string} */
-    CampaignStatus: 'draft' | 'active' | 'paused' | 'ended' | 'archived'
+    CampaignStatus: 'draft' | 'publishing' | 'active' | 'paused' | 'ended' | 'archived'
     /**
      * @description One campaign plus the envelope fields the domain model does not carry:
      *     which connection it belongs to and the platform-assigned id once
@@ -3886,6 +4005,18 @@ export interface components {
     CompleteLinkChallengeBody: {
       /** @example 64-hex-chars */
       nonce?: string | null
+    }
+    /**
+     * @description Wire-only shape for completing a multipart upload. Same treatment as
+     *     [`PresignPartsRequest`]: the use case takes the bare parts vec.
+     */
+    CompleteUploadRequest: {
+      parts: components['schemas']['CompletedPartInput'][]
+    }
+    CompletedPartInput: {
+      etag: string
+      /** Format: int64 */
+      part_number: number
     }
     ConnectionAttentionView: {
       /**
@@ -4087,6 +4218,15 @@ export interface components {
       creative: components['schemas']['Creative']
       landing_url: string
       tracking_template?: string | null
+    }
+    CreateAssetInput: {
+      content_type: string
+      filename: string
+      kind: string
+      owner_id?: string | null
+      /** Format: int64 */
+      size_bytes: number
+      visibility?: components['schemas']['AssetVisibility']
     }
     CreateAudienceRequest: {
       name: string
@@ -4314,6 +4454,7 @@ export interface components {
       | 'advertising_campaign_change'
       | 'advertising_budget_cap'
       | 'advertising_budget_alert'
+      | 'media_asset'
     DataFreshness: {
       is_settled: boolean
       is_stale: boolean
@@ -5332,6 +5473,14 @@ export interface components {
     PortalSessionView: {
       url: string
     }
+    /**
+     * @description Wire-only shape for presigning multipart upload parts. This has no
+     *     counterpart in `domain::dto` because it is not a value the domain layer
+     *     needs to model — the use case takes the bare `Vec<i64>`.
+     */
+    PresignPartsRequest: {
+      part_numbers: number[]
+    }
     PreviewTokenView: {
       /** Format: date-time */
       expires_at: string
@@ -5653,6 +5802,17 @@ export interface components {
        */
       fx_rate_date: string
     }
+    RenditionView: {
+      /** Format: int64 */
+      bitrate_kbps?: number | null
+      content_type: string
+      /** Format: int64 */
+      height?: number | null
+      name: string
+      url?: string | null
+      /** Format: int64 */
+      width?: number | null
+    }
     RequestOperatorView: {
       /** Format: date-time */
       completed_at?: string | null
@@ -5952,6 +6112,14 @@ export interface components {
        * @example 873698342314721281
        */
       tenant_id: string
+      /**
+       * @description The tenant calendar timezone the report's period windows were
+       *     computed in (resolved from the tenant's locale settings). Surfaced on
+       *     the report so clients holding advertising access — but not
+       *     locale-settings access — render projections on the same clock
+       *     enforcement uses.
+       */
+      timezone: string
     }
     StartLinkChallengeCommand: {
       /** @example alice@example.com */
@@ -6539,6 +6707,11 @@ export interface components {
       data_base64: string
       /** @description `logo` | `favicon` | `og_image`. */
       kind: string
+    }
+    UploadPartView: {
+      /** Format: int64 */
+      part_number: number
+      url: string
     }
     UploadReceipt: {
       external_id: string
@@ -9924,13 +10097,13 @@ export interface operations {
   }
   get_budget_alerts: {
     parameters: {
-      query?: never
-      header?: never
-      path: {
-        campaign_id: string
-        unacknowledged_only: boolean | null
-        limit: number | null
+      query?: {
+        campaign_id?: string
+        unacknowledged_only?: boolean
+        limit?: number
       }
+      header?: never
+      path?: never
       cookie?: never
     }
     requestBody?: never
@@ -10028,7 +10201,10 @@ export interface operations {
   put_budget_cap: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        /** @description Conditional. Required when updating an existing cap — a version-less update is rejected with 409 (`cap_version_required`). Omitting it is valid only for creates (no cap exists yet for this scope and period) and for dry runs. A stale value also returns 409. */
+        'If-Match'?: string | null
+      }
       path?: never
       cookie?: never
     }
@@ -10056,7 +10232,7 @@ export interface operations {
           'application/json': components['schemas']['ProblemDetail']
         }
       }
-      /** @description New cap is below current period spend and confirmation is required */
+      /** @description New cap is below current period spend and confirmation is required, or the cap version is stale or missing on an update */
       409: {
         headers: {
           [name: string]: unknown
@@ -10595,12 +10771,13 @@ export interface operations {
   }
   get_campaign_budget_cap: {
     parameters: {
-      query?: never
+      query?: {
+        period?: components['schemas']['BudgetPeriod']
+      }
       header?: never
       path: {
         /** @description Target campaign ID */
         campaign_id: string
-        period: null | components['schemas']['BudgetPeriod']
       }
       cookie?: never
     }
@@ -10638,7 +10815,10 @@ export interface operations {
   put_campaign_budget_cap: {
     parameters: {
       query?: never
-      header?: never
+      header?: {
+        /** @description Conditional. Required when updating an existing cap — a version-less update is rejected with 409 (`cap_version_required`). Omitting it is valid only for creates (no cap exists yet for this scope and period) and for dry runs. A stale value also returns 409. */
+        'If-Match'?: string | null
+      }
       path: {
         /** @description Target campaign ID */
         campaign_id: string
@@ -10669,7 +10849,7 @@ export interface operations {
           'application/json': components['schemas']['ProblemDetail']
         }
       }
-      /** @description New cap is below current period spend and confirmation is required */
+      /** @description New cap is below current period spend and confirmation is required, or the cap version is stale or missing on an update */
       409: {
         headers: {
           [name: string]: unknown
@@ -11834,11 +12014,11 @@ export interface operations {
   }
   get_spend_status: {
     parameters: {
-      query?: never
-      header?: never
-      path: {
-        period: null | components['schemas']['BudgetPeriod']
+      query?: {
+        period?: components['schemas']['BudgetPeriod']
       }
+      header?: never
+      path?: never
       cookie?: never
     }
     requestBody?: never
@@ -12982,6 +13162,266 @@ export interface operations {
       }
       /** @description Settings conflict */
       409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  create_media_asset: {
+    parameters: {
+      query?: never
+      header: {
+        /** @description Required by hitox-media-service; a retried key returns the original asset. */
+        'Idempotency-Key': string
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateAssetInput']
+      }
+    }
+    responses: {
+      /** @description Asset minted, upload presigned */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AssetUploadView']
+        }
+      }
+      /** @description hitox-media-service rejected the request (e.g. missing Idempotency-Key) */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing media.assets.manage permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_media_asset: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        asset_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Current asset state */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AssetView']
+        }
+      }
+      /** @description Missing media.assets.manage permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description No such asset in this tenant's namespace */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  delete_media_asset: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        asset_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Asset deleted */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Missing media.assets.manage permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description No such asset in this tenant's namespace */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  complete_media_asset_upload: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        asset_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CompleteUploadRequest']
+      }
+    }
+    responses: {
+      /** @description Upload completed, asset state after completion */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AssetView']
+        }
+      }
+      /** @description Missing media.assets.manage permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description No such asset in this tenant's namespace */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Upload already completed or part etags do not match */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  create_media_asset_delivery: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        asset_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Delivery URL for the asset */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['AssetDeliveryView']
+        }
+      }
+      /** @description Missing media.assets.manage permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description No such asset in this tenant's namespace */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  presign_media_asset_parts: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        asset_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PresignPartsRequest']
+      }
+    }
+    responses: {
+      /** @description Presigned URLs for the requested parts, wrapped as {"part_urls": [...]} to match course-media's wire.part_urls read */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': unknown
+        }
+      }
+      /** @description Missing media.assets.manage permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description No such asset in this tenant's namespace */
+      404: {
         headers: {
           [name: string]: unknown
         }

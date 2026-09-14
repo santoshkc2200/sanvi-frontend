@@ -554,6 +554,23 @@
         "required": ["id", "requested_by", "action_type", "payload", "status", "requested_at"],
         "type": "object"
       },
+      "AssetDeliveryView": {
+        "properties": {
+          "expires_at": {
+            "type": ["string", "null"]
+          },
+          "renditions": {
+            "items": {
+              "$ref": "#/components/schemas/RenditionView"
+            },
+            "type": "array"
+          },
+          "url": {
+            "type": ["string", "null"]
+          }
+        },
+        "type": "object"
+      },
       "AssetMetadata": {
         "properties": {
           "aspect_ratio": {
@@ -585,6 +602,88 @@
         },
         "required": ["width_px", "height_px", "file_size_bytes", "is_video", "aspect_ratio"],
         "type": "object"
+      },
+      "AssetUploadView": {
+        "properties": {
+          "asset_id": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string"
+          },
+          "part_size": {
+            "format": "int64",
+            "type": ["integer", "null"]
+          },
+          "part_urls": {
+            "items": {
+              "$ref": "#/components/schemas/UploadPartView"
+            },
+            "type": ["array", "null"]
+          },
+          "upload_id": {
+            "type": ["string", "null"]
+          },
+          "upload_url": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": ["asset_id", "expires_at"],
+        "type": "object"
+      },
+      "AssetView": {
+        "properties": {
+          "duration_ms": {
+            "format": "int64",
+            "type": ["integer", "null"]
+          },
+          "error_message": {
+            "type": ["string", "null"]
+          },
+          "external_ref": {
+            "type": ["string", "null"]
+          },
+          "height": {
+            "format": "int64",
+            "type": ["integer", "null"]
+          },
+          "id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "owner_id": {
+            "type": ["string", "null"]
+          },
+          "progress_percent": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": ["string", "null"]
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "width": {
+            "format": "int64",
+            "type": ["integer", "null"]
+          }
+        },
+        "required": ["id", "kind", "status", "progress_percent", "version"],
+        "type": "object"
+      },
+      "AssetVisibility": {
+        "enum": ["private", "public"],
+        "type": "string"
       },
       "Audience": {
         "properties": {
@@ -1405,7 +1504,7 @@
         "type": "object"
       },
       "CampaignStatus": {
-        "enum": ["draft", "active", "paused", "ended", "archived"],
+        "enum": ["draft", "publishing", "active", "paused", "ended", "archived"],
         "type": "string"
       },
       "CampaignView": {
@@ -1751,6 +1850,32 @@
             "type": ["string", "null"]
           }
         },
+        "type": "object"
+      },
+      "CompleteUploadRequest": {
+        "description": "Wire-only shape for completing a multipart upload. Same treatment as\n[`PresignPartsRequest`]: the use case takes the bare parts vec.",
+        "properties": {
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/CompletedPartInput"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["parts"],
+        "type": "object"
+      },
+      "CompletedPartInput": {
+        "properties": {
+          "etag": {
+            "type": "string"
+          },
+          "part_number": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": ["part_number", "etag"],
         "type": "object"
       },
       "ConnectionAttentionView": {
@@ -2244,6 +2369,31 @@
         "required": ["creative", "landing_url"],
         "type": "object"
       },
+      "CreateAssetInput": {
+        "properties": {
+          "content_type": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "owner_id": {
+            "type": ["string", "null"]
+          },
+          "size_bytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/AssetVisibility"
+          }
+        },
+        "required": ["kind", "content_type", "filename", "size_bytes"],
+        "type": "object"
+      },
       "CreateAudienceRequest": {
         "properties": {
           "name": {
@@ -2724,7 +2874,8 @@
           "advertising_metric",
           "advertising_campaign_change",
           "advertising_budget_cap",
-          "advertising_budget_alert"
+          "advertising_budget_alert",
+          "media_asset"
         ],
         "type": "string"
       },
@@ -5032,6 +5183,20 @@
         "required": ["url"],
         "type": "object"
       },
+      "PresignPartsRequest": {
+        "description": "Wire-only shape for presigning multipart upload parts. This has no\ncounterpart in `domain::dto` because it is not a value the domain layer\nneeds to model — the use case takes the bare `Vec<i64>`.",
+        "properties": {
+          "part_numbers": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["part_numbers"],
+        "type": "object"
+      },
       "PreviewTokenView": {
         "properties": {
           "expires_at": {
@@ -5713,6 +5878,33 @@
         "required": ["amount_minor", "currency", "fx_rate_date"],
         "type": "object"
       },
+      "RenditionView": {
+        "properties": {
+          "bitrate_kbps": {
+            "format": "int64",
+            "type": ["integer", "null"]
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "height": {
+            "format": "int64",
+            "type": ["integer", "null"]
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": ["string", "null"]
+          },
+          "width": {
+            "format": "int64",
+            "type": ["integer", "null"]
+          }
+        },
+        "required": ["name", "content_type"],
+        "type": "object"
+      },
       "RequestOperatorView": {
         "properties": {
           "completed_at": {
@@ -6346,9 +6538,13 @@
             "format": "snowflake-id",
             "pattern": "^[1-9][0-9]{0,18}$",
             "type": "string"
+          },
+          "timezone": {
+            "description": "The tenant calendar timezone the report's period windows were\ncomputed in (resolved from the tenant's locale settings). Surfaced on\nthe report so clients holding advertising access — but not\nlocale-settings access — render projections on the same clock\nenforcement uses.",
+            "type": "string"
           }
         },
-        "required": ["tenant_id", "items"],
+        "required": ["tenant_id", "timezone", "items"],
         "type": "object"
       },
       "StartLinkChallengeCommand": {
@@ -7674,6 +7870,19 @@
           }
         },
         "required": ["kind", "data_base64"],
+        "type": "object"
+      },
+      "UploadPartView": {
+        "properties": {
+          "part_number": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": ["part_number", "url"],
         "type": "object"
       },
       "UploadReceipt": {
@@ -12134,9 +12343,9 @@
         "operationId": "get_budget_alerts",
         "parameters": [
           {
-            "in": "path",
+            "in": "query",
             "name": "campaign_id",
-            "required": true,
+            "required": false,
             "schema": {
               "examples": ["873698342314721281"],
               "format": "snowflake-id",
@@ -12145,20 +12354,20 @@
             }
           },
           {
-            "in": "path",
+            "in": "query",
             "name": "unacknowledged_only",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": ["boolean", "null"]
+              "type": "boolean"
             }
           },
           {
-            "in": "path",
+            "in": "query",
             "name": "limit",
-            "required": true,
+            "required": false,
             "schema": {
               "format": "int64",
-              "type": ["integer", "null"]
+              "type": "integer"
             }
           }
         ],
@@ -12265,6 +12474,17 @@
       },
       "put": {
         "operationId": "put_budget_cap",
+        "parameters": [
+          {
+            "description": "Conditional. Required when updating an existing cap — a version-less update is rejected with 409 (`cap_version_required`). Omitting it is valid only for creates (no cap exists yet for this scope and period) and for dry runs. A stale value also returns 409.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "type": ["string", "null"]
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -12304,7 +12524,7 @@
                 }
               }
             },
-            "description": "New cap is below current period spend and confirmation is required"
+            "description": "New cap is below current period spend and confirmation is required, or the cap version is stale or missing on an update"
           }
         },
         "tags": ["advertising"]
@@ -13086,18 +13306,11 @@
             }
           },
           {
-            "in": "path",
+            "in": "query",
             "name": "period",
-            "required": true,
+            "required": false,
             "schema": {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "$ref": "#/components/schemas/BudgetPeriod"
-                }
-              ]
+              "$ref": "#/components/schemas/BudgetPeriod"
             }
           }
         ],
@@ -13149,6 +13362,15 @@
               "pattern": "^[1-9][0-9]{0,18}$",
               "type": "string"
             }
+          },
+          {
+            "description": "Conditional. Required when updating an existing cap — a version-less update is rejected with 409 (`cap_version_required`). Omitting it is valid only for creates (no cap exists yet for this scope and period) and for dry runs. A stale value also returns 409.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "type": ["string", "null"]
+            }
           }
         ],
         "requestBody": {
@@ -13190,7 +13412,7 @@
                 }
               }
             },
-            "description": "New cap is below current period spend and confirmation is required"
+            "description": "New cap is below current period spend and confirmation is required, or the cap version is stale or missing on an update"
           }
         },
         "tags": ["advertising"]
@@ -14675,18 +14897,11 @@
         "operationId": "get_spend_status",
         "parameters": [
           {
-            "in": "path",
+            "in": "query",
             "name": "period",
-            "required": true,
+            "required": false,
             "schema": {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "$ref": "#/components/schemas/BudgetPeriod"
-                }
-              ]
+              "$ref": "#/components/schemas/BudgetPeriod"
             }
           }
         ],
@@ -16052,6 +16267,324 @@
         },
         "summary": "`PUT /api/v1/tenant/localization/settings`.",
         "tags": ["localization"]
+      }
+    },
+    "/api/v1/tenant/media/v1/assets": {
+      "post": {
+        "operationId": "create_media_asset",
+        "parameters": [
+          {
+            "description": "Required by hitox-media-service; a retried key returns the original asset.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAssetInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetUploadView"
+                }
+              }
+            },
+            "description": "Asset minted, upload presigned"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "hitox-media-service rejected the request (e.g. missing Idempotency-Key)"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing media.assets.manage permission"
+          }
+        },
+        "tags": ["media"]
+      }
+    },
+    "/api/v1/tenant/media/v1/assets/{asset_id}": {
+      "delete": {
+        "operationId": "delete_media_asset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Asset deleted"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing media.assets.manage permission"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such asset in this tenant's namespace"
+          }
+        },
+        "tags": ["media"]
+      },
+      "get": {
+        "operationId": "get_media_asset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetView"
+                }
+              }
+            },
+            "description": "Current asset state"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing media.assets.manage permission"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such asset in this tenant's namespace"
+          }
+        },
+        "tags": ["media"]
+      }
+    },
+    "/api/v1/tenant/media/v1/assets/{asset_id}/complete": {
+      "post": {
+        "operationId": "complete_media_asset_upload",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetView"
+                }
+              }
+            },
+            "description": "Upload completed, asset state after completion"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing media.assets.manage permission"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such asset in this tenant's namespace"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Upload already completed or part etags do not match"
+          }
+        },
+        "tags": ["media"]
+      }
+    },
+    "/api/v1/tenant/media/v1/assets/{asset_id}/delivery": {
+      "post": {
+        "operationId": "create_media_asset_delivery",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetDeliveryView"
+                }
+              }
+            },
+            "description": "Delivery URL for the asset"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing media.assets.manage permission"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such asset in this tenant's namespace"
+          }
+        },
+        "tags": ["media"]
+      }
+    },
+    "/api/v1/tenant/media/v1/assets/{asset_id}/parts": {
+      "post": {
+        "operationId": "presign_media_asset_parts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresignPartsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Presigned URLs for the requested parts, wrapped as {\"part_urls\": [...]} to match course-media's wire.part_urls read"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing media.assets.manage permission"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such asset in this tenant's namespace"
+          }
+        },
+        "tags": ["media"]
       }
     },
     "/api/v1/tenant/members": {
@@ -18111,6 +18644,10 @@
     {
       "description": "Tenant advertising. Money is integer minor units paired with ISO-4217 account currency; rendered FX values carry their rate date. Problem types: advertising/platform-unavailable, advertising/connection-not-active, advertising/capability-unsupported, advertising/token-expired, advertising/directive-suppressed, advertising/budget-cap-reached. Every mutating endpoint requires Idempotency-Key.",
       "name": "advertising"
+    },
+    {
+      "description": "Tenant media assets: multipart upload (presign/complete), asset reads/deletes and delivery URLs via hitox-media-service. Upstream failures surface as problems carrying a `code` extension member.",
+      "name": "media"
     }
   ]
 }

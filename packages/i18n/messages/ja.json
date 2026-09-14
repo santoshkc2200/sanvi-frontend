@@ -2197,7 +2197,7 @@
   "admin.advertising.budget.formUnavailable": "キャンペーン一覧を読み込めなかったため、現在キャンペーン単位の上限は設定できません。既存の上限には影響ありません。",
   "admin.advertising.budget.flagOffTitle": "予算ガードレールはまだ有効ではありません",
   "admin.advertising.budget.flagOffDescription": "この機能は段階的に展開中です。キャンペーン管理やレポーティングには影響しません。",
-  "admin.advertising.budget.flagOffNote": "すでに設定されている上限はサーバー側で守りを続け、ガードレールが一時停止したキャンペーンは一時停止のままです。この機能が無効の間、アラートは評価されません。",
+  "admin.advertising.budget.flagOffNote": "この機能が無効の間、すでに設定されている上限の評価は停止し、対象のテナントにはメールで通知されます。ガードレールが一時停止したキャンペーンは一時停止のままです。上限とアラート履歴は保持されます。",
   "admin.advertising.budget.secondLine": "この上限は第二の防線です。広告プラットフォーム自身の予算管理を補うものであり、Sanvi の計測取り込みが動いていることに依存します。プラットフォーム側の管理が第一の防線です — そちらもご確認ください。",
   "admin.advertising.budget.alertHistoryCta": "アラート履歴",
   "admin.advertising.budget.manageCta": "上限を管理",

@@ -1,5 +1,12 @@
 <script lang="ts">
-import { can } from '@sanvi/auth'
+import type {
+  ConnectionFreshnessView,
+  ConnectionView,
+  MetricPoint,
+  MetricsSummaryRow,
+  PlatformView,
+  SpendStatusItem,
+} from '@sanvi/api-client'
 import {
   ApiError,
   getAdMetrics,
@@ -11,20 +18,15 @@ import {
   listAdConnections,
   listAdPlatforms,
 } from '@sanvi/api-client'
-import type {
-  ConnectionFreshnessView,
-  ConnectionView,
-  MetricPoint,
-  MetricsSummaryRow,
-  PlatformView,
-  SpendStatusItem,
-} from '@sanvi/api-client'
+import { can } from '@sanvi/auth'
 import { currentLocale, fmt, t } from '@sanvi/i18n'
 import { navigate } from '@sanvi/spa-router'
 import { getActiveTenantId, hasFeature } from '@sanvi/tenant'
 import {
+  type AdHealthFigure,
   Alert,
   AttributionExplainer,
+  type AttributionPlatformRow,
   Badge,
   Button,
   CapProgress,
@@ -34,47 +36,45 @@ import {
   Dialog,
   EmptyState,
   Field,
+  formatAdCurrency,
+  formatRatio,
   HealthBanner,
   Input,
+  minorUnitDigits,
   NO_VALUE,
   OverlayChart,
   Select,
   Sparkline,
   Spinner,
   Stack,
-  StatCard,
   StackedBarChart,
+  StatCard,
   UpgradePrompt,
-  formatAdCurrency,
-  formatRatio,
-  minorUnitDigits,
-  type AdHealthFigure,
-  type AttributionPlatformRow,
 } from '@sanvi/ui'
-import { apiClient } from '../../lib/api'
 import {
   capStatusFor,
   freshnessFacts,
   scopeCampaignId,
   thresholdActionFor,
 } from '../../lib/advertising/budget'
-import { BUDGET_PERIOD_DAILY } from '../../lib/budget-periods'
+import { platformNames as platformNameMap } from '../../lib/advertising/campaigns'
 import {
+  type CampaignMetricRow,
+  type CurrencyChartGroup,
   campaignRows,
   chartGroups,
+  type DateRange,
   distinctTimezones,
   fractionChange,
   freshnessState,
   kpiGroups,
   previousRange,
   RANGE_PRESETS,
-  rangeForPreset,
-  type CampaignMetricRow,
-  type CurrencyChartGroup,
-  type DateRange,
   type RangePreset,
+  rangeForPreset,
 } from '../../lib/advertising/metrics'
-import { platformNames as platformNameMap } from '../../lib/advertising/campaigns'
+import { apiClient } from '../../lib/api'
+import { BUDGET_PERIOD_DAILY } from '../../lib/budget-periods'
 
 /**
  * The ROAS dashboard (phase 10, TASK-016 / slice 10.7) — the screen the
