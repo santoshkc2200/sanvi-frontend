@@ -292,6 +292,7 @@ export function mockAdvertisingBackend(
     user_id: '0190f0d0-0000-7000-8000-000000000001',
     email: 'admin@example.com',
     email_verified: true,
+    ...(options.accountLocale ? { locale: options.accountLocale } : {}),
     status: 'active',
     created_at: '2026-01-01T00:00:00Z',
     memberships: [
