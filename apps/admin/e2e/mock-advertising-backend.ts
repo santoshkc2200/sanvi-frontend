@@ -364,7 +364,9 @@ export function mockAdvertisingBackend(
       json: {
         platforms: AD_PLATFORM_FIXTURES.map((fixture) =>
           platformViewFixture(fixture, {
-            connection_state: connections.length > 0 ? 'connected' : 'not_connected',
+            connection_state: connections.some((connection) => connection.platform === fixture.key)
+              ? 'connected'
+              : 'not_connected',
           }),
         ),
       },

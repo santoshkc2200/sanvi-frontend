@@ -29,6 +29,7 @@ import {
   EmptyState,
   Field,
   formatAdCurrency,
+  humanizeOptionValue,
   HealthBanner,
   Input,
   NO_VALUE,
@@ -407,13 +408,18 @@ const preview = $derived.by(() => {
 /** The platform(s) behind a stale figure (TASK-018): a campaign-scoped cap
     names its own platform; the tenant cap names every stalled one. */
 function stalePlatformNames(item: SpendStatusItem): string[] {
+  // This screen never loads the platform catalog, so the display name
+  // falls to the shared humanizer: `google_ads` → "Google Ads".
+  const display = (key: string): string => humanizeOptionValue(key)
   const campaignId = scopeCampaignId(item.scope)
   if (campaignId) {
     const connectionId = campaigns.find((entry) => entry.id === campaignId)?.connectionId
     const platform = connectionId ? (stalledPlatformNames.get(connectionId) ?? null) : null
-    return platform ? [platform] : []
+    return platform ? [display(platform)] : []
   }
-  return [...stalledPlatformNames.values()].filter((entry): entry is string => entry !== null)
+  return [...stalledPlatformNames.values()]
+    .filter((entry): entry is string => entry !== null)
+    .map(display)
 }
 
 function freshnessSentence(

@@ -1,6 +1,7 @@
 import { setLocale } from '@sanvi/i18n'
 import { setSession } from '@sanvi/auth'
 import { setEntitlements, setMemberships, switchTenant } from '@sanvi/tenant'
+import { axe } from '@sanvi/test-config/axe'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import BudgetCaps from '../src/routes/advertising/BudgetCaps.svelte'
@@ -225,6 +226,15 @@ async function editFirstCap() {
 }
 
 describe('BudgetCaps optimistic locking (phase 10, TASK-017)', () => {
+  it('renders the caps screen with no axe violations', async () => {
+    setupFetch({ items: items(), put: () => jsonResponse(cap({ version: 3 })) })
+    const { container } = render(BudgetCaps)
+    // The full screen — caps in place, the form, and the disclosure copy —
+    // is the a11y surface; assert on the loaded state, not the spinner.
+    await screen.findByText('Caps in place')
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
   it('sends the selected target version, rebinding when the target switches', async () => {
     const state = { items: items(), put: () => jsonResponse(cap({ version: 3 })) }
     const puts = setupFetch(state)
