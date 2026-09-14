@@ -25,6 +25,7 @@
     "check:boundaries": "node packages/lint-gates/src/check-boundaries.mjs .",
     "check:budget": "turbo run check:budget",
     "check:connect-bundle": "node scripts/assert-connect-js-bundle.mjs",
+    "check:secrets": "node scripts/check-no-secret-keys-in-bundle.mjs",
     "check:all": "pnpm lint && turbo run typecheck test build check:i18n check:tokens check:budget && pnpm check:boundaries && pnpm check:connect-bundle",
     "check:quiet": "pnpm lint && turbo run typecheck test build check:i18n check:tokens check:budget --output-logs=errors-only && pnpm check:boundaries && pnpm check:connect-bundle",
     "generate:api": "node scripts/generate-openapi.mjs",
