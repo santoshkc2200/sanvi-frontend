@@ -857,6 +857,27 @@ export function getAdMetricsExport(
 }
 
 /**
+ * The same export as {@link getAdMetricsExport}, but **streamed**: the
+ * response body is handed over as a `ReadableStream` so the caller can pipe
+ * it to disk (File System Access API) or assemble it chunk by chunk, instead
+ * of holding an arbitrarily long date range's CSV in memory as one string.
+ * Errors behave exactly like the buffered variant — `ApiError` including the
+ * permission 403 — because everything before the 2xx body is shared client
+ * machinery. Prefer this from UI download paths; the buffered call remains
+ * for callers that genuinely want the text.
+ */
+export function streamAdMetricsExport(
+  client: TypedApiClient,
+  query: AdMetricsQuery,
+  signal?: AbortSignal,
+): Promise<ReadableStream<Uint8Array>> {
+  return client.stream('/api/v1/tenant/ads/metrics/export', {
+    params: { query: adMetricsQueryParams(query) },
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
  * `GET /api/v1/tenant/ads/metrics/freshness` — per-connection
  * `last_ingested_at`, `lag_hours`, and the backend-computed `stalled`
  * marker. The dashboard's "still updating" and "sync failed" states render

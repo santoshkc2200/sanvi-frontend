@@ -35,6 +35,7 @@
     "@sanvi/ui": "workspace:*"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "catalog:",
     "@sanvi/lint-gates": "workspace:*",
     "@sanvi/test-config": "workspace:*",

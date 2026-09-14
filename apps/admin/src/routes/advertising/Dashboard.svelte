@@ -10,13 +10,13 @@ import type {
 import {
   ApiError,
   getAdMetrics,
-  getAdMetricsExport,
   getAdMetricsFreshness,
   getAdMetricsSummary,
   getAdSpendStatus,
   listAdCampaigns,
   listAdConnections,
   listAdPlatforms,
+  streamAdMetricsExport,
 } from '@sanvi/api-client'
 import { can } from '@sanvi/auth'
 import { currentLocale, fmt, t } from '@sanvi/i18n'
@@ -282,6 +282,24 @@ async function applyRange(range: DateRange): Promise<void> {
   await loadMetrics(seq)
 }
 
+/** Minimal structural types for the File System Access API — not every
+    runtime ships it (Safari, Firefox), and the DOM lib does not declare the
+    picker, so the one call site declares what it needs and the export
+    degrades to the chunked fallback when it is absent. */
+interface CsvFileHandle {
+  createWritable(): Promise<{
+    write(data: Uint8Array): Promise<void>
+    close(): Promise<void>
+    abort?(reason?: unknown): void
+  }>
+}
+interface SavePickerWindow {
+  showSaveFilePicker?: (options: {
+    suggestedName: string
+    types: { description: string; accept: Record<string, string[]> }[]
+  }) => Promise<CsvFileHandle>
+}
+
 async function exportCsv(): Promise<void> {
   if (exporting) return
   exporting = true
@@ -289,14 +307,63 @@ async function exportCsv(): Promise<void> {
   // Snapshot once: a range change mid-export must not mix the old request
   // with the new filename (or vice versa).
   const range = { ...activeRange }
+  const filename = `sanvi-ads-${range.from}-to-${range.to}.csv`
+
+  // The save picker must open inside the click's user activation, so it is
+  // offered — and answered — *before* the request goes out. A cancelled
+  // picker ends the export quietly; a failed request after a location was
+  // chosen commits no file, because the writable is only created once the
+  // stream is in hand and only committed on a successful close.
+  const picker = (window as unknown as SavePickerWindow).showSaveFilePicker
+  let handle: CsvFileHandle | undefined
+  if (typeof picker === 'function') {
+    try {
+      handle = await picker({
+        suggestedName: filename,
+        types: [{ description: 'CSV', accept: { 'text/csv': ['.csv'] } }],
+      })
+    } catch {
+      exporting = false
+      return
+    }
+  }
+
+  let writable: Awaited<ReturnType<CsvFileHandle['createWritable']>> | undefined
   try {
-    const csv = await getAdMetricsExport(apiClient, {
+    const stream = await streamAdMetricsExport(apiClient, {
       from: range.from,
       to: range.to,
       groupBy: 'campaign',
     })
-    download(csv, `sanvi-ads-${range.from}-to-${range.to}.csv`)
+    if (handle) {
+      // True streaming for a long range: bytes land on disk as they
+      // arrive, none of the file is held in memory.
+      writable = await handle.createWritable()
+      await stream.pipeTo(writable as unknown as WritableStream<Uint8Array>)
+      writable = undefined // `pipeTo` closed it successfully
+    } else {
+      // No File System Access API: consume the stream in chunks and let
+      // the browser download the assembled Blob. The network transfer is
+      // still streamed — the response is never one buffered string — but
+      // the assembled file briefly lives in memory. Each chunk is copied:
+      // a reader may hand back views over a buffer it reuses, and the
+      // Blob must hold the bytes, not a view that is about to be
+      // overwritten.
+      const parts: BlobPart[] = []
+      const reader = stream.getReader()
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        // `new Uint8Array(value)` copies: a reader may hand back a view
+        // over a buffer it reuses, and the Blob must hold the bytes, not
+        // a view that is about to be overwritten.
+        if (value) parts.push(new Uint8Array(value))
+      }
+      download(new Blob(parts, { type: 'text/csv' }), filename)
+    }
   } catch (err) {
+    // A chosen location with a failed download must commit nothing.
+    await writable?.abort?.()
     exportError =
       err instanceof ApiError && err.status === 403
         ? t['admin.advertising.dashboard.errors.forbidden']()
@@ -306,8 +373,8 @@ async function exportCsv(): Promise<void> {
   }
 }
 
-function download(text: string, filename: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/csv' }))
+function download(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = filename

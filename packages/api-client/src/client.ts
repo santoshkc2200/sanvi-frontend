@@ -121,6 +121,20 @@ export interface ApiClient {
    * {@link TimeoutError}), since there is no body to hand back in that case.
    */
   requestRaw<T>(path: string, options?: RequestOptions): Promise<RawResponse<T>>
+  /**
+   * Streams a successful response body instead of buffering it: the happy
+   * path hands back the underlying `ReadableStream` so a large download (the
+   * advertising metrics CSV export) can be piped to disk as it arrives
+   * rather than held in memory whole. Everything before the body — the
+   * single `fetch` call site, auth/tenant/locale headers, timeout, retries
+   * on transport failures and retryable statuses, problem+json →
+   * {@link ApiError} — behaves exactly as `request` does; the difference
+   * starts only once a 2xx is in hand, and from that point no retry can
+   * happen (a partially-consumed stream cannot be replayed). The timeout
+   * covers reaching the response headers, not consuming the body — a slow
+   * multi-chunk download is not a timeout.
+   */
+  requestStream(path: string, options?: RequestOptions): Promise<ReadableStream<Uint8Array>>
 }
 
 function buildUrl(baseUrl: string, path: string, query: RequestOptions['query']): string {
@@ -384,9 +398,53 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     }
   }
 
+  async function requestStream(
+    path: string,
+    options: RequestOptions = {},
+  ): Promise<ReadableStream<Uint8Array>> {
+    const method = options.method ?? 'GET'
+    const retries = IDEMPOTENT_METHODS.has(method) ? (options.retries ?? defaultRetries) : 0
+
+    let lastError: unknown
+
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      if (attempt > 0) await sleep(retryDelay(attempt - 1, retryBaseDelayMs))
+
+      try {
+        const response = await doFetch(path, options)
+        if (!response.ok) {
+          const apiError = await apiErrorFromResponse(response)
+          if (apiError.isRetryable && attempt < retries) {
+            lastError = apiError
+            continue
+          }
+          throw apiError
+        }
+        if (!response.body) {
+          // A 2xx with no stream to hand over (should not happen for a
+          // fetching browser) — fail loudly rather than return a broken
+          // "stream" the caller would discover mid-download.
+          throw new NetworkError(new Error('Response carried no body stream'))
+        }
+        return response.body
+      } catch (error) {
+        if (error instanceof ApiError) throw error
+        if (error instanceof TimeoutError || error instanceof NetworkError) {
+          lastError = error
+          if (attempt < retries) continue
+          throw error
+        }
+        throw error
+      }
+    }
+
+    throw lastError
+  }
+
   return {
     request,
     requestRaw,
+    requestStream,
     get: (path, options) => request(path, { ...options, method: 'GET' }),
     post: (path, body, options) => request(path, { ...options, method: 'POST', body }),
     put: (path, body, options) => request(path, { ...options, method: 'PUT', body }),
