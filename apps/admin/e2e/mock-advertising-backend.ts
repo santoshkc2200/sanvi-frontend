@@ -1742,7 +1742,12 @@ export function mockAdvertisingBackend(
       return {
         status: 409,
         json: {
-          type: 'about:blank',
+          // The problem type is the contract (documented in
+          // `api-client/advertising.ts`): the UI routes the two 409s on
+          // this machine-readable value, never on detail text — the
+          // client sends `Accept-Language`, so a localized detail string
+          // cannot be routed on.
+          type: 'advertising/cap-below-current-spend',
           title: 'Conflict',
           status: 409,
           detail: 'New cap is below current period spend and confirmation is required',
@@ -1936,9 +1941,12 @@ export function mockAdvertisingBackend(
         acknowledged_at: null,
         acknowledged_by: null,
       })
-      // The guardrail itself pauses delivery — the change is Sanvi-side and
-      // has no human actor, which the change log renders as an automated
-      // Sanvi action rather than attributing it to a person.
+      // The guardrail itself pauses delivery — a Sanvi-side change with
+      // no human actor. The contract has no actor_kind/system marker yet
+      // (recorded gap), so the change log can only render an omitted
+      // actor as unresolvable; `actor_id` is omitted (never null, which
+      // the wire type forbids) and the metadata carries the automation
+      // fact for when the backend grows the field.
       for (const campaign of campaigns) {
         if (campaign.campaign.status !== 'active') continue
         campaign.revision += 1
@@ -1947,7 +1955,7 @@ export function mockAdvertisingBackend(
         })
         const recorded = campaignChanges[0]
         if (recorded) {
-          recorded.actor_id = null
+          delete recorded.actor_id
           recorded.metadata = { automated: 'budget_guardrail' }
         }
       }

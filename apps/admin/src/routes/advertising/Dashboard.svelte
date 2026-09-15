@@ -291,7 +291,7 @@ interface CsvFileHandle {
   createWritable(): Promise<{
     write(data: Uint8Array): Promise<void>
     close(): Promise<void>
-    abort?(reason?: unknown): void
+    abort?(reason?: unknown): Promise<void>
   }>
 }
 interface SavePickerWindow {
@@ -312,9 +312,13 @@ async function exportCsv(): Promise<void> {
 
   // The save picker must open inside the click's user activation, so it is
   // offered — and answered — *before* the request goes out. A cancelled
-  // picker ends the export quietly; a failed request after a location was
-  // chosen commits no file, because the writable is only created once the
-  // stream is in hand and only committed on a successful close.
+  // picker ends the export quietly. Any other picker failure (security
+  // policy, disabled API) must not lose the export: it falls back to the
+  // chunked download. After a location is chosen, a failed download never
+  // commits *data* — the original file keeps its contents until a
+  // successful close swaps it — though Chromium does create the empty
+  // target file at selection, so a first-time export that fails before the
+  // writable is opened can leave a 0-byte CSV behind.
   const picker = (window as unknown as SavePickerWindow).showSaveFilePicker
   let handle: CsvFileHandle | undefined
   if (typeof picker === 'function') {
@@ -323,9 +327,12 @@ async function exportCsv(): Promise<void> {
         suggestedName: filename,
         types: [{ description: 'CSV', accept: { 'text/csv': ['.csv'] } }],
       })
-    } catch {
-      exporting = false
-      return
+    } catch (err) {
+      if ((err as { name?: string } | null)?.name === 'AbortError') {
+        exporting = false
+        return
+      }
+      handle = undefined
     }
   }
 
@@ -347,7 +354,7 @@ async function exportCsv(): Promise<void> {
       // the browser download the assembled Blob. The network transfer is
       // still streamed — the response is never one buffered string — but
       // the assembled file briefly lives in memory. Each chunk is copied:
-      // a reader may hand back views over a buffer it reuses, and the
+      // a reader may hand back a view over a buffer it reuses, and the
       // Blob must hold the bytes, not a view that is about to be
       // overwritten.
       const parts: BlobPart[] = []
@@ -363,12 +370,16 @@ async function exportCsv(): Promise<void> {
       download(new Blob(parts, { type: 'text/csv' }), filename)
     }
   } catch (err) {
-    // A chosen location with a failed download must commit nothing.
-    await writable?.abort?.()
+    // The user-facing error is assigned *first*: the cleanup below is
+    // best-effort — `pipeTo` has already errored the destination when the
+    // stream itself fails, and `abort()` on an errored WritableStream
+    // rejects — and must never be the error that escapes an un-awaited
+    // `exportCsv()` caller.
     exportError =
       err instanceof ApiError && err.status === 403
         ? t['admin.advertising.dashboard.errors.forbidden']()
         : t['admin.advertising.dashboard.export.error']()
+    await writable?.abort?.()?.catch(() => {})
   } finally {
     exporting = false
   }

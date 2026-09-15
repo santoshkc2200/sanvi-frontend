@@ -168,6 +168,31 @@ Verified on the branch `feat/task-018-a11y-visual-export-e2e` (commits `6f6e292`
   the new journey, degraded, a11y, and visual specs — passes on chromium and webkit.
 - Prerelease tag/staging deploy not run (no pipeline here), as in every task this phase.
 
+**Contract points recorded (review follow-ups).**
+
+- The below-spend 409 is routed on the problem's machine-readable `type`
+  (`advertising/cap-below-current-spend`), never on `detail` text: the client sends
+  `Accept-Language`, so a localized/reworded detail could misroute a genuine below-spend
+  conflict into the stale-`If-Match` branch (silent draft overwrite, unreachable save). The
+  backend must send the type on that 409 — it is the shape `api-client/advertising.ts` already
+  documents, and the mock now carries it. A stale-version 409 also tells the operator their
+  draft was replaced with the cap now in force, instead of a generic "try again" over a
+  silently rewritten amount field.
+- Auto-pause attribution: the change-log contract has no `actor_kind`/system marker, so an
+  actor-less Sanvi-side change (the guardrail's pause) renders as an unresolvable team member —
+  never as "automated". Labelling an omitted actor as automation would misattribute human edits
+  (deleted/redacted accounts, pre-actor-tracking rows) in an audit surface. The explicit backend
+  marker is the recorded cross-repo gap; the mock models the pause as an omitted `actor_id`
+  (null is off-contract) plus a `metadata.automated` hint for when the field arrives.
+- Export cleanup hardening: the user-facing export error is assigned before the best-effort
+  `writable.abort()` (which can itself reject on a stream `pipeTo` already errored), a save-picker
+  failure other than a user abort falls back to the chunked download instead of losing the
+  export, and the post-failure file semantics are stated precisely (existing files keep their
+  contents until a successful close; Chromium may leave a 0-byte target at selection).
+- The campaign list fetches ingestion freshness only when the performance columns exist (the
+  `advertising.dashboard` flag): with the flag off there is nothing on the screen staleness
+  could qualify, and the call would only 403.
+
 **Verification commands run.** `pnpm check:quiet` pipeline green except the marketing budget
 overage above (one consent/platform-admin vitest-worker RPC timeout under full parallel load
 reproduced neither at `--concurrency=3` nor on package-level reruns); `pnpm test:e2e` for the

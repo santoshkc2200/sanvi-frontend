@@ -177,8 +177,11 @@ test.describe('Advertising phase journey (10.9 consolidation)', () => {
     await expect(page.getByRole('table').getByText('Paused')).toBeVisible({ timeout: 10_000 })
     await page.getByRole('button', { name: 'View', exact: true }).first().press('Enter')
     await page.getByRole('heading', { name: 'Spring launch' }).waitFor()
-    // "Who paused this" has an answer: the guardrail, not a person.
-    await expect(page.getByText(/Sanvi \(automated\)/).first()).toBeVisible()
+    // The pause lands in the log as a Sanvi-side change with the Status
+    // diff. The wire carries no actor_kind/system marker yet (recorded
+    // contract gap), so the entry names no actor — it must never name a
+    // person who did not act, nor claim automation the wire cannot prove.
+    await expect(page.getByText(/changed this campaign in Sanvi/).first()).toBeVisible()
     await expect(page.getByText(/Status/).first()).toBeVisible()
 
     // The alert history says what happened, in the words the cap

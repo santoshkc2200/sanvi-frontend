@@ -157,8 +157,11 @@ const hasActiveConnection = $derived(
 )
 
 /** One figure per stalled connection (TASK-018 degraded mode): the platform
-    named, the last successful ingest, and what is stale on this screen. */
+    named, the last successful ingest, and what is stale on this screen.
+    Gated on the performance columns existing — the banner qualifies those
+    columns, and without them it would only be noise. */
 const stalledFigures = $derived.by(() => {
+  if (!metricsEnabled) return []
   const namesById = new Map(connections.map((connection) => [connection.id, connection.platform]))
   return freshness
     .filter((entry) => entry.stalled)
@@ -203,13 +206,16 @@ async function load(): Promise<void> {
   }
 
   // The lists load together and a failed half is retriable without
-  // discarding the other — the table renders whatever arrived. Freshness is
-  // individually optional: a failure there degrades to "no staleness
+  // discarding the other — the table renders whatever arrived. Freshness
+  // is fetched only when the performance columns it describes exist
+  // (the `advertising.dashboard` flag): with the flag off there is nothing
+  // on this screen staleness could qualify, and the call would only 403.
+  // It is individually optional: a failure degrades to "no staleness
   // known", it must not fail the list.
   const [connectionsResult, campaignsResult, freshnessResult] = await Promise.allSettled([
     listAdConnections(apiClient),
     listAdCampaigns(apiClient),
-    getAdMetricsFreshness(apiClient),
+    metricsEnabled ? getAdMetricsFreshness(apiClient) : Promise.resolve(undefined),
   ])
   if (seq !== loadSeq) return
   connections =

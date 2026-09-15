@@ -292,7 +292,7 @@ describe('BudgetCaps optimistic locking (phase 10, TASK-017)', () => {
       ),
     )
     expect(
-      await screen.findByText('Could not save the cap. Try again in a moment.'),
+      await screen.findByText(/Someone saved this cap while you were editing/),
     ).toBeInTheDocument()
 
     // …so retrying guards on the winner's version instead of overwriting blind.

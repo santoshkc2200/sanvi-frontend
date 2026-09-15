@@ -187,16 +187,17 @@ export function changeItems(
 ): AdChangeItem[] {
   return changes.map((change) => {
     const platformSourced = change.source !== 'sanvi'
-    // A Sanvi-side change with no actor is the product acting on its own —
-    // the budget guardrail's auto-pause — not a person: "who paused this"
-    // must answer "Sanvi (automated)", never an unknown human.
-    const systemSourced = !platformSourced && change.actor_id == null
+    // An omitted `actor_id` reads as a team member the operator cannot
+    // resolve — a deleted or redacted account, or a row from before actor
+    // tracking. The contract carries no `actor_kind`/system marker, so an
+    // automated Sanvi action (the budget guardrail's auto-pause) renders
+    // the same way; labelling absence as "automated" would misattribute
+    // human edits in an audit surface. That marker is a recorded backend
+    // contract gap (TASK-018 notes).
     const actor = platformSourced
       ? options.platformName
-      : systemSourced
-        ? message('admin.advertising.change.systemActor')
-        : (change.actor_id !== undefined && options.actorName?.(change.actor_id)) ||
-          (change.actor_id ?? message('admin.advertising.change.unknownActor'))
+      : (change.actor_id !== undefined && options.actorName?.(change.actor_id)) ||
+        (change.actor_id ?? message('admin.advertising.change.unknownActor'))
     const heading = platformSourced
       ? message('admin.advertising.change.platformHeading', { actor })
       : message('admin.advertising.change.sanviHeading', { actor })

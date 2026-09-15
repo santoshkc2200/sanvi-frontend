@@ -651,19 +651,32 @@ async function doSave(options: { confirmBelowCurrentSpend: boolean }): Promise<v
     })
     await load()
   } catch (err) {
+    // The two 409s are distinguished by the problem's machine-readable
+    // `type`, never by `detail` text: the client sends `Accept-Language`,
+    // so a localized (or reworded) detail string cannot be routed on — a
+    // below-spend conflict misread as a stale version would leave the
+    // operator's typed figure silently overwritten and the save
+    // unreachable. The type is the backend's contract
+    // (`advertising/cap-below-current-spend`, see api-client).
+    if (
+      err instanceof ApiError &&
+      err.status === 409 &&
+      err.type === 'advertising/cap-below-current-spend'
+    ) {
+      // The backend's guard: the new cap is below the period's spend so
+      // far. The warning names what that can do — pause campaigns at once
+      // — and the retry carries the explicit confirmation flag.
+      belowSpendOpen = true
+      return
+    }
     if (err instanceof ApiError && err.status === 409) {
-      if (err.detail?.includes('below current period spend')) {
-        // The backend's guard: the new cap is below the period's spend so
-        // far. The warning names what that can do — pause campaigns at once
-        // — and the retry carries the explicit confirmation flag.
-        belowSpendOpen = true
-        return
-      }
-      // Any other 409 is a stale `If-Match`: someone saved this cap after
-      // the draft was read. Reload, then repopulate the draft from the
-      // winner so the next save carries the current version and current
-      // figures — the stale draft must not retry version-less into a blind
-      // overwrite.
+      // A stale `If-Match`: someone saved this cap after the draft was
+      // read. Reload, then repopulate the draft from the winner so the
+      // next save carries the current version and current figures — the
+      // stale draft must not retry version-less into a blind overwrite.
+      // The operator is *told* their draft was replaced: a silently
+      // rewritten amount field is how a retyped "200,000" becomes a
+      // committed "120,000".
       await load()
       const refreshed = existingCapFor(scope === 'campaign' ? campaignId : undefined, period)
       if (refreshed) {
@@ -676,6 +689,8 @@ async function doSave(options: { confirmBelowCurrentSpend: boolean }): Promise<v
       } else {
         resetForm()
       }
+      formError = t['admin.advertising.budget.conflictRepopulated']()
+      throw err
     }
     if (err instanceof ApiError && err.status === 403) {
       formError = t['admin.advertising.budget.forbidden']()
