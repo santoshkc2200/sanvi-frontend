@@ -127,8 +127,9 @@ Verified on the branch `feat/task-018-a11y-visual-export-e2e` (commits `6f6e292`
   asserting token resolution per theme, JPY inside chart ticks (the ja ICU data renders the
   fullwidth ￥), ja dates and `lang` inside the accessible data tables, and a space-less CJK
   headline wrapping inside the placement preview without overflowing it. Pixel baselines for
-  the dashboard matrix are committed for chromium/macOS and self-skip on any other
-  browser/platform pair; cross-platform baselines are the phase-11 harness work (TASK-030).
+  the dashboard matrix are committed for chromium and webkit on macOS and self-skip on any
+  other browser/platform pair; cross-platform baselines are the phase-11 harness work
+  (TASK-030).
 - *Export hardening* — the CSV export now streams: `ApiClient.requestStream` (the one fetch
   call site; auth, timeout, retries, and problem+json mapping shared with `request`) →
   `streamAdMetricsExport` → the dashboard pipes to disk via the File System Access API (the
