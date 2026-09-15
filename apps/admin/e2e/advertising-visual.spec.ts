@@ -20,10 +20,16 @@ import { makePng, mockMediaBackend } from './mock-media-backend'
  */
 
 const SNAPSHOT_DIR = path.join(process.cwd(), 'e2e', 'advertising-visual.spec.ts-snapshots')
-const hasBaselinesHere =
+// Baselines are rendered per browser and per OS (Playwright names them
+// `…-{browser}-{platform}.png`); a browser/platform pair without its own
+// baseline file skips instead of comparing against another engine's pixels.
+const hasBaselinesHere = (browserName: string): boolean =>
   (existsSync(SNAPSHOT_DIR) &&
     readdirSync(SNAPSHOT_DIR).some(
-      (file) => file.endsWith('.png') && file.includes(process.platform),
+      (file) =>
+        file.endsWith('.png') &&
+        file.includes(`-${browserName}-`) &&
+        file.includes(process.platform),
     )) ||
   // Regenerate with: GENERATE_VISUAL_BASELINES=1 pnpm --filter @sanvi/admin \
   //   exec playwright test advertising-visual.spec.ts --update-snapshots
@@ -130,8 +136,8 @@ test.describe('Advertising visual sweep (10.9)', () => {
     page,
   }) => {
     test.skip(
-      !hasBaselinesHere,
-      'No pixel baselines for this platform — they arrive with the phase-11 visual harness (TASK-030); the DOM-invariant tests above run everywhere.',
+      !hasBaselinesHere(test.info().project.name),
+      'No pixel baselines for this browser/platform — they arrive with the phase-11 visual harness (TASK-030); the DOM-invariant tests above run everywhere.',
     )
 
     for (const locale of ['en', 'ja'] as const) {
