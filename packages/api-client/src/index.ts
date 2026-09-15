@@ -52,6 +52,7 @@ export {
   getAdMetrics,
   getAdMetricsSummary,
   getAdMetricsExport,
+  streamAdMetricsExport,
   getAdMetricsFreshness,
   getAdBudgetCaps,
   putAdBudgetCap,

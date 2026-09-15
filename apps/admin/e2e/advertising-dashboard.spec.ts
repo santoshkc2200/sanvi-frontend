@@ -73,6 +73,15 @@ test.describe('ROAS dashboard (TASK-016)', () => {
 
   test('the export downloads labelled columns with no blended ROAS column', async ({ page }) => {
     const mock = mockAdvertisingBackend(page, { seedConnection: true, seedTwoCampaigns: true })
+    // Since TASK-018 the export streams: where the File System Access API
+    // exists the bytes pipe straight to a save picker, and where it does
+    // not (or is disabled here — headless Chromium's picker cannot be
+    // driven by Playwright) the same stream is reassembled into a Blob the
+    // browser downloads. This spec exercises the fallback branch.
+    await page.addInitScript(() => {
+      // @ts-expect-error test seam: force the chunked-fallback download
+      delete window.showSaveFilePicker
+    })
     await page.goto('/advertising/dashboard')
 
     const downloadPromise = page.waitForEvent('download')

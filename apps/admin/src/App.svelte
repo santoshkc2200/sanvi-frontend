@@ -1,4 +1,6 @@
 <script lang="ts">
+import type { components } from '@sanvi/api-client'
+import { getSubscription, listTenantEntitlements } from '@sanvi/api-client'
 import {
   can,
   getLastDeniedPermission,
@@ -7,12 +9,19 @@ import {
   requirePermission,
   requireSession,
 } from '@sanvi/auth'
-import { getSubscription, listTenantEntitlements } from '@sanvi/api-client'
-import type { components } from '@sanvi/api-client'
 import { currentLocale, localeOptions, onLocaleChange, setLocale, t } from '@sanvi/i18n'
 import { clearCache, QueryDevtools } from '@sanvi/query'
-import type { Router, RouteDefinition } from '@sanvi/spa-router'
+import type { RouteDefinition, Router } from '@sanvi/spa-router'
 import { createRouter } from '@sanvi/spa-router'
+import type { TenantMembership } from '@sanvi/tenant'
+import {
+  getActiveTenantId,
+  getMemberships,
+  onTenantSwitch,
+  setEntitlements,
+  setMemberships,
+  switchTenant,
+} from '@sanvi/tenant'
 import {
   AppShell,
   Cluster,
@@ -25,15 +34,6 @@ import {
   ToastViewport,
   TrialBanner,
 } from '@sanvi/ui'
-import {
-  getActiveTenantId,
-  getMemberships,
-  onTenantSwitch,
-  setEntitlements,
-  setMemberships,
-  switchTenant,
-} from '@sanvi/tenant'
-import type { TenantMembership } from '@sanvi/tenant'
 import { apiClient } from './lib/api'
 
 // `router` is referenced inside the guard closures below before it's

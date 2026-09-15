@@ -187,6 +187,13 @@ export function changeItems(
 ): AdChangeItem[] {
   return changes.map((change) => {
     const platformSourced = change.source !== 'sanvi'
+    // An omitted `actor_id` reads as a team member the operator cannot
+    // resolve — a deleted or redacted account, or a row from before actor
+    // tracking. The contract carries no `actor_kind`/system marker, so an
+    // automated Sanvi action (the budget guardrail's auto-pause) renders
+    // the same way; labelling absence as "automated" would misattribute
+    // human edits in an audit surface. That marker is a recorded backend
+    // contract gap (TASK-018 notes).
     const actor = platformSourced
       ? options.platformName
       : (change.actor_id !== undefined && options.actorName?.(change.actor_id)) ||

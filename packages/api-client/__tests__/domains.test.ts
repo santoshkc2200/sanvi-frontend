@@ -21,6 +21,7 @@ function fakeClient(): { client: ApiClient; request: ReturnType<typeof vi.fn> } 
     client: {
       request,
       requestRaw: vi.fn().mockResolvedValue({ status: 200, body: { ok: true } }),
+      requestStream: vi.fn().mockResolvedValue(new ReadableStream()),
       get: (path, options) => request(path, { ...options, method: 'GET' }),
       post: (path, body, options) => request(path, { ...options, method: 'POST', body }),
       put: (path, body, options) => request(path, { ...options, method: 'PUT', body }),

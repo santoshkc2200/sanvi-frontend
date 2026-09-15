@@ -80,6 +80,16 @@ export interface TypedApiClient {
       ? [TypedRequestOptions<OperationOf<P, 'delete'>>]
       : [TypedRequestOptions<OperationOf<P, 'delete'>>?]
   ): Promise<SuccessResponseOf<OperationOf<P, 'delete'>>>
+
+  /**
+   * Untyped streaming escape hatch, in the same spirit as the untyped
+   * dispatch below: a successful response's body `ReadableStream`, for the
+   * few endpoints whose contract is not a JSON document (the metrics CSV
+   * export). The path template is still parameter-checked; the response is
+   * the raw stream — error mapping and retries live in
+   * `ApiClient.requestStream`, exactly as for the typed calls.
+   */
+  stream(path: string, options?: UntypedCallOptions): Promise<ReadableStream<Uint8Array>>
 }
 
 /** Replaces every `{name}` segment of an OpenAPI path template with its value. Throws on a missing value rather than sending a literal `{name}` to the server. */
@@ -126,5 +136,10 @@ export function createTypedApiClient(client: ApiClient): TypedApiClient {
     // that's deliberately untyped so it can dispatch on a runtime string path.
     DELETE: (path: string, options?: UntypedCallOptions) =>
       call('DELETE', path, undefined, options),
+    stream: (path: string, options?: UntypedCallOptions) => {
+      const resolvedPath = substitutePathParams(path, options?.params?.path)
+      const { params, ...rest } = options ?? {}
+      return client.requestStream(resolvedPath, { ...rest, method: 'GET', query: params?.query })
+    },
   } as unknown as TypedApiClient
 }

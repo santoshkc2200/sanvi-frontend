@@ -857,6 +857,27 @@ export function getAdMetricsExport(
 }
 
 /**
+ * The same export as {@link getAdMetricsExport}, but **streamed**: the
+ * response body is handed over as a `ReadableStream` so the caller can pipe
+ * it to disk (File System Access API) or assemble it chunk by chunk, instead
+ * of holding an arbitrarily long date range's CSV in memory as one string.
+ * Errors behave exactly like the buffered variant — `ApiError` including the
+ * permission 403 — because everything before the 2xx body is shared client
+ * machinery. Prefer this from UI download paths; the buffered call remains
+ * for callers that genuinely want the text.
+ */
+export function streamAdMetricsExport(
+  client: TypedApiClient,
+  query: AdMetricsQuery,
+  signal?: AbortSignal,
+): Promise<ReadableStream<Uint8Array>> {
+  return client.stream('/api/v1/tenant/ads/metrics/export', {
+    params: { query: adMetricsQueryParams(query) },
+    ...(signal ? { signal } : {}),
+  })
+}
+
+/**
  * `GET /api/v1/tenant/ads/metrics/freshness` — per-connection
  * `last_ingested_at`, `lag_hours`, and the backend-computed `stalled`
  * marker. The dashboard's "still updating" and "sync failed" states render
@@ -885,15 +906,13 @@ export function getAdMetricsFreshness(client: TypedApiClient, signal?: AbortSign
 // *preview* for a cap that does not exist yet (see the screens' live
 // preview), which is always labelled projected.
 //
-// Contract delta to fix upstream: `get_budget_alerts`, `get_campaign_budget_cap`,
-// and `get_spend_status` declare their filters (`campaign_id`,
-// `unacknowledged_only`, `limit`, `period`) as **path** parameters in the
-// generated types — utoipa's `IntoParams` emits `in: path` for the backend's
-// `web::Query` structs — while the handlers read them from the query string.
-// The runtime client sends `params.query` as the query string, so those three
-// call sites bridge the mismatch with a narrow `as never` on the options
-// object (the one-place escape hatch, as in `getAdMetricsExport`). Once the
-// contract says `in: query`, regenerate and drop the casts.
+// Contract health: `get_budget_alerts`, `get_campaign_budget_cap`, and
+// `get_spend_status` declare their filters (`campaign_id`,
+// `unacknowledged_only`, `limit`, `period`) as **query** parameters, matching
+// the backend's `web::Query` structs — the `#[into_params(parameter_in =
+// Query)]` annotations keep utoipa's `In: path` default from leaking into the
+// generated types. If those call sites ever need a cast again, the annotations
+// regressed: fix the backend, regenerate, and drop the cast.
 // ---------------------------------------------------------------------------
 export type BudgetCap = components['schemas']['BudgetCap']
 export type BudgetCapsView = components['schemas']['BudgetCapsView']
@@ -923,21 +942,42 @@ export function getAdBudgetCaps(client: TypedApiClient, signal?: AbortSignal) {
  * when the tenant's campaigns spend in several currencies the cap names an
  * explicit `declared_fx_basis` (+ optional `fx_rate_date`) — the UI never
  * picks a conversion basis silently. `dry_run: true` answers a
- * `DryRunEvaluationResult` (the live preview) instead of writing. Two
- * guarded paths, both confirmation-shaped:
+ * `DryRunEvaluationResult` (the live preview) instead of writing. Three
+ * guarded paths, all confirmation-shaped:
  *   - `confirm_below_current_spend` — the backend answers 409
  *     (`advertising/cap-below-current-spend`-shaped conflict) when the new
  *     cap is below the period's spend so far; the retry carries the flag
  *     after the operator confirms a change that may pause campaigns at once.
  *   - `auto_pause: true` — enabling it is the typed-confirmation flow the
  *     caps screen owns; the backend records the cap version either way.
+ *   - `expectedVersion` — the `If-Match` optimistic-locking guard: the
+ *     version the editor read. **Required when the cap already exists** —
+ *     the backend rejects a version-less write to an existing cap with 409
+ *     (`cap_version_required`-shaped conflict), so a client following the
+ *     OpenAPI's optional marking must still send it on updates. A stale
+ *     version answers 409 too, and the loser reloads instead of silently
+ *     overwriting. Omitting the header is valid only for creates (no cap
+ *     exists for the scope+period yet) and for dry runs, which never touch
+ *     a row.
  */
 export function putAdBudgetCap(
   client: TypedApiClient,
   body: PutBudgetCapRequest,
-  signal?: AbortSignal,
+  options?: { signal?: AbortSignal; expectedVersion?: number },
 ) {
-  return client.PUT('/api/v1/tenant/ads/budget-caps', body, signal ? { signal } : undefined)
+  // No automatic retries: the shared client blind-retries PUT on timeout,
+  // and this write is conditional — a first attempt that committed before
+  // its response arrived would be retried with the stale If-Match (or, for
+  // a create, against the row it just made) and answered 409, so the
+  // operator would see a conflict despite a successful save. The caps
+  // screen resubmits explicitly instead.
+  return client.PUT('/api/v1/tenant/ads/budget-caps', body, {
+    retries: 0,
+    ...(options?.expectedVersion !== undefined
+      ? { headers: { 'If-Match': String(options.expectedVersion) } }
+      : {}),
+    ...(options?.signal ? { signal: options.signal } : {}),
+  })
 }
 
 /**
@@ -958,23 +998,33 @@ export function getAdCampaignBudgetCap(
       ...(period ? { query: { period } } : {}),
     },
     ...(signal ? { signal } : {}),
-  } as never)
+  })
 }
 
 /**
  * `PUT /api/v1/tenant/ads/campaigns/{campaign_id}/budget-cap` — the
  * campaign-scoped twin of {@link putAdBudgetCap}: same body semantics, same
- * dry-run and 409 confirmation paths, scoped to one campaign.
+ * dry-run and 409 confirmation paths, scoped to one campaign. Accepts the
+ * same `expectedVersion` optimistic-locking guard — required when the
+ * campaign's cap already exists, optional only for creates and dry runs
+ * (see {@link putAdBudgetCap}).
  */
 export function putAdCampaignBudgetCap(
   client: TypedApiClient,
   campaignId: string,
   body: PutBudgetCapRequest,
-  signal?: AbortSignal,
+  options?: { signal?: AbortSignal; expectedVersion?: number },
 ) {
+  // Same retry semantics as {@link putAdBudgetCap}: conditional write, no
+  // automatic retries — a blind retry would replay a stale If-Match and
+  // surface a 409 for an already-applied save.
   return client.PUT('/api/v1/tenant/ads/campaigns/{campaign_id}/budget-cap', body, {
     params: { path: { campaign_id: campaignId } },
-    ...(signal ? { signal } : {}),
+    retries: 0,
+    ...(options?.expectedVersion !== undefined
+      ? { headers: { 'If-Match': String(options.expectedVersion) } }
+      : {}),
+    ...(options?.signal ? { signal: options.signal } : {}),
   })
 }
 
@@ -999,7 +1049,7 @@ export function getAdBudgetAlerts(
       },
     },
     ...(signal ? { signal } : {}),
-  } as never)
+  })
 }
 
 /**
@@ -1031,5 +1081,5 @@ export function getAdSpendStatus(
   return client.GET('/api/v1/tenant/ads/spend-status', {
     params: { ...(period ? { query: { period } } : {}) },
     ...(signal ? { signal } : {}),
-  } as never)
+  })
 }

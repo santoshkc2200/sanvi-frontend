@@ -2,18 +2,25 @@
 import {
   ApiError,
   getAdMetrics,
+  getAdMetricsFreshness,
   listAdCampaigns,
   listAdConnections,
   listAdPlatforms,
   pauseAdCampaign,
   resumeAdCampaign,
 } from '@sanvi/api-client'
-import type { CampaignView, ConnectionView, PlatformView } from '@sanvi/api-client'
+import type {
+  CampaignView,
+  ConnectionFreshnessView,
+  ConnectionView,
+  PlatformView,
+} from '@sanvi/api-client'
 import { Can, can } from '@sanvi/auth'
 import { fmt, t } from '@sanvi/i18n'
 import { navigate } from '@sanvi/spa-router'
 import { getActiveTenantId, hasFeature } from '@sanvi/tenant'
 import {
+  type AdHealthFigure,
   Alert,
   AttributionExplainer,
   Badge,
@@ -24,6 +31,7 @@ import {
   Dialog,
   EmptyState,
   Field,
+  HealthBanner,
   NO_VALUE,
   Select,
   Spinner,
@@ -70,6 +78,11 @@ let error = $state<string | undefined>(undefined)
 let platforms = $state<PlatformView[]>([])
 let connections = $state<ConnectionView[]>([])
 let campaigns = $state<CampaignView[]>([])
+// Per-connection ingestion freshness (TASK-018 degraded mode): the list's
+// spend columns are only as current as the platform's last sync, so a
+// stalled connection surfaces here with its platform named — the campaign
+// rows themselves are Sanvi's own data and stay exactly as they are.
+let freshness = $state<ConnectionFreshnessView[]>([])
 
 // Performance columns (TASK-016): per-campaign aggregates for the last 30
 // days, keyed by campaign id. Empty when the flag is off or the metrics
@@ -143,6 +156,30 @@ const hasActiveConnection = $derived(
   connections.some((connection) => connection.status !== 'disconnected'),
 )
 
+/** One figure per stalled connection (TASK-018 degraded mode): the platform
+    named, the last successful ingest, and what is stale on this screen.
+    Gated on the performance columns existing — the banner qualifies those
+    columns, and without them it would only be noise. */
+const stalledFigures = $derived.by(() => {
+  if (!metricsEnabled) return []
+  const namesById = new Map(connections.map((connection) => [connection.id, connection.platform]))
+  return freshness
+    .filter((entry) => entry.stalled)
+    .map(
+      (entry): AdHealthFigure => ({
+        key: entry.connection_id,
+        value: t['admin.advertising.dashboard.freshness.itemStalled']({
+          platform: names[entry.platform] ?? namesById.get(entry.connection_id) ?? entry.platform,
+          time: entry.last_ingested_at ? fmt.datetime(entry.last_ingested_at) : '—',
+        }),
+        label: names[entry.platform] ?? entry.platform,
+        description: t['admin.advertising.freshness.staleScopeDescription']({
+          platform: names[entry.platform] ?? entry.platform,
+        }),
+      }),
+    )
+})
+
 async function load(): Promise<void> {
   const seq = ++loadSeq
   loading = true
@@ -168,16 +205,24 @@ async function load(): Promise<void> {
     return
   }
 
-  // The two lists load together and a failed half is retriable without
-  // discarding the other — the table renders whatever arrived.
-  const [connectionsResult, campaignsResult] = await Promise.allSettled([
+  // The lists load together and a failed half is retriable without
+  // discarding the other — the table renders whatever arrived. Freshness
+  // is fetched only when the performance columns it describes exist
+  // (the `advertising.dashboard` flag): with the flag off there is nothing
+  // on this screen staleness could qualify, and the call would only 403.
+  // It is individually optional: a failure degrades to "no staleness
+  // known", it must not fail the list.
+  const [connectionsResult, campaignsResult, freshnessResult] = await Promise.allSettled([
     listAdConnections(apiClient),
     listAdCampaigns(apiClient),
+    metricsEnabled ? getAdMetricsFreshness(apiClient) : Promise.resolve(undefined),
   ])
   if (seq !== loadSeq) return
   connections =
     connectionsResult.status === 'fulfilled' ? (connectionsResult.value?.connections ?? []) : []
   campaigns = campaignsResult.status === 'fulfilled' ? (campaignsResult.value?.campaigns ?? []) : []
+  freshness =
+    freshnessResult.status === 'fulfilled' ? (freshnessResult.value?.connections ?? []) : []
   error =
     connectionsResult.status === 'rejected' || campaignsResult.status === 'rejected'
       ? t['admin.advertising.campaigns.loadError']()
@@ -544,6 +589,19 @@ $effect(() => {
         {error}
         <Button variant="secondary" onclick={retry}>{t['common.retry']()}</Button>
       </Alert>
+    {/if}
+
+    {#if stalledFigures.length > 0}
+      <!-- Degraded mode (TASK-018): a platform that stopped syncing is
+           named, with what is stale on *this* screen — the performance
+           columns only. The campaign rows keep rendering throughout. -->
+      <HealthBanner
+        title={t['admin.advertising.dashboard.freshness.stalledTitle']()}
+        figures={stalledFigures}
+        tone="warning"
+        actionLabel={t['admin.advertising.freshness.refreshCta']()}
+        onAction={retry}
+      />
     {/if}
 
     {#if rowError}

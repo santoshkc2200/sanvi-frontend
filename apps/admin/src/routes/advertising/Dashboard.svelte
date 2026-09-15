@@ -1,16 +1,4 @@
 <script lang="ts">
-import { can } from '@sanvi/auth'
-import {
-  ApiError,
-  getAdMetrics,
-  getAdMetricsExport,
-  getAdMetricsFreshness,
-  getAdMetricsSummary,
-  getAdSpendStatus,
-  listAdCampaigns,
-  listAdConnections,
-  listAdPlatforms,
-} from '@sanvi/api-client'
 import type {
   ConnectionFreshnessView,
   ConnectionView,
@@ -19,12 +7,26 @@ import type {
   PlatformView,
   SpendStatusItem,
 } from '@sanvi/api-client'
+import {
+  ApiError,
+  getAdMetrics,
+  getAdMetricsFreshness,
+  getAdMetricsSummary,
+  getAdSpendStatus,
+  listAdCampaigns,
+  listAdConnections,
+  listAdPlatforms,
+  streamAdMetricsExport,
+} from '@sanvi/api-client'
+import { can } from '@sanvi/auth'
 import { currentLocale, fmt, t } from '@sanvi/i18n'
 import { navigate } from '@sanvi/spa-router'
 import { getActiveTenantId, hasFeature } from '@sanvi/tenant'
 import {
+  type AdHealthFigure,
   Alert,
   AttributionExplainer,
+  type AttributionPlatformRow,
   Badge,
   Button,
   CapProgress,
@@ -34,47 +36,45 @@ import {
   Dialog,
   EmptyState,
   Field,
+  formatAdCurrency,
+  formatRatio,
   HealthBanner,
   Input,
+  minorUnitDigits,
   NO_VALUE,
   OverlayChart,
   Select,
   Sparkline,
   Spinner,
   Stack,
-  StatCard,
   StackedBarChart,
+  StatCard,
   UpgradePrompt,
-  formatAdCurrency,
-  formatRatio,
-  minorUnitDigits,
-  type AdHealthFigure,
-  type AttributionPlatformRow,
 } from '@sanvi/ui'
-import { apiClient } from '../../lib/api'
 import {
   capStatusFor,
   freshnessFacts,
   scopeCampaignId,
   thresholdActionFor,
 } from '../../lib/advertising/budget'
-import { BUDGET_PERIOD_DAILY } from '../../lib/budget-periods'
+import { platformNames as platformNameMap } from '../../lib/advertising/campaigns'
 import {
+  type CampaignMetricRow,
+  type CurrencyChartGroup,
   campaignRows,
   chartGroups,
+  type DateRange,
   distinctTimezones,
   fractionChange,
   freshnessState,
   kpiGroups,
   previousRange,
   RANGE_PRESETS,
-  rangeForPreset,
-  type CampaignMetricRow,
-  type CurrencyChartGroup,
-  type DateRange,
   type RangePreset,
+  rangeForPreset,
 } from '../../lib/advertising/metrics'
-import { platformNames as platformNameMap } from '../../lib/advertising/campaigns'
+import { apiClient } from '../../lib/api'
+import { BUDGET_PERIOD_DAILY } from '../../lib/budget-periods'
 
 /**
  * The ROAS dashboard (phase 10, TASK-016 / slice 10.7) — the screen the
@@ -112,7 +112,7 @@ let guardrailsEnabled = $state(false)
 
 let connections = $state<ConnectionView[]>([])
 let platforms = $state<PlatformView[]>([])
-let campaigns = $state<{ id: string; name: string }[]>([])
+let campaigns = $state<{ id: string; name: string; platform: string }[]>([])
 let freshness = $state<ConnectionFreshnessView[]>([])
 let spendItems = $state<SpendStatusItem[]>([])
 
@@ -199,6 +199,7 @@ async function load(): Promise<void> {
       ? (campaignsResult.value?.campaigns ?? []).map((view) => ({
           id: view.id,
           name: view.campaign.name,
+          platform: view.platform,
         }))
       : []
   freshness =
@@ -282,6 +283,24 @@ async function applyRange(range: DateRange): Promise<void> {
   await loadMetrics(seq)
 }
 
+/** Minimal structural types for the File System Access API — not every
+    runtime ships it (Safari, Firefox), and the DOM lib does not declare the
+    picker, so the one call site declares what it needs and the export
+    degrades to the chunked fallback when it is absent. */
+interface CsvFileHandle {
+  createWritable(): Promise<{
+    write(data: Uint8Array): Promise<void>
+    close(): Promise<void>
+    abort?(reason?: unknown): Promise<void>
+  }>
+}
+interface SavePickerWindow {
+  showSaveFilePicker?: (options: {
+    suggestedName: string
+    types: { description: string; accept: Record<string, string[]> }[]
+  }) => Promise<CsvFileHandle>
+}
+
 async function exportCsv(): Promise<void> {
   if (exporting) return
   exporting = true
@@ -289,25 +308,85 @@ async function exportCsv(): Promise<void> {
   // Snapshot once: a range change mid-export must not mix the old request
   // with the new filename (or vice versa).
   const range = { ...activeRange }
+  const filename = `sanvi-ads-${range.from}-to-${range.to}.csv`
+
+  // The save picker must open inside the click's user activation, so it is
+  // offered — and answered — *before* the request goes out. A cancelled
+  // picker ends the export quietly. Any other picker failure (security
+  // policy, disabled API) must not lose the export: it falls back to the
+  // chunked download. After a location is chosen, a failed download never
+  // commits *data* — the original file keeps its contents until a
+  // successful close swaps it — though Chromium does create the empty
+  // target file at selection, so a first-time export that fails before the
+  // writable is opened can leave a 0-byte CSV behind.
+  const picker = (window as unknown as SavePickerWindow).showSaveFilePicker
+  let handle: CsvFileHandle | undefined
+  if (typeof picker === 'function') {
+    try {
+      handle = await picker({
+        suggestedName: filename,
+        types: [{ description: 'CSV', accept: { 'text/csv': ['.csv'] } }],
+      })
+    } catch (err) {
+      if ((err as { name?: string } | null)?.name === 'AbortError') {
+        exporting = false
+        return
+      }
+      handle = undefined
+    }
+  }
+
+  let writable: Awaited<ReturnType<CsvFileHandle['createWritable']>> | undefined
   try {
-    const csv = await getAdMetricsExport(apiClient, {
+    const stream = await streamAdMetricsExport(apiClient, {
       from: range.from,
       to: range.to,
       groupBy: 'campaign',
     })
-    download(csv, `sanvi-ads-${range.from}-to-${range.to}.csv`)
+    if (handle) {
+      // True streaming for a long range: bytes land on disk as they
+      // arrive, none of the file is held in memory.
+      writable = await handle.createWritable()
+      await stream.pipeTo(writable as unknown as WritableStream<Uint8Array>)
+      writable = undefined // `pipeTo` closed it successfully
+    } else {
+      // No File System Access API: consume the stream in chunks and let
+      // the browser download the assembled Blob. The network transfer is
+      // still streamed — the response is never one buffered string — but
+      // the assembled file briefly lives in memory. Each chunk is copied:
+      // a reader may hand back a view over a buffer it reuses, and the
+      // Blob must hold the bytes, not a view that is about to be
+      // overwritten.
+      const parts: BlobPart[] = []
+      const reader = stream.getReader()
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        // `new Uint8Array(value)` copies: a reader may hand back a view
+        // over a buffer it reuses, and the Blob must hold the bytes, not
+        // a view that is about to be overwritten.
+        if (value) parts.push(new Uint8Array(value))
+      }
+      download(new Blob(parts, { type: 'text/csv' }), filename)
+    }
   } catch (err) {
+    // The user-facing error is assigned *first*: the cleanup below is
+    // best-effort — `pipeTo` has already errored the destination when the
+    // stream itself fails, and `abort()` on an errored WritableStream
+    // rejects — and must never be the error that escapes an un-awaited
+    // `exportCsv()` caller.
     exportError =
       err instanceof ApiError && err.status === 403
         ? t['admin.advertising.dashboard.errors.forbidden']()
         : t['admin.advertising.dashboard.export.error']()
+    await writable?.abort?.()?.catch(() => {})
   } finally {
     exporting = false
   }
 }
 
-function download(text: string, filename: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/csv' }))
+function download(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = filename
@@ -441,15 +520,21 @@ const anyRestating = $derived(breakdown.some((row) => row.restating))
 const anySpend = $derived(charts.some((group) => group.hasSpend))
 
 const stalledFigures = $derived.by(() => {
-  const figures: AdHealthFigure[] = freshnessView.stalled.map((connection) => ({
-    key: connection.connection_id,
-    value: t['admin.advertising.dashboard.freshness.itemStalled']({
-      platform: names[connection.platform] ?? connection.platform,
-      time: connection.last_ingested_at ? fmt.datetime(connection.last_ingested_at) : '—',
-    }),
-    label: names[connection.platform] ?? connection.platform,
-    description: t['admin.advertising.dashboard.freshness.stalledDescription'](),
-  }))
+  const figures: AdHealthFigure[] = freshnessView.stalled.map((connection) => {
+    const platform = names[connection.platform] ?? connection.platform
+    return {
+      key: connection.connection_id,
+      value: t['admin.advertising.dashboard.freshness.itemStalled']({
+        platform,
+        time: connection.last_ingested_at ? fmt.datetime(connection.last_ingested_at) : '—',
+      }),
+      label: platform,
+      // What is stale, per platform: the numbers on this screen, the cap
+      // progress, and this platform's conversion uploads — not the
+      // campaigns themselves, which keep delivering regardless.
+      description: t['admin.advertising.freshness.staleScopeDescription']({ platform }),
+    }
+  })
   return figures
 })
 
@@ -503,9 +588,32 @@ function capScopeHeading(item: SpendStatusItem): string {
   return campaigns.find((entry) => entry.id === campaign)?.name ?? campaign
 }
 
+/** The platform(s) behind a stale cap figure (TASK-018): a campaign-scoped
+    cap names its own platform; the tenant cap names every stalled one. */
+function stalePlatformNames(item: SpendStatusItem): string[] {
+  const campaignId = scopeCampaignId(item.scope)
+  if (campaignId) {
+    const platform = campaigns.find((campaign) => campaign.id === campaignId)?.platform
+    return platform ? [names[platform] ?? platform] : []
+  }
+  return [...new Set(freshnessView.stalled.map((entry) => names[entry.platform] ?? entry.platform))]
+}
+
 function capFreshness(item: SpendStatusItem): string {
   const facts = freshnessFacts(item)
   if (facts.stale) {
+    const platforms = stalePlatformNames(item)
+    if (platforms.length > 0) {
+      const platform = platforms.length === 1 ? platforms[0]! : fmt.list(platforms)
+      return t['admin.advertising.budget.freshness.staleLabel']({
+        detail: facts.lastSyncedAt
+          ? t['admin.advertising.budget.freshness.stalePlatform']({
+              platform,
+              time: fmt.datetime(facts.lastSyncedAt),
+            })
+          : t['admin.advertising.budget.freshness.stalePlatformNoTime']({ platform }),
+      })
+    }
     return t['admin.advertising.budget.freshness.staleLabel']({
       detail: facts.lastSyncedAt
         ? t['admin.advertising.budget.freshness.stale']({ time: fmt.datetime(facts.lastSyncedAt) })
@@ -690,6 +798,8 @@ function capPeriodLabel(item: SpendStatusItem): string {
           title={t['admin.advertising.dashboard.freshness.stalledTitle']()}
           figures={stalledFigures}
           tone="error"
+          actionLabel={t['admin.advertising.freshness.refreshCta']()}
+          onAction={retry}
         />
       {/if}
 

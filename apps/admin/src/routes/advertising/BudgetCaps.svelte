@@ -1,58 +1,61 @@
 <script lang="ts">
-import { can } from '@sanvi/auth'
-import {
-  ApiError,
-  getAdSpendStatus,
-  listAdCampaigns,
-  listAdConnections,
-  putAdBudgetCap,
-  putAdCampaignBudgetCap,
-} from '@sanvi/api-client'
 import type {
   BudgetPeriod,
   ConnectionView,
   DryRunEvaluationResult,
   SpendStatusItem,
 } from '@sanvi/api-client'
+import {
+  ApiError,
+  getAdMetricsFreshness,
+  getAdSpendStatus,
+  listAdCampaigns,
+  listAdConnections,
+  putAdBudgetCap,
+  putAdCampaignBudgetCap,
+} from '@sanvi/api-client'
+import { can } from '@sanvi/auth'
 import { fmt, t } from '@sanvi/i18n'
 import { navigate } from '@sanvi/spa-router'
 import { getActiveTenantId, hasFeature } from '@sanvi/tenant'
 import {
+  type AdHealthFigure,
   Alert,
   Button,
   CapProgress,
   ConsequenceDialog,
+  type ConsequenceFigure,
   Container,
   EmptyState,
   Field,
+  formatAdCurrency,
+  humanizeOptionValue,
   HealthBanner,
   Input,
   NO_VALUE,
   Select,
   Spinner,
   Stack,
-  UpgradePrompt,
-  formatAdCurrency,
   showToast,
-  type AdHealthFigure,
-  type ConsequenceFigure,
+  UpgradePrompt,
 } from '@sanvi/ui'
-import { apiClient } from '../../lib/api'
-import {
-  BUDGET_PERIOD_DAILY,
-  BUDGET_PERIOD_MONTHLY,
-  BUDGET_PERIODS,
-} from '../../lib/budget-periods'
 import {
   capDeltaRows,
   capStatusFor,
   convertRunRateToDryRunBasis,
   freshnessFacts,
   isCapAmountValid,
+  isCapRaise,
   projectedBreachDate,
   scopeCampaignId,
   thresholdActionFor,
 } from '../../lib/advertising/budget'
+import { apiClient } from '../../lib/api'
+import {
+  BUDGET_PERIOD_DAILY,
+  BUDGET_PERIOD_MONTHLY,
+  BUDGET_PERIODS,
+} from '../../lib/budget-periods'
 
 /**
  * Budget-cap configuration (phase 10, TASK-017 / slice 10.8).
@@ -91,6 +94,11 @@ let error = $state<string | undefined>(undefined)
 let spendItems = $state<SpendStatusItem[]>([])
 let campaigns = $state<{ id: string; name: string; currency: string; connectionId: string }[]>([])
 let connections = $state<ConnectionView[]>([])
+// The tenant's calendar timezone for the breach preview (see `load`).
+let tenantTimezone = $state<string | undefined>(undefined)
+// connection_id → platform for the connections whose ingestion has
+// stalled (TASK-018): stale figure labels name the platform behind them.
+let stalledPlatformNames = $state<Map<string, string | null>>(new Map())
 
 // --- The cap form -----------------------------------------------------------
 // The selects bind plain strings, so the two switches are string-backed.
@@ -140,6 +148,8 @@ async function load(): Promise<void> {
   spendItems = []
   campaigns = []
   connections = []
+  tenantTimezone = undefined
+  stalledPlatformNames = new Map()
   guardrailsEnabled = hasFeature('advertising.budget_guardrails')
 
   if (!guardrailsEnabled) {
@@ -147,11 +157,13 @@ async function load(): Promise<void> {
     return
   }
 
-  const [statusResult, campaignsResult, connectionsResult] = await Promise.allSettled([
-    getAdSpendStatus(apiClient),
-    listAdCampaigns(apiClient),
-    listAdConnections(apiClient),
-  ])
+  const [statusResult, campaignsResult, connectionsResult, freshnessResult] =
+    await Promise.allSettled([
+      getAdSpendStatus(apiClient),
+      listAdCampaigns(apiClient),
+      listAdConnections(apiClient),
+      getAdMetricsFreshness(apiClient),
+    ])
   if (seq !== loadSeq) return
 
   if (statusResult.status === 'rejected') {
@@ -163,6 +175,21 @@ async function load(): Promise<void> {
     }
   }
   spendItems = statusResult.status === 'fulfilled' ? (statusResult.value?.items ?? []) : []
+  // Which platforms' ingestion has stalled (TASK-018 degraded mode): the
+  // stale labels on cap figures name the platform behind them. Optional —
+  // a freshness failure keeps the labels working, just unnamed.
+  stalledPlatformNames = (() => {
+    if (freshnessResult.status !== 'fulfilled') return new Map<string, string | null>()
+    const stalled = (freshnessResult.value?.connections ?? []).filter((entry) => entry.stalled)
+    return new Map(stalled.map((entry) => [entry.connection_id, entry.platform]))
+  })()
+  // The tenant's own calendar timezone, carried by the spend-status report
+  // itself: the same clock the backend's spend windows, dedupe keys, and
+  // run-rate projections use (TASK-017), so the live preview cannot disagree
+  // with enforcement — and no locale-settings permission is needed to read
+  // it. Missing/unreadable settings fall back to the helper's UTC behaviour,
+  // matching the backend's unset-settings default.
+  tenantTimezone = statusResult.status === 'fulfilled' ? statusResult.value?.timezone : undefined
   connections =
     connectionsResult.status === 'fulfilled' ? (connectionsResult.value?.connections ?? []) : []
   campaigns =
@@ -345,6 +372,8 @@ const preview = $derived.by(() => {
       capMinor,
       converted.spendMinor,
       converted.projectedMinor,
+      new Date(),
+      tenantTimezone,
     )
     return {
       usesDryRun: true as const,
@@ -358,7 +387,14 @@ const preview = $derived.by(() => {
   const item = formItem
   const spendMinor = item?.spend_to_date.amount_minor ?? 0
   const projectedMinor = item?.projected_spend.amount_minor ?? 0
-  const breach = projectedBreachDate(period, capMinor, spendMinor, projectedMinor)
+  const breach = projectedBreachDate(
+    period,
+    capMinor,
+    spendMinor,
+    projectedMinor,
+    new Date(),
+    tenantTimezone,
+  )
   const facts = item ? freshnessFacts(item) : undefined
   return {
     usesDryRun: false as const,
@@ -369,9 +405,39 @@ const preview = $derived.by(() => {
   }
 })
 
-function freshnessSentence(facts: ReturnType<typeof freshnessFacts> | undefined): string {
+/** The platform(s) behind a stale figure (TASK-018): a campaign-scoped cap
+    names its own platform; the tenant cap names every stalled one. */
+function stalePlatformNames(item: SpendStatusItem): string[] {
+  // This screen never loads the platform catalog, so the display name
+  // falls to the shared humanizer: `google_ads` → "Google Ads".
+  const display = (key: string): string => humanizeOptionValue(key)
+  const campaignId = scopeCampaignId(item.scope)
+  if (campaignId) {
+    const connectionId = campaigns.find((entry) => entry.id === campaignId)?.connectionId
+    const platform = connectionId ? (stalledPlatformNames.get(connectionId) ?? null) : null
+    return platform ? [display(platform)] : []
+  }
+  return [...stalledPlatformNames.values()]
+    .filter((entry): entry is string => entry !== null)
+    .map(display)
+}
+
+function freshnessSentence(
+  facts: ReturnType<typeof freshnessFacts> | undefined,
+  item?: SpendStatusItem,
+): string {
   if (!facts) return t['admin.advertising.budget.freshness.noData']()
   if (facts.stale) {
+    const platformList = item ? stalePlatformNames(item) : []
+    if (platformList.length > 0) {
+      const platform = platformList.length === 1 ? platformList[0]! : fmt.list(platformList)
+      return facts.lastSyncedAt
+        ? t['admin.advertising.budget.freshness.stalePlatform']({
+            platform,
+            time: fmt.datetime(facts.lastSyncedAt),
+          })
+        : t['admin.advertising.budget.freshness.stalePlatformNoTime']({ platform })
+    }
     return facts.lastSyncedAt
       ? t['admin.advertising.budget.freshness.stale']({ time: fmt.datetime(facts.lastSyncedAt) })
       : t['admin.advertising.budget.freshness.staleNoTime']()
@@ -446,7 +512,7 @@ const bannerFigures = (item: SpendStatusItem): AdHealthFigure[] => {
       key: item.scope,
       value: `${formatAdCurrency(item.spend_to_date.amount_minor, currency)} / ${formatAdCurrency(item.cap?.amount.amount_minor ?? 0, currency)}`,
       label: scopeHeading(item),
-      description: freshnessSentence(freshnessFacts(item)),
+      description: freshnessSentence(freshnessFacts(item), item),
     },
   ]
 }
@@ -456,6 +522,12 @@ const bannerFigures = (item: SpendStatusItem): AdHealthFigure[] => {
 function deltaFigures(): ConsequenceFigure[] {
   const previous = existingCapFor(scope === 'campaign' ? campaignId : undefined, period)
   if (!previous) return []
+  // A currency change has no honest minor-unit delta: 100,000 JPY → 1,000 USD
+  // is neither a raise of 99,000 nor anything else until converted, and this
+  // client holds no conversion basis. Suppress the delta rows (the dialog's
+  // consequence copy still names the new figure) rather than print one
+  // currency's arithmetic labelled in another's.
+  if (previous.amount.currency !== formCurrency) return []
   const rows = capDeltaRows(period, previous.amount.amount_minor, Number(amountMinor.trim()))
   if (!rows) return []
   return [
@@ -495,8 +567,15 @@ async function submit(): Promise<void> {
   formError = undefined
 
   const previous = existingCapFor(scope === 'campaign' ? campaignId : undefined, period)
-  const raising =
-    previous !== undefined && Number(amountMinor.trim()) > previous.amount.amount_minor
+  // Minor units are comparable only within one currency (see `isCapRaise`):
+  // a currency change always confirms, exactly like a raise.
+  const raising = isCapRaise(
+    previous
+      ? { amountMinor: previous.amount.amount_minor, currency: previous.amount.currency }
+      : undefined,
+    Number(amountMinor.trim()),
+    formCurrency,
+  )
   const enablingPause = autoPause && !(previous?.auto_pause ?? false)
 
   if (raising || enablingPause) {
@@ -530,6 +609,13 @@ async function doSave(options: { confirmBelowCurrentSpend: boolean }): Promise<v
   if (!writable || !formAmountValid || !formCurrency) return
   saving = true
   formError = undefined
+  // The `If-Match` version is derived from the *currently selected* target
+  // on every save — never carried from `editCap`: scope, campaign, and
+  // period stay editable after an edit, so a stored version could name
+  // another cap (or none). A target switch mid-draft simply re-binds the
+  // guard to the newly selected cap.
+  const saveTarget = existingCapFor(scope === 'campaign' ? campaignId : undefined, period)
+  const saveVersion = saveTarget?.version
   const body = {
     period,
     amount: { amount_minor: Number(amountMinor.trim()), currency: formCurrency },
@@ -551,9 +637,13 @@ async function doSave(options: { confirmBelowCurrentSpend: boolean }): Promise<v
   }
   try {
     if (scope === 'campaign' && campaignId) {
-      await putAdCampaignBudgetCap(apiClient, campaignId, body)
+      await putAdCampaignBudgetCap(apiClient, campaignId, body, {
+        ...(saveVersion !== undefined ? { expectedVersion: saveVersion } : {}),
+      })
     } else {
-      await putAdBudgetCap(apiClient, body)
+      await putAdBudgetCap(apiClient, body, {
+        ...(saveVersion !== undefined ? { expectedVersion: saveVersion } : {}),
+      })
     }
     showToast({
       title: t['admin.advertising.budget.savedToast'](),
@@ -561,12 +651,46 @@ async function doSave(options: { confirmBelowCurrentSpend: boolean }): Promise<v
     })
     await load()
   } catch (err) {
-    if (err instanceof ApiError && err.status === 409) {
+    // The two 409s are distinguished by the problem's machine-readable
+    // `type`, never by `detail` text: the client sends `Accept-Language`,
+    // so a localized (or reworded) detail string cannot be routed on — a
+    // below-spend conflict misread as a stale version would leave the
+    // operator's typed figure silently overwritten and the save
+    // unreachable. The type is the backend's contract
+    // (`advertising/cap-below-current-spend`, see api-client).
+    if (
+      err instanceof ApiError &&
+      err.status === 409 &&
+      err.type === 'advertising/cap-below-current-spend'
+    ) {
       // The backend's guard: the new cap is below the period's spend so
       // far. The warning names what that can do — pause campaigns at once
       // — and the retry carries the explicit confirmation flag.
       belowSpendOpen = true
       return
+    }
+    if (err instanceof ApiError && err.status === 409) {
+      // A stale `If-Match`: someone saved this cap after the draft was
+      // read. Reload, then repopulate the draft from the winner so the
+      // next save carries the current version and current figures — the
+      // stale draft must not retry version-less into a blind overwrite.
+      // The operator is *told* their draft was replaced: a silently
+      // rewritten amount field is how a retyped "200,000" becomes a
+      // committed "120,000".
+      await load()
+      const refreshed = existingCapFor(scope === 'campaign' ? campaignId : undefined, period)
+      if (refreshed) {
+        amountMinor = String(refreshed.amount.amount_minor)
+        autoPauseChoice = refreshed.auto_pause ? 'true' : 'false'
+        if (scope === 'tenant') {
+          capCurrency = refreshed.amount.currency
+          fxRateDate = refreshed.fx_rate_date ?? ''
+        }
+      } else {
+        resetForm()
+      }
+      formError = t['admin.advertising.budget.conflictRepopulated']()
+      throw err
     }
     if (err instanceof ApiError && err.status === 403) {
       formError = t['admin.advertising.budget.forbidden']()
@@ -713,9 +837,9 @@ $effect(() => {
                     freshnessText={
                       facts.stale
                         ? t['admin.advertising.budget.freshness.staleLabel']({
-                            detail: freshnessSentence(facts),
+                            detail: freshnessSentence(facts, item),
                           })
-                        : freshnessSentence(facts)
+                        : freshnessSentence(facts, item)
                     }
                     {status}
                     statusLabel={
@@ -760,7 +884,11 @@ $effect(() => {
               class="budget__form"
               onsubmit={(event) => {
                 event.preventDefault()
-                void submit()
+                // doSave reports every failure to the form (or a dialog);
+                // the rethrow only signals programmatic callers, so the
+                // submit boundary swallows it instead of logging an
+                // unhandled rejection on every failed save.
+                void submit().catch(() => {})
               }}
             >
               <Stack gap="4">
@@ -917,7 +1045,7 @@ $effect(() => {
                       {:else}
                         <p class="budget__preview-freshness">
                           {t['admin.advertising.budget.preview.dryRunUnavailable']()}
-                          {freshnessSentence(formItem ? freshnessFacts(formItem) : undefined)}
+                          {freshnessSentence(formItem ? freshnessFacts(formItem) : undefined, formItem ?? undefined)}
                         </p>
                       {/if}
                     {:else}

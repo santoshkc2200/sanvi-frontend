@@ -1,12 +1,13 @@
 import type { SpendStatusItem } from '@sanvi/api-client'
-import { BUDGET_PERIOD_DAILY as DAILY, BUDGET_PERIOD_MONTHLY as MONTHLY } from '../budget-periods'
 import { describe, expect, it } from 'vitest'
+import { BUDGET_PERIOD_DAILY as DAILY, BUDGET_PERIOD_MONTHLY as MONTHLY } from '../budget-periods'
 import {
   capDeltaRows,
   capStatusFor,
   convertRunRateToDryRunBasis,
   freshnessFacts,
   isCapAmountValid,
+  isCapRaise,
   projectedBreachDate,
   scopeCampaignId,
   thresholdActionFor,
@@ -100,6 +101,44 @@ describe('projectedBreachDate', () => {
 
   it('guards a non-positive cap', () => {
     expect(projectedBreachDate(MONTHLY, 0, 0, 100, now)).toBeUndefined()
+  })
+
+  it('measures the day on the account clock, not UTC', () => {
+    // 2026-09-10 12:00 UTC is 21:00 in Tokyo: the same figures breach
+    // "today" on either clock here, but the key is the JST calendar date.
+    const projection = projectedBreachDate(DAILY, 1_000, 250, 1_250, now, 'Asia/Tokyo')
+    expect(projection?.date).toBe('2026-09-10')
+  })
+
+  it('can place the breach a day earlier than UTC for far-east zones', () => {
+    // 2026-09-10 16:00 UTC is 2026-09-11 01:00 in Tokyo. A daily cap whose
+    // growth ends at JST midnight breaches on Sep 11 JST…
+    const late = new Date('2026-09-10T16:00:00Z')
+    const zoned = projectedBreachDate(DAILY, 1_000, 900, 1_100, late, 'Asia/Tokyo')
+    expect(zoned?.date).toBe('2026-09-11')
+    // …while the UTC fallback still reads Sep 10.
+    expect(projectedBreachDate(DAILY, 1_000, 900, 1_100, late)?.date).toBe('2026-09-10')
+  })
+
+  it('falls back to UTC for an unknown zone rather than refusing the preview', () => {
+    const projection = projectedBreachDate(DAILY, 1_000, 250, 1_250, now, 'Not/AZone')
+    expect(projection?.date).toBe('2026-09-10')
+  })
+})
+
+describe('isCapRaise', () => {
+  it('compares same-currency figures numerically', () => {
+    expect(isCapRaise({ amountMinor: 5_000, currency: 'JPY' }, 10_000, 'JPY')).toBe(true)
+    expect(isCapRaise({ amountMinor: 5_000, currency: 'JPY' }, 5_000, 'JPY')).toBe(false)
+    expect(isCapRaise({ amountMinor: 5_000, currency: 'JPY' }, 1_000, 'JPY')).toBe(false)
+    expect(isCapRaise(undefined, 10_000, 'JPY')).toBe(false)
+  })
+
+  it('always confirms across a currency change, either direction', () => {
+    // 1,000 USD reads "smaller" than 100,000 JPY numerically, and a naive
+    // comparison would call a material raise a reduction.
+    expect(isCapRaise({ amountMinor: 100_000, currency: 'JPY' }, 1_000, 'USD')).toBe(true)
+    expect(isCapRaise({ amountMinor: 1_000, currency: 'USD' }, 100_000, 'JPY')).toBe(true)
   })
 })
 
