@@ -1,6 +1,6 @@
 # TASK-031: 11.a CI harness truth & pinned profiles
 
-**Phase:** 11 · **Status:** todo · **Size:** M
+**Phase:** 11 · **Status:** done (2026-09-16, branch `chore/task-031-ci-harness-truth`) · **Size:** M
 **Requirement(s):** FR-1102, FR-1103, NFR-1107
 **Depends on:** nothing — startable today, independent of phases 09 and 10
 **Created:** 2026-09-01
@@ -125,17 +125,64 @@ report and still merges — which is the intended behaviour at this stage.
 
 ## Definition of done
 
-- [ ] `scripts/perf-profiles.json` pins device, throttling, Lighthouse, and Chrome versions, and no
-      harness reads a profile value from anywhere else.
-- [ ] `pnpm check:budget --report-only` reports per app **and per route**, and shows a deliberately
-      fattened route as over.
-- [ ] `pnpm check:lighthouse --report-only` runs per app per locale, and its measured run-to-run
-      variance on a fixed build is inside the threshold TASK-022 will gate on.
-- [ ] `pnpm check:a11y --report-only` reports by severity and lists routes with no axe entry.
-- [ ] `benchmarks/frontend/baseline.json` is committed with an embedded profile block.
-- [ ] `pnpm bench:compare` fails on an injected 20 % regression and refuses cross-profile comparison.
-- [ ] All three harnesses run in CI, reporting-only, and none block.
-- [ ] `pnpm check:all` is green.
+- [x] `scripts/perf-profiles.json` pins device, throttling, Lighthouse, and Chrome versions, and no
+      harness reads a profile value from anywhere else. (Chrome 152.0.7977.8, Lighthouse 12.6.1 via
+      `@lhci/cli@0.15.1`, Playwright 1.62.1. Enforced by `packages/lint-gates/__tests__/perf-profiles.test.ts`:
+      every harness goes through the shared loader, and a grep fails any harness source containing a
+      pin or throttle literal — the only file allowed to hold the values is the JSON.)
+- [x] `pnpm check:budget --report-only` reports per app **and per route**, and shows a deliberately
+      fattened route as over. (Route budgets live in `scripts/budgets.json`, seeded from the current
+      build + margin. Fattened-route proof: storefront `routeKb` temporarily lowered to 2 KB —
+      `/checkout/return` 4.5 KB reported `✗ … over by 2.50 KB`, blocking mode exited 1, report-only
+      exited 0; reverted.)
+- [x] `pnpm check:lighthouse --report-only` runs per app per locale, and its measured run-to-run
+      variance on a fixed build is inside the threshold TASK-022 will gate on. (Three full runs on the
+      same build recorded in `benchmarks/frontend/VARIANCE.md`: median LCP stable to ≤ ~6%, category
+      scores to ±0.02. One TBT outlier on `storefront/ja` — median jumped to 103 ms in one invocation —
+      is recorded for TASK-022's threshold choice: gate on medians with headroom or more runs per URL.)
+      The SPAs report the default locale only — their locale signal is a cookie Lighthouse cannot set;
+      the gap is recorded in each artifact (`localeCoverage`), not hidden, and the axe sweep covers both
+      locales for every app.
+- [x] `pnpm check:a11y --report-only` reports by severity and lists routes with no axe entry.
+      (Coverage compares the committed sweep list `scripts/a11y-routes.json` against routes enumerated
+      live from each app's route definitions. Probe: throwaway `/throwaway-probe` route added to
+      admin's `App.svelte` + rebuild → `UNCOVERED (1): /throwaway-probe` reported; reverted. Baseline
+      sweep: 69 routes × en/ja, 0 critical/serious, 314 moderate findings — TASK-027's queue.)
+- [x] `benchmarks/frontend/baseline.json` is committed with an embedded profile block.
+      (`pnpm bench:run baseline`; the whole profiles document travels inside `meta.profile`.)
+- [x] `pnpm bench:compare` fails on an injected 20 % regression and refuses cross-profile comparison.
+      (Injected +25 % LCP and +30 % route size → 2 regressions reported, exit 1; a copy with a drifted
+      `pins.chrome` → "refusing to compare", exit 2.)
+- [x] All three harnesses run in CI, reporting-only, and none block. (PR workflow gains a
+      `benchmarks` job — `continue-on-error: true`, artifacts uploaded; budget report, Lighthouse and
+      axe each a step.)
+- [x] `pnpm check:all` is green.
+
+## Implementation notes (2026-09-16)
+
+- **Pre-existing main failure fixed to satisfy the last DoD line:** `check:boundaries`'s
+  platform-literal gate failed on `apps/admin/e2e/advertising-journey.spec.ts` spelling the
+  `google_ads` matrix key (a violation committed with TASK-018; reproduced against main's own version
+  of the gate before touching anything). Fixed in that spec by deriving the key from
+  `AD_PLATFORM_FIXTURES` — the exact idiom the mock backend and component tests already use — and the
+  journey e2e re-run green on chromium.
+- **Storefront preview script** now sets the same runtime env the e2e webServer always set
+  (`PUBLIC_KRATOS_ORIGIN`, `PUBLIC_MEDIA_ORIGIN`, `PUBLIC_TRACKING_SITE_KEY`): `pnpm preview` works
+  standalone, and the harnesses serve the app through its own preview script rather than a parallel
+  convention. The harnesses also start the storefront's e2e mock API (`e2e/fixtures/mock-api-server.mjs`)
+  — without a tenant-resolution backend every SSR page 500s and there is nothing to measure.
+- **Budget numbers moved** from four per-app `package.json` invocations into
+  `scripts/budgets.json` (the per-app `--dir` shape still works). The old storefront/marketing budgets
+  were already stale — their committed values failed against main's own build (167.8/151 and
+  138.8/123 KB); `budgets.json` re-derives from the current build + margin, per this task's "meaningful
+  immediately" instruction, and TASK-022 tightens to targets.
+- **New root devDependencies** (dependency policy): `@lhci/cli@0.15.1` exact (bundles
+  `lighthouse@12.6.1`; the pinned harness runner), `@axe-core/playwright@^4.13.0` (same version admin
+  already used), `@playwright/test@catalog:` (already resolved at 1.62.1 workspace-wide). Maintenance
+  status: all three are actively maintained, permissive-licensed (MIT), and the licence job covers
+  them.
+- `turbo.json` change is `globalPassThroughEnv: [CHROME_PATH]` — the harnesses run as root scripts,
+  not per-package turbo tasks, so no task wiring was added.
 
 ## Verification
 

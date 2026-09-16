@@ -39,6 +39,18 @@ bump there, then reference `"catalog:"` from the package.
 | All gates | `pnpm check:quiet` |
 | Regenerate API types | `pnpm generate:api` |
 
+Phase-11 measurement harnesses (reporting-only; `scripts/perf-profiles.json`
+pins device/throttling/tool versions, and every artifact records the profile
+it ran under — `bench:compare` refuses cross-profile comparisons):
+
+| Goal | Command |
+| --- | --- |
+| Per-app **and per-route** budget table | `pnpm check:budget --report-only` (budget values: `scripts/budgets.json`) |
+| Lighthouse, per app per locale | `pnpm check:lighthouse` (needs `pnpm build` + the pinned Chrome) |
+| Axe sweep + route-coverage report | `pnpm check:a11y` (sweep list: `scripts/a11y-routes.json`) |
+| Full harness run → committed artifact | `pnpm bench:run <name>` → `benchmarks/frontend/<name>.json` |
+| Diff two artifacts, fails on regression | `pnpm bench:compare <a> <b>` |
+
 `test:quiet` and `check:quiet` are the same gates as `test` / `check:all` with
 `--output-logs=errors-only` and Vitest's `dot` reporter: a passing package
 prints nothing, a failing one prints its full output. Use them for anything

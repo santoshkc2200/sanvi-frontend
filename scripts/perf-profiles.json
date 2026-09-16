@@ -1,0 +1,56 @@
+{
+  "meta": {
+    "name": "sanvi-frontend performance profiles",
+    "phase": "11",
+    "task": "TASK-031",
+    "lab": true,
+    "emulation": true,
+    "emulationNote": "Every profile here is Chrome/WebKit EMULATION (CPU slowdown + network shaping), not a physical mid-range Android or iOS device. Real-device testing is parked in docs/release/needs-humans.md. Every number this phase produces is a lab number and says so: excellent for catching a regression between two builds, silent about what a real user on a real phone experiences.",
+    "inpNote": "INP is a field metric and cannot be measured in a lab. Total Blocking Time is the proxy the gates assert, and anything labelled INP in these harnesses is a mislabel by definition (NFR-1101).",
+    "comparabilityNote": "Measurements are comparable only under the same pins and the same profile. Artifacts record the profile block they ran under; bench-compare refuses to compare artifacts whose profiles differ. A runner upgrade is a deliberate commit that changes this file, never a silent drift.",
+    "localeCoverageNote": "Lighthouse drives the SSR apps (storefront, marketing) per locale through their /{locale} URL prefixes. The SPAs (admin, platform-admin) negotiate locale from the sanvi_locale cookie, which Lighthouse cannot set, so SPA Lighthouse runs report the default locale only — recorded honestly per artifact, not hidden. The axe sweep covers both locales for all four apps via cookie or prefix."
+  },
+  "pins": {
+    "chrome": "152.0.7977.8",
+    "lighthouse": "12.6.1",
+    "lighthouseCi": "0.15.1",
+    "playwright": "1.62.1"
+  },
+  "profiles": {
+    "midrange-android": {
+      "description": "Lighthouse's default emulated mid-range Android mobile: 4x CPU slowdown on a slow 4G shape. The profile the Lighthouse harness runs under.",
+      "formFactor": "mobile",
+      "cpuSlowdownMultiplier": 4,
+      "throttlingMethod": "devtools",
+      "network": {
+        "requestLatencyMs": 562.5,
+        "downloadThroughputKbps": 1474.6,
+        "uploadThroughputKbps": 675
+      },
+      "viewport": { "width": 412, "height": 823 },
+      "deviceScaleFactor": 1.75
+    },
+    "ios-safari": {
+      "description": "Emulated iPhone via Playwright's device descriptor. Lighthouse cannot emulate WebKit (Chromium-only), so this profile drives the Playwright-based sweeps only — never Lighthouse. Device testing itself is parked in docs/release/needs-humans.md.",
+      "formFactor": "mobile",
+      "playwrightDevice": "iPhone 13",
+      "engine": "webkit"
+    }
+  },
+  "harnesses": {
+    "budget": {
+      "profile": null,
+      "profileNote": "Static gzip file sizes off the build output — no runtime profile applies. Same build, same numbers."
+    },
+    "lighthouse": {
+      "profile": "midrange-android",
+      "runs": 3,
+      "runsNote": "3 runs per URL; the median is what artifacts record. Three runs is the minimum that survives one noisy run."
+    },
+    "axe": {
+      "profile": "midrange-android",
+      "locales": ["en", "ja"],
+      "localesNote": "SvelteKit apps via the /{locale} URL prefix; SPAs via the sanvi_locale cookie set before navigation."
+    }
+  }
+}

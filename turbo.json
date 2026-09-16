@@ -13,6 +13,7 @@
     "VITE_KRATOS_ORIGIN",
     "VITE_STRIPE_PUBLISHABLE_KEY"
   ],
+  "globalPassThroughEnv": ["CHROME_PATH"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

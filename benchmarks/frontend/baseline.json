@@ -1,0 +1,3976 @@
+{
+  "meta": {
+    "generatedAt": "2026-09-16T04:26:57.907Z",
+    "buildSha": "9948d66",
+    "lab": true,
+    "profile": {
+      "meta": {
+        "name": "sanvi-frontend performance profiles",
+        "phase": "11",
+        "task": "TASK-031",
+        "lab": true,
+        "emulation": true,
+        "emulationNote": "Every profile here is Chrome/WebKit EMULATION (CPU slowdown + network shaping), not a physical mid-range Android or iOS device. Real-device testing is parked in docs/release/needs-humans.md. Every number this phase produces is a lab number and says so: excellent for catching a regression between two builds, silent about what a real user on a real phone experiences.",
+        "inpNote": "INP is a field metric and cannot be measured in a lab. Total Blocking Time is the proxy the gates assert, and anything labelled INP in these harnesses is a mislabel by definition (NFR-1101).",
+        "comparabilityNote": "Measurements are comparable only under the same pins and the same profile. Artifacts record the profile block they ran under; bench-compare refuses to compare artifacts whose profiles differ. A runner upgrade is a deliberate commit that changes this file, never a silent drift.",
+        "localeCoverageNote": "Lighthouse drives the SSR apps (storefront, marketing) per locale through their /{locale} URL prefixes. The SPAs (admin, platform-admin) negotiate locale from the sanvi_locale cookie, which Lighthouse cannot set, so SPA Lighthouse runs report the default locale only — recorded honestly per artifact, not hidden. The axe sweep covers both locales for all four apps via cookie or prefix."
+      },
+      "pins": {
+        "chrome": "152.0.7977.8",
+        "lighthouse": "12.6.1",
+        "lighthouseCi": "0.15.1",
+        "playwright": "1.62.1"
+      },
+      "profiles": {
+        "midrange-android": {
+          "description": "Lighthouse's default emulated mid-range Android mobile: 4x CPU slowdown on a slow 4G shape. The profile the Lighthouse harness runs under.",
+          "formFactor": "mobile",
+          "cpuSlowdownMultiplier": 4,
+          "throttlingMethod": "devtools",
+          "network": {
+            "requestLatencyMs": 562.5,
+            "downloadThroughputKbps": 1474.6,
+            "uploadThroughputKbps": 675
+          },
+          "viewport": {
+            "width": 412,
+            "height": 823
+          },
+          "deviceScaleFactor": 1.75
+        },
+        "ios-safari": {
+          "description": "Emulated iPhone via Playwright's device descriptor. Lighthouse cannot emulate WebKit (Chromium-only), so this profile drives the Playwright-based sweeps only — never Lighthouse. Device testing itself is parked in docs/release/needs-humans.md.",
+          "formFactor": "mobile",
+          "playwrightDevice": "iPhone 13",
+          "engine": "webkit"
+        }
+      },
+      "harnesses": {
+        "budget": {
+          "profile": null,
+          "profileNote": "Static gzip file sizes off the build output — no runtime profile applies. Same build, same numbers."
+        },
+        "lighthouse": {
+          "profile": "midrange-android",
+          "runs": 3,
+          "runsNote": "3 runs per URL; the median is what artifacts record. Three runs is the minimum that survives one noisy run."
+        },
+        "axe": {
+          "profile": "midrange-android",
+          "locales": ["en", "ja"],
+          "localesNote": "SvelteKit apps via the /{locale} URL prefix; SPAs via the sanvi_locale cookie set before navigation."
+        }
+      }
+    }
+  },
+  "budget": {
+    "storefront": {
+      "type": "sveltekit",
+      "initialKb": 167.6533203125,
+      "initialBudgetKb": 180,
+      "totalKb": 217.08,
+      "routeKb": 6,
+      "routes": [
+        {
+          "id": "/",
+          "kb": 0.65
+        },
+        {
+          "id": "/_theme-preview",
+          "kb": 0.7
+        },
+        {
+          "id": "/checkout",
+          "kb": 0.6
+        },
+        {
+          "id": "/checkout/cancel",
+          "kb": 0.38
+        },
+        {
+          "id": "/checkout/return",
+          "kb": 4.53
+        },
+        {
+          "id": "/legal/cookies",
+          "kb": 0.91
+        },
+        {
+          "id": "/legal/privacy-notice",
+          "kb": 1.54
+        },
+        {
+          "id": "/legal/request-metrics",
+          "kb": 0.79
+        },
+        {
+          "id": "/legal/sub-processors",
+          "kb": 0.73
+        },
+        {
+          "id": "/link",
+          "kb": 1.67
+        },
+        {
+          "id": "/login",
+          "kb": 1.09
+        },
+        {
+          "id": "/privacy",
+          "kb": 1.98
+        },
+        {
+          "id": "/privacy/agent",
+          "kb": 2.03
+        },
+        {
+          "id": "/privacy/choices",
+          "kb": 2.89
+        },
+        {
+          "id": "/privacy/erasure",
+          "kb": 2.13
+        },
+        {
+          "id": "/privacy/limit-sensitive",
+          "kb": 1.07
+        },
+        {
+          "id": "/privacy/opt-out",
+          "kb": 1.39
+        },
+        {
+          "id": "/privacy/requests",
+          "kb": 2.5
+        },
+        {
+          "id": "/privacy/requests/[id]",
+          "kb": 2.16
+        },
+        {
+          "id": "/privacy/requests/[id]/appeal",
+          "kb": 1.48
+        },
+        {
+          "id": "/recovery",
+          "kb": 1.1
+        },
+        {
+          "id": "/registration",
+          "kb": 1.09
+        },
+        {
+          "id": "/settings/security",
+          "kb": 1.63
+        },
+        {
+          "id": "/verification",
+          "kb": 1.06
+        }
+      ],
+      "routesMissing": 0,
+      "ok": true
+    },
+    "marketing": {
+      "type": "sveltekit",
+      "initialKb": 138.521484375,
+      "initialBudgetKb": 150,
+      "totalKb": 151.82,
+      "routeKb": 11,
+      "routes": [
+        {
+          "id": "/",
+          "kb": 1.74
+        },
+        {
+          "id": "/pricing",
+          "kb": 8.78
+        },
+        {
+          "id": "/signup",
+          "kb": 1.05
+        }
+      ],
+      "routesMissing": 0,
+      "ok": true
+    },
+    "admin": {
+      "type": "spa",
+      "initialKb": null,
+      "initialBudgetKb": 250,
+      "totalKb": 350.72,
+      "routeKb": 16,
+      "routes": [
+        {
+          "id": "/",
+          "kb": 12.06
+        },
+        {
+          "id": "/billing",
+          "kb": 3.91
+        },
+        {
+          "id": "/activating",
+          "kb": 1.33
+        },
+        {
+          "id": "/onboarding",
+          "kb": 3.52
+        },
+        {
+          "id": "/settings",
+          "kb": 1.59
+        },
+        {
+          "id": "/settings/security",
+          "kb": 1.44
+        },
+        {
+          "id": "/members",
+          "kb": 3.32
+        },
+        {
+          "id": "/roles",
+          "kb": 3.8
+        },
+        {
+          "id": "/usage",
+          "kb": 1.42
+        },
+        {
+          "id": "/payments",
+          "kb": 4.02
+        },
+        {
+          "id": "/payments/settings",
+          "kb": 12.77
+        },
+        {
+          "id": "/payments/:id",
+          "kb": 7
+        },
+        {
+          "id": "/advertising/settings",
+          "kb": 1.63
+        },
+        {
+          "id": "/step-up",
+          "kb": 1.16
+        },
+        {
+          "id": "/domains",
+          "kb": 2.25
+        },
+        {
+          "id": "/domains/connect",
+          "kb": 6.59
+        },
+        {
+          "id": "/domains/purchase",
+          "kb": 8.26
+        },
+        {
+          "id": "/domains/:id",
+          "kb": 5.34
+        },
+        {
+          "id": "/privacy",
+          "kb": 3.65
+        },
+        {
+          "id": "/settings/localization",
+          "kb": 2.78
+        },
+        {
+          "id": "/theme",
+          "kb": 1.81
+        },
+        {
+          "id": "/theme/brand",
+          "kb": 1.7
+        },
+        {
+          "id": "/theme/colors",
+          "kb": 2.46
+        },
+        {
+          "id": "/theme/typography",
+          "kb": 1.42
+        },
+        {
+          "id": "/theme/layout",
+          "kb": 1.93
+        },
+        {
+          "id": "/theme/preview",
+          "kb": 2.03
+        },
+        {
+          "id": "/theme/publish",
+          "kb": 2.08
+        },
+        {
+          "id": "/login",
+          "kb": 0.98
+        },
+        {
+          "id": "/health",
+          "kb": 0.23
+        }
+      ],
+      "routesMissing": 0,
+      "ok": true
+    },
+    "platform-admin": {
+      "type": "spa",
+      "initialKb": null,
+      "initialBudgetKb": 250,
+      "totalKb": 179.56,
+      "routeKb": 9,
+      "routes": [
+        {
+          "id": "/",
+          "kb": 2.49
+        },
+        {
+          "id": "/tenants/:id",
+          "kb": 7
+        },
+        {
+          "id": "/features",
+          "kb": 2.88
+        },
+        {
+          "id": "/roles",
+          "kb": 1.89
+        },
+        {
+          "id": "/audit",
+          "kb": 1.48
+        },
+        {
+          "id": "/impersonations",
+          "kb": 2.96
+        },
+        {
+          "id": "/approvals",
+          "kb": 1.89
+        },
+        {
+          "id": "/privacy",
+          "kb": 7.02
+        },
+        {
+          "id": "/settings/security",
+          "kb": 1.46
+        },
+        {
+          "id": "/translations",
+          "kb": 2.03
+        },
+        {
+          "id": "/login",
+          "kb": 1.02
+        },
+        {
+          "id": "/step-up",
+          "kb": 1.19
+        },
+        {
+          "id": "/health",
+          "kb": 0.23
+        }
+      ],
+      "routesMissing": 0,
+      "ok": true
+    }
+  },
+  "lighthouse": {
+    "harness": "lighthouse",
+    "generatedAt": "2026-09-16T04:19:08.961Z",
+    "lab": true,
+    "profile": {
+      "pins": {
+        "chrome": "152.0.7977.8",
+        "lighthouse": "12.6.1",
+        "lighthouseCi": "0.15.1",
+        "playwright": "1.62.1"
+      },
+      "harness": {
+        "profile": "midrange-android",
+        "runs": 3,
+        "runsNote": "3 runs per URL; the median is what artifacts record. Three runs is the minimum that survives one noisy run."
+      },
+      "chromeBinary": "/Users/hitohospital/Library/Caches/ms-playwright/chromium-1237/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+    },
+    "localeCoverage": "Lighthouse drives the SSR apps (storefront, marketing) per locale through their /{locale} URL prefixes. The SPAs (admin, platform-admin) negotiate locale from the sanvi_locale cookie, which Lighthouse cannot set, so SPA Lighthouse runs report the default locale only — recorded honestly per artifact, not hidden. The axe sweep covers both locales for all four apps via cookie or prefix.",
+    "buildSha": "9948d66",
+    "apps": {
+      "storefront": {
+        "/": {
+          "locale": "en",
+          "runs": 3,
+          "lcpMs": 1430,
+          "lcpMsSpread": 60,
+          "tbtMs": 13,
+          "tbtMsSpread": 33,
+          "cls": 0,
+          "clsSpread": 0,
+          "performance": 1,
+          "performanceSpread": 0,
+          "accessibility": 1,
+          "accessibilitySpread": 0,
+          "bestPractices": 1,
+          "bestPracticesSpread": 0,
+          "seo": 0.92,
+          "seoSpread": 0
+        },
+        "/ja/": {
+          "locale": "ja",
+          "runs": 3,
+          "lcpMs": 2076,
+          "lcpMsSpread": 23,
+          "tbtMs": 0,
+          "tbtMsSpread": 1,
+          "cls": 0.1369,
+          "clsSpread": 0,
+          "performance": 0.92,
+          "performanceSpread": 0,
+          "accessibility": 1,
+          "accessibilitySpread": 0,
+          "bestPractices": 1,
+          "bestPracticesSpread": 0,
+          "seo": 0.92,
+          "seoSpread": 0
+        }
+      },
+      "marketing": {
+        "/": {
+          "locale": "en",
+          "runs": 3,
+          "lcpMs": 2032,
+          "lcpMsSpread": 191,
+          "tbtMs": 0,
+          "tbtMsSpread": 0,
+          "cls": 0,
+          "clsSpread": 0,
+          "performance": 0.97,
+          "performanceSpread": 0.02,
+          "accessibility": 1,
+          "accessibilitySpread": 0,
+          "bestPractices": 1,
+          "bestPracticesSpread": 0,
+          "seo": 1,
+          "seoSpread": 0
+        },
+        "/ja/": {
+          "locale": "ja",
+          "runs": 3,
+          "lcpMs": 2709,
+          "lcpMsSpread": 159,
+          "tbtMs": 0,
+          "tbtMsSpread": 11,
+          "cls": 0.0034,
+          "clsSpread": 0,
+          "performance": 0.91,
+          "performanceSpread": 0.02,
+          "accessibility": 1,
+          "accessibilitySpread": 0,
+          "bestPractices": 1,
+          "bestPracticesSpread": 0,
+          "seo": 1,
+          "seoSpread": 0
+        }
+      },
+      "admin": {
+        "/": {
+          "locale": "en",
+          "runs": 3,
+          "lcpMs": 2863,
+          "lcpMsSpread": 81,
+          "tbtMs": 0,
+          "tbtMsSpread": 0,
+          "cls": 0,
+          "clsSpread": 0,
+          "performance": 0.9,
+          "performanceSpread": 0.01,
+          "accessibility": 1,
+          "accessibilitySpread": 0,
+          "bestPractices": 0.96,
+          "bestPracticesSpread": 0,
+          "seo": 0.45,
+          "seoSpread": 0
+        }
+      },
+      "platform-admin": {
+        "/": {
+          "locale": "en",
+          "runs": 3,
+          "lcpMs": 2711,
+          "lcpMsSpread": 81,
+          "tbtMs": 0,
+          "tbtMsSpread": 0,
+          "cls": 0,
+          "clsSpread": 0,
+          "performance": 0.92,
+          "performanceSpread": 0.01,
+          "accessibility": 1,
+          "accessibilitySpread": 0,
+          "bestPractices": 0.96,
+          "bestPracticesSpread": 0,
+          "seo": 0.45,
+          "seoSpread": 0
+        }
+      }
+    }
+  },
+  "axe": {
+    "harness": "axe",
+    "generatedAt": "2026-09-16T04:26:35.187Z",
+    "lab": true,
+    "profile": {
+      "pins": {
+        "chrome": "152.0.7977.8",
+        "lighthouse": "12.6.1",
+        "lighthouseCi": "0.15.1",
+        "playwright": "1.62.1"
+      },
+      "harness": {
+        "profile": "midrange-android",
+        "locales": ["en", "ja"],
+        "localesNote": "SvelteKit apps via the /{locale} URL prefix; SPAs via the sanvi_locale cookie set before navigation."
+      },
+      "device": "desktop-chromium"
+    },
+    "buildSha": "9948d66",
+    "apps": {
+      "storefront": {
+        "type": "sveltekit",
+        "sweptRoutes": [
+          "/",
+          "/_theme-preview",
+          "/checkout",
+          "/checkout/cancel",
+          "/checkout/return",
+          "/legal/cookies",
+          "/legal/privacy-notice",
+          "/legal/request-metrics",
+          "/legal/sub-processors",
+          "/link",
+          "/login",
+          "/privacy",
+          "/privacy/agent",
+          "/privacy/choices",
+          "/privacy/erasure",
+          "/privacy/limit-sensitive",
+          "/privacy/opt-out",
+          "/privacy/requests",
+          "/privacy/requests/[id]",
+          "/privacy/requests/[id]/appeal",
+          "/recovery",
+          "/registration",
+          "/settings/security",
+          "/verification"
+        ],
+        "enumeratedRoutes": [
+          "/",
+          "/_theme-preview",
+          "/checkout",
+          "/checkout/cancel",
+          "/checkout/return",
+          "/legal/cookies",
+          "/legal/privacy-notice",
+          "/legal/request-metrics",
+          "/legal/sub-processors",
+          "/link",
+          "/login",
+          "/privacy",
+          "/privacy/agent",
+          "/privacy/choices",
+          "/privacy/erasure",
+          "/privacy/limit-sensitive",
+          "/privacy/opt-out",
+          "/privacy/requests",
+          "/privacy/requests/[id]",
+          "/privacy/requests/[id]/appeal",
+          "/recovery",
+          "/registration",
+          "/settings/security",
+          "/verification"
+        ],
+        "results": {
+          "/ [en]": {
+            "url": "/",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/_theme-preview [en]": {
+            "url": "/_theme-preview",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/checkout [en]": {
+            "url": "/checkout",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-no-duplicate-banner",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should not have more than one banner landmark"
+              },
+              {
+                "id": "landmark-unique",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination"
+              }
+            ]
+          },
+          "/checkout/cancel [en]": {
+            "url": "/checkout/cancel",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-no-duplicate-banner",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should not have more than one banner landmark"
+              },
+              {
+                "id": "landmark-unique",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination"
+              }
+            ]
+          },
+          "/checkout/return [en]": {
+            "url": "/checkout/return",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 3,
+              "minor": 0
+            },
+            "total": 3,
+            "findings": [
+              {
+                "id": "landmark-no-duplicate-banner",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should not have more than one banner landmark"
+              },
+              {
+                "id": "landmark-unique",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination"
+              },
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/legal/cookies [en]": {
+            "url": "/legal/cookies",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/legal/privacy-notice [en]": {
+            "url": "/legal/privacy-notice",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 2,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/legal/request-metrics [en]": {
+            "url": "/legal/request-metrics",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/legal/sub-processors [en]": {
+            "url": "/legal/sub-processors",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/link [en]": {
+            "url": "/link",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/login [en]": {
+            "url": "/login",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy [en]": {
+            "url": "/privacy",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-unique",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination"
+              },
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 2,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/agent [en]": {
+            "url": "/privacy/agent",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 10,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/choices [en]": {
+            "url": "/privacy/choices",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "heading-order",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Heading levels should only increase by one"
+              },
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 3,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/erasure [en]": {
+            "url": "/privacy/erasure",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 5,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/limit-sensitive [en]": {
+            "url": "/privacy/limit-sensitive",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 3,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/opt-out [en]": {
+            "url": "/privacy/opt-out",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 4,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/requests [en]": {
+            "url": "/privacy/requests",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 10,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/requests/[id] [en]": {
+            "url": "/privacy/requests/[id]",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/requests/[id]/appeal [en]": {
+            "url": "/privacy/requests/[id]/appeal",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 4,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/recovery [en]": {
+            "url": "/recovery",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/registration [en]": {
+            "url": "/registration",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/settings/security [en]": {
+            "url": "/settings/security",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/verification [en]": {
+            "url": "/verification",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/ [ja]": {
+            "url": "/ja",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/_theme-preview [ja]": {
+            "url": "/ja/_theme-preview",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/checkout [ja]": {
+            "url": "/ja/checkout",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-no-duplicate-banner",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should not have more than one banner landmark"
+              },
+              {
+                "id": "landmark-unique",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination"
+              }
+            ]
+          },
+          "/checkout/cancel [ja]": {
+            "url": "/ja/checkout/cancel",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-no-duplicate-banner",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should not have more than one banner landmark"
+              },
+              {
+                "id": "landmark-unique",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination"
+              }
+            ]
+          },
+          "/checkout/return [ja]": {
+            "url": "/ja/checkout/return",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 3,
+              "minor": 0
+            },
+            "total": 3,
+            "findings": [
+              {
+                "id": "landmark-no-duplicate-banner",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should not have more than one banner landmark"
+              },
+              {
+                "id": "landmark-unique",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination"
+              },
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/legal/cookies [ja]": {
+            "url": "/ja/legal/cookies",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/legal/privacy-notice [ja]": {
+            "url": "/ja/legal/privacy-notice",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 2,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/legal/request-metrics [ja]": {
+            "url": "/ja/legal/request-metrics",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/legal/sub-processors [ja]": {
+            "url": "/ja/legal/sub-processors",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/link [ja]": {
+            "url": "/ja/link",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/login [ja]": {
+            "url": "/ja/login",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy [ja]": {
+            "url": "/ja/privacy",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-unique",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Landmarks should have a unique role or role/label/title (i.e. accessible name) combination"
+              },
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 2,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/agent [ja]": {
+            "url": "/ja/privacy/agent",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 10,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/choices [ja]": {
+            "url": "/ja/privacy/choices",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "heading-order",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Heading levels should only increase by one"
+              },
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 3,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/erasure [ja]": {
+            "url": "/ja/privacy/erasure",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 5,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/limit-sensitive [ja]": {
+            "url": "/ja/privacy/limit-sensitive",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 3,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/opt-out [ja]": {
+            "url": "/ja/privacy/opt-out",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 4,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/requests [ja]": {
+            "url": "/ja/privacy/requests",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 10,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/requests/[id] [ja]": {
+            "url": "/ja/privacy/requests/[id]",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/privacy/requests/[id]/appeal [ja]": {
+            "url": "/ja/privacy/requests/[id]/appeal",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 4,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/recovery [ja]": {
+            "url": "/ja/recovery",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/registration [ja]": {
+            "url": "/ja/registration",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/settings/security [ja]": {
+            "url": "/ja/settings/security",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/verification [ja]": {
+            "url": "/ja/verification",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 1,
+              "minor": 0
+            },
+            "total": 1,
+            "findings": [
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          }
+        },
+        "coverage": {
+          "swept": 24,
+          "enumerated": 24,
+          "uncovered": []
+        }
+      },
+      "marketing": {
+        "type": "sveltekit",
+        "sweptRoutes": ["/", "/pricing", "/signup"],
+        "enumeratedRoutes": ["/", "/pricing", "/signup"],
+        "results": {
+          "/ [en]": {
+            "url": "/",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 4,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/pricing [en]": {
+            "url": "/pricing",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/signup [en]": {
+            "url": "/signup",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/ [ja]": {
+            "url": "/ja",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 4,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/pricing [ja]": {
+            "url": "/ja/pricing",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          },
+          "/signup [ja]": {
+            "url": "/ja/signup",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "region",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "All page content should be contained by landmarks"
+              }
+            ]
+          }
+        },
+        "coverage": {
+          "swept": 3,
+          "enumerated": 3,
+          "uncovered": []
+        }
+      },
+      "admin": {
+        "type": "spa",
+        "sweptRoutes": [
+          "/",
+          "/billing",
+          "/activating",
+          "/onboarding",
+          "/settings",
+          "/settings/security",
+          "/members",
+          "/roles",
+          "/usage",
+          "/payments",
+          "/payments/settings",
+          "/payments/:id",
+          "/advertising/settings",
+          "/step-up",
+          "/domains",
+          "/domains/connect",
+          "/domains/purchase",
+          "/domains/:id",
+          "/privacy",
+          "/settings/localization",
+          "/theme",
+          "/theme/brand",
+          "/theme/colors",
+          "/theme/typography",
+          "/theme/layout",
+          "/theme/preview",
+          "/theme/publish",
+          "/login",
+          "/health"
+        ],
+        "enumeratedRoutes": [
+          "/",
+          "/billing",
+          "/activating",
+          "/onboarding",
+          "/settings",
+          "/settings/security",
+          "/members",
+          "/roles",
+          "/usage",
+          "/payments",
+          "/payments/settings",
+          "/payments/:id",
+          "/advertising/settings",
+          "/step-up",
+          "/domains",
+          "/domains/connect",
+          "/domains/purchase",
+          "/domains/:id",
+          "/privacy",
+          "/settings/localization",
+          "/theme",
+          "/theme/brand",
+          "/theme/colors",
+          "/theme/typography",
+          "/theme/layout",
+          "/theme/preview",
+          "/theme/publish",
+          "/login",
+          "/health"
+        ],
+        "results": {
+          "/ [en]": {
+            "url": "/",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/billing [en]": {
+            "url": "/billing",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/activating [en]": {
+            "url": "/activating",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/onboarding [en]": {
+            "url": "/onboarding",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/settings [en]": {
+            "url": "/settings",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/settings/security [en]": {
+            "url": "/settings/security",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/members [en]": {
+            "url": "/members",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/roles [en]": {
+            "url": "/roles",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/usage [en]": {
+            "url": "/usage",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/payments [en]": {
+            "url": "/payments",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/payments/settings [en]": {
+            "url": "/payments/settings",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/payments/:id [en]": {
+            "url": "/payments/:id",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/settings [en]": {
+            "url": "/advertising/settings",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/step-up [en]": {
+            "url": "/step-up",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/domains [en]": {
+            "url": "/domains",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/domains/connect [en]": {
+            "url": "/domains/connect",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/domains/purchase [en]": {
+            "url": "/domains/purchase",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/domains/:id [en]": {
+            "url": "/domains/:id",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/privacy [en]": {
+            "url": "/privacy",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/settings/localization [en]": {
+            "url": "/settings/localization",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/theme [en]": {
+            "url": "/theme",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/theme/brand [en]": {
+            "url": "/theme/brand",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/theme/colors [en]": {
+            "url": "/theme/colors",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/theme/typography [en]": {
+            "url": "/theme/typography",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/theme/layout [en]": {
+            "url": "/theme/layout",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/theme/preview [en]": {
+            "url": "/theme/preview",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/theme/publish [en]": {
+            "url": "/theme/publish",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/login [en]": {
+            "url": "/login",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/health [en]": {
+            "url": "/health",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/ [ja]": {
+            "url": "/",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/billing [ja]": {
+            "url": "/billing",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/activating [ja]": {
+            "url": "/activating",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/onboarding [ja]": {
+            "url": "/onboarding",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/settings [ja]": {
+            "url": "/settings",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/settings/security [ja]": {
+            "url": "/settings/security",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/members [ja]": {
+            "url": "/members",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/roles [ja]": {
+            "url": "/roles",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/usage [ja]": {
+            "url": "/usage",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/payments [ja]": {
+            "url": "/payments",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/payments/settings [ja]": {
+            "url": "/payments/settings",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/payments/:id [ja]": {
+            "url": "/payments/:id",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/settings [ja]": {
+            "url": "/advertising/settings",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/step-up [ja]": {
+            "url": "/step-up",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/domains [ja]": {
+            "url": "/domains",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/domains/connect [ja]": {
+            "url": "/domains/connect",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/domains/purchase [ja]": {
+            "url": "/domains/purchase",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/domains/:id [ja]": {
+            "url": "/domains/:id",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/privacy [ja]": {
+            "url": "/privacy",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/settings/localization [ja]": {
+            "url": "/settings/localization",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/theme [ja]": {
+            "url": "/theme",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/theme/brand [ja]": {
+            "url": "/theme/brand",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/theme/colors [ja]": {
+            "url": "/theme/colors",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/theme/typography [ja]": {
+            "url": "/theme/typography",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/theme/layout [ja]": {
+            "url": "/theme/layout",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/theme/preview [ja]": {
+            "url": "/theme/preview",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/theme/publish [ja]": {
+            "url": "/theme/publish",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/login [ja]": {
+            "url": "/login",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/health [ja]": {
+            "url": "/health",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          }
+        },
+        "coverage": {
+          "swept": 29,
+          "enumerated": 29,
+          "uncovered": []
+        }
+      },
+      "platform-admin": {
+        "type": "spa",
+        "sweptRoutes": [
+          "/",
+          "/tenants/:id",
+          "/features",
+          "/roles",
+          "/audit",
+          "/impersonations",
+          "/approvals",
+          "/privacy",
+          "/settings/security",
+          "/translations",
+          "/login",
+          "/step-up",
+          "/health"
+        ],
+        "enumeratedRoutes": [
+          "/",
+          "/tenants/:id",
+          "/features",
+          "/roles",
+          "/audit",
+          "/impersonations",
+          "/approvals",
+          "/privacy",
+          "/settings/security",
+          "/translations",
+          "/login",
+          "/step-up",
+          "/health"
+        ],
+        "results": {
+          "/ [en]": {
+            "url": "/",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/tenants/:id [en]": {
+            "url": "/tenants/:id",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/features [en]": {
+            "url": "/features",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/roles [en]": {
+            "url": "/roles",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/audit [en]": {
+            "url": "/audit",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/impersonations [en]": {
+            "url": "/impersonations",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/approvals [en]": {
+            "url": "/approvals",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/privacy [en]": {
+            "url": "/privacy",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/settings/security [en]": {
+            "url": "/settings/security",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/translations [en]": {
+            "url": "/translations",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/login [en]": {
+            "url": "/login",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/step-up [en]": {
+            "url": "/step-up",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/health [en]": {
+            "url": "/health",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/ [ja]": {
+            "url": "/",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/tenants/:id [ja]": {
+            "url": "/tenants/:id",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/features [ja]": {
+            "url": "/features",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/roles [ja]": {
+            "url": "/roles",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/audit [ja]": {
+            "url": "/audit",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/impersonations [ja]": {
+            "url": "/impersonations",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/approvals [ja]": {
+            "url": "/approvals",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/privacy [ja]": {
+            "url": "/privacy",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/settings/security [ja]": {
+            "url": "/settings/security",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/translations [ja]": {
+            "url": "/translations",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/login [ja]": {
+            "url": "/login",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/step-up [ja]": {
+            "url": "/step-up",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/health [ja]": {
+            "url": "/health",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          }
+        },
+        "coverage": {
+          "swept": 13,
+          "enumerated": 13,
+          "uncovered": []
+        }
+      }
+    },
+    "totals": {
+      "critical": 0,
+      "serious": 0,
+      "moderate": 314,
+      "minor": 0,
+      "uncovered": 0
+    }
+  }
+}

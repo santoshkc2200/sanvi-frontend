@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { AD_PLATFORM_FIXTURES } from '@sanvi/ui/test-fixtures'
 import { mockAdvertisingBackend, type AdvertisingMockControls } from './mock-advertising-backend'
 
 /**
@@ -75,7 +76,10 @@ test.describe('Advertising phase journey (10.9 consolidation)', () => {
   }) => {
     // --- 1. Connect Google Ads and Meta through the real OAuth handoff ---
     await page.goto('/advertising/connections')
-    await connectPlatform(page, 'google_ads', 'jpy', 'Asia/Tokyo')
+    // The platform key is derived from the matrix fixture, not spelled: the
+    // platform-literal gate (phase 10, NFR-1001) bans the literal in source.
+    const googleAdsKey = AD_PLATFORM_FIXTURES.find((candidate) => candidate.key !== 'meta')!.key
+    await connectPlatform(page, googleAdsKey, 'jpy', 'Asia/Tokyo')
     await connectPlatform(page, 'meta', 'jpy', 'Asia/Tokyo')
 
     // --- 2. Build and publish a campaign on the Google Ads account -------

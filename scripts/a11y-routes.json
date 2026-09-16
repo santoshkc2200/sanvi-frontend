@@ -1,0 +1,90 @@
+{
+  "_readme": "The routes the axe sweep covers, per app (TASK-031). Coverage is asserted against the routes enumerated live from each app's route definitions (see scripts/check-a11y.mjs): a route defined but absent here is reported as uncovered, so adding a route means adding it to this list — the same conscious act as budgeting it. Seeded with every route that existed at TASK-031.",
+  "apps": {
+    "storefront": {
+      "type": "sveltekit",
+      "routes": [
+        "/",
+        "/_theme-preview",
+        "/checkout",
+        "/checkout/cancel",
+        "/checkout/return",
+        "/legal/cookies",
+        "/legal/privacy-notice",
+        "/legal/request-metrics",
+        "/legal/sub-processors",
+        "/link",
+        "/login",
+        "/privacy",
+        "/privacy/agent",
+        "/privacy/choices",
+        "/privacy/erasure",
+        "/privacy/limit-sensitive",
+        "/privacy/opt-out",
+        "/privacy/requests",
+        "/privacy/requests/[id]",
+        "/privacy/requests/[id]/appeal",
+        "/recovery",
+        "/registration",
+        "/settings/security",
+        "/verification"
+      ]
+    },
+    "marketing": {
+      "type": "sveltekit",
+      "routes": ["/", "/pricing", "/signup"]
+    },
+    "admin": {
+      "type": "spa",
+      "routes": [
+        "/",
+        "/billing",
+        "/activating",
+        "/onboarding",
+        "/settings",
+        "/settings/security",
+        "/members",
+        "/roles",
+        "/usage",
+        "/payments",
+        "/payments/settings",
+        "/payments/:id",
+        "/advertising/settings",
+        "/step-up",
+        "/domains",
+        "/domains/connect",
+        "/domains/purchase",
+        "/domains/:id",
+        "/privacy",
+        "/settings/localization",
+        "/theme",
+        "/theme/brand",
+        "/theme/colors",
+        "/theme/typography",
+        "/theme/layout",
+        "/theme/preview",
+        "/theme/publish",
+        "/login",
+        "/health"
+      ]
+    },
+    "platform-admin": {
+      "type": "spa",
+      "routes": [
+        "/",
+        "/tenants/:id",
+        "/features",
+        "/roles",
+        "/audit",
+        "/impersonations",
+        "/approvals",
+        "/privacy",
+        "/settings/security",
+        "/translations",
+        "/login",
+        "/step-up",
+        "/health"
+      ]
+    }
+  }
+}

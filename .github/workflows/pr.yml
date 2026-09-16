@@ -65,6 +65,56 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  benchmarks:
+    name: Perf & a11y harnesses (reporting-only)
+    runs-on: ubuntu-latest
+    # TASK-031 constraint: nothing here blocks. The three harnesses run
+    # reporting-only until their baselines exist and TASK-022 (budgets,
+    # Lighthouse) / TASK-027 (axe) switch them to blocking. A failed or
+    # regressed report is still visible on the PR — the job fails, the PR
+    # still merges, which is the intended behaviour at this stage.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm turbo run build
+
+      # The pinned browser (scripts/perf-profiles.json pins Chrome; the
+      # harnesses refuse to run on a different version).
+      - name: Install pinned Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: check:budget (report-only)
+        run: pnpm check:budget --report-only
+
+      - name: check:lighthouse (report-only)
+        run: pnpm check:lighthouse --report-only
+
+      - name: check:a11y (report-only)
+        run: pnpm check:a11y --report-only
+
+      - name: Upload harness artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks
+          path: |
+            benchmarks/frontend/*.json
+            apps/*/.lighthouseci/*.html
+          retention-days: 14
+          if-no-files-found: warn
+
   api-types-drift:
     name: OpenAPI types drift (advisory)
     runs-on: ubuntu-latest

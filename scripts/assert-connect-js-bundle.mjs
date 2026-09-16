@@ -7,7 +7,7 @@
  * - storefront/build/client must contain zero references.
  * Exits non-zero on violation so CI fails.
  */
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = new URL('..', import.meta.url).pathname
