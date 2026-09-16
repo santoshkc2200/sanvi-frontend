@@ -234,7 +234,7 @@ export function runAppBudgetCheck({ name, config, root }) {
   }
 }
 
-function formatAppReport(result) {
+export function formatAppReport(result) {
   if (result.skipped) return result.message
 
   const lines = [
@@ -268,6 +268,16 @@ function formatAppReport(result) {
   }
   if (result.routes.length === 0) {
     lines.push('  (no routes enumerated — was the app built?)')
+  }
+
+  // The flat chunk budget is blocking via runBudgetCheck's `ok` for both build
+  // shapes, and an SPA's initial JS is unmeasured — without this listing the
+  // gate exits 1 having printed nothing that names a failing chunk.
+  if (result.oversizedChunks.length > 0) {
+    lines.push(`✗ ${result.oversizedChunks.length} chunk(s) over the ${result.chunkKb} KB budget:`)
+    for (const chunk of result.oversizedChunks) {
+      lines.push(`    ${chunk.file}: ${chunk.kb.toFixed(1)} KB`)
+    }
   }
 
   return lines.join('\n')

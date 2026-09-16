@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { runBudgetCheck } from '../src/check-budget.mjs'
+import { formatAppReport, runBudgetCheck } from '../src/check-budget.mjs'
 
 const FIXTURES = fileURLToPath(new URL('../__fixtures__/', import.meta.url))
 
@@ -39,5 +39,36 @@ describe('check:budget gate', () => {
     })
     expect(result.ok).toBe(true)
     expect(result.skipped).toBe(true)
+  })
+})
+
+describe('formatAppReport — the --app/--all path', () => {
+  const failingSpaResult = {
+    ok: false,
+    skipped: false,
+    name: 'admin',
+    dir: 'apps/admin/dist',
+    totalKb: 300,
+    initialKbTotal: null,
+    initialKb: 250,
+    chunkKb: 5,
+    oversizedChunks: [{ file: 'apps/admin/dist/assets/Dashboard-Cj2_.js', kb: 42.7 }],
+    svelteKit: false,
+    routes: [],
+    routeKb: 16,
+    routesMissing: 0,
+    routeOk: true,
+  }
+
+  it('names the oversized chunks on a failing SPA — initial JS is unmeasured there, so this listing is the only blocking output', () => {
+    const report = formatAppReport(failingSpaResult)
+    expect(report).toContain('1 chunk(s) over the 5 KB budget:')
+    expect(report).toContain('Dashboard-Cj2_.js: 42.7 KB')
+  })
+
+  it('lists them for the sveltekit shape too — `ok` counts oversized chunks for both shapes', () => {
+    const report = formatAppReport({ ...failingSpaResult, svelteKit: true, initialKbTotal: 120 })
+    expect(report).toContain('1 chunk(s) over the 5 KB budget:')
+    expect(report).toContain('Dashboard-Cj2_.js: 42.7 KB')
   })
 })
