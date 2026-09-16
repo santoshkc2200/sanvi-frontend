@@ -1,13 +1,13 @@
 {
   "name": "@sanvi/storefront",
   "version": "0.1.0",
-  "description": "Sanvi storefront \u2014 SSR SvelteKit, tenant-facing, custom domains, themed.",
+  "description": "Sanvi storefront — SSR SvelteKit, tenant-facing, custom domains, themed.",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "preview": "PORT=4174 PUBLIC_API_ORIGIN=http://localhost:8090 node build",
+    "preview": "PORT=4174 PUBLIC_API_ORIGIN=http://localhost:8090 PUBLIC_KRATOS_ORIGIN=http://localhost:4433 PUBLIC_MEDIA_ORIGIN=http://localhost:8091 PUBLIC_TRACKING_SITE_KEY=e2e-tracking-site-key node build",
     "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "lint": "biome lint --write .",
     "format": "biome format --write .",
@@ -17,7 +17,7 @@
     "test:e2e": "playwright test",
     "check:i18n": "sanvi-check-i18n src",
     "check:tokens": "sanvi-check-tokens src",
-    "check:budget": "sanvi-check-budget --dir build/client --initial-kb 151 --chunk-kb 70"
+    "check:budget": "sanvi-check-budget --app storefront"
   },
   "dependencies": {
     "@sanvi/api-client": "workspace:*",

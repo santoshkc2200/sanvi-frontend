@@ -8,20 +8,36 @@
  *   | Admin initial JS (gzip)         | ≤ 250 KB          |
  *   | Any single route chunk          | ≤ 50 KB           |
  *
- * The per-chunk budget is enforced unconditionally — every `.js` file in
- * the build output is gzipped and checked, regardless of app shape.
+ * Phase 11 (TASK-031) adds the **per-route** dimension: an app total inside
+ * budget can hide one route at four times its share, and that route is
+ * somebody's landing page. Per-app values (including the per-route budget)
+ * live in `scripts/budgets.json`, seeded from the current build plus a small
+ * margin; TASK-022 tightens them to the targets above.
+ *
+ * Two invocation shapes:
+ *
+ *   sanvi-check-budget --app <name> [--report-only]      whole workspace view:
+ *       initial + total + per-route table for that app, from budgets.json
+ *   sanvi-check-budget --all [--report-only]             every app in budgets.json
+ *   sanvi-check-budget --dir <dir> [--initial-kb N] [--chunk-kb N]
+ *       legacy single-directory shape (still what the unit tests exercise)
+ *
+ * `--report-only` prints the same table but never fails the process — the
+ * "baseline first, gate second" invariant: budgets become blocking in
+ * TASK-022, and until then the gate must not block a build.
  *
  * The *initial* budget is precise for SvelteKit's `adapter-node` output
  * (`_app/immutable/entry/` + `_app/immutable/chunks/`, summed and checked
- * — `_app/immutable/nodes/` is per-route code, excluded). For a Vite SPA
- * build there's no such directory convention to key off without reading a
- * `manifest.json` this script doesn't generate, so the total is reported
- * for visibility but not hard-enforced — tightening that is a follow-up
- * once each SPA's real route count makes a manifest-based check worth it.
+ * — `_app/immutable/nodes/` is per-route code). For a Vite SPA build there's
+ * no such directory convention to key off, so the total is reported for
+ * visibility but not hard-enforced — the per-route chunks are what carry the
+ * SPA budget until a manifest-based initial check is worth it.
  */
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join, sep } from 'node:path'
 import { gzipSync } from 'node:zlib'
+import { findWorkspaceRoot } from './perf-profiles.mjs'
+import { listRoutes } from './routes.mjs'
 import { isDirectory, isMainEntryPoint, walkFiles } from './walk-files.mjs'
 
 function gzipSizeKb(filePath) {
@@ -30,13 +46,35 @@ function gzipSizeKb(filePath) {
 }
 
 function parseArgs(argv) {
-  const args = { dir: undefined, initialKb: 100, chunkKb: 50 }
+  const args = {
+    dir: undefined,
+    app: undefined,
+    all: false,
+    reportOnly: false,
+    initialKb: 100,
+    chunkKb: 50,
+    routeKb: undefined,
+  }
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--dir') args.dir = argv[++i]
+    else if (argv[i] === '--app') args.app = argv[++i]
+    else if (argv[i] === '--all') args.all = true
+    else if (argv[i] === '--report-only') args.reportOnly = true
     else if (argv[i] === '--initial-kb') args.initialKb = Number(argv[++i])
     else if (argv[i] === '--chunk-kb') args.chunkKb = Number(argv[++i])
+    else if (argv[i] === '--route-kb') args.routeKb = Number(argv[++i])
   }
   return args
+}
+
+/**
+ * Per-app budget config from `scripts/budgets.json` — the single place a
+ * budget number is written. Values are KB, gzip, derived from the current
+ * build plus a small margin (TASK-031); TASK-022 tightens them to targets.
+ */
+export function loadBudgets({ root = findWorkspaceRoot() } = {}) {
+  const file = join(root, 'scripts', 'budgets.json')
+  return JSON.parse(readFileSync(file, 'utf8'))
 }
 
 function isSvelteKitClientOutput(dir) {
@@ -44,19 +82,59 @@ function isSvelteKitClientOutput(dir) {
 }
 
 /**
+ * Per-route gzipped sizes. SvelteKit routes map to their manifest leaf node's
+ * client chunk (`_app/immutable/nodes/<n>.<hash>.js`); SPA routes to the lazy
+ * component chunk the Vite manifest (`manifest: true`) maps their source file
+ * to. A route whose chunk is missing gets a
+ * null size — reported as missing, never silently dropped: a route that
+ * stopped producing a chunk is exactly the kind of thing the table exists to surface.
+ *
+ * @returns {{ id: string, kb: number|null }[]}
+ */
+export function routeSizes(appRoot, type, buildDir) {
+  const routes = listRoutes(appRoot, type)
+  if (!routes) return []
+
+  return routes.map((route) => {
+    if (type === 'sveltekit') {
+      if (route.leaf === null) return { id: route.id, kb: null }
+      const nodesDir = join(buildDir, '_app', 'immutable', 'nodes')
+      let kb = null
+      try {
+        for (const name of readdirSync(nodesDir)) {
+          // `<leaf>.<hash>.js` — match the leaf index exactly (12. not 1.)
+          if (new RegExp(`^${route.leaf}\\.[A-Za-z0-9_-]+\\.js$`).test(name)) {
+            kb = gzipSizeKb(join(nodesDir, name))
+            break
+          }
+        }
+      } catch {
+        // nodes dir missing — stays null, reported as missing
+      }
+      return { id: route.id, kb }
+    }
+
+    // SPA: source file → chunk via the Vite manifest (`manifest: true` in the
+    // app's vite config). Component basenames are ambiguous — root and
+    // advertising each have a `Dashboard-*.js` — so a missing manifest means
+    // *no number*, never a guess: a reported null is honest, a wrong chunk's
+    // size feeds the gate a fiction.
+    if (!route.sourcePath) return { id: route.id, kb: null }
+    const manifestPath = join(buildDir, '.vite', 'manifest.json')
+    let kb = null
+    try {
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+      const entry = manifest[join('src', route.sourcePath)]
+      if (entry?.file) kb = gzipSizeKb(join(buildDir, entry.file))
+    } catch {
+      // manifest missing/unparseable — stays null, reported as missing
+    }
+    return { id: route.id, kb }
+  })
+}
+
+/**
  * @param {{ dir: string, initialKb: number, chunkKb: number }} args
- * @returns {{
- *   ok: boolean,
- *   skipped: boolean,
- *   message?: string,
- *   dir?: string,
- *   totalKb: number,
- *   initialKbTotal: number | null,
- *   initialKb: number,
- *   chunkKb: number,
- *   oversizedChunks: { file: string, kb: number }[],
- *   svelteKit: boolean,
- * }}
  */
 export function runBudgetCheck({ dir, initialKb, chunkKb }) {
   if (!isDirectory(dir)) {
@@ -107,6 +185,104 @@ export function runBudgetCheck({ dir, initialKb, chunkKb }) {
   }
 }
 
+/**
+ * Budget check for one app from `scripts/budgets.json`, with the per-route
+ * dimension added.
+ *
+ * `ok` — the process-failing verdict — carries only the dimensions the
+ * phase-00 gate already blocked on (initial JS, flat chunk budget). The
+ * per-route dimension (`routeOk`) is **reporting-only until TASK-022**: the
+ * route budgets were seeded with thin margins precisely so TASK-022 can
+ * tighten them, and a gate switched on before its baseline exists is a gate
+ * someone disables in week one.
+ *
+ * @param {{ name: string, config: { type: 'sveltekit'|'spa', initialKb: number, chunkKb: number, routeKb: number }, root: string }} params
+ */
+export function runAppBudgetCheck({ name, config, root }) {
+  const appRoot = join(root, 'apps', name)
+  const buildDir = join(appRoot, config.type === 'sveltekit' ? join('build', 'client') : 'dist')
+  const base = runBudgetCheck({
+    dir: buildDir,
+    initialKb: config.initialKb,
+    chunkKb: config.chunkKb,
+  })
+
+  if (base.skipped) {
+    return {
+      ...base,
+      name,
+      routes: [],
+      routeKb: config.routeKb,
+      routesMissing: 0,
+      routeOk: true,
+    }
+  }
+
+  const sizes = routeSizes(appRoot, config.type, buildDir)
+  const routes = sizes.map((r) => ({ ...r, over: r.kb !== null && r.kb > config.routeKb }))
+  const routesMissing = routes.filter((r) => r.kb === null).length
+  const anyRouteOver = routes.some((r) => r.over)
+
+  return {
+    ...base,
+    ok: base.ok,
+    name,
+    routes,
+    routeKb: config.routeKb,
+    routesMissing,
+    routeOk: !anyRouteOver && routesMissing === 0,
+  }
+}
+
+export function formatAppReport(result) {
+  if (result.skipped) return result.message
+
+  const lines = [
+    `==> ${result.name} (${result.svelteKit ? 'sveltekit' : 'spa'})`,
+    `Build output: ${result.dir}`,
+    `Total JS (gzip): ${result.totalKb.toFixed(1)} KB`,
+  ]
+
+  if (result.initialKbTotal !== null) {
+    const status = result.initialKbTotal > result.initialKb ? '✗' : '✓'
+    lines.push(
+      `${status} Initial JS (entry+chunks, gzip): ${result.initialKbTotal.toFixed(1)} KB / ${result.initialKb} KB budget`,
+    )
+  } else {
+    lines.push(
+      `  Initial JS: not measured for this build shape (no _app/immutable convention) — total reported above for visibility only.`,
+    )
+  }
+
+  lines.push(`Per-route (budget ${result.routeKb} KB — reporting-only until TASK-022):`)
+  for (const route of result.routes) {
+    if (route.kb === null) {
+      lines.push(`  ? ${route.id} — chunk not found in build output`)
+    } else if (route.over) {
+      lines.push(
+        `  ✗ ${route.id}: ${route.kb.toFixed(1)} KB — over by ${(route.kb - result.routeKb).toFixed(2)} KB (non-blocking)`,
+      )
+    } else {
+      lines.push(`  ✓ ${route.id}: ${route.kb.toFixed(1)} KB`)
+    }
+  }
+  if (result.routes.length === 0) {
+    lines.push('  (no routes enumerated — was the app built?)')
+  }
+
+  // The flat chunk budget is blocking via runBudgetCheck's `ok` for both build
+  // shapes, and an SPA's initial JS is unmeasured — without this listing the
+  // gate exits 1 having printed nothing that names a failing chunk.
+  if (result.oversizedChunks.length > 0) {
+    lines.push(`✗ ${result.oversizedChunks.length} chunk(s) over the ${result.chunkKb} KB budget:`)
+    for (const chunk of result.oversizedChunks) {
+      lines.push(`    ${chunk.file}: ${chunk.kb.toFixed(1)} KB`)
+    }
+  }
+
+  return lines.join('\n')
+}
+
 function formatReport(result) {
   if (result.skipped) return result.message
 
@@ -137,9 +313,37 @@ function formatReport(result) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2))
+  const root = findWorkspaceRoot()
+
+  if (args.app || args.all) {
+    const budgets = loadBudgets({ root })
+    const names = args.all ? Object.keys(budgets.apps) : [args.app]
+    const unknown = names.filter((name) => !budgets.apps[name])
+    if (unknown.length > 0) {
+      console.error(`check:budget: unknown app(s) in budgets.json: ${unknown.join(', ')}`)
+      process.exit(2)
+    }
+
+    let failed = false
+    for (const name of names) {
+      const result = runAppBudgetCheck({ name, config: budgets.apps[name], root })
+      console.log(formatAppReport(result))
+      if (!result.ok) failed = true
+      if (!result.routeOk) {
+        console.log(
+          '  per-route: reporting-only until TASK-022 — over/missing routes do not fail this gate',
+        )
+      }
+    }
+    if (failed && !args.reportOnly) process.exit(1)
+    if (args.reportOnly && failed)
+      console.log('\n(report-only — nothing here fails the build; blocking returns with TASK-022)')
+    return
+  }
+
   if (!args.dir) {
     console.error(
-      'Usage: sanvi-check-budget --dir <build-output-dir> [--initial-kb N] [--chunk-kb N]',
+      'Usage: sanvi-check-budget (--app <name> | --all) [--report-only] | --dir <build-output-dir> [--initial-kb N] [--chunk-kb N] [--route-kb N] [--report-only]',
     )
     process.exit(2)
   }
@@ -147,7 +351,9 @@ async function main() {
   const result = runBudgetCheck(args)
   console.log(formatReport(result))
 
-  if (!result.ok && !result.skipped) process.exit(1)
+  if (!result.ok && !result.skipped && !args.reportOnly) process.exit(1)
+  if (args.reportOnly && !result.ok && !result.skipped)
+    console.log('\n(report-only — nothing here fails the build; blocking returns with TASK-022)')
 }
 
 if (isMainEntryPoint(import.meta.url)) {

@@ -14,7 +14,10 @@
     "./check-i18n": "./src/check-i18n.mjs",
     "./check-tokens": "./src/check-tokens.mjs",
     "./check-budget": "./src/check-budget.mjs",
-    "./check-boundaries": "./src/check-boundaries.mjs"
+    "./check-boundaries": "./src/check-boundaries.mjs",
+    "./perf-profiles": "./src/perf-profiles.mjs",
+    "./routes": "./src/routes.mjs",
+    "./walk-files": "./src/walk-files.mjs"
   },
   "scripts": {
     "lint": "biome lint --write .",

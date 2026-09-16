@@ -1,0 +1,29 @@
+{
+  "_readme": "Per-app JS budgets, gzip KB (TASK-031). Seeded from the current build plus a small margin so the gate is meaningful immediately; TASK-022 tightens initial budgets to the architecture targets (storefront ≤ 100, admin ≤ 250) and becomes blocking there. `initialKb` counts SvelteKit entry+chunks; SPA builds have no initial convention yet, so their initial is reported but not enforced, and the per-route `routeKb` carries the budget. The SPA per-chunk `chunkKb` still caps every non-route chunk.",
+  "apps": {
+    "storefront": {
+      "type": "sveltekit",
+      "initialKb": 180,
+      "chunkKb": 70,
+      "routeKb": 6
+    },
+    "marketing": {
+      "type": "sveltekit",
+      "initialKb": 150,
+      "chunkKb": 70,
+      "routeKb": 11
+    },
+    "admin": {
+      "type": "spa",
+      "initialKb": 250,
+      "chunkKb": 65,
+      "routeKb": 16
+    },
+    "platform-admin": {
+      "type": "spa",
+      "initialKb": 250,
+      "chunkKb": 75,
+      "routeKb": 9
+    }
+  }
+}

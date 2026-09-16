@@ -86,6 +86,12 @@ never sideways between apps.
 CI fails on budget regression. Fonts are self-hosted and subset — Japanese subsets are large enough
 that this is a real budget item, not a formality.
 
+Since phase 11 (TASK-031) the enforced values live in `scripts/budgets.json` (per app **and per
+route**, seeded from the current build + margin; the table above is the target TASK-022 tightens to,
+at which point the gate becomes blocking). The measurement harnesses are pinned by
+`scripts/perf-profiles.json`; every artifact under `benchmarks/frontend/` embeds the profile it ran
+under and `pnpm bench:compare` refuses cross-profile comparisons.
+
 ## 7. Accessibility
 
 WCAG 2.2 AA as the baseline: semantic HTML first, keyboard paths for every interaction, visible focus,

@@ -9,6 +9,12 @@ coverage/
 playwright-report/
 test-results/
 .turbo/
+.lighthouseci/
+
+# harness artifacts written next to the committed baseline — regenerable runs
+benchmarks/frontend/lighthouse.json
+benchmarks/frontend/axe.json
+benchmarks/frontend/lhci/
 
 *.local
 .env

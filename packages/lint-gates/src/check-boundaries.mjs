@@ -21,9 +21,9 @@
  */
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve, sep } from 'node:path'
-import { isMainEntryPoint, walkFiles } from './walk-files.mjs'
-import { scanWorkspace as scanPlatformLiterals } from './check-platform-literals.mjs'
 import { scanWorkspace as scanBlendedAttribution } from './check-no-blended-attribution.mjs'
+import { scanWorkspace as scanPlatformLiterals } from './check-platform-literals.mjs'
+import { isMainEntryPoint, walkFiles } from './walk-files.mjs'
 
 const IMPORT_PATTERN =
   /(?:import|export)(?:[^'";]*?from)?\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g
@@ -175,11 +175,7 @@ async function main() {
   const literalViolations = scanPlatformLiterals(resolvedRoot)
   const blendedViolations = scanBlendedAttribution(resolvedRoot)
 
-  if (
-    violations.length === 0 &&
-    literalViolations.length === 0 &&
-    blendedViolations.length === 0
-  ) {
+  if (violations.length === 0 && literalViolations.length === 0 && blendedViolations.length === 0) {
     console.log(
       '✓ check:boundaries — no import-boundary, platform-literal, or blended-attribution violations found',
     )
