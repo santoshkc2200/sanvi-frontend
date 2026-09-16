@@ -13,6 +13,11 @@ const routes: RouteDefinition[] = [
     load: () => import('./routes/PaymentDetail.svelte'),
   },
   {
+    // nested route directory — the enumerator must survive the slash
+    path: 'advertising/dashboard',
+    load: () => import('./routes/advertising/Dashboard.svelte'),
+  },
+  {
     path: 'no-load-here',
     // deliberately no load import — must be skipped by the enumerator
     guard: () => true,

@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generatedAt": "2026-09-16T04:26:57.907Z",
-    "buildSha": "9948d66",
+    "generatedAt": "2026-09-16T06:50:32.973Z",
+    "buildSha": "2bbae0e",
     "lab": true,
     "profile": {
       "meta": {
@@ -66,9 +66,9 @@
   "budget": {
     "storefront": {
       "type": "sveltekit",
-      "initialKb": 167.6533203125,
+      "initialKb": 167.63671875,
       "initialBudgetKb": 180,
-      "totalKb": 217.08,
+      "totalKb": 217.04,
       "routeKb": 6,
       "routes": [
         {
@@ -153,7 +153,7 @@
         },
         {
           "id": "/recovery",
-          "kb": 1.1
+          "kb": 1.09
         },
         {
           "id": "/registration",
@@ -173,9 +173,9 @@
     },
     "marketing": {
       "type": "sveltekit",
-      "initialKb": 138.521484375,
+      "initialKb": 138.515625,
       "initialBudgetKb": 150,
-      "totalKb": 151.82,
+      "totalKb": 151.81,
       "routeKb": 11,
       "routes": [
         {
@@ -203,7 +203,7 @@
       "routes": [
         {
           "id": "/",
-          "kb": 12.06
+          "kb": 1.7
         },
         {
           "id": "/billing",
@@ -252,6 +252,70 @@
         {
           "id": "/advertising/settings",
           "kb": 1.63
+        },
+        {
+          "id": "/advertising/connections",
+          "kb": 5.06
+        },
+        {
+          "id": "/advertising/dashboard",
+          "kb": 12.06
+        },
+        {
+          "id": "/advertising/campaigns",
+          "kb": 6.21
+        },
+        {
+          "id": "/advertising/campaigns/new",
+          "kb": 11.13
+        },
+        {
+          "id": "/advertising/campaigns/:id",
+          "kb": 5.41
+        },
+        {
+          "id": "/advertising/campaigns/:id/edit",
+          "kb": 11.13
+        },
+        {
+          "id": "/advertising/creatives",
+          "kb": 11.15
+        },
+        {
+          "id": "/advertising/campaigns/:id/drift",
+          "kb": 3.21
+        },
+        {
+          "id": "/advertising/tracking",
+          "kb": 4.64
+        },
+        {
+          "id": "/advertising/conversions",
+          "kb": 2.5
+        },
+        {
+          "id": "/advertising/diagnostics",
+          "kb": 7.38
+        },
+        {
+          "id": "/advertising/audiences",
+          "kb": 3.39
+        },
+        {
+          "id": "/advertising/budget",
+          "kb": 8.01
+        },
+        {
+          "id": "/advertising/budget/alerts",
+          "kb": 2.56
+        },
+        {
+          "id": "/advertising/connect/:platform/callback",
+          "kb": 1.16
+        },
+        {
+          "id": "/advertising/connect/:platform",
+          "kb": 2.72
         },
         {
           "id": "/step-up",
@@ -387,7 +451,7 @@
   },
   "lighthouse": {
     "harness": "lighthouse",
-    "generatedAt": "2026-09-16T04:19:08.961Z",
+    "generatedAt": "2026-09-16T06:42:59.041Z",
     "lab": true,
     "profile": {
       "pins": {
@@ -404,16 +468,16 @@
       "chromeBinary": "/Users/hitohospital/Library/Caches/ms-playwright/chromium-1237/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
     },
     "localeCoverage": "Lighthouse drives the SSR apps (storefront, marketing) per locale through their /{locale} URL prefixes. The SPAs (admin, platform-admin) negotiate locale from the sanvi_locale cookie, which Lighthouse cannot set, so SPA Lighthouse runs report the default locale only — recorded honestly per artifact, not hidden. The axe sweep covers both locales for all four apps via cookie or prefix.",
-    "buildSha": "9948d66",
+    "buildSha": "2bbae0e",
     "apps": {
       "storefront": {
         "/": {
           "locale": "en",
           "runs": 3,
-          "lcpMs": 1430,
-          "lcpMsSpread": 60,
-          "tbtMs": 13,
-          "tbtMsSpread": 33,
+          "lcpMs": 1401,
+          "lcpMsSpread": 47,
+          "tbtMs": 0,
+          "tbtMsSpread": 0,
           "cls": 0,
           "clsSpread": 0,
           "performance": 1,
@@ -428,10 +492,10 @@
         "/ja/": {
           "locale": "ja",
           "runs": 3,
-          "lcpMs": 2076,
-          "lcpMsSpread": 23,
+          "lcpMs": 2003,
+          "lcpMsSpread": 76,
           "tbtMs": 0,
-          "tbtMsSpread": 1,
+          "tbtMsSpread": 0,
           "cls": 0.1369,
           "clsSpread": 0,
           "performance": 0.92,
@@ -448,14 +512,14 @@
         "/": {
           "locale": "en",
           "runs": 3,
-          "lcpMs": 2032,
-          "lcpMsSpread": 191,
+          "lcpMs": 1982,
+          "lcpMsSpread": 60,
           "tbtMs": 0,
           "tbtMsSpread": 0,
           "cls": 0,
           "clsSpread": 0,
-          "performance": 0.97,
-          "performanceSpread": 0.02,
+          "performance": 0.98,
+          "performanceSpread": 0.01,
           "accessibility": 1,
           "accessibilitySpread": 0,
           "bestPractices": 1,
@@ -466,14 +530,14 @@
         "/ja/": {
           "locale": "ja",
           "runs": 3,
-          "lcpMs": 2709,
-          "lcpMsSpread": 159,
+          "lcpMs": 2541,
+          "lcpMsSpread": 12,
           "tbtMs": 0,
-          "tbtMsSpread": 11,
+          "tbtMsSpread": 0,
           "cls": 0.0034,
           "clsSpread": 0,
-          "performance": 0.91,
-          "performanceSpread": 0.02,
+          "performance": 0.93,
+          "performanceSpread": 0,
           "accessibility": 1,
           "accessibilitySpread": 0,
           "bestPractices": 1,
@@ -486,13 +550,13 @@
         "/": {
           "locale": "en",
           "runs": 3,
-          "lcpMs": 2863,
-          "lcpMsSpread": 81,
+          "lcpMs": 2745,
+          "lcpMsSpread": 131,
           "tbtMs": 0,
           "tbtMsSpread": 0,
           "cls": 0,
           "clsSpread": 0,
-          "performance": 0.9,
+          "performance": 0.91,
           "performanceSpread": 0.01,
           "accessibility": 1,
           "accessibilitySpread": 0,
@@ -506,14 +570,14 @@
         "/": {
           "locale": "en",
           "runs": 3,
-          "lcpMs": 2711,
-          "lcpMsSpread": 81,
+          "lcpMs": 2795,
+          "lcpMsSpread": 130,
           "tbtMs": 0,
           "tbtMsSpread": 0,
           "cls": 0,
           "clsSpread": 0,
-          "performance": 0.92,
-          "performanceSpread": 0.01,
+          "performance": 0.91,
+          "performanceSpread": 0.02,
           "accessibility": 1,
           "accessibilitySpread": 0,
           "bestPractices": 0.96,
@@ -526,7 +590,7 @@
   },
   "axe": {
     "harness": "axe",
-    "generatedAt": "2026-09-16T04:26:35.187Z",
+    "generatedAt": "2026-09-16T06:50:06.646Z",
     "lab": true,
     "profile": {
       "pins": {
@@ -542,7 +606,7 @@
       },
       "device": "desktop-chromium"
     },
-    "buildSha": "9948d66",
+    "buildSha": "2bbae0e",
     "apps": {
       "storefront": {
         "type": "sveltekit",
@@ -1768,6 +1832,22 @@
           "/payments/settings",
           "/payments/:id",
           "/advertising/settings",
+          "/advertising/connections",
+          "/advertising/dashboard",
+          "/advertising/campaigns",
+          "/advertising/campaigns/new",
+          "/advertising/campaigns/:id",
+          "/advertising/campaigns/:id/edit",
+          "/advertising/creatives",
+          "/advertising/campaigns/:id/drift",
+          "/advertising/tracking",
+          "/advertising/conversions",
+          "/advertising/diagnostics",
+          "/advertising/audiences",
+          "/advertising/budget",
+          "/advertising/budget/alerts",
+          "/advertising/connect/:platform/callback",
+          "/advertising/connect/:platform",
           "/step-up",
           "/domains",
           "/domains/connect",
@@ -1799,6 +1879,22 @@
           "/payments/settings",
           "/payments/:id",
           "/advertising/settings",
+          "/advertising/connections",
+          "/advertising/dashboard",
+          "/advertising/campaigns",
+          "/advertising/campaigns/new",
+          "/advertising/campaigns/:id",
+          "/advertising/campaigns/:id/edit",
+          "/advertising/creatives",
+          "/advertising/campaigns/:id/drift",
+          "/advertising/tracking",
+          "/advertising/conversions",
+          "/advertising/diagnostics",
+          "/advertising/audiences",
+          "/advertising/budget",
+          "/advertising/budget/alerts",
+          "/advertising/connect/:platform/callback",
+          "/advertising/connect/:platform",
           "/step-up",
           "/domains",
           "/domains/connect",
@@ -2119,6 +2215,406 @@
           },
           "/advertising/settings [en]": {
             "url": "/advertising/settings",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/connections [en]": {
+            "url": "/advertising/connections",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/dashboard [en]": {
+            "url": "/advertising/dashboard",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/campaigns [en]": {
+            "url": "/advertising/campaigns",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/campaigns/new [en]": {
+            "url": "/advertising/campaigns/new",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/campaigns/:id [en]": {
+            "url": "/advertising/campaigns/:id",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/campaigns/:id/edit [en]": {
+            "url": "/advertising/campaigns/:id/edit",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/creatives [en]": {
+            "url": "/advertising/creatives",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/campaigns/:id/drift [en]": {
+            "url": "/advertising/campaigns/:id/drift",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/tracking [en]": {
+            "url": "/advertising/tracking",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/conversions [en]": {
+            "url": "/advertising/conversions",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/diagnostics [en]": {
+            "url": "/advertising/diagnostics",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/audiences [en]": {
+            "url": "/advertising/audiences",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/budget [en]": {
+            "url": "/advertising/budget",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/budget/alerts [en]": {
+            "url": "/advertising/budget/alerts",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/connect/:platform/callback [en]": {
+            "url": "/advertising/connect/:platform/callback",
+            "locale": "en",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/connect/:platform [en]": {
+            "url": "/advertising/connect/:platform",
             "locale": "en",
             "violations": {
               "critical": 0,
@@ -2867,6 +3363,406 @@
               }
             ]
           },
+          "/advertising/connections [ja]": {
+            "url": "/advertising/connections",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/dashboard [ja]": {
+            "url": "/advertising/dashboard",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/campaigns [ja]": {
+            "url": "/advertising/campaigns",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/campaigns/new [ja]": {
+            "url": "/advertising/campaigns/new",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/campaigns/:id [ja]": {
+            "url": "/advertising/campaigns/:id",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/campaigns/:id/edit [ja]": {
+            "url": "/advertising/campaigns/:id/edit",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/creatives [ja]": {
+            "url": "/advertising/creatives",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/campaigns/:id/drift [ja]": {
+            "url": "/advertising/campaigns/:id/drift",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/tracking [ja]": {
+            "url": "/advertising/tracking",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/conversions [ja]": {
+            "url": "/advertising/conversions",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/diagnostics [ja]": {
+            "url": "/advertising/diagnostics",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/audiences [ja]": {
+            "url": "/advertising/audiences",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/budget [ja]": {
+            "url": "/advertising/budget",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/budget/alerts [ja]": {
+            "url": "/advertising/budget/alerts",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/connect/:platform/callback [ja]": {
+            "url": "/advertising/connect/:platform/callback",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
+          "/advertising/connect/:platform [ja]": {
+            "url": "/advertising/connect/:platform",
+            "locale": "ja",
+            "violations": {
+              "critical": 0,
+              "serious": 0,
+              "moderate": 2,
+              "minor": 0
+            },
+            "total": 2,
+            "findings": [
+              {
+                "id": "landmark-one-main",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Document should have one main landmark"
+              },
+              {
+                "id": "page-has-heading-one",
+                "impact": "moderate",
+                "nodes": 1,
+                "help": "Page should contain a level-one heading"
+              }
+            ]
+          },
           "/step-up [ja]": {
             "url": "/step-up",
             "locale": "ja",
@@ -3269,8 +4165,8 @@
           }
         },
         "coverage": {
-          "swept": 29,
-          "enumerated": 29,
+          "swept": 45,
+          "enumerated": 45,
           "uncovered": []
         }
       },
@@ -3968,7 +4864,7 @@
     "totals": {
       "critical": 0,
       "serious": 0,
-      "moderate": 314,
+      "moderate": 378,
       "minor": 0,
       "uncovered": 0
     }

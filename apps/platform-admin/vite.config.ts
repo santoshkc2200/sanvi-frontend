@@ -49,6 +49,10 @@ export default defineConfig(({ mode }) => {
       // main.ts top-level-awaits session bootstrap — the default `modules`
       // target (es2020 baseline) rejects top-level await at build time.
       target: 'es2022',
+      // Emits dist/.vite/manifest.json: source file → chunk file. The
+      // per-route budget gate maps routes to chunks through it — component
+      // basenames alone are ambiguous across route subdirectories.
+      manifest: true,
       rollupOptions: {
         output: {
           manualChunks: {

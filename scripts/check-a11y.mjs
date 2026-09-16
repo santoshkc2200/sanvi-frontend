@@ -25,6 +25,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
+import { loadBudgets } from '@sanvi/lint-gates/check-budget'
 import { findWorkspaceRoot, loadPerfProfiles } from '@sanvi/lint-gates/perf-profiles'
 import { listRoutes } from '@sanvi/lint-gates/routes'
 import { isMainEntryPoint } from '@sanvi/lint-gates/walk-files'
@@ -34,13 +35,10 @@ const require = createRequire(import.meta.url)
 const ROOT = findWorkspaceRoot()
 const PROFILES = loadPerfProfiles({ root: ROOT })
 
-/** Mirrors the ports in lighthouserc.cjs APPS. */
-const PORTS = {
-  storefront: 4174,
-  marketing: 4173,
-  admin: 4175,
-  'platform-admin': 4176,
-}
+// Ports live in lighthouserc.cjs APPS — the serving topology has one home.
+// A local copy here drifted the moment someone changed a port in the config.
+const { APPS } = require(join(ROOT, 'lighthouserc.cjs'))
+const PORTS = Object.fromEntries(Object.entries(APPS).map(([name, cfg]) => [name, cfg.port]))
 
 function parseArgs(argv) {
   const args = {
@@ -134,10 +132,36 @@ export async function sweepA11y({ apps, locales }) {
   try {
     for (const app of apps) {
       const appRoot = join(ROOT, 'apps', app)
-      const type = sweepList.apps[app]?.type ?? 'spa'
-      const sweptRoutes = sweepList.apps[app]?.routes ?? []
+      const sweepEntry = sweepList.apps[app]
+      // No sweep entry at all is itself a coverage failure — the app landed
+      // without ever being added to the sweep list. Defaulting its type would
+      // enumerate via the wrong strategy and report a vacuous 0/0 pass; known
+      // types come from budgets.json, the one place app shape is declared.
+      const type = sweepEntry?.type ?? loadBudgets({ root: ROOT }).apps[app]?.type
       const enumerated = listRoutes(appRoot, type) ?? []
       const enumeratedIds = enumerated.map((r) => r.id)
+      const sweptRoutes = sweepEntry?.routes ?? []
+
+      if (!sweepEntry) {
+        artifact.apps[app] = {
+          type: type ?? 'unknown',
+          sweptRoutes: [],
+          enumeratedRoutes: enumeratedIds,
+          results: {},
+          coverage: {
+            swept: 0,
+            enumerated: enumeratedIds.length,
+            uncovered: enumeratedIds,
+            reason: 'no entry in scripts/a11y-routes.json',
+          },
+        }
+        artifact.totals.uncovered += enumeratedIds.length
+        console.log(
+          `\n==> ${app} — NO SWEEP ENTRY: all ${enumeratedIds.length} enumerated routes count as uncovered` +
+            `\n    add the app to scripts/a11y-routes.json (type: ${type ?? '?'})`,
+        )
+        continue
+      }
 
       console.log(
         `\n==> ${app} — ${sweptRoutes.length} sweep-list routes, ${enumeratedIds.length} enumerated`,

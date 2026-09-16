@@ -30,16 +30,32 @@ describe('listSpaRoutes', () => {
 
   it('pairs each path with its own lazy import, across comments and one-liners', () => {
     expect(listSpaRoutes(appRoot)).toEqual([
-      { id: '/', leaf: null, component: 'Dashboard' },
-      { id: '/payments/:id', leaf: null, component: 'PaymentDetail' },
-      { id: '/login', leaf: null, component: 'Login' },
+      { id: '/', leaf: null, component: 'Dashboard', sourcePath: 'routes/Dashboard.svelte' },
+      {
+        id: '/payments/:id',
+        leaf: null,
+        component: 'PaymentDetail',
+        sourcePath: 'routes/PaymentDetail.svelte',
+      },
+      {
+        id: '/advertising/dashboard',
+        leaf: null,
+        component: 'Dashboard',
+        sourcePath: 'routes/advertising/Dashboard.svelte',
+      },
+      { id: '/login', leaf: null, component: 'Login', sourcePath: 'routes/Login.svelte' },
     ])
+  })
+
+  it('enumerates routes in nested route directories, not only top-level files', () => {
+    const ids = listSpaRoutes(appRoot)?.map((r) => r.id) ?? []
+    expect(ids).toContain('/advertising/dashboard')
   })
 
   it('skips records without a load import instead of stealing the next component', () => {
     const components = listSpaRoutes(appRoot)?.map((r) => r.component) ?? []
     expect(components).not.toContain('Login2')
-    expect(components).toHaveLength(3)
+    expect(components).toHaveLength(4)
   })
 })
 
@@ -58,13 +74,19 @@ describe('routeSizes', () => {
     expect(sizes[1]?.kb ?? 0).toBeGreaterThan(sizes[0]?.kb ?? Number.MAX_SAFE_INTEGER)
   })
 
-  it('maps SPA routes to their component chunks and ignores shared chunks', () => {
+  it('maps SPA routes to their chunks through the Vite manifest — not basename guesses', () => {
+    // Root and advertising both emit a `Dashboard-*.js`; only the manifest
+    // knows which chunk belongs to which route. First-hit-wins on the
+    // basename would report the same (wrong) size for both.
     const sizes = routeSizes(`${FIXTURES}spa-app`, 'spa', `${FIXTURES}spa-app/dist`)
-    expect(sizes).toEqual([
-      { id: '/', kb: expect.any(Number) },
-      { id: '/payments/:id', kb: expect.any(Number) },
-      { id: '/login', kb: null }, // Login.svelte has no built chunk in the fixture
-    ])
+    const byId = new Map(sizes.map((r) => [r.id, r.kb]))
+    expect(byId.get('/advertising/dashboard')).toBeGreaterThan(byId.get('/') ?? 0)
+    expect(byId.get('/payments/:id')).toBeGreaterThan(0)
+  })
+
+  it('reports a route with no built chunk as null — never silently dropped', () => {
+    const sizes = routeSizes(`${FIXTURES}spa-app`, 'spa', `${FIXTURES}spa-app/dist`)
+    expect(new Map(sizes.map((r) => [r.id, r.kb])).get('/login')).toBeNull()
   })
 })
 

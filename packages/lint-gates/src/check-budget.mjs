@@ -82,20 +82,10 @@ function isSvelteKitClientOutput(dir) {
 }
 
 /**
- * Gzipped size of one build-output file matching `predicate`, or null.
- */
-function chunkSizeKb(dir, predicate) {
-  for (const file of walkFiles(dir, (name) => name.endsWith('.js'))) {
-    if (predicate(file)) return gzipSizeKb(file)
-  }
-  return null
-}
-
-/**
  * Per-route gzipped sizes. SvelteKit routes map to their manifest leaf node's
  * client chunk (`_app/immutable/nodes/<n>.<hash>.js`); SPA routes to the lazy
- * component chunk Vite names after the source file
- * (`assets/<Component>-<hash>.js`). A route whose chunk is missing gets a
+ * component chunk the Vite manifest (`manifest: true`) maps their source file
+ * to. A route whose chunk is missing gets a
  * null size — reported as missing, never silently dropped: a route that
  * stopped producing a chunk is exactly the kind of thing the table exists to surface.
  *
@@ -124,11 +114,21 @@ export function routeSizes(appRoot, type, buildDir) {
       return { id: route.id, kb }
     }
 
-    if (!route.component) return { id: route.id, kb: null }
-    const kb = chunkSizeKb(buildDir, (file) => {
-      const base = file.split(sep).pop() ?? ''
-      return base.startsWith(`${route.component}-`) && base.endsWith('.js')
-    })
+    // SPA: source file → chunk via the Vite manifest (`manifest: true` in the
+    // app's vite config). Component basenames are ambiguous — root and
+    // advertising each have a `Dashboard-*.js` — so a missing manifest means
+    // *no number*, never a guess: a reported null is honest, a wrong chunk's
+    // size feeds the gate a fiction.
+    if (!route.sourcePath) return { id: route.id, kb: null }
+    const manifestPath = join(buildDir, '.vite', 'manifest.json')
+    let kb = null
+    try {
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+      const entry = manifest[join('src', route.sourcePath)]
+      if (entry?.file) kb = gzipSizeKb(join(buildDir, entry.file))
+    } catch {
+      // manifest missing/unparseable — stays null, reported as missing
+    }
     return { id: route.id, kb }
   })
 }
@@ -188,6 +188,14 @@ export function runBudgetCheck({ dir, initialKb, chunkKb }) {
 /**
  * Budget check for one app from `scripts/budgets.json`, with the per-route
  * dimension added.
+ *
+ * `ok` — the process-failing verdict — carries only the dimensions the
+ * phase-00 gate already blocked on (initial JS, flat chunk budget). The
+ * per-route dimension (`routeOk`) is **reporting-only until TASK-022**: the
+ * route budgets were seeded with thin margins precisely so TASK-022 can
+ * tighten them, and a gate switched on before its baseline exists is a gate
+ * someone disables in week one.
+ *
  * @param {{ name: string, config: { type: 'sveltekit'|'spa', initialKb: number, chunkKb: number, routeKb: number }, root: string }} params
  */
 export function runAppBudgetCheck({ name, config, root }) {
@@ -199,22 +207,30 @@ export function runAppBudgetCheck({ name, config, root }) {
     chunkKb: config.chunkKb,
   })
 
-  if (base.skipped) return { ...base, name, routes: [], routeKb: config.routeKb, routesMissing: 0 }
+  if (base.skipped) {
+    return {
+      ...base,
+      name,
+      routes: [],
+      routeKb: config.routeKb,
+      routesMissing: 0,
+      routeOk: true,
+    }
+  }
 
   const sizes = routeSizes(appRoot, config.type, buildDir)
   const routes = sizes.map((r) => ({ ...r, over: r.kb !== null && r.kb > config.routeKb }))
   const routesMissing = routes.filter((r) => r.kb === null).length
   const anyRouteOver = routes.some((r) => r.over)
-  const anyChunkOver = !base.svelteKit && base.oversizedChunks.length > 0
 
   return {
     ...base,
-    ok: base.ok && !anyRouteOver && !routesMissing && !anyChunkOver,
+    ok: base.ok,
     name,
     routes,
     routeKb: config.routeKb,
     routesMissing,
-    anyChunkOver,
+    routeOk: !anyRouteOver && routesMissing === 0,
   }
 }
 
@@ -238,13 +254,13 @@ function formatAppReport(result) {
     )
   }
 
-  lines.push(`Per-route (budget ${result.routeKb} KB):`)
+  lines.push(`Per-route (budget ${result.routeKb} KB — reporting-only until TASK-022):`)
   for (const route of result.routes) {
     if (route.kb === null) {
       lines.push(`  ? ${route.id} — chunk not found in build output`)
     } else if (route.over) {
       lines.push(
-        `  ✗ ${route.id}: ${route.kb.toFixed(1)} KB — over by ${(route.kb - result.routeKb).toFixed(2)} KB`,
+        `  ✗ ${route.id}: ${route.kb.toFixed(1)} KB — over by ${(route.kb - result.routeKb).toFixed(2)} KB (non-blocking)`,
       )
     } else {
       lines.push(`  ✓ ${route.id}: ${route.kb.toFixed(1)} KB`)
@@ -252,15 +268,6 @@ function formatAppReport(result) {
   }
   if (result.routes.length === 0) {
     lines.push('  (no routes enumerated — was the app built?)')
-  }
-
-  if (result.anyChunkOver && result.oversizedChunks.length > 0) {
-    lines.push(
-      `✗ ${result.oversizedChunks.length} non-route chunk(s) over the ${result.chunkKb} KB budget:`,
-    )
-    for (const chunk of result.oversizedChunks) {
-      lines.push(`    ${chunk.file}: ${chunk.kb.toFixed(1)} KB`)
-    }
   }
 
   return lines.join('\n')
@@ -312,10 +319,15 @@ async function main() {
       const result = runAppBudgetCheck({ name, config: budgets.apps[name], root })
       console.log(formatAppReport(result))
       if (!result.ok) failed = true
+      if (!result.routeOk) {
+        console.log(
+          '  per-route: reporting-only until TASK-022 — over/missing routes do not fail this gate',
+        )
+      }
     }
     if (failed && !args.reportOnly) process.exit(1)
     if (args.reportOnly && failed)
-      console.log('\n(report-only — budgets are not blocking until TASK-022)')
+      console.log('\n(report-only — nothing here fails the build; blocking returns with TASK-022)')
     return
   }
 
@@ -331,7 +343,7 @@ async function main() {
 
   if (!result.ok && !result.skipped && !args.reportOnly) process.exit(1)
   if (args.reportOnly && !result.ok && !result.skipped)
-    console.log('\n(report-only — budgets are not blocking until TASK-022)')
+    console.log('\n(report-only — nothing here fails the build; blocking returns with TASK-022)')
 }
 
 if (isMainEntryPoint(import.meta.url)) {

@@ -128,14 +128,26 @@ function main() {
   const a = resolveArtifact(args.positional[0])
   const b = resolveArtifact(args.positional[1])
 
-  const profileA = JSON.stringify(a.meta?.profile)
-  const profileB = JSON.stringify(b.meta?.profile)
+  // Comparability must be *established*, not defaulted: a standalone harness
+  // artifact (check-lighthouse/check-a11y `--out`) has no profile block at
+  // all, and `JSON.stringify(undefined) === JSON.stringify(undefined)` would
+  // otherwise sail through the difference check below.
+  if (!a.meta?.profile || !b.meta?.profile) {
+    console.error('bench-compare: refusing to compare — an artifact has no profile block.')
+    console.error('  Only `bench:run` artifacts (with meta.profile) are comparable.')
+    console.error(`  ${args.positional[0]}: profile ${a.meta?.profile ? 'present' : 'MISSING'}`)
+    console.error(`  ${args.positional[1]}: profile ${b.meta?.profile ? 'present' : 'MISSING'}`)
+    process.exit(2)
+  }
+
+  const profileA = JSON.stringify(a.meta.profile)
+  const profileB = JSON.stringify(b.meta.profile)
   if (profileA !== profileB) {
     console.error(
       'bench-compare: refusing to compare — the two artifacts ran under different profiles.',
     )
-    console.error(`  ${args.positional[0]}: pins ${JSON.stringify(a.meta?.profile?.pins)}`)
-    console.error(`  ${args.positional[1]}: pins ${JSON.stringify(b.meta?.profile?.pins)}`)
+    console.error(`  ${args.positional[0]}: pins ${JSON.stringify(a.meta.profile.pins)}`)
+    console.error(`  ${args.positional[1]}: pins ${JSON.stringify(b.meta.profile.pins)}`)
     process.exit(2)
   }
 
@@ -153,6 +165,16 @@ function main() {
   console.log(
     `Compared ${compared} metrics between "${args.positional[0]}" and "${args.positional[1]}" (threshold ${args.threshold}).`,
   )
+
+  if (compared === 0) {
+    // Zero comparable metrics is a failure, not a pass: two artifacts that
+    // share no metric shape have told us nothing, and reporting success on
+    // nothing is how a gate rotts.
+    console.error(
+      '✗ No comparable metrics — are both artifacts `bench:run` outputs (meta.profile + budget/lighthouse/axe sections)?',
+    )
+    process.exit(1)
+  }
 
   if (regressions.length === 0) {
     console.log('✓ No regression beyond threshold.')

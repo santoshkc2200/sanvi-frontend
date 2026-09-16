@@ -21,7 +21,12 @@ const MANIFEST_RELPATH = join('.svelte-kit', 'output', 'server', 'manifest-full.
  * @typedef {object} RouteEntry
  * @property {string} id route pattern — `/privacy/requests/[id]/appeal`
  * @property {number|null} leaf SvelteKit leaf-node index (per-route chunk); null when unknown
- * @property {string|null} component SPA route component name, e.g. `Dashboard`
+ * @property {string|null} component SPA route component basename, e.g. `Dashboard`
+ * @property {string|null} sourcePath SPA import path relative to `src/`, e.g.
+ *   `routes/advertising/Dashboard.svelte` — the Vite manifest's key shape
+ *   minus its `src/` prefix, and the only unambiguous route→chunk mapping
+ *   (component basenames collide across directories: `Dashboard` exists at
+ *   `routes/Dashboard.svelte` and `routes/advertising/Dashboard.svelte`)
  */
 
 /**
@@ -58,7 +63,10 @@ export function listSvelteKitRoutes(appRoot) {
 }
 
 const SPA_PATH_RE = /\bpath:\s*'([^']*)'/g
-const SPA_COMPONENT_RE = /import\('\.\/routes\/([A-Za-z0-9_]+)\.svelte'\)/
+// The capture spans nested directories (`advertising/Connections`) — route
+// components live in subdirectories under `src/routes/`, and a flat `[A-Za-z0-9_]+`
+// silently dropped every one of them.
+const SPA_IMPORT_RE = /import\('\.\/(routes\/[A-Za-z0-9_/]+)\.svelte'\)/
 
 /**
  * SPA routes from the `routes` map in `src/App.svelte`. Each `path:` record
@@ -82,10 +90,16 @@ export function listSpaRoutes(appRoot) {
   for (const [index, mark] of marks.entries()) {
     const recordEnd = index + 1 < marks.length ? marks[index + 1].index : source.length
     const record = source.slice(mark.index, recordEnd)
-    const component = SPA_COMPONENT_RE.exec(record)?.[1]
-    if (!component) continue
+    const sourcePath = SPA_IMPORT_RE.exec(record)?.[1]
+    if (!sourcePath) continue
     const path = mark[1]
-    routes.push({ id: path === '' ? '/' : `/${path}`, leaf: null, component })
+    routes.push({
+      id: path === '' ? '/' : `/${path}`,
+      leaf: null,
+      component: sourcePath.split('/').pop() ?? null,
+      // The capture excludes the extension; the Vite manifest's keys keep it.
+      sourcePath: `${sourcePath}.svelte`,
+    })
   }
   return routes
 }

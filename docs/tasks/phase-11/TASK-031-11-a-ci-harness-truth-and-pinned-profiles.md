@@ -133,8 +133,10 @@ report and still merges — which is the intended behaviour at this stage.
 - [x] `pnpm check:budget --report-only` reports per app **and per route**, and shows a deliberately
       fattened route as over. (Route budgets live in `scripts/budgets.json`, seeded from the current
       build + margin. Fattened-route proof: storefront `routeKb` temporarily lowered to 2 KB —
-      `/checkout/return` 4.5 KB reported `✗ … over by 2.50 KB`, blocking mode exited 1, report-only
-      exited 0; reverted.)
+      `/checkout/return` 4.5 KB reported `✗ … over by 2.50 KB`, report-only exited 0, blocking mode
+      exited 0 too — the per-route dimension is **reporting-only until TASK-022**, marked `(non-blocking)`
+      per row; the blocking gate (`pnpm check:all`, CI) keeps the phase-00 initial/chunk budgets.
+      Reverted.)
 - [x] `pnpm check:lighthouse --report-only` runs per app per locale, and its measured run-to-run
       variance on a fixed build is inside the threshold TASK-022 will gate on. (Three full runs on the
       same build recorded in `benchmarks/frontend/VARIANCE.md`: median LCP stable to ≤ ~6%, category
@@ -146,13 +148,16 @@ report and still merges — which is the intended behaviour at this stage.
 - [x] `pnpm check:a11y --report-only` reports by severity and lists routes with no axe entry.
       (Coverage compares the committed sweep list `scripts/a11y-routes.json` against routes enumerated
       live from each app's route definitions. Probe: throwaway `/throwaway-probe` route added to
-      admin's `App.svelte` + rebuild → `UNCOVERED (1): /throwaway-probe` reported; reverted. Baseline
-      sweep: 69 routes × en/ja, 0 critical/serious, 314 moderate findings — TASK-027's queue.)
+      admin's `App.svelte` + rebuild → `UNCOVERED (1): /throwaway-probe` reported; reverted. An app
+      missing from the sweep list entirely reports *all* its enumerated routes uncovered rather than a
+      vacuous 0/0 pass. Baseline sweep: 85 routes × en/ja, 0 critical/serious, 378 moderate findings —
+      TASK-027's queue.)
 - [x] `benchmarks/frontend/baseline.json` is committed with an embedded profile block.
       (`pnpm bench:run baseline`; the whole profiles document travels inside `meta.profile`.)
 - [x] `pnpm bench:compare` fails on an injected 20 % regression and refuses cross-profile comparison.
-      (Injected +25 % LCP and +30 % route size → 2 regressions reported, exit 1; a copy with a drifted
-      `pins.chrome` → "refusing to compare", exit 2.)
+      (Injected +25 % LCP and +30 % route size → 2 regressions reported, exit 1; a drifted `pins.chrome`
+      or a missing profile block → "refusing to compare", exit 2; zero comparable metrics → exit 1, not
+      a vacuous pass.)
 - [x] All three harnesses run in CI, reporting-only, and none block. (PR workflow gains a
       `benchmarks` job — `continue-on-error: true`, artifacts uploaded; budget report, Lighthouse and
       axe each a step.)
@@ -183,6 +188,39 @@ report and still merges — which is the intended behaviour at this stage.
   them.
 - `turbo.json` change is `globalPassThroughEnv: [CHROME_PATH]` — the harnesses run as root scripts,
   not per-package turbo tasks, so no task wiring was added.
+
+## Review fixes (2026-09-16, same day)
+
+A review of the first pass found real defects; all fixed and re-verified, and `a11y-routes.json` +
+`baseline.json` regenerated from the corrected pipeline:
+
+- **HIGH — the SPA enumerator dropped every nested route.** `SPA_COMPONENT_RE` matched
+  `[A-Za-z0-9_]+` — no slash — so `routes/advertising/*.svelte` imports never matched and admin
+  enumerated 29 routes instead of 45 (17 advertising routes invisible to budgets *and* to the a11y
+  coverage report, silently). The regex now captures nested paths and the entry carries the full
+  `sourcePath`.
+- **MEDIUM — SPA route→chunk matching was first-hit-wins on an ambiguous basename.** Root and
+  advertising each emit a `Dashboard-*.js`; the old basename-prefix match reported root `/` at the
+  advertising chunk's 12.1 KB by readdir order. SPA mapping now goes through the Vite build manifest
+  (`manifest: true` added to both SPAs' vite configs): source file → chunk file, unambiguous. A
+  missing manifest yields `null` (reported as missing), never a guessed number.
+- **MEDIUM — per-route budgets were blocking on day one**, contradicting the stated invariant
+  (storefront `routeKb` 6 vs `/checkout/return` 4.5 KB — 1.5 KB of headroom standing between every PR
+  and a red gate). `runAppBudgetCheck`'s process-failing `ok` now carries only the phase-00 blocking
+  dimensions (initial JS, flat chunk budget); the per-route dimension reports `routeOk` separately,
+  marked `(non-blocking)` per row, and becomes blocking in TASK-022.
+- **MEDIUM — `bench:compare` reported success on nothing.** Two standalone harness artifacts
+  (no `meta.profile`) compared "equal" on `undefined === undefined`, then 0 metrics → "✓ No
+  regression", exit 0. Now: a missing profile block is refused (exit 2), and a zero-comparable-metrics
+  comparison fails (exit 1).
+- **LOW:** the axe sweep's ports now derive from `lighthouserc.cjs` APPS instead of a drifting copy;
+  an app missing from `a11y-routes.json` reports all its routes uncovered instead of defaulting its
+  type and passing vacuously; `bench-run --apps` validates names (exit 2 with the known list);
+  `lighthouserc.cjs` no longer pretends a bare `lhci autorun` works (no top-level `.ci` — the doc
+  points at the per-app configs the runner uses); the journey spec resolves its Google Ads key by the
+  matrix entry's `display_name` rather than `key !== 'meta'`, which only worked by fixture order;
+  regenerable harness outputs (`lighthouse.json`, `axe.json`, `lhci/`) are gitignored next to the
+  committed baseline.
 
 ## Verification
 

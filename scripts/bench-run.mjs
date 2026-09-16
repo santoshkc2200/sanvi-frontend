@@ -37,6 +37,13 @@ function parseArgs(argv) {
 function budgetSection({ apps }) {
   const budgets = loadBudgets({ root: ROOT })
   const names = apps ?? Object.keys(budgets.apps)
+  const unknown = names.filter((name) => !budgets.apps[name])
+  if (unknown.length > 0) {
+    console.error(
+      `bench-run: unknown app(s): ${unknown.join(', ')} — known: ${Object.keys(budgets.apps).join(', ')}`,
+    )
+    process.exit(2)
+  }
   const section = {}
   for (const name of names) {
     const result = runAppBudgetCheck({ name, config: budgets.apps[name], root: ROOT })

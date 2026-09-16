@@ -6,11 +6,13 @@
  * test guards. The profile makes runs *comparable*: change it in a deliberate
  * commit or every stored artifact stops meaning anything.
  *
- * One LHCI collect runs against one server, so the runner
- * (`scripts/check-lighthouse.mjs`) invokes `lhci collect` once per app with
- * the per-app config from `apps/<app>/lighthouserc.cjs`, which extends this
- * file's `forApp()`. The harness is reporting-only here; budgets and
- * Lighthouse assertions start blocking in TASK-022.
+ * One LHCI collect runs against one server, so there is no runnable config at
+ * this file's top level — invoke it per app through the runner
+ * (`pnpm check:lighthouse`, which calls `lhci collect
+ * --config=apps/<app>/lighthouserc.cjs`) or directly with that same per-app
+ * config path; a bare `lhci autorun --config=lighthouserc.cjs` would find no
+ * `.ci` key here and collect nothing. Reporting-only; assertions start
+ * blocking in TASK-022.
  */
 const profiles = require('./scripts/perf-profiles.json')
 
@@ -87,6 +89,3 @@ function forApp(name) {
 }
 
 module.exports = { profiles, APPS, forApp }
-// A valid default config for a bare `lhci autorun --config=lighthouserc.cjs`
-// (the storefront is the app the phase's targets are written against).
-module.exports.default = forApp('storefront')
