@@ -49,6 +49,8 @@ unsatisfiable as written.
 | CDN image transforms and size caps for tenant uploads | TASK-022, FR-1109 | A CDN. Dimensions, `srcset`, modern formats and lazy-loading are all done in-app regardless; only the server-side transform waits. |
 | Public status page hosted outside the perimeter | TASK-025, FR-1115 | A host that survives an API outage. The page is built and reads the backend's `/ready`, but a page served by the infrastructure it reports on is unavailable exactly when it matters — that limitation is documented on the page itself rather than hidden. |
 | Backend external probes feeding the status page | TASK-025 | Backend infrastructure — see the backend's own `needs-humans.md`. |
+| Deploying each merged task to a staging environment behind its flag | every task's DoD, phases 09–11 | A host and a build pipeline. Neither repository has a git remote, so nothing can be pushed. Replaced in the DoD by `pnpm build` plus the app's `preview` script — a real production build, served — exercised in both flag positions. |
+| CI actually running any gate on a pushed branch | TASK-031, and every task's CI claim | A git remote. The workflows are written and self-tested, but no run of them exists; every task that says a gate "blocks CI" means it blocks `pnpm check:all` locally. |
 
 ## Needs a second person
 

@@ -2,8 +2,13 @@
 
 Applies to **every** task in `tasks/`, from phase 09 onward. Inherited from the roadmap's
 phase-level DoD and tightened to the slice: a task is a thin vertical cut that can be merged,
-flagged off, and deployed to staging on its own, so it carries the full DoD by itself rather than
-deferring it to the end of the phase.
+flagged off, and exercised against a local production build on its own, so it carries the full DoD by
+itself rather than deferring it to the end of the phase.
+
+**Every line below is falsifiable by running a command on this machine.** There is no deployment
+target and no git remote, so the lines that used to require one have moved to
+[`../release/needs-humans.md`](../release/needs-humans.md) with the local check that replaces each. A
+line that cannot be falsified by a command does not belong here.
 
 - [ ] Tests green — unit, component (incl. axe), and the task's own Playwright path.
 - [ ] Generated API client regenerated from the merged contract; no hand-written request types.
@@ -14,7 +19,10 @@ deferring it to the end of the phase.
 - [ ] Accessibility checked — keyboard path, focus order, announced status changes.
 - [ ] Docs updated — this task file, plus the phase implementation plan if a decision changed.
 - [ ] Feature flag defined and defaulted **off**; rollback plan written.
-- [ ] Deployed to staging behind the flag. **Merged ≠ done.**
+- [ ] The flagged path exercised against a **production build**, not the dev server — `pnpm build`
+      then that app's `preview` script — in **both** flag positions, with the commands recorded in
+      the task file. A dev-server-only check misses SSR, CSP and bundle-split failures, which is the
+      class of bug this line exists to catch. **Merged ≠ exercised.**
 
 ### Phase 11 additions — hardening tasks
 
@@ -53,7 +61,11 @@ environment, and it doubles as the proof that the provider abstraction holds.
 
 ## Release convention
 
-Each task tags a prerelease off the phase branch (`vX.Y.0-alpha.N`, recorded in the task's
-`**Prerelease:**` header line) so staging always has a nameable artifact. The phase version
-`vX.Y.0` is tagged only by the phase's final task, when every task in the phase is `done` and the
-feature flags are on by default.
+Phases 09–10: each task tags a prerelease off the phase branch (`vX.Y.0-alpha.N`, recorded in the
+task's `**Prerelease:**` header line) so a measurement can name the exact build it ran against. The
+phase version `vX.Y.0` is tagged only by the phase's final task, when every task in the phase is
+`done` and the feature flags are on by default.
+
+Phase 11 overrides this, and its README is authoritative: GA-half tasks tag a release candidate off
+the phase branch; **gate-half tasks tag nothing** — they change CI and tooling, not product
+behaviour, so they carry no `**Prerelease:**` line and none should be invented for them.
