@@ -1447,6 +1447,28 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/system/build': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Build probe: `GET /api/v1/system/build` (FR-1102). Unauthenticated and
+     *     cacheable so RUM, the error tracker and load tools can stamp a
+     *     measurement with the exact build that produced it; carries no tenant
+     *     data.
+     */
+    get: operations['build']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/system/version': {
     parameters: {
       query?: never
@@ -1735,6 +1757,26 @@ export interface paths {
     get?: never
     put?: never
     post: operations['resume_campaign']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/api/v1/tenant/ads/campaigns/{campaign_id}/review-status': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Refresh every ad's review verdict from the platform. Safe to repeat: it is
+     *     an observation with a persisted outcome, never a mutation of the platform.
+     */
+    post: operations['poll_campaign_review_status']
     delete?: never
     options?: never
     head?: never
@@ -3177,11 +3219,25 @@ export interface components {
     Ad: {
       creative: components['schemas']['Creative']
       /**
+       * @description The platform's own id for this ad, once one has been recorded — the
+       *     only key that correlates a review observation (which arrives keyed by
+       *     platform id) back onto this ad. `None` for ads the platform has never
+       *     echoed an id for; a platform that assigns ids at creation must persist
+       *     them here, or its verdicts can never be matched.
+       */
+      external_id?: string | null
+      /**
        * Format: snowflake-id
        * @example 873698342314721281
        */
       id: string
       landing_url: string
+      /**
+       * @description Last review observation pulled from the platform. Absent (pending,
+       *     never checked) until a poll happens — ads only get reviewed once they
+       *     are published.
+       */
+      review?: components['schemas']['AdReview']
       tracking_template?: string | null
     }
     AdGroup: {
@@ -3194,6 +3250,31 @@ export interface components {
       id: string
       name: string
       targeting: components['schemas']['Targeting']
+    }
+    /**
+     * @description The platform's review verdict for one ad. `reasons` preserves the
+     *     platform's own policy wording verbatim — a paraphrased rejection is worse
+     *     than useless when the tenant has to fix the ad in the native tool.
+     */
+    AdReview: {
+      /** Format: date-time */
+      checked_at?: string | null
+      reasons?: string[]
+      state: components['schemas']['AdReviewState']
+    }
+    /** @enum {string} */
+    AdReviewState: 'pending' | 'approved' | 'rejected'
+    /**
+     * @description One ad's refreshed review state, addressed by its platform-facing id so a
+     *     client can correlate against the campaign tree it already has.
+     */
+    AdReviewStatusView: {
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      ad_id: string
+      review: components['schemas']['AdReview']
     }
     AddPriceRequest: {
       currency: string
@@ -3280,6 +3361,19 @@ export interface components {
       | {
           Conflict: {
             detail: string
+          }
+        }
+      | {
+          /**
+           * @description A conflict carrying a machine-readable `reason`, surfaced as
+           *     `ProblemDetail.reason`, so a client can distinguish conflicts of the
+           *     same status without parsing `detail` — cap version races, for
+           *     example, where missing-precondition and lost-race need different
+           *     recovery. The status and `type` stay the plain conflict class.
+           */
+          ConflictReasoned: {
+            detail: string
+            reason: string
           }
         }
       | {
@@ -3731,7 +3825,36 @@ export interface components {
     /** @enum {string} */
     BudgetPeriod: 'daily' | 'monthly'
     /** @enum {string} */
-    BudgetType: 'daily' | 'lifetime'
+    BudgetType: 'daily' | 'lifetime' | 'campaign_budget_optimization'
+    /**
+     * @description Release stamp for field measurements (`GET /api/v1/system/build`,
+     *     FR-1102): the exact build that served a response, so a latency sample
+     *     from RUM, the error tracker, or a status page can always be attributed.
+     *     Carries no tenant data and nothing but the four stamp fields.
+     */
+    BuildDetails: {
+      /**
+       * @description RFC 3339 build timestamp (UTC).
+       * @example 2026-08-15T09:00:00Z
+       */
+      built_at: string
+      /**
+       * @description Git commit the binary was built from.
+       * @example 3d0a5c1e
+       */
+      commit: string
+      /**
+       * @description Deployment environment the process was configured for
+       *     (`local`, `staging`, `production`).
+       * @example staging
+       */
+      environment: string
+      /**
+       * @description Semantic version of the running binary.
+       * @example 0.1.0
+       */
+      version: string
+    }
     /** @description Immutable build/version information, captured at compile time. */
     BuildInfo: {
       /**
@@ -3810,6 +3933,21 @@ export interface components {
     }
     CampaignChangesView: {
       changes: components['schemas']['CampaignChange'][]
+    }
+    CampaignReviewStatusView: {
+      ads: components['schemas']['AdReviewStatusView'][]
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      campaign_id: string
+      /**
+       * @description What the platform listed that this campaign's tree cannot account
+       *     for. Non-empty means the poll could not fully correlate — an
+       *     all-pending `ads` list alongside platform-listed ids here is a
+       *     correlation gap, not a clean "everything still in review".
+       */
+      unmatched_platform_ads: components['schemas']['UnmatchedPlatformAds']
     }
     /** @enum {string} */
     CampaignStatus: 'draft' | 'publishing' | 'active' | 'paused' | 'ended' | 'archived'
@@ -6633,6 +6771,22 @@ export interface components {
       /** Format: date-time */
       updated_at: string
       value: string
+    }
+    /**
+     * @description What the platform listed that this campaign's tree cannot account for.
+     *     A published campaign whose ads were never pushed (or whose platform ids
+     *     were never recorded) can never match the platform's listings — surfacing
+     *     the gap is what keeps an all-pending response from reading as a clean,
+     *     successful poll when it is really "nothing correlated".
+     */
+    UnmatchedPlatformAds: {
+      /**
+       * @description Ads in the campaign tree with no recorded platform id — these can
+       *     never match anything until the platform's ids are persisted onto them.
+       */
+      ads_without_platform_id: number
+      /** @description Platform-listed ad ids that matched no ad in the campaign tree. */
+      platform_ad_ids: string[]
     }
     UpdateFeatureRequest: {
       default_enabled: boolean
@@ -9954,6 +10108,37 @@ export interface operations {
       }
     }
   }
+  build: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Release stamp of the running binary */
+      200: {
+        headers: {
+          /** @description public — the stamp is identical for every caller of a build */
+          'Cache-Control'?: string
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['BuildDetails']
+        }
+      }
+      /** @description Internal error */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
   version: {
     parameters: {
       query?: never
@@ -10202,7 +10387,7 @@ export interface operations {
     parameters: {
       query?: never
       header?: {
-        /** @description Conditional. Required when updating an existing cap — a version-less update is rejected with 409 (`cap_version_required`). Omitting it is valid only for creates (no cap exists yet for this scope and period) and for dry runs. A stale value also returns 409. */
+        /** @description Conditional. Required when updating an existing cap — a version-less update is rejected with 409 (`reason: cap_version_required`). Omitting it is valid only for creates (no cap exists yet for this scope and period) and for dry runs. The version is a quoted entity tag (e.g. "17") or the bare integer; `If-Match: *` is not accepted. A stale value returns 409 (`reason: stale_revision`). */
         'If-Match'?: string | null
       }
       path?: never
@@ -10214,7 +10399,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Budget cap created or updated, or dry-run simulation result */
+      /** @description Budget cap created or updated (an applied write carries an `ETag` header with the new version), or dry-run simulation result */
       200: {
         headers: {
           [name: string]: unknown
@@ -10232,7 +10417,7 @@ export interface operations {
           'application/json': components['schemas']['ProblemDetail']
         }
       }
-      /** @description New cap is below current period spend and confirmation is required, or the cap version is stale or missing on an update */
+      /** @description Cap conflict, distinguished by the problem `reason` member: `cap_version_required` (update without If-Match), `stale_revision` (lost version race), `cap_below_current_spend` (lowering below period spend without confirmation) */
       409: {
         headers: {
           [name: string]: unknown
@@ -10783,7 +10968,7 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Campaign budget cap */
+      /** @description Campaign budget cap (carries an `ETag` header with the cap version) */
       200: {
         headers: {
           [name: string]: unknown
@@ -10816,7 +11001,7 @@ export interface operations {
     parameters: {
       query?: never
       header?: {
-        /** @description Conditional. Required when updating an existing cap — a version-less update is rejected with 409 (`cap_version_required`). Omitting it is valid only for creates (no cap exists yet for this scope and period) and for dry runs. A stale value also returns 409. */
+        /** @description Conditional. Required when updating an existing cap — a version-less update is rejected with 409 (`reason: cap_version_required`). Omitting it is valid only for creates (no cap exists yet for this scope and period) and for dry runs. The version is a quoted entity tag (e.g. "17") or the bare integer; `If-Match: *` is not accepted. A stale value returns 409 (`reason: stale_revision`). */
         'If-Match'?: string | null
       }
       path: {
@@ -10831,7 +11016,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Campaign budget cap created/updated or dry run result */
+      /** @description Campaign budget cap created/updated (an applied write carries an `ETag` header with the new version) or dry run result */
       200: {
         headers: {
           [name: string]: unknown
@@ -10849,7 +11034,7 @@ export interface operations {
           'application/json': components['schemas']['ProblemDetail']
         }
       }
-      /** @description New cap is below current period spend and confirmation is required, or the cap version is stale or missing on an update */
+      /** @description Cap conflict, distinguished by the problem `reason` member: `cap_version_required` (update without If-Match), `stale_revision` (lost version race), `cap_below_current_spend` (lowering below period spend without confirmation) */
       409: {
         headers: {
           [name: string]: unknown
@@ -11171,6 +11356,65 @@ export interface operations {
       }
       /** @description Campaign is not yet published, or an idempotency conflict */
       409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Platform adapter unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  poll_campaign_review_status: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Campaign UUID */
+        campaign_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Fresh per-ad review verdicts; rejection wording is the platform's own */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['CampaignReviewStatusView']
+        }
+      }
+      /** @description Campaign not published yet — review has no meaning for a draft */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Missing advertising.read permission */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Campaign or connection not found */
+      404: {
         headers: {
           [name: string]: unknown
         }
@@ -11812,6 +12056,13 @@ export interface operations {
         /** @example google_ads */
         platform?: string
         campaign_id?: string
+        /**
+         * @description Optional display-only currency for `rendered_spend`. Conversion is
+         *     never persisted and never replaces the native `spend` — each rendered
+         *     value carries its FX rate date. Omit to keep account currencies only.
+         * @example JPY
+         */
+        render_currency?: string
       }
       header?: never
       path?: never
@@ -11885,7 +12136,7 @@ export interface operations {
           'text/csv': unknown
         }
       }
-      /** @description Invalid date range, unknown group_by, or a span exceeding the configured maximum */
+      /** @description Invalid date range, unknown group_by, an unsupported query parameter (e.g. render_currency), or a span exceeding the configured maximum */
       400: {
         headers: {
           [name: string]: unknown

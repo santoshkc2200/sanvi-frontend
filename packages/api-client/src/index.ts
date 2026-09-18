@@ -257,6 +257,8 @@ export {
 } from './platform-admin'
 export type { ProblemDetails } from './problem'
 export { ApiError, apiErrorFromResponse, NetworkError, TimeoutError } from './problem'
+export { createKeepalivePoster } from './beacon'
+export type { KeepalivePoster, KeepalivePosterOptions } from './beacon'
 export {
   appealRequest,
   applyHold,
@@ -299,6 +301,8 @@ export {
   upsertSubprocessor,
   verifyDsr,
 } from './privacy'
+export { getSystemBuild } from './system'
+export type { BuildDetails } from './system'
 export {
   checkSlugAvailability,
   getPublicTenantContext,
