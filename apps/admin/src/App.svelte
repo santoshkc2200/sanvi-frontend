@@ -35,6 +35,7 @@ import {
   TrialBanner,
 } from '@sanvi/ui'
 import { apiClient } from './lib/api'
+import { setAdminTelemetryRouteSource } from './lib/telemetry'
 
 // `router` is referenced inside the guard closures below before it's
 // assigned — safe because a guard only ever runs once something navigates,
@@ -346,6 +347,11 @@ router = createRouter({
   routes,
   notFound: () => import('./routes/NotFound.svelte'),
 })
+
+// Telemetry segments by the matched route pattern (`/tenants/:id`), not the
+// raw path — ids in the path would give every visit its own bucket. A null
+// pattern (not-found) falls back to the raw path.
+setAdminTelemetryRouteSource(() => router.pattern ?? router.pathname)
 
 // Tenant data cached under the previous tenant's id must never render while
 // the switcher shows the new tenant — clearing on every switch is the

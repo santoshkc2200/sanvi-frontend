@@ -105,6 +105,7 @@ export function initTelemetry(options: TelemetryOptions): SanviTelemetry {
   let dropped = 0
   let buffer: TelemetryEvent[] = []
   let stops: Array<() => void> = []
+  let unsubscribeFromStore: (() => void) | null = null
 
   const allowed = (): boolean => (options.store ? options.store.isAllowed(purpose) : false)
 
@@ -214,8 +215,11 @@ export function initTelemetry(options: TelemetryOptions): SanviTelemetry {
     send(batch)
   }
 
+  // The handle is kept so dispose can detach the closure — left subscribed,
+  // it would ride the store for the store's lifetime (the same teardown the
+  // script gate's dispose honours).
   if (options.store) {
-    options.store.subscribe(() => {
+    unsubscribeFromStore = options.store.subscribe(() => {
       if (disposed) return
       if (allowed()) start()
       else stop()
@@ -230,6 +234,7 @@ export function initTelemetry(options: TelemetryOptions): SanviTelemetry {
       if (disposed) return
       disposed = true
       stop()
+      unsubscribeFromStore?.()
       buffer = []
     },
   }

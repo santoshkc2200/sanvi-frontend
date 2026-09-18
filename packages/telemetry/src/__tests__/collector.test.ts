@@ -125,6 +125,35 @@ describe('collector mechanics', () => {
     expect(telemetry.droppedCount()).toBe(0)
   })
 
+  it('dispose unsubscribes the gate watcher from the store', () => {
+    const unsubscribe = vi.fn()
+    const store = {
+      isAllowed: () => true,
+      subscribe: vi.fn(() => unsubscribe),
+    } as unknown as ConsentStore
+    const telemetry = initTelemetry({
+      enabled: true,
+      endpoint: 'https://telemetry.example.test/collect',
+      store,
+      release: RELEASE,
+      segmentation: () => ({
+        route: '/',
+        tenantId: null,
+        locale: 'en',
+        deviceClass: 'desktop',
+        themeRevision: null,
+      }),
+      transport: vi.fn(),
+      sources: [{ start: () => () => {} }],
+    })
+    expect(store.subscribe).toHaveBeenCalledTimes(1)
+
+    telemetry.dispose()
+    expect(unsubscribe).toHaveBeenCalledTimes(1)
+    telemetry.dispose() // idempotent — the second dispose must not re-run it
+    expect(unsubscribe).toHaveBeenCalledTimes(1)
+  })
+
   it('a sampling rate below 1 is stamped on every event, so a query can tell sampled from unsampled data', () => {
     let emit: ((observation: RawObservation) => void) | null = null
     const source: TelemetrySources = {

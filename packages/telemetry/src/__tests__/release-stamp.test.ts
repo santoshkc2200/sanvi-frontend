@@ -26,7 +26,7 @@ describe('resolveReleaseStamp', () => {
 
   it('defaults: commit from git, version from the app package, RFC 3339 built_at, local environment', () => {
     const stamp = resolveReleaseStamp({ appDir: APP_DIR })
-    const expectedSha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
+    const expectedSha = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], {
       cwd: APP_DIR,
       encoding: 'utf8',
     }).trim()

@@ -17,7 +17,10 @@ function defaultBase(): string {
  * `?` or `#` — a mangled URL never becomes an excuse to emit a query string.
  */
 export function scrubUrl(raw: string, base: string = defaultBase()): string {
-  const fallback = raw.split(/[?#]/, 1)[0] ?? raw
+  // The literal text before the first `?` or `#`; `search` is -1 (whole input
+  // is the fallback) when neither appears.
+  const cut = raw.search(/[?#]/)
+  const fallback = cut === -1 ? raw : raw.slice(0, cut)
   try {
     // Same-origin relative path → pathname only.
     if (raw.startsWith('/')) {

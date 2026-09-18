@@ -21,6 +21,19 @@ const TELEMETRY_ENABLED = false
 
 let wired = false
 
+/**
+ * The route source `App.svelte` registers once its `Router` exists — the
+ * router is created after telemetry init, and only it can name the matched
+ * route pattern. Until registration (when nothing can emit anyway) and for
+ * not-found routes, the raw path is the honest fallback.
+ */
+let routeSource: (() => string) | null = null
+
+/** Called by `App.svelte` right after `createRouter`. */
+export function setPlatformAdminTelemetryRouteSource(source: () => string): void {
+  routeSource = source
+}
+
 /** Called once from `main.ts`'s boot, browser-only. */
 export function initPlatformAdminTelemetry(): void {
   if (!TELEMETRY_ENABLED || wired || typeof window === 'undefined') return
@@ -34,7 +47,10 @@ export function initPlatformAdminTelemetry(): void {
       store: null,
       release: __APP_BUILD__,
       segmentation: (): TelemetrySegmentation => ({
-        route: window.location.pathname,
+        // The matched route pattern, not the raw path — ids embedded in a
+        // route would give every visit its own segmentation bucket. See
+        // `setPlatformAdminTelemetryRouteSource`.
+        route: routeSource?.() ?? window.location.pathname,
         // Platform operators sit above every tenant — there is no active one.
         tenantId: null,
         locale: currentLocale(),

@@ -1,3 +1,4 @@
+import { page } from '$app/state'
 import { currentLocale } from '@sanvi/i18n'
 import type { TelemetrySegmentation } from '@sanvi/telemetry'
 
@@ -35,7 +36,11 @@ export function initMarketingTelemetry(): void {
       store: null,
       release: __APP_BUILD__,
       segmentation: (): TelemetrySegmentation => ({
-        route: window.location.pathname,
+        // The matched route pattern, not the raw path — ids embedded in a
+        // route would give every visit its own segmentation bucket. A null
+        // id (unknown route) falls back to the path, the honest value when
+        // no pattern exists.
+        route: page.route.id ?? window.location.pathname,
         tenantId: null,
         locale: currentLocale(),
         deviceClass: detectDeviceClass(),

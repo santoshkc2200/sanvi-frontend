@@ -11,9 +11,12 @@ import type { ReleaseStamp } from '../types'
  * `./release` entry, never from browser code.
  *
  * Environment overrides exist so a build pipeline (and the e2e fixture
- * standing in for the backend) can pin the stamp deterministically;
- * turbo's `globalEnv` declares the three variables so a cached build cannot
- * silently replay a stale identity.
+ * standing in for the backend) can pin the stamp deterministically. Turbo's
+ * `globalEnv` lists the three variables, which keeps them in the cache key —
+ * but only when the pipeline actually sets them. Unset, as in a plain local
+ * build, turbo keys on file hashes alone, so a rebuild at a tree-identical
+ * commit (a rebase, a diff-free merge) can replay a stale commit/built_at;
+ * that is an approximation local builds accept, not a guarantee.
  */
 
 export interface ResolveReleaseStampOptions {
@@ -35,9 +38,16 @@ export function resolveReleaseStamp({
   }
 }
 
+/**
+ * A fixed 12-hex truncation — not plain `--short`, whose length varies as git
+ * extends it for uniqueness. Correlation against the backend pipeline's
+ * `GIT_COMMIT` (FR-1102/1103) is therefore prefix-match: both stamps truncate
+ * the same full sha, so compare by the shorter prefix. The two repos have not
+ * agreed a length, so string-equality is never the rule.
+ */
 function gitShortSha(cwd: string): string | null {
   try {
-    return execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
+    return execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], {
       cwd,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],

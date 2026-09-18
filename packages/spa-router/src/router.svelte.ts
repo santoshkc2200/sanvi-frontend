@@ -66,6 +66,11 @@ function browserPathname(): string {
   return typeof window === 'undefined' ? '/' : window.location.pathname
 }
 
+/** The route's own shape with a leading slash (`/tenants/:id`); the root route collapses to `/`. */
+function patternOf(route: FlatRoute): string {
+  return route.segments.length === 0 ? '/' : `/${route.segments.join('/')}`
+}
+
 /**
  * Programmatic navigation for components that don't hold the `Router`
  * instance (it's constructed once inside each app's `App.svelte`, not
@@ -106,6 +111,7 @@ export class Router {
 
   #pathname = $state(browserPathname())
   #params: RouteParams = $state({})
+  #pattern: string | null = $state(null)
   #component: Component | null = $state(null)
   #loading = $state(false)
   #error: unknown = $state(null)
@@ -127,6 +133,16 @@ export class Router {
 
   get params(): RouteParams {
     return this.#params
+  }
+
+  /**
+   * The matched route's pattern (`/tenants/:id`), or `null` when nothing
+   * matched (not-found). What cardinality-safe consumers — telemetry
+   * segmentation above all — read instead of {@linkcode pathname}: a raw
+   * path embeds ids, and every visit then becomes its own bucket.
+   */
+  get pattern(): string | null {
+    return this.#pattern
   }
 
   get component(): Component | null {
@@ -191,6 +207,7 @@ export class Router {
         if (this.#pathname !== pathname) return // superseded by a newer navigation
         this.#component = mod.default
         this.#params = {}
+        this.#pattern = null
         return
       }
 
@@ -199,6 +216,7 @@ export class Router {
         if (this.#pathname !== pathname) return
         if (!allowed) {
           this.#guardRejected = true
+          this.#pattern = patternOf(matched.route)
           this.#component = null
           return
         }
@@ -208,6 +226,7 @@ export class Router {
       if (this.#pathname !== pathname) return
       this.#component = mod.default
       this.#params = matched.params
+      this.#pattern = patternOf(matched.route)
     } catch (error) {
       if (this.#pathname !== pathname) return
       this.#error = error

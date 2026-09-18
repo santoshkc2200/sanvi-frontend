@@ -8,6 +8,7 @@ import type { Router, RouteDefinition } from '@sanvi/spa-router'
 import { createRouter } from '@sanvi/spa-router'
 import { AppShell, Cluster, ErrorView, LocaleSwitcher, Spinner, ToastViewport } from '@sanvi/ui'
 import { apiClient } from './lib/api'
+import { setPlatformAdminTelemetryRouteSource } from './lib/telemetry'
 
 // `router` referenced inside the guard closures before assignment — see
 // `@sanvi/admin`'s `App.svelte` for why this is safe.
@@ -87,6 +88,11 @@ router = createRouter({
   routes,
   notFound: () => import('./routes/NotFound.svelte'),
 })
+
+// Telemetry segments by the matched route pattern, not the raw path — ids in
+// the path would give every visit its own bucket. A null pattern (not-found)
+// falls back to the raw path.
+setPlatformAdminTelemetryRouteSource(() => router.pattern ?? router.pathname)
 
 // `$derived` — the labels go through `t` and must survive a locale switch.
 const NAV = $derived<{ href: string; label: string }[]>([

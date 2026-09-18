@@ -55,6 +55,50 @@ describe('Router', () => {
 
     await vi.waitFor(() => expect(router.component).toBe(TenantDetailComponent))
     expect(router.params).toEqual({ id: 'acme-1' })
+    expect(router.pattern).toBe('/tenants/:id')
+  })
+
+  it('pattern is the route shape, not the visited path — including for a guard-rejected route', async () => {
+    setPath('/admin-only')
+    const router = createRouter({
+      routes: [
+        {
+          path: 'admin-only',
+          guard: async () => false,
+          load: async () => ({ default: DashboardComponent }),
+        },
+      ],
+      notFound: async () => ({ default: NotFoundComponent }),
+    })
+
+    await vi.waitFor(() => expect(router.guardRejected).toBe(true))
+    expect(router.pattern).toBe('/admin-only')
+  })
+
+  it('pattern is null while nothing is matched and after a not-found navigation, set again on a real match', async () => {
+    setPath('/does-not-exist')
+    const router = createRouter({
+      routes: [{ path: 'dashboard', load: async () => ({ default: DashboardComponent }) }],
+      notFound: async () => ({ default: NotFoundComponent }),
+    })
+
+    await vi.waitFor(() => expect(router.component).toBe(NotFoundComponent))
+    expect(router.pattern).toBeNull()
+
+    router.navigate('/dashboard')
+    await vi.waitFor(() => expect(router.component).toBe(DashboardComponent))
+    expect(router.pattern).toBe('/dashboard')
+  })
+
+  it('the root route collapses to "/"', async () => {
+    setPath('/')
+    const router = createRouter({
+      routes: [{ path: '', load: async () => ({ default: DashboardComponent }) }],
+      notFound: async () => ({ default: NotFoundComponent }),
+    })
+
+    await vi.waitFor(() => expect(router.component).toBe(DashboardComponent))
+    expect(router.pattern).toBe('/')
   })
 
   it('falls back to notFound() when nothing matches', async () => {

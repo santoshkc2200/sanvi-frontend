@@ -11,6 +11,8 @@ describe('detectDeviceClass', () => {
     expect(detectDeviceClass({ userAgent: '… iPad; CPU OS 17_0 …' })).toBe('tablet')
     expect(detectDeviceClass({ userAgent: '… iPhone …' })).toBe('mobile')
     expect(detectDeviceClass({ userAgent: '… Android … Mobile …' })).toBe('mobile')
+    // Android tablets say neither `Mobile` nor `Tablet` — SM-X710 style.
+    expect(detectDeviceClass({ userAgent: '… Android 13; SM-X710 …' })).toBe('tablet')
   })
 
   it('a multi-touch Macintosh is an iPad in desktop clothing', () => {

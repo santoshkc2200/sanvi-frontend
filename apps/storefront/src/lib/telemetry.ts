@@ -1,3 +1,4 @@
+import { page } from '$app/state'
 import { currentLocale } from '@sanvi/i18n'
 import { theme } from '@sanvi/theme-runtime'
 import { get } from 'svelte/store'
@@ -41,7 +42,11 @@ export function initStorefrontTelemetry(): void {
       store: getConsent(),
       release: __APP_BUILD__,
       segmentation: (): TelemetrySegmentation => ({
-        route: window.location.pathname,
+        // The matched route pattern (`/products/[id]`), not the raw path —
+        // ids embedded in a route would give every detail visit its own
+        // segmentation bucket. A null id (unknown route) falls back to the
+        // path, the honest value when no pattern exists.
+        route: page.route.id ?? window.location.pathname,
         // Storefront tenants resolve per-request Host on the server; the
         // browser holds no tenant id to attribute — null is the honest value.
         tenantId: null,

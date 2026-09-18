@@ -29,6 +29,10 @@ export function detectDeviceClass(
   const ua = nav.userAgent ?? ''
   if (/iPad|Tablet|PlayBook|Silk/i.test(ua)) return 'tablet'
   if (/Mobi|iPhone|Android.*Mobile|Windows Phone/i.test(ua)) return 'mobile'
+  // Android tablets (e.g. SM-X710) carry no `Mobile` and no `Tablet` token —
+  // whatever says `Android` past the phone test above is a tablet, and
+  // falling through to desktop would misclassify every one of them.
+  if (/Android/i.test(ua)) return 'tablet'
   // iPadOS 13+ masquerades as desktop Mac; a multi-touch "Mac" is a tablet.
   if (/Macintosh/i.test(ua) && (nav.maxTouchPoints ?? 0) > 1) return 'tablet'
   return 'desktop'

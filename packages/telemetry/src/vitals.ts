@@ -51,21 +51,32 @@ function vitalsSource(): TelemetrySources {
   }
 }
 
-function timingSource(): TelemetrySources {
+/** Exposed for tests; the default set {@link createBrowserSources} ships is this plus {@link vitalsSource}. */
+export function timingSource(): TelemetrySources {
   return {
     start(onEvent) {
       if (typeof PerformanceObserver === 'undefined') return () => {}
       let resources = 0
+      const emitNavigation = (timing: PerformanceNavigationTiming): void => {
+        onEvent({
+          kind: 'navigation',
+          name: 'dom-content-loaded',
+          value: timing.domContentLoadedEventEnd,
+        })
+        onEvent({ kind: 'navigation', name: 'load', value: timing.loadEventEnd })
+      }
       const observer = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
           if (entry.entryType === 'navigation') {
             const timing = entry as PerformanceNavigationTiming
-            onEvent({
-              kind: 'navigation',
-              name: 'dom-content-loaded',
-              value: timing.domContentLoadedEventEnd,
-            })
-            onEvent({ kind: 'navigation', name: 'load', value: timing.loadEventEnd })
+            // `buffered` replays the navigation entry the moment collection
+            // starts, so for a start that lands mid-load — the common case
+            // once a default-allowed visitor's resolver enables us during
+            // page load — both timings are still 0, and this observer never
+            // re-fires to correct them. The load listener below owns those
+            // loads; emit only finished ones here.
+            if (timing.loadEventEnd === 0) continue
+            emitNavigation(timing)
           } else if (entry.entryType === 'resource') {
             if (resources >= RESOURCE_CAP) continue
             resources += 1
@@ -82,8 +93,27 @@ function timingSource(): TelemetrySources {
       // `buffered` replays the entries that fired before collection started —
       // the navigation row of the very page load that enabled us. Types an
       // unsupported engine doesn't know throw at observe(), so each stands alone.
+      let stopLoadListener: (() => void) | null = null
       try {
         observer.observe({ type: 'navigation', buffered: true })
+        // A start that lands mid-load gets its navigation row here instead:
+        // once the load event has fired, read the entry back off the buffer.
+        // `loadEventEnd` is stamped only after the event's own handlers
+        // return, so the read defers a task rather than running in the
+        // handler, where it would still see 0.
+        const readNavigationOnLoad = (): void => {
+          setTimeout(() => {
+            if (typeof performance === 'undefined') return
+            const timing = performance.getEntriesByType('navigation')[0] as
+              | PerformanceNavigationTiming
+              | undefined
+            if (timing && timing.loadEventEnd > 0) emitNavigation(timing)
+          }, 0)
+        }
+        if (typeof window !== 'undefined') {
+          window.addEventListener('load', readNavigationOnLoad)
+          stopLoadListener = () => window.removeEventListener('load', readNavigationOnLoad)
+        }
       } catch {
         // Engine without navigation entries — vitals still carry the load.
       }
@@ -92,7 +122,10 @@ function timingSource(): TelemetrySources {
       } catch {
         // Engine without resource entries.
       }
-      return () => observer.disconnect()
+      return () => {
+        observer.disconnect()
+        stopLoadListener?.()
+      }
     },
   }
 }

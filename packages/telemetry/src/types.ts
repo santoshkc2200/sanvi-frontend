@@ -20,7 +20,13 @@ export type VitalRating = 'good' | 'needs-improvement' | 'poor'
  * segmentation work) never needs a client change.
  */
 export interface TelemetrySegmentation {
-  /** Route pattern or path the app identifies itself by — scrubbed of any query string. */
+  /**
+   * The route pattern the app identifies itself by (`/products/[id]`-style —
+   * never a path with real ids embedded: segmentation queries by this later,
+   * and ids would make every detail visit its own bucket). Falls back to the
+   * raw path only where no pattern exists (an unknown route). Scrubbed of
+   * any query string.
+   */
   route: string
   /** Active tenant id, or null when the surface has none. Sanitized to opaque-id shape. */
   tenantId: string | null
