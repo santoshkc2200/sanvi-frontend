@@ -26,6 +26,7 @@
     "@sanvi/csp": "workspace:*",
     "@sanvi/design-tokens": "workspace:*",
     "@sanvi/i18n": "workspace:*",
+    "@sanvi/telemetry": "workspace:*",
     "@sanvi/tenant": "workspace:*",
     "@sanvi/theme-blocks": "workspace:*",
     "@sanvi/theme-runtime": "workspace:*",

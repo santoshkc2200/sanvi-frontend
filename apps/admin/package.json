@@ -30,6 +30,7 @@
     "@sanvi/payments-connect": "workspace:*",
     "@sanvi/query": "workspace:*",
     "@sanvi/spa-router": "workspace:*",
+    "@sanvi/telemetry": "workspace:*",
     "@sanvi/tenant": "workspace:*",
     "@sanvi/theme-runtime": "workspace:*",
     "@sanvi/ui": "workspace:*"

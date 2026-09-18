@@ -27,6 +27,7 @@
     "@sanvi/i18n": "workspace:*",
     "@sanvi/query": "workspace:*",
     "@sanvi/spa-router": "workspace:*",
+    "@sanvi/telemetry": "workspace:*",
     "@sanvi/ui": "workspace:*"
   },
   "devDependencies": {

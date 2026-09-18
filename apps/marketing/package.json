@@ -25,6 +25,7 @@
     "@sanvi/csp": "workspace:*",
     "@sanvi/design-tokens": "workspace:*",
     "@sanvi/i18n": "workspace:*",
+    "@sanvi/telemetry": "workspace:*",
     "@sanvi/ui": "workspace:*"
   },
   "devDependencies": {

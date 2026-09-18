@@ -81,6 +81,9 @@ catalogs:
     vitest:
       specifier: ^3.2.0
       version: 3.2.7
+    web-vitals:
+      specifier: ^5.0.0
+      version: 5.3.0
 
 overrides:
   '@vitest/expect': ^3.2.0
@@ -185,6 +188,9 @@ importers:
       '@sanvi/spa-router':
         specifier: workspace:*
         version: link:../../packages/spa-router
+      '@sanvi/telemetry':
+        specifier: workspace:*
+        version: link:../../packages/telemetry
       '@sanvi/tenant':
         specifier: workspace:*
         version: link:../../packages/tenant
@@ -255,6 +261,9 @@ importers:
       '@sanvi/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@sanvi/telemetry':
+        specifier: workspace:*
+        version: link:../../packages/telemetry
       '@sanvi/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -322,6 +331,9 @@ importers:
       '@sanvi/spa-router':
         specifier: workspace:*
         version: link:../../packages/spa-router
+      '@sanvi/telemetry':
+        specifier: workspace:*
+        version: link:../../packages/telemetry
       '@sanvi/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -383,6 +395,9 @@ importers:
       '@sanvi/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@sanvi/telemetry':
+        specifier: workspace:*
+        version: link:../../packages/telemetry
       '@sanvi/tenant':
         specifier: workspace:*
         version: link:../../packages/tenant
@@ -812,6 +827,34 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 3.2.7(@types/node@26.2.0)(jiti@2.6.1)(jsdom@25.0.1)(lightningcss@1.33.0)(yaml@2.9.0)
+
+  packages/telemetry:
+    dependencies:
+      '@sanvi/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+      '@sanvi/consent':
+        specifier: workspace:*
+        version: link:../consent
+      web-vitals:
+        specifier: 'catalog:'
+        version: 5.3.0
+    devDependencies:
+      '@sanvi/test-config':
+        specifier: workspace:*
+        version: link:../test-config
+      '@sanvi/ts-config':
+        specifier: workspace:*
+        version: link:../ts-config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.1
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.6.1)(jsdom@25.0.1)(lightningcss@1.33.0)(yaml@2.9.0)
 
   packages/tenant:
     dependencies:
@@ -5724,6 +5767,9 @@ packages:
   walk-up-path@4.0.0:
     resolution: {integrity: sha512-3hu+tD8YzSLGuFYtPRb48vdhKMi0KQV5sn+uWr8+7dMEq/2G/dtLrdDinkLjqq5TIbIBjYJ4Ax/n3YiaW7QM8A==}
     engines: {node: 20 || >=22}
+
+  web-vitals@5.3.0:
+    resolution: {integrity: sha512-q6LWsLatGYZp5VGBIOvbTj6JBV2nOmC8KvWztXBmwJcfFAzhwKwbOxhUH306XY3CcaZDUlSmSuNPBsCn0bFu+g==}
 
   webdriver-bidi-protocol@0.4.1:
     resolution: {integrity: sha512-ARrjNjtWRRs2w4Tk7nqrf2gBI0QXWuOmMCx2hU+1jUt6d00MjMxURrhxhGbrsoiZKJrhTSTzbIrc554iKI10qw==}
@@ -11151,6 +11197,8 @@ snapshots:
       xml-name-validator: 5.0.0
 
   walk-up-path@4.0.0: {}
+
+  web-vitals@5.3.0: {}
 
   webdriver-bidi-protocol@0.4.1: {}
 
