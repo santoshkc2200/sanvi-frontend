@@ -77,6 +77,7 @@ sanvi-frontend/
 │   ├── api-client/              # generated from OpenAPI + typed fetch wrapper
 │   ├── auth/                    # Ory Kratos flows, session store, guards
 │   ├── tenant/                  # tenant context resolution, entitlements, feature gates
+│   ├── telemetry/               # EXISTS — directive-gated RUM collector (Core Web Vitals + timing), sampled, scrubbed, ships off (phase 11)
 │   ├── theme-runtime/           # resolved-theme application, layout/slot registry
 │   ├── analytics/               # consent-aware event tracking
 │   ├── forms/                   # schema-driven forms + validation (shared with backend contracts)

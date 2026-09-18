@@ -34,6 +34,13 @@ Node server per tenant surface.
   first-party consent cookie, GPC handling, notice re-prompt logic, and the allow-listed third-party
   script gate. `@sanvi/analytics` reads its decisions and drops (never queues) events whose purpose
   is not `allowed`; payloads are flat and PII-checked at the package boundary.
+- `telemetry` (phase 11) is the RUM counterpart of `analytics`: Core Web Vitals plus navigation and
+  resource timing, sampled, scrubbed of query strings, and gated through the same directive resolver
+  (default purpose `analytics`). It never fetches either — its keepalive POST goes through
+  `@sanvi/api-client`'s `createKeepalivePoster`, the one place a `fetch` may live — and it ships
+  wired but disabled in all four apps: there is no collector endpoint and no traffic
+  (`docs/release/needs-humans.md`). Every event carries the build stamp each app embeds at build
+  time from `@sanvi/telemetry/release` (the same identity `GET /api/v1/system/build` reports).
 - Apps compose. Business logic that two apps share moves into a package; logic that one app has stays
   in that app.
 
