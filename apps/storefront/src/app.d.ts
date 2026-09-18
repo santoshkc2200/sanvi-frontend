@@ -2,6 +2,7 @@ import type { Session } from '@sanvi/auth/server'
 import type { Locale } from '@sanvi/i18n'
 import type { TenantContext } from '@sanvi/tenant'
 import type { ResolvedTheme } from '@sanvi/theme-runtime'
+import type { BuildDetails } from '@sanvi/api-client'
 
 // See https://svelte.dev/docs/kit/types#app.d.ts
 declare global {
@@ -29,4 +30,6 @@ declare global {
 
   /** Injected by `vite.config.ts`'s `define` from `package.json`'s version. */
   const __APP_VERSION__: string
+  /** Injected by `vite.config.ts`'s `define` — the FR-1103 release stamp, the same shape `GET /api/v1/system/build` returns. */
+  const __APP_BUILD__: BuildDetails
 }

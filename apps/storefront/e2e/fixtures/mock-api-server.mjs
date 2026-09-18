@@ -37,6 +37,7 @@
  * consent" is only provable at the network layer).
  */
 import { createServer } from 'node:http'
+import { E2E_BUILD_STAMP } from './build-stamp.mjs'
 
 const PORT = 8090
 
@@ -401,6 +402,20 @@ const server = createServer(async (req, res) => {
   if (path === '/__health') {
     res.writeHead(200)
     res.end('ok')
+    return
+  }
+
+  // FR-1103 build probe: the release stamp the deployment reports. Env-first
+  // (the playwright config pins the same values the app build embedded), so
+  // the app's `/health` and this stand-in can be compared field for field —
+  // the stand-in for what the real backend returns for this release train.
+  if (path === '/api/v1/system/build') {
+    json(req, res, 200, {
+      commit: process.env.SANVI_GIT_COMMIT ?? E2E_BUILD_STAMP.commit,
+      version: process.env.SANVI_VERSION ?? E2E_BUILD_STAMP.version,
+      built_at: process.env.SANVI_BUILT_AT ?? E2E_BUILD_STAMP.built_at,
+      environment: process.env.SANVI_ENVIRONMENT ?? E2E_BUILD_STAMP.environment,
+    })
     return
   }
 

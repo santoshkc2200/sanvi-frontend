@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { E2E_BUILD_STAMP } from './e2e/fixtures/build-stamp'
 
 export default defineConfig({
   testDir: './e2e',
@@ -18,6 +19,13 @@ export default defineConfig({
       command: 'node e2e/fixtures/mock-api-server.mjs',
       url: 'http://localhost:8090/__health',
       reuseExistingServer: !process.env.CI,
+      // The mock's `GET /api/v1/system/build` serves the same pinned stamp
+      // the build below embeds — the release-stamp spec compares them.
+      env: {
+        SANVI_GIT_COMMIT: E2E_BUILD_STAMP.commit,
+        SANVI_BUILT_AT: E2E_BUILD_STAMP.built_at,
+        SANVI_ENVIRONMENT: E2E_BUILD_STAMP.environment,
+      },
     },
     {
       command: 'pnpm build && pnpm preview',
@@ -35,6 +43,11 @@ export default defineConfig({
         // sent and the specs assert the header. Per-tenant delivery from the
         // backend is the open cross-repo item; the harness sets it as env.
         PUBLIC_TRACKING_SITE_KEY: 'e2e-tracking-site-key',
+        // Pins the FR-1103 release stamp `vite.config.ts` bakes into the
+        // build — see e2e/fixtures/build-stamp.mjs.
+        SANVI_GIT_COMMIT: E2E_BUILD_STAMP.commit,
+        SANVI_BUILT_AT: E2E_BUILD_STAMP.built_at,
+        SANVI_ENVIRONMENT: E2E_BUILD_STAMP.environment,
       },
     },
   ],

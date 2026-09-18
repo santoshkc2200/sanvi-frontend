@@ -11,6 +11,7 @@ import {
 } from '@sanvi/i18n'
 import { page } from '$app/state'
 import type { Snippet } from 'svelte'
+import { initMarketingTelemetry } from '$lib/telemetry'
 
 let { children }: { children: Snippet } = $props()
 
@@ -23,6 +24,11 @@ let { children }: { children: Snippet } = $props()
 initI18n({ locale: parseLocalePrefix(page.url.pathname)?.locale ?? BASE_LOCALE })
 $effect(() => {
   initI18n({ locale: parseLocalePrefix(page.url.pathname)?.locale ?? BASE_LOCALE })
+})
+
+// RUM collection — wired but disabled (see `$lib/telemetry` for why).
+$effect(() => {
+  initMarketingTelemetry()
 })
 
 // Crawlable locale links in a real nav — the prerender crawler discovers

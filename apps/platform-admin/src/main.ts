@@ -3,6 +3,7 @@ import { initI18n, t } from '@sanvi/i18n'
 import { mount } from 'svelte'
 import '@sanvi/ui/styles.css'
 import { apiClient } from './lib/api'
+import { initPlatformAdminTelemetry } from './lib/telemetry'
 import App from './App.svelte'
 
 function resolveTarget(): HTMLElement {
@@ -49,6 +50,9 @@ async function boot(): Promise<void> {
   // elsewhere), on top of the `onUnauthorized` hook that covers changes made
   // *in* this tab.
   startSessionAutoRefresh(apiClient)
+
+  // RUM collection — wired but disabled (see `./lib/telemetry` for why).
+  initPlatformAdminTelemetry()
 
   mount(App, { target })
 }

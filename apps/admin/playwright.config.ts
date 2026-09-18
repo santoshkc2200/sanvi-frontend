@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { E2E_BUILD_STAMP } from './e2e/fixtures/build-stamp'
 
 export default defineConfig({
   testDir: './e2e',
@@ -22,6 +23,11 @@ export default defineConfig({
       // through the same-site gateway the same way).
       VITE_MEDIA_ORIGIN: 'http://localhost:4175',
       VITE_STRIPE_PUBLISHABLE_KEY: 'pk_test_e2e_fake_key',
+      // Pins the FR-1103 release stamp `vite.config.ts` bakes into the
+      // build — see e2e/fixtures/build-stamp.mjs.
+      SANVI_GIT_COMMIT: E2E_BUILD_STAMP.commit,
+      SANVI_BUILT_AT: E2E_BUILD_STAMP.built_at,
+      SANVI_ENVIRONMENT: E2E_BUILD_STAMP.environment,
     },
   },
   projects: [

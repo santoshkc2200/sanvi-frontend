@@ -34,6 +34,7 @@ import {
 import { consentablePurposeCopy } from '$lib/purpose-copy'
 import { localePath, setClientDefaultLocale } from '$lib/links'
 import { stashLandingClickIds } from '$lib/tracking/click-ids'
+import { initStorefrontTelemetry } from '$lib/telemetry'
 
 registerAllBlocks()
 // Preload targets for ja pages (see `<svelte:head>` below): the two
@@ -111,6 +112,12 @@ $effect(() => {
   })
   initGatedAnalytics()
   consentState.version += 1
+})
+
+// RUM collection — wired but disabled (see `$lib/telemetry` for why). Runs
+// after the consent effect so the store exists when the collector reads it.
+$effect(() => {
+  initStorefrontTelemetry()
 })
 
 // First-party ad click ids (gclid etc.) only ever appear on the URL the

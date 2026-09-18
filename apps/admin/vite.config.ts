@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { sanviCspMetaPlugin } from '@sanvi/csp/vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
+import { resolveReleaseStamp } from '@sanvi/telemetry/release'
 import { defineConfig, loadEnv } from 'vite'
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
@@ -42,6 +44,12 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
+      // FR-1103: the build embeds the same identity `GET /api/v1/system/build`
+      // reports — commit, semver, built-at, environment — so any measurement
+      // or error report names the exact build that produced it.
+      __APP_BUILD__: JSON.stringify(
+        resolveReleaseStamp({ appDir: fileURLToPath(new URL('./', import.meta.url)) }),
+      ),
     },
     build: {
       // main.ts top-level-awaits session bootstrap — the default `modules`
