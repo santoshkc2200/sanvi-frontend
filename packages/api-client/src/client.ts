@@ -135,6 +135,15 @@ export interface ApiClient {
    * multi-chunk download is not a timeout.
    */
   requestStream(path: string, options?: RequestOptions): Promise<ReadableStream<Uint8Array>>
+  /**
+   * The trace id of the most recent request this client attempted — the id it
+   * sent in `traceparent`, or (when a caller overrode that header) the id the
+   * final header named. The fallback an error screen or an error report uses
+   * when the failure carries no `problem.trace_id` of its own (a network
+   * error, a timeout): "what was this page last talking to" is the next best
+   * correlation after "the id of the request that failed".
+   */
+  getLastTraceId(): string | undefined
 }
 
 function buildUrl(baseUrl: string, path: string, query: RequestOptions['query']): string {
@@ -143,6 +152,33 @@ function buildUrl(baseUrl: string, path: string, query: RequestOptions['query'])
     if (value !== undefined) url.searchParams.set(key, String(value))
   }
   return url.toString()
+}
+
+/**
+ * W3C Trace Context (TASK-020's backend convention, `sanvi-backend`
+ * `crates/platform/http/src/trace_context.rs`): every request carries a
+ * `traceparent` header, and the backend joins *this* trace at its root span —
+ * the `trace_id` it echoes in problem details is then the same id a frontend
+ * error report and a backend span both carry, which is what makes an incident
+ * traceable across the repo boundary in under a minute.
+ */
+const TRACEPARENT_PATTERN = /^[\da-f]{2}-[\da-f]{32}-[\da-f]{16}-[\da-f]{2}$/
+
+function randomHex(bytes: number): string {
+  const buffer = new Uint8Array(bytes)
+  globalThis.crypto.getRandomValues(buffer)
+  return Array.from(buffer, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+/** `00-<32-hex trace id>-<16-hex span id>-01` — the only version/flags this client emits. */
+function buildTraceparent(): string {
+  return `00-${randomHex(16)}-${randomHex(8)}-01`
+}
+
+/** The trace id half of a well-formed `traceparent` value; `undefined` for anything malformed. */
+export function traceIdFromTraceparent(value: string | undefined | null): string | undefined {
+  if (!value || !TRACEPARENT_PATTERN.test(value)) return undefined
+  return value.slice(3, 35)
 }
 
 function sleep(ms: number): Promise<void> {
@@ -213,6 +249,9 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     onUnauthorized,
   } = config
 
+  /** The trace id of the latest request — see `ApiClient.getLastTraceId`. Written per fetch attempt, never cleared: a stale id beats no id for correlation. */
+  let lastTraceId: string | undefined
+
   /** One `fetch` attempt: builds the URL/headers, applies the timeout, and throws {@link NetworkError}/{@link TimeoutError} on a transport failure. No status handling — callers decide what a non-2xx response means. When {@link ResolvedContext} is passed (the coalescing path), its captured values are sent verbatim; otherwise the ambient getters are read here. */
   async function doFetch(
     path: string,
@@ -238,9 +277,16 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     const requestHeaders: Record<string, string> = {
       accept: 'application/json',
       'x-request-id': requestId,
+      // Per attempt, like `x-request-id`: each retry is its own backend span.
+      // `traceparent` sits before the caller-header merges, so a caller that
+      // has a real trace to continue can override it.
+      traceparent: buildTraceparent(),
       ...extraHeaders,
       ...headers,
     }
+    // Recorded from the final header, not the generated value — a caller's
+    // override wins, and this cell must name the trace the backend actually saw.
+    lastTraceId = traceIdFromTraceparent(requestHeaders['traceparent'])
     if (body !== undefined) requestHeaders['content-type'] = 'application/json'
     if (token) requestHeaders['authorization'] = `Bearer ${token}`
     if (tenantId) requestHeaders['x-tenant-id'] = tenantId
@@ -445,6 +491,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     request,
     requestRaw,
     requestStream,
+    getLastTraceId: () => lastTraceId,
     get: (path, options) => request(path, { ...options, method: 'GET' }),
     post: (path, body, options) => request(path, { ...options, method: 'POST', body }),
     put: (path, body, options) => request(path, { ...options, method: 'PUT', body }),

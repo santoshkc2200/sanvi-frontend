@@ -1,7 +1,9 @@
 <script lang="ts">
-import { t } from '@sanvi/i18n'
-import { Container, EmptyState, Stack, Table, type TableColumn } from '@sanvi/ui'
+import { buildDiagnosticsPaste, recentBreadcrumbs } from '@sanvi/telemetry/diagnostics'
+import { currentLocale, t } from '@sanvi/i18n'
+import { Container, EmptyState, ErrorDiagnostics, Stack, Table, type TableColumn } from '@sanvi/ui'
 import type { components } from '@sanvi/api-client'
+import { page } from '$app/state'
 import type { PageData } from './$types'
 
 /**
@@ -32,6 +34,24 @@ const columns: TableColumn<MetricsRow>[] = $derived([
   { key: 'complied', header: COPY.compliedColumn },
   { key: 'denied', header: COPY.deniedColumn },
 ])
+
+// The unavailable state carries its correlation id (FR-1106): the id the
+// failed request produced, plus the one-paste support action — so a
+// degraded disclosure is diagnosable without asking the user to read an id
+// aloud. Only rendered when there is an id; otherwise the labelled-empty
+// state stands alone.
+const diagnosticsText = $derived(
+  data.traceId
+    ? buildDiagnosticsPaste({
+        release: __APP_BUILD__,
+        route: page.route.id ?? page.url.pathname,
+        tenantId: null,
+        locale: currentLocale(),
+        traceId: data.traceId,
+        breadcrumbs: recentBreadcrumbs(),
+      })
+    : undefined,
+)
 </script>
 
 <svelte:head><title>{COPY.title}</title></svelte:head>
@@ -42,6 +62,12 @@ const columns: TableColumn<MetricsRow>[] = $derived([
 
     {#if data.metrics === null}
       <EmptyState title={COPY.unavailableTitle} description={COPY.unavailableBody} />
+      <ErrorDiagnostics
+        traceLine={data.traceId ? t['errors.traceId']({ id: data.traceId }) : undefined}
+        {diagnosticsText}
+        copyLabel={t['errors.diagnostics.copy']()}
+        copiedLabel={t['errors.diagnostics.copied']()}
+      />
     {:else}
       <p>{COPY.yearLabel(data.year)}</p>
       <Table rows={data.metrics} getRowId={(row) => `${row.jurisdiction}-${row.kind}`} caption={COPY.title} {columns} />

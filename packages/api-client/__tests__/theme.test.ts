@@ -24,6 +24,7 @@ function fakeClient(mockResponse: unknown = { ok: true }): {
       request,
       requestRaw: vi.fn().mockResolvedValue({ status: 200, body: mockResponse }),
       requestStream: vi.fn().mockResolvedValue(new ReadableStream()),
+      getLastTraceId: vi.fn(() => undefined),
       get: (path, options) => request(path, { ...options, method: 'GET' }),
       post: (path, body, options) => request(path, { ...options, method: 'POST', body }),
       put: (path, body, options) => request(path, { ...options, method: 'PUT', body }),

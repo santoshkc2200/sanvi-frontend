@@ -3,7 +3,11 @@ import type { BuildDetails } from '@sanvi/api-client'
 
 declare global {
   namespace App {
-    // interface Error {}
+    /** `traceId` is the backend's problem-details `trace_id` when the failure carries one (TASK-020). */
+    interface Error {
+      message?: string
+      traceId?: string
+    }
     // interface Locals {}
     // interface PageData {}
     // interface PageState {}

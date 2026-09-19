@@ -9,6 +9,12 @@ import { createRouter } from '@sanvi/spa-router'
 import { AppShell, Cluster, ErrorView, LocaleSwitcher, Spinner, ToastViewport } from '@sanvi/ui'
 import { apiClient } from './lib/api'
 import { setPlatformAdminTelemetryRouteSource } from './lib/telemetry'
+import {
+  buildDiagnosticsPaste,
+  errorTraceId,
+  recentBreadcrumbs,
+  recordDiagnosticBreadcrumb,
+} from '@sanvi/telemetry/diagnostics'
 
 // `router` referenced inside the guard closures before assignment — see
 // `@sanvi/admin`'s `App.svelte` for why this is safe.
@@ -93,6 +99,32 @@ router = createRouter({
 // the path would give every visit its own bucket. A null pattern (not-found)
 // falls back to the raw path.
 setPlatformAdminTelemetryRouteSource(() => router.pattern ?? router.pathname)
+
+// Navigation breadcrumbs for the copy-diagnostics paste (FR-1106). Local
+// recall only — nothing transmits unless the error tracker is enabled and
+// the directive gate allows it. Route patterns, not raw paths.
+$effect(() => {
+  const pattern = router.pattern
+  if (pattern) recordDiagnosticBreadcrumb('navigation', pattern)
+})
+
+// The route-error screen carries its correlation (FR-1106): the trace id of
+// the failing ApiError, falling back to "the request this page last made"
+// for non-API failures, plus the one-paste diagnostics. Platform-admin has
+// no tenant dimension — that section reports `none`.
+const routeErrorTraceId = $derived(errorTraceId(router.error) ?? apiClient.getLastTraceId())
+const routeErrorDiagnostics = $derived(
+  routeErrorTraceId
+    ? buildDiagnosticsPaste({
+        release: __APP_BUILD__,
+        route: router.pattern ?? router.pathname,
+        tenantId: null,
+        locale: currentLocale(),
+        traceId: routeErrorTraceId,
+        breadcrumbs: recentBreadcrumbs(),
+      })
+    : undefined,
+)
 
 // `$derived` — the labels go through `t` and must survive a locale switch.
 const NAV = $derived<{ href: string; label: string }[]>([
@@ -201,6 +233,10 @@ onLocaleChange(() => clearCache())
       description={t['errors.default.description']()}
       retryLabel={t['common.retry']()}
       onRetry={retry}
+      traceLine={routeErrorTraceId ? t['errors.traceId']({ id: routeErrorTraceId }) : undefined}
+      diagnosticsText={routeErrorDiagnostics}
+      copyLabel={t['errors.diagnostics.copy']()}
+      copiedLabel={t['errors.diagnostics.copied']()}
     />
   {:else if router.guardRejected}
     <ErrorView

@@ -11,6 +11,10 @@
       "types": "./src/index.ts",
       "svelte": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./problem": {
+      "types": "./src/problem.ts",
+      "default": "./src/problem.ts"
     }
   },
   "sideEffects": false,

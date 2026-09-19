@@ -36,6 +36,12 @@ import {
 } from '@sanvi/ui'
 import { apiClient } from './lib/api'
 import { setAdminTelemetryRouteSource } from './lib/telemetry'
+import {
+  buildDiagnosticsPaste,
+  errorTraceId,
+  recentBreadcrumbs,
+  recordDiagnosticBreadcrumb,
+} from '@sanvi/telemetry/diagnostics'
 
 // `router` is referenced inside the guard closures below before it's
 // assigned — safe because a guard only ever runs once something navigates,
@@ -353,6 +359,14 @@ router = createRouter({
 // pattern (not-found) falls back to the raw path.
 setAdminTelemetryRouteSource(() => router.pattern ?? router.pathname)
 
+// Navigation breadcrumbs for the copy-diagnostics paste (FR-1106). Local
+// recall only — nothing transmits unless the error tracker is enabled and
+// the directive gate allows it. Route patterns, not raw paths.
+$effect(() => {
+  const pattern = router.pattern
+  if (pattern) recordDiagnosticBreadcrumb('navigation', pattern)
+})
+
 // Tenant data cached under the previous tenant's id must never render while
 // the switcher shows the new tenant — clearing on every switch is the
 // enforcement, not a "remember to invalidate the right tags" convention.
@@ -445,6 +459,23 @@ const deniedDescription = $derived(
         permission: getLastDeniedPermission() as string,
       })
     : t['admin.app.deniedDescription'](),
+)
+
+// The route-error screen carries its correlation (FR-1106): the trace id of
+// the failing ApiError, falling back to "the request this page last made"
+// for non-API failures, plus the one-paste diagnostics.
+const routeErrorTraceId = $derived(errorTraceId(router.error) ?? apiClient.getLastTraceId())
+const routeErrorDiagnostics = $derived(
+  routeErrorTraceId
+    ? buildDiagnosticsPaste({
+        release: __APP_BUILD__,
+        route: router.pattern ?? router.pathname,
+        tenantId: getActiveTenantId() ?? null,
+        locale: currentLocale(),
+        traceId: routeErrorTraceId,
+        breadcrumbs: recentBreadcrumbs(),
+      })
+    : undefined,
 )
 
 type NavKey =
@@ -588,6 +619,10 @@ function retry(): void {
         description={t['admin.app.errorDescription']()}
         retryLabel={t['common.retry']()}
         onRetry={retry}
+        traceLine={routeErrorTraceId ? t['errors.traceId']({ id: routeErrorTraceId }) : undefined}
+        diagnosticsText={routeErrorDiagnostics}
+        copyLabel={t['errors.diagnostics.copy']()}
+        copiedLabel={t['errors.diagnostics.copied']()}
       />
     {:else if router.guardRejected}
       <ErrorView title={t['admin.app.deniedTitle']()} description={deniedDescription} />

@@ -1,4 +1,5 @@
 import { createKeepalivePoster } from '@sanvi/api-client'
+import type { ErrorReport, ErrorTransport } from './errors'
 import type { TelemetryEvent, TelemetryTransport } from './types'
 
 /**
@@ -32,5 +33,21 @@ export function createBeaconTransport(options: {
   return (events: TelemetryEvent[]) => {
     if (events.length === 0) return
     post({ events })
+  }
+}
+
+/**
+ * The error-tracker transport: one keepalive POST per report. Errors are
+ * rare by definition, so batching buys nothing and immediacy buys a report
+ * that survives a crash a moment later — the collector's pagehide flush has
+ * no equivalent to rely on when the page itself is the thing that broke.
+ */
+export function createErrorBeaconTransport(options: {
+  endpoint: string
+  fetchImpl?: typeof fetch
+}): ErrorTransport {
+  const post = createKeepalivePoster({ endpoint: options.endpoint, fetchImpl: options.fetchImpl })
+  return (report: ErrorReport) => {
+    post({ errors: [report] })
   }
 }

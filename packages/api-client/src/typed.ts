@@ -90,6 +90,13 @@ export interface TypedApiClient {
    * `ApiClient.requestStream`, exactly as for the typed calls.
    */
   stream(path: string, options?: UntypedCallOptions): Promise<ReadableStream<Uint8Array>>
+
+  /**
+   * The underlying client's last-sent trace id (`ApiClient.getLastTraceId`)
+   * — correlation is a runtime concern of whichever client reference the
+   * app holds, so it passes through the typed wrapper unchanged.
+   */
+  getLastTraceId(): string | undefined
 }
 
 /** Replaces every `{name}` segment of an OpenAPI path template with its value. Throws on a missing value rather than sending a literal `{name}` to the server. */
@@ -141,5 +148,6 @@ export function createTypedApiClient(client: ApiClient): TypedApiClient {
       const { params, ...rest } = options ?? {}
       return client.requestStream(resolvedPath, { ...rest, method: 'GET', query: params?.query })
     },
+    getLastTraceId: () => client.getLastTraceId(),
   } as unknown as TypedApiClient
 }

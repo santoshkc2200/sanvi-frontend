@@ -114,6 +114,8 @@
   "errors.generic.title": "問題が発生しました",
   "errors.default.description": "ページを再読み込みしてください。",
   "errors.traceId": "参照番号：{id}",
+  "errors.diagnostics.copy": "診断情報をコピー",
+  "errors.diagnostics.copied": "コピーしました",
   "admin.nav.switchLanguage": "言語を切り替える",
   "admin.boot.failureMessage": "サーバーに接続できませんでした。接続を確認して、もう一度お試しください。",
   "legal.cookies.title": "Cookie ポリシー",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sanitizeSegmentation, scrubUrl } from '../scrub'
+import { sanitizeSegmentation, scrubText, scrubUrl } from '../scrub'
 
 describe('scrubUrl', () => {
   it('strips the query string and fragment from an absolute URL', () => {
@@ -65,5 +65,36 @@ describe('sanitizeSegmentation', () => {
         themeRevision: undefined as unknown as null,
       }).themeRevision,
     ).toBeNull()
+  })
+})
+
+describe('scrubText (error payloads, breadcrumbs, log lines)', () => {
+  it('removes email addresses', () => {
+    expect(scrubText('failed for jane.doe@example.test during checkout')).toBe(
+      'failed for [removed-email] during checkout',
+    )
+  })
+
+  it('removes bearer tokens', () => {
+    expect(scrubText('rejected: bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9')).toBe(
+      'rejected: [removed-token]',
+    )
+  })
+
+  it('removes credential-shaped field assignments', () => {
+    expect(scrubText('bad request: session_token=abc123def456')).toBe(
+      'bad request: [removed-secret]',
+    )
+    expect(scrubText('api_key: "sk-live-abcdef123456" refused')).toBe('[removed-secret] refused')
+  })
+
+  it('caps length — a runaway stack is truncated, not forwarded whole', () => {
+    expect(scrubText('x'.repeat(4096)).length).toBe(2048)
+  })
+
+  it('leaves clean text alone', () => {
+    expect(scrubText('Cannot read properties of undefined (reading id)')).toBe(
+      'Cannot read properties of undefined (reading id)',
+    )
   })
 })

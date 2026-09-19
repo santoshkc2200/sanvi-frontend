@@ -90,6 +90,7 @@ export {
 export { default as Drawer } from './Drawer.svelte'
 export { default as EmptyState } from './EmptyState.svelte'
 export { default as ErrorView } from './ErrorView.svelte'
+export { default as ErrorDiagnostics } from './errors/ErrorDiagnostics.svelte'
 export { default as Field, type FieldControlProps } from './Field.svelte'
 export { default as FilterBar, type FilterFieldConfig } from './FilterBar.svelte'
 export {

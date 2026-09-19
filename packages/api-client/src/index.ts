@@ -147,7 +147,7 @@ export {
   listPublicPlans,
 } from './billing'
 export type { ApiClient, ApiClientConfig, RawResponse, RequestOptions } from './client'
-export { createApiClient } from './client'
+export { createApiClient, traceIdFromTraceparent } from './client'
 export {
   claimCustomDomain,
   getDomainInstructions,

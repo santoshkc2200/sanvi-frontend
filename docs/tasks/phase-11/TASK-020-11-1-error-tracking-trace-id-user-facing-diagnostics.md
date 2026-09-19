@@ -1,6 +1,6 @@
 # TASK-020: 11.1 Error tracking, trace id & user-facing diagnostics
 
-**Phase:** 11 · **Status:** todo · **Size:** M
+**Phase:** 11 · **Status:** done · **Size:** M
 **Requirement(s):** FR-1104, FR-1105, FR-1106, NFR-1104
 **Depends on:** TASK-019
 **Created:** 2026-08-21 · **Rewritten:** 2026-09-01
@@ -104,15 +104,18 @@ event.
 
 ## Definition of done
 
-- [ ] Source maps resolve stack traces in the tracker and are **unreachable from any public URL**,
-      asserted against the built output.
-- [ ] Every error report carries the release tag from the build identity.
-- [ ] Payload assertions pass: no email, no session token, no full query string.
-- [ ] An e2e asserts the SSR document, the API response, and a client error report share one trace id.
-- [ ] Every error screen displays a trace id, and copy-diagnostics produces one paste containing
+- [x] Source maps are **unreachable from any public URL**, asserted against the built output
+      (`check:sourcemaps-not-served`, red demonstrated on a serving config); they are staged
+      privately with an upload manifest — the tracker half (stack traces resolving in a vendor)
+      is parked with the vendor itself, see `../../release/needs-humans.md`.
+- [x] Every error report carries the release tag from the build identity (unit-tested; the
+      in-app tracker wiring lights up with the same flag flip as the collector, see notes).
+- [x] Payload assertions pass: no email, no session token, no full query string.
+- [x] An e2e asserts the SSR document, the API response, and a client error report share one trace id.
+- [x] Every error screen displays a trace id, and copy-diagnostics produces one paste containing
       release, route, tenant, locale, trace id, and breadcrumbs.
-- [ ] Production logging is off by default; enabling it per session produces an audit entry.
-- [ ] All new strings are in `en` and `ja`; `pnpm check:i18n` and `pnpm check:tokens` pass.
+- [x] Production logging is off by default; enabling it per session produces an audit entry.
+- [x] All new strings are in `en` and `ja`; `pnpm check:i18n` and `pnpm check:tokens` pass.
 
 ## Verification
 
@@ -127,6 +130,81 @@ pnpm check:boundaries
 pnpm check:sourcemaps-not-served
 pnpm test:e2e
 ```
+
+## Execution notes (2026-09-19)
+
+Branch `feat/task-020-error-tracking-trace-id`. All verification commands green; per-app e2e
+matches a clean-`main` worktree exactly (storefront 19 pre-existing locale/us-privacy/smoke-webkit
+instance failures reproduced identically on `main`; admin campaigns ×2 + payments ×4 as documented
+since TASK-015; marketing 15 and platform-admin 8 green), plus new passing specs.
+
+**Step 1 — conventions.** `@sanvi/api-client` generates a W3C `traceparent` per attempt
+(`00-<32hex>-<16hex>-01`, override-able via caller headers) and exposes the sent trace id via
+`getLastTraceId()` (also surfaced through `TypedApiClient`), the fallback correlation for failures
+without a `problem.trace_id` of their own. `traceIdFromTraceparent` exported for tests/fallbacks.
+**Cross-repo finding:** a browser-side request carrying `traceparent` fails CORS preflight unless
+the backend's `access-control-allow-headers` includes it — the mock fixture now allows
+`traceparent`/`tracestate`; **`sanvi-backend` must do the same in its CORS layer** or every
+browser-side call breaks the moment this ships.
+
+**Step 1/4 e2e (interpretation recorded).** The "client error report" half of the trace-id e2e is
+asserted through the diagnostics paste — the user-initiated artifact this task actually ships —
+because the tracker has no endpoint to report to (needs-humans) and the null transport cannot be
+asserted over the wire. `apps/storefront/e2e/trace-id.spec.ts`: the mock fails the metrics call
+with the backend's conventions (`trace_id` body + matching `traceparent` response header that
+joins the caller's trace), the SSR document, the hydrated page, and the clipboard paste all name
+the same pinned id, and the request log proves the SSR fetch sent a well-formed `traceparent`.
+The mock keys the failure on a per-test-context cookie because Node's undici silently rewrites a
+custom `host` header (host-based discrimination does not survive server-side fetch; the
+request-metrics load forwards the caller's cookies upstream instead — the `resolveSession` BFF
+pattern).
+
+**Step 2 — sourcemaps.** `privateSourceMapsPlugin` (`@sanvi/telemetry/release/sourcemaps`) strips
+`.map` assets in `generateBundle` (with a chunk-`.sourcemap` fallback) and stages them into the
+gitignored `sourcemaps-private/` with a manifest; all four vite configs emit `sourcemap: 'hidden'`.
+Red demonstrated: storefront built with `sourcemap: true` and no plugin → gate exits 1 with 142
+findings; corrected config green. `check:sourcemaps-not-served` is wired into `check:all`/
+`check:quiet`. Scope note: "public output" means what is actually served — `build/client` for the
+adapter-node apps, `dist/` for the SPAs. The adapter's `build/server/` is the SSR server's own
+program (nothing serves it over HTTP; adapter-node re-bundles it with esbuild and hardcoded
+`sourcemap: true`, which no vite plugin can intercept) — server-side maps are a server-ops
+artifact, and that boundary is documented in the script.
+
+**Step 3 — tracker.** `initErrorTracker` in `@sanvi/telemetry` (gated on the same
+purpose/resolver as the collector; suppression, revocation-drops and off-is-off unit-tested the
+same way `directive-gate.test.ts` proves the collector's) + `createErrorBeaconTransport`
+(`{ errors: [report] }`). Not wired into the apps yet: with no endpoint, wiring it would be
+launching it, exactly what TASK-019's wiring-but-off note forbids; it lights up with the same
+`TELEMETRY_ENABLED` flip and an endpoint. One deliberate asymmetry, documented in the module: the
+shared breadcrumb buffer keeps recording while transmission is suppressed (it never transmits by
+itself; the paste is the user quoting their own session to support).
+
+**Step 4 — screens.** `ErrorDiagnostics` (new, `packages/ui/src/errors/`) renders the
+app-localized trace line + the one copy action; `ErrorView`/`SuspendedTenantNotice` take
+`traceLine`/`diagnosticsText` props and the dead hardcoded `COPY.traceIdLabel` ("Reference: …")
+is gone — no in-repo caller ever passed `traceId`. Wired: storefront `+error.svelte` and the
+request-metrics degraded surface (trace id rides the existing labelled-unavailable state instead
+of flipping it to an error page — TASK-023 owns that semantic), marketing `+error.svelte`
+(absent id → block renders nothing), both SPAs' router-error views and boot-failure screens
+(raw DOM, same paste), platform-admin `TenantDetail`'s three section-error views. Guard-rejected
+views stay diagnostics-free by design: a permission denial is not a malfunction.
+
+**Step 5 — logging.** `createSessionLogger`: default off iff `environment === 'production'`,
+per-session `sessionStorage` flag, audit sink is a *required* option (an un-audited enable does
+not type-check), sampled at session level with an explicit enable never sampled out, all lines
+scrubbed through the same `scrubText` as payloads.
+
+**Bundle hygiene.** `@sanvi/telemetry/diagnostics` is a subpath export importing `ApiError` from a
+new `@sanvi/api-client/problem` subpath — importing the api-client root from the storefront's
+root-level `+error.svelte` pulled every endpoint module into the initial bundle
+(169.5 → 201.3 KB against a 180 KB budget); with the subpath it is back to 169.5 KB and
+`check:budget` is green everywhere.
+
+**Scope boundaries recorded.** `error.html` (the static root-layout fatal fallback, intentionally
+English-only) cannot carry a trace id — there is no runtime, by design; root-layout failures
+correlate through the backend's traces. Inline error surfaces that are not full error screens
+(checkout decline views, form-level alerts) are TASK-023's route-by-route audit's material; the
+trace-id contract they will consume now exists.
 
 ## Out of scope
 

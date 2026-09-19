@@ -96,7 +96,31 @@ const TENANTS = {
     default_locale: 'en',
     resolution_source: 'subdomain',
   },
+  // TASK-020: the trace-id spec's host. Same shape as any active tenant;
+  // the only difference is the metrics endpoint below failing with the
+  // backend's problem-details conventions (trace_id + traceparent header).
+  'trace.localhost:4174': {
+    tenant_id: '77777777-7777-7777-7777-777777777777',
+    slug: 'trace-co',
+    display_name: 'Trace Tenant',
+    status: 'active',
+    region: 'us',
+    default_locale: 'en',
+    resolution_source: 'subdomain',
+  },
 }
+
+/**
+ * The failing response the trace-id spec drives: mirrors the backend's
+ * TASK-020 conventions (`crates/platform/http/src/trace_context.rs`) — the
+ * problem body carries a `trace_id`, the response carries a `traceparent`
+ * header naming the *same* trace, and (as the real backend does) the trace
+ * joins the caller's, so the id equals the one the SSR request sent in its
+ * own `traceparent`. Pinned so the spec can assert equality across the SSR
+ * document, the API response, and the client-side diagnostics paste.
+ */
+const E2E_TRACE_ID = 'abcdef0123456789abcdef0123456789'
+const E2E_TRACEPARENT = `00-${E2E_TRACE_ID}-0123456789abcdef-01`
 
 const INITIAL_THEME = {
   theme_key: 'dawn',
@@ -357,7 +381,10 @@ function cors(req, res) {
   res.setHeader('access-control-allow-credentials', 'true')
   res.setHeader(
     'access-control-allow-headers',
-    'content-type, x-tenant-id, accept-language, idempotency-key, authorization, x-request-id',
+    // `traceparent` (TASK-020): the api-client sends the W3C header on every
+    // request, so any backend/CORS layer in front of the API must allow it —
+    // otherwise every browser-side call is rejected at preflight.
+    'content-type, x-tenant-id, accept-language, idempotency-key, authorization, x-request-id, traceparent, tracestate',
   )
   res.setHeader('access-control-allow-methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
 }
@@ -390,7 +417,12 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://localhost')
   const path = url.pathname
   const cookies = parseCookies(req)
-  requestLog.push({ method: req.method, path: req.url })
+  requestLog.push({
+    method: req.method,
+    path: req.url,
+    // TASK-020: the specs assert the client actually sent the convention.
+    traceparent: req.headers['traceparent'] ?? null,
+  })
 
   if (req.method === 'OPTIONS') {
     cors(req, res)
@@ -628,6 +660,28 @@ const server = createServer(async (req, res) => {
   }
 
   if (path === '/api/v1/public/privacy/metrics') {
+    // TASK-020: with the `mock_trace_fail` cookie set, fail with the
+    // backend's conventions — a problem+json body carrying `trace_id`, a
+    // `traceparent` response header naming the same trace (which here joins
+    // the caller's, as the real backend does), so the id is provably
+    // identical on both sides of the repository boundary. Cookie-keyed
+    // because the spec sets it per-test context (no cross-spec global state)
+    // and the storefront's SSR load forwards the caller's cookies upstream.
+    const cookies = parseCookies(req)
+    if (cookies.get('mock_trace_fail') === '1') {
+      cors(req, res)
+      res.setHeader('traceparent', E2E_TRACEPARENT)
+      res.writeHead(500, { 'content-type': 'application/problem+json' })
+      res.end(
+        JSON.stringify({
+          type: 'about:blank',
+          title: 'Internal Server Error',
+          status: 500,
+          trace_id: E2E_TRACE_ID,
+        }),
+      )
+      return
+    }
     json(req, res, 200, METRICS)
     return
   }

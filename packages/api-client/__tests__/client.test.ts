@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApiClient } from '../src/client'
+import { createApiClient, traceIdFromTraceparent } from '../src/client'
 import { ApiError, NetworkError } from '../src/problem'
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
@@ -448,5 +448,71 @@ describe('ApiError.isRetryable', () => {
     expect(retryable(503)).toBe(true)
     expect(retryable(400)).toBe(false)
     expect(retryable(404)).toBe(false)
+  })
+})
+
+describe('W3C trace context (TASK-020)', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  /** The `[url, init]` args of the nth fetch call — mirrors the helper in the `createApiClient` block. */
+  function fetchCall(n = 0): [string, RequestInit & { headers: Record<string, string> }] {
+    const call = fetchMock.mock.calls[n]
+    if (!call) throw new Error(`fetch was not called a ${n + 1}th time`)
+    return call as [string, RequestInit & { headers: Record<string, string> }]
+  }
+
+  it('sends a well-formed traceparent header on every request', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}))
+    const client = createApiClient({ baseUrl: 'https://api.example.com' })
+
+    await client.get('/v1/me')
+    await client.get('/v1/me')
+
+    for (const n of [0, 1]) {
+      const traceparent = fetchCall(n)[1].headers['traceparent']
+      expect(traceparent).toMatch(/^00-[\da-f]{32}-[\da-f]{16}-01$/)
+    }
+    // Each request is its own trace — no accidental sharing across calls.
+    expect(fetchCall(0)[1].headers['traceparent']).not.toBe(fetchCall(1)[1].headers['traceparent'])
+  })
+
+  it('getLastTraceId returns the trace id that was sent, for non-API-failure correlation', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({}))
+    const client = createApiClient({ baseUrl: 'https://api.example.com' })
+
+    expect(client.getLastTraceId()).toBeUndefined()
+    await client.get('/v1/me')
+
+    const sent = fetchCall()[1].headers['traceparent']
+    expect(client.getLastTraceId()).toBe(sent!.slice(3, 35))
+  })
+
+  it('a caller-supplied traceparent wins, and getLastTraceId reports the id the backend will actually see', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({}))
+    const client = createApiClient({ baseUrl: 'https://api.example.com' })
+
+    const continued = '00-11111111111111111111111111111111-2222222222222222-01'
+    await client.get('/v1/me', { headers: { traceparent: continued } })
+
+    expect(fetchCall()[1].headers['traceparent']).toBe(continued)
+    expect(client.getLastTraceId()).toBe('11111111111111111111111111111111')
+  })
+
+  it('traceIdFromTraceparent extracts the trace id and rejects malformed values', () => {
+    expect(traceIdFromTraceparent('00-11111111111111111111111111111111-2222222222222222-01')).toBe(
+      '11111111111111111111111111111111',
+    )
+    expect(traceIdFromTraceparent('not a traceparent')).toBeUndefined()
+    expect(traceIdFromTraceparent(undefined)).toBeUndefined()
+    expect(traceIdFromTraceparent(null)).toBeUndefined()
   })
 })

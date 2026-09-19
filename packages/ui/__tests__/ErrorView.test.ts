@@ -20,9 +20,24 @@ describe('ErrorView', () => {
     expect(onRetry).toHaveBeenCalledOnce()
   })
 
-  it('shows the trace id for the generic branch', () => {
-    render(ErrorView, { props: { title: 'Error', traceId: 'trace-abc' } })
+  it('shows the app-rendered trace line and the copy-diagnostics action when given', () => {
+    render(ErrorView, {
+      props: {
+        title: 'Error',
+        traceLine: 'Reference: trace-abc',
+        diagnosticsText: 'Sanvi diagnostics\ntrace_id: trace-abc',
+        copyLabel: 'Copy diagnostics',
+        copiedLabel: 'Copied!',
+      },
+    })
     expect(screen.getByText('Reference: trace-abc')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy diagnostics' })).toBeInTheDocument()
+  })
+
+  it('renders neither trace line nor copy action without diagnostics props', () => {
+    render(ErrorView, { props: { title: 'Error' } })
+    expect(screen.queryByText(/Reference:/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /copy/i })).not.toBeInTheDocument()
   })
 
   it('delegates to the suspended-tenant view when a reason is set, instead of the generic error', () => {

@@ -2,27 +2,47 @@
 import EmptyState from './EmptyState.svelte'
 import Container from './layout/Container.svelte'
 import SuspendedTenantNotice from './SuspendedTenantNotice.svelte'
+import ErrorDiagnostics from './errors/ErrorDiagnostics.svelte'
 
 interface Props {
   title: string
   description?: string
   /** A `423`'s machine-readable reason (`sanvi-backend`'s `locked_problem`) — when set, this renders `SuspendedTenantNotice` instead of the generic view. */
   reason?: 'suspended' | 'provisioning' | 'archived'
-  traceId?: string
+  /** The fully rendered trace-id line (the app localizes `errors.traceId`). */
+  traceLine?: string
+  /** The one-paste diagnostics text from `buildDiagnosticsPaste`; when set, the copy action renders. */
+  diagnosticsText?: string
+  copyLabel?: string
+  copiedLabel?: string
   retryLabel?: string
   onRetry?: () => void
   billingHref?: string
 }
 
-let { title, description, reason, traceId, retryLabel, onRetry, billingHref }: Props = $props()
-
-const COPY = {
-  traceIdLabel: (id: string) => `Reference: ${id}`,
-}
+let {
+  title,
+  description,
+  reason,
+  traceLine,
+  diagnosticsText,
+  copyLabel,
+  copiedLabel,
+  retryLabel,
+  onRetry,
+  billingHref,
+}: Props = $props()
 </script>
 
 {#if reason}
-  <SuspendedTenantNotice {reason} {traceId} {billingHref} />
+  <SuspendedTenantNotice
+    {reason}
+    {traceLine}
+    {diagnosticsText}
+    {copyLabel}
+    {copiedLabel}
+    {billingHref}
+  />
 {:else}
   <Container size="md" padding="6">
     {#if retryLabel && onRetry}
@@ -34,9 +54,7 @@ const COPY = {
     {:else}
       <EmptyState {title} {description} />
     {/if}
-    {#if traceId}
-      <p class="sanvi-error-view__trace">{COPY.traceIdLabel(traceId)}</p>
-    {/if}
+    <ErrorDiagnostics {traceLine} {diagnosticsText} {copyLabel} {copiedLabel} />
   </Container>
 {/if}
 
@@ -54,12 +72,5 @@ const COPY = {
   }
   .sanvi-error-view__retry:hover {
     background: var(--sanvi-color-background-secondary);
-  }
-
-  .sanvi-error-view__trace {
-    margin-block-start: var(--sanvi-spacing-4);
-    text-align: center;
-    font-size: var(--sanvi-font-size-sm);
-    color: var(--sanvi-color-text-secondary);
   }
 </style>

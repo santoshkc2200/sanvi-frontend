@@ -28,14 +28,27 @@ describe('SuspendedTenantNotice', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
-  it('shows the trace id when provided', () => {
-    render(SuspendedTenantNotice, { props: { reason: 'suspended', traceId: 'trace-123' } })
+  it('shows the app-rendered trace line and copy action when provided', () => {
+    render(SuspendedTenantNotice, {
+      props: {
+        reason: 'suspended',
+        traceLine: 'Reference: trace-123',
+        diagnosticsText: 'Sanvi diagnostics\ntrace_id: trace-123',
+        copyLabel: 'Copy diagnostics',
+        copiedLabel: 'Copied!',
+      },
+    })
     expect(screen.getByText('Reference: trace-123')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy diagnostics' })).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {
     const { container } = render(SuspendedTenantNotice, {
-      props: { reason: 'suspended', billingHref: '/billing', traceId: 'trace-123' },
+      props: {
+        reason: 'suspended',
+        billingHref: '/billing',
+        traceLine: 'Reference: trace-123',
+      },
     })
     expect(await axe(container)).toHaveNoViolations()
   })

@@ -48,6 +48,7 @@ it ran under — `bench:compare` refuses cross-profile comparisons):
 | Per-app **and per-route** budget table | `pnpm check:budget --report-only` (budget values: `scripts/budgets.json`) |
 | Lighthouse, per app per locale | `pnpm check:lighthouse` (needs `pnpm build` + the pinned Chrome) |
 | Axe sweep + route-coverage report | `pnpm check:a11y` (sweep list: `scripts/a11y-routes.json`) |
+| Source maps never publicly served | `pnpm check:sourcemaps-not-served` (needs `pnpm build`; maps stage into gitignored `apps/*/sourcemaps-private/`) |
 | Full harness run → committed artifact | `pnpm bench:run <name>` → `benchmarks/frontend/<name>.json` |
 | Diff two artifacts, fails on regression | `pnpm bench:compare <a> <b>` |
 

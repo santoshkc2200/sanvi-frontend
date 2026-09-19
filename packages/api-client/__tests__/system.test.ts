@@ -16,6 +16,7 @@ function fakeClient(): { client: ApiClient; request: ReturnType<typeof vi.fn> } 
       request,
       requestRaw: vi.fn(),
       requestStream: vi.fn(),
+      getLastTraceId: vi.fn(() => undefined),
       get: (path, options) => request(path, { ...options, method: 'GET' }),
       post: (path, body, options) => request(path, { ...options, method: 'POST', body }),
       put: (path, body, options) => request(path, { ...options, method: 'PUT', body }),

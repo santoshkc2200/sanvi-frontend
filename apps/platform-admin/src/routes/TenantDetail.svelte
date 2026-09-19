@@ -16,7 +16,7 @@ import {
   suspendTenant,
 } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
-import { t } from '@sanvi/i18n'
+import { currentLocale, t } from '@sanvi/i18n'
 import { handleLinkClick } from '@sanvi/spa-router'
 import {
   Alert,
@@ -39,6 +39,11 @@ import {
   Stack,
   Textarea,
 } from '@sanvi/ui'
+import {
+  buildDiagnosticsPaste,
+  errorTraceId,
+  recentBreadcrumbs,
+} from '@sanvi/telemetry/diagnostics'
 import { apiClient } from '../lib/api'
 
 interface Props {
@@ -90,6 +95,7 @@ let tenant = $state<TenantView | undefined>(undefined)
 let adminView = $state<TenantAdminView | undefined>(undefined)
 let loading = $state(true)
 let loadError = $state<string | undefined>(undefined)
+let loadTraceId = $state<string | undefined>(undefined)
 
 // Sequencing token — navigating from one tenant's detail page to another
 // keeps this component instance mounted (`{#key}` only reacts to component
@@ -101,6 +107,7 @@ async function loadTenant(): Promise<void> {
   const seq = ++loadSeq
   loading = true
   loadError = undefined
+  loadTraceId = undefined
   try {
     const [tenantResult, adminResult] = await Promise.all([
       getTenant(apiClient, id),
@@ -109,9 +116,10 @@ async function loadTenant(): Promise<void> {
     if (seq !== loadSeq) return
     tenant = tenantResult
     adminView = adminResult
-  } catch {
+  } catch (error) {
     if (seq !== loadSeq) return
     loadError = t['platform.tenantDetail.loadError']()
+    loadTraceId = errorTraceId(error) ?? apiClient.getLastTraceId()
   } finally {
     if (seq === loadSeq) loading = false
   }
@@ -197,12 +205,14 @@ let overrides = $state<OverrideView[]>([])
 let entitlementsLoaded = $state(false)
 let entitlementsLoading = $state(false)
 let entitlementsError = $state<string | undefined>(undefined)
+let entitlementsTraceId = $state<string | undefined>(undefined)
 let entitlementsSeq = 0
 
 async function loadEntitlements(): Promise<void> {
   const seq = ++entitlementsSeq
   entitlementsLoading = true
   entitlementsError = undefined
+  entitlementsTraceId = undefined
   try {
     const [featureList, overrideList] = await Promise.all([
       listFeatures(apiClient),
@@ -212,9 +222,10 @@ async function loadEntitlements(): Promise<void> {
     features = featureList
     overrides = overrideList
     entitlementsLoaded = true
-  } catch {
+  } catch (error) {
     if (seq !== entitlementsSeq) return
     entitlementsError = t['platform.tenantDetail.entitlementsError']()
+    entitlementsTraceId = errorTraceId(error) ?? apiClient.getLastTraceId()
   } finally {
     if (seq === entitlementsSeq) entitlementsLoading = false
   }
@@ -353,7 +364,25 @@ let auditHasMore = $state(false)
 let auditLoaded = $state(false)
 let auditLoading = $state(false)
 let auditError = $state<string | undefined>(undefined)
+let auditTraceId = $state<string | undefined>(undefined)
 let auditSeq = 0
+
+/**
+ * The one-paste diagnostics for a failed section (FR-1106) — rendered only
+ * when the failure carries a correlation id. Route is the matched pattern,
+ * never the raw id-bearing path.
+ */
+function sectionDiagnostics(section: string, traceId: string | undefined): string | undefined {
+  if (!traceId) return undefined
+  return buildDiagnosticsPaste({
+    release: __APP_BUILD__,
+    route: `tenants/:id${section}`,
+    tenantId: null,
+    locale: currentLocale(),
+    traceId,
+    breadcrumbs: recentBreadcrumbs(),
+  })
+}
 
 function toAuditRow(entry: components['schemas']['AuditEntry']): AuditEntryRow {
   return {
@@ -373,6 +402,7 @@ async function loadAudit(append: boolean): Promise<void> {
   const seq = ++auditSeq
   auditLoading = true
   auditError = undefined
+  auditTraceId = undefined
   try {
     const page = await listAudit(apiClient, {
       tenant_id: id,
@@ -386,9 +416,10 @@ async function loadAudit(append: boolean): Promise<void> {
     auditCursor = page.next_cursor ?? undefined
     auditHasMore = page.next_cursor != null
     auditLoaded = true
-  } catch {
+  } catch (error) {
     if (seq !== auditSeq) return
     auditError = t['platform.tenantDetail.auditError']()
+    auditTraceId = errorTraceId(error) ?? apiClient.getLastTraceId()
   } finally {
     if (seq === auditSeq) auditLoading = false
   }
@@ -570,7 +601,15 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
 {#if loading}
   <Spinner label={t['common.loading']()} />
 {:else if loadError || !tenant}
-  <ErrorView title={loadError ?? t['platform.tenantDetail.loadError']()} retryLabel={t['common.retry']()} onRetry={loadTenant} />
+  <ErrorView
+      title={loadError ?? t['platform.tenantDetail.loadError']()}
+      retryLabel={t['common.retry']()}
+      onRetry={loadTenant}
+      traceLine={loadTraceId ? t['errors.traceId']({ id: loadTraceId }) : undefined}
+      diagnosticsText={sectionDiagnostics('', loadTraceId)}
+      copyLabel={t['errors.diagnostics.copy']()}
+      copiedLabel={t['errors.diagnostics.copied']()}
+    />
 {:else}
   <DetailShell
     title={tenant.display_name}
@@ -608,7 +647,15 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
         {#if entitlementsLoading}
           <Spinner label={t['common.loading']()} />
         {:else if entitlementsError}
-          <ErrorView title={entitlementsError} retryLabel={t['common.retry']()} onRetry={loadEntitlements} />
+          <ErrorView
+            title={entitlementsError}
+            retryLabel={t['common.retry']()}
+            onRetry={loadEntitlements}
+            traceLine={entitlementsTraceId ? t['errors.traceId']({ id: entitlementsTraceId }) : undefined}
+            diagnosticsText={sectionDiagnostics(' entitlements', entitlementsTraceId)}
+            copyLabel={t['errors.diagnostics.copy']()}
+            copiedLabel={t['errors.diagnostics.copied']()}
+          />
         {:else if entitlementRows.length === 0}
           <EmptyState title={t['platform.tenantDetail.entitlementsEmpty']()} />
         {:else}
@@ -696,7 +743,15 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
         </Stack>
       {:else if activeTab === 'audit'}
         {#if auditError}
-          <ErrorView title={auditError} retryLabel={t['common.retry']()} onRetry={() => loadAudit(false)} />
+          <ErrorView
+            title={auditError}
+            retryLabel={t['common.retry']()}
+            onRetry={() => loadAudit(false)}
+            traceLine={auditTraceId ? t['errors.traceId']({ id: auditTraceId }) : undefined}
+            diagnosticsText={sectionDiagnostics(' audit', auditTraceId)}
+            copyLabel={t['errors.diagnostics.copy']()}
+            copiedLabel={t['errors.diagnostics.copied']()}
+          />
         {:else}
           <Stack gap="3">
             <AuditTrail entries={auditEntries} loading={auditLoading && auditEntries.length === 0} emptyMessage={t['platform.tenantDetail.auditEmpty']()} />

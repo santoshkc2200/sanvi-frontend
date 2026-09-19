@@ -1,16 +1,22 @@
 <script lang="ts">
 import EmptyState from './EmptyState.svelte'
 import Container from './layout/Container.svelte'
+import ErrorDiagnostics from './errors/ErrorDiagnostics.svelte'
 
 interface Props {
   /** Mirrors the backend's `423` `reason` (`sanvi-backend`'s `locked_problem`) and the tenant's own `status` for the storefront's own-tenant branch. */
   reason: 'suspended' | 'provisioning' | 'archived'
-  traceId?: string
+  /** The fully rendered trace-id line (the app localizes `errors.traceId`). */
+  traceLine?: string
+  /** The one-paste diagnostics text from `buildDiagnosticsPaste`; when set, the copy action renders. */
+  diagnosticsText?: string
+  copyLabel?: string
+  copiedLabel?: string
   /** Inert until phase 04 ships the billing UI this links to. */
   billingHref?: string
 }
 
-let { reason, traceId, billingHref }: Props = $props()
+let { reason, traceLine, diagnosticsText, copyLabel, copiedLabel, billingHref }: Props = $props()
 
 const showBillingLink = $derived(reason === 'suspended' && Boolean(billingHref))
 
@@ -28,7 +34,6 @@ const COPY = {
     archived: 'This tenant was archived and is no longer accessible.',
   },
   billingLink: 'Go to billing',
-  traceIdLabel: (id: string) => `Reference: ${id}`,
 }
 </script>
 
@@ -42,9 +47,7 @@ const COPY = {
   {:else}
     <EmptyState title={COPY.title[reason]} description={COPY.description[reason]} />
   {/if}
-  {#if traceId}
-    <p class="sanvi-suspended-tenant-notice__trace">{COPY.traceIdLabel(traceId)}</p>
-  {/if}
+  <ErrorDiagnostics {traceLine} {diagnosticsText} {copyLabel} {copiedLabel} />
 </Container>
 
 <style>
@@ -60,12 +63,5 @@ const COPY = {
   }
   .sanvi-suspended-tenant-notice__billing-link:hover {
     background: var(--sanvi-color-solid-primary-hover);
-  }
-
-  .sanvi-suspended-tenant-notice__trace {
-    margin-block-start: var(--sanvi-spacing-4);
-    text-align: center;
-    font-size: var(--sanvi-font-size-sm);
-    color: var(--sanvi-color-text-secondary);
   }
 </style>

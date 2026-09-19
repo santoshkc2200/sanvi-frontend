@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { sanviCspMetaPlugin } from '@sanvi/csp/vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { resolveReleaseStamp } from '@sanvi/telemetry/release'
+import { privateSourceMapsPlugin } from '@sanvi/telemetry/release/sourcemaps'
 import { defineConfig, loadEnv } from 'vite'
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
@@ -35,6 +36,9 @@ export default defineConfig(({ mode }) => {
       // ("No Svelte configuration found in vite config").
       ...svelte(),
       sanviCspMetaPlugin('admin', cspOrigins()),
+      // FR-1104/NFR-1104: stage `.map` files into `sourcemaps-private/`
+      // instead of `dist/` — maps are generated but never served.
+      privateSourceMapsPlugin(),
     ],
     server: {
       port: 5175,
@@ -55,6 +59,10 @@ export default defineConfig(({ mode }) => {
       // main.ts top-level-awaits session bootstrap — the default `modules`
       // target (es2020 baseline) rejects top-level await at build time.
       target: 'es2022',
+      // FR-1104/NFR-1104: maps are generated (hidden — no sourceMappingURL
+      // comment) and staged into `sourcemaps-private/` by the plugin above,
+      // so stack traces stay symbolicable without the maps ever being served.
+      sourcemap: 'hidden',
       // Emits dist/.vite/manifest.json: source file → chunk file. The
       // per-route budget gate maps routes to chunks through it — component
       // basenames alone are ambiguous (routes/Dashboard.svelte and

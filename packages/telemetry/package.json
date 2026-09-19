@@ -12,9 +12,17 @@
       "svelte": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./diagnostics": {
+      "types": "./src/diagnostics.ts",
+      "default": "./src/diagnostics.ts"
+    },
     "./release": {
       "types": "./src/node/release-stamp.ts",
       "default": "./src/node/release-stamp.ts"
+    },
+    "./release/sourcemaps": {
+      "types": "./src/node/sourcemaps.ts",
+      "default": "./src/node/sourcemaps.ts"
     }
   },
   "sideEffects": false,

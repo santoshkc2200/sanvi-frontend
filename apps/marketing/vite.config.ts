@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { sveltekit } from '@sveltejs/kit/vite'
 import { resolveReleaseStamp } from '@sanvi/telemetry/release'
+import { privateSourceMapsPlugin } from '@sanvi/telemetry/release/sourcemaps'
 import { defineConfig, loadEnv } from 'vite'
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
@@ -17,9 +18,14 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [sveltekit()],
+    plugins: [sveltekit(), privateSourceMapsPlugin()],
     server: {
       port: 5173,
+    },
+    // FR-1104/NFR-1104: maps are generated (hidden) and staged into
+    // `sourcemaps-private/` — never into the served `build/client`.
+    build: {
+      sourcemap: 'hidden',
     },
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),

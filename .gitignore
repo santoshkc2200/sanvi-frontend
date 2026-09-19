@@ -16,6 +16,9 @@ benchmarks/frontend/lighthouse.json
 benchmarks/frontend/axe.json
 benchmarks/frontend/lhci/
 
+# private source-map staging (FR-1104) — build artifacts, never committed, never served
+apps/*/sourcemaps-private/
+
 *.local
 .env
 .env.*
