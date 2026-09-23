@@ -19,9 +19,10 @@ this file is authoritative for **order**, slicing, and each slice's exit criteri
 
 ## Read this first
 
-**This repository is two phases behind the backend.** Phase 09 is 3/8 done (TASK-004 through TASK-008
-open) and **phase 10 has not started**. The GA half below hardens screens that do not exist yet, so it
-cannot start, and phases 09 and 10 — not phase 11 — are this repository's actual critical path.
+**The GA half below waits on phases 09 and 10 shipping.** It hardens the screens those phases build, so
+until they are done the remaining phase 09 and phase 10 tasks — not phase 11 — are this repository's
+critical path. Their status is in [`backlog.md`](../backlog.md), which is the only place task status is
+recorded; check it rather than a count copied here.
 
 The gate half can start today. Those four tasks build CI harnesses, the telemetry package, and the
 security gates, all of which **enumerate** rather than audit: they cover phase 09's and phase 10's work
