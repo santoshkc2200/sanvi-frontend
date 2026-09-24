@@ -121,10 +121,48 @@ export function onSessionChange(listener: ChangeListener): () => void {
  * `sanvi-backend/api/identity.yaml`'s `list_sessions`), so there is nothing
  * else to end yet — this becomes real multi-session revocation without a
  * frontend change once that lands.
+ *
+ * Other open tabs learn about the sign-out immediately through the
+ * {@link SESSION_CHANNEL_NAME} broadcast (TASK-024): without it, a second
+ * tab kept its in-memory session until its next API call 401'd or its next
+ * focus-triggered refresh — a window where a signed-out tenant's screens
+ * still rendered from cache. The receiving tab runs the same
+ * `onSessionChange` listeners the app wired for a local logout, so cache
+ * clears and membership resets happen there too.
  */
+export const SESSION_CHANNEL_NAME = 'sanvi:auth'
+
+interface SessionBroadcast {
+  type: 'signed-out'
+}
+
+let sessionChannelInstance: BroadcastChannel | undefined
+
+/**
+ * The cross-tab channel, created lazily and only where `BroadcastChannel`
+ * exists (browsers; jsdom and SSR stay without). Receiving `signed-out`
+ * applies the null session locally — it must not re-broadcast, or two tabs
+ * would ping-pong the message forever.
+ */
+function sessionChannel(): BroadcastChannel | undefined {
+  if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') return undefined
+  sessionChannelInstance ??= new BroadcastChannel(SESSION_CHANNEL_NAME)
+  sessionChannelInstance.onmessage = (event: MessageEvent) => {
+    const data = event.data as SessionBroadcast | undefined
+    if (data?.type === 'signed-out') setSession(null)
+  }
+  return sessionChannelInstance
+}
+
+// Installed at module init, not lazily inside `logout()`: a tab that never
+// logs itself out must still *hear* another tab's logout — that is the whole
+// point of the channel.
+sessionChannel()
+
 export async function logout(kratosClient: ApiClient): Promise<void> {
   const logoutUrl = await requestLogoutUrl(kratosClient)
   setSession(null)
+  sessionChannel()?.postMessage({ type: 'signed-out' } satisfies SessionBroadcast)
   if (typeof window !== 'undefined') window.location.href = logoutUrl
 }
 

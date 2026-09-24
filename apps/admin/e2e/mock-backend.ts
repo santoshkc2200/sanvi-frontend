@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import type { BrowserContext, Page } from '@playwright/test'
 
 /**
  * Hermetic backend for the admin smoke suites. CI starts no backend for
@@ -9,7 +9,12 @@ import type { Page } from '@playwright/test'
  * `packages/api-client/src/generated/types.ts`; re-check them after
  * `pnpm generate:api`.
  */
-export function mockBackend(page: Page): void {
+/**
+ * `Page | BrowserContext` — route mocking works on either; the multi-tab
+ * session spec (session.spec.ts) mocks at the context level so every open
+ * tab gets the same hermetic backend.
+ */
+export function mockBackend(page: Page | BrowserContext): void {
   const me = {
     user_id: '0190f0d0-0000-7000-8000-000000000001',
     email: 'admin@example.com',

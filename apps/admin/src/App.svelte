@@ -387,7 +387,16 @@ function syncMemberships(session: ReturnType<typeof getSession>): void {
   setMemberships(memberships)
 }
 syncMemberships(getSession())
-onSessionChange(syncMemberships)
+// A null session clears the query cache in this tab as well: the tab that
+// logged out navigates away (Kratos logout URL) and its JS state dies with
+// the page, but a *receiving* tab — signed out via the cross-tab broadcast
+// (TASK-024) or a 401 — keeps running, and the phase-01 rule is that no
+// tenant data survives a logout. Clearing on an already-empty boot cache is
+// free, so the null branch is unconditional.
+onSessionChange((session) => {
+  syncMemberships(session)
+  if (!session) clearCache()
+})
 
 // Real entitlements, replacing the always-available stub `@sanvi/tenant`
 // shipped with before phase 03. Re-synced on every tenant switch, same as
