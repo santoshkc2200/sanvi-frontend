@@ -45,7 +45,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   const csp = buildContentSecurityPolicyForApp('marketing', { apiOrigin, mediaOrigin })
   response.headers.set(
     'content-security-policy',
-    process.env.NODE_ENV === 'development'
+    process.env['NODE_ENV'] === 'development'
       ? csp.replace('style-src', "style-src 'unsafe-inline'") // sanvi-csp: dev-only
       : csp,
   )

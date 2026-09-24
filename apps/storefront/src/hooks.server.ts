@@ -278,7 +278,7 @@ export const runtimeConnectSrc: Handle = async ({ event, resolve }) => {
         }
       }
 
-      if (match?.[1] === STYLE_SRC && styleHashes.length) {
+      if (match && match[1] === STYLE_SRC && match[2] && styleHashes.length) {
         return `${STYLE_SRC} ${[...match[2].split(/\s+/).filter(Boolean), ...styleHashes].join(' ')}`
       }
 

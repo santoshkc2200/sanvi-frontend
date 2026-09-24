@@ -258,14 +258,11 @@ export type CspAppPresetOptions = Pick<
  * all — the storefront's policy must stay byte-identical to its
  * pre-advertising form.
  */
-const APP_PRESETS: Record<
-  SanviApp,
-  Pick<ContentSecurityPolicyOptions, 'allowInlineScripts' | 'allowEval' | 'delivery' | 'ads'>
-> = {
-  marketing: { allowInlineScripts: false, allowEval: false, delivery: 'header', ads: false },
-  storefront: { allowInlineScripts: false, allowEval: false, delivery: 'header', ads: false },
-  admin: { allowInlineScripts: false, allowEval: false, delivery: 'meta', ads: true },
-  'platform-admin': { allowInlineScripts: false, allowEval: false, delivery: 'meta', ads: false },
+const APP_PRESETS: Record<SanviApp, Pick<ContentSecurityPolicyOptions, 'delivery' | 'ads'>> = {
+  marketing: { delivery: 'header', ads: false },
+  storefront: { delivery: 'header', ads: false },
+  admin: { delivery: 'meta', ads: true },
+  'platform-admin': { delivery: 'meta', ads: false },
 }
 
 /**

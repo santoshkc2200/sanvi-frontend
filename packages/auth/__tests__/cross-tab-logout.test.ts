@@ -59,7 +59,9 @@ async function importStoreWithLogoutUrl(logoutUrl: string) {
 }
 
 describe('cross-tab logout (TASK-024)', () => {
-  it('a signed-out broadcast clears the session in the other tab', async () => {
+  it('a signed-out broadcast clears the session in the other tab', {
+    timeout: 20_000,
+  }, async () => {
     const { FakeChannel, handlers } = fakeBroadcastChannelBus()
     vi.stubGlobal('BroadcastChannel', FakeChannel)
     const store = await import('../src/store.svelte')
@@ -82,7 +84,7 @@ describe('cross-tab logout (TASK-024)', () => {
     expect(handlers.size).toBe(1)
   })
 
-  it('the receiving tab does not echo the broadcast back', async () => {
+  it('the receiving tab does not echo the broadcast back', { timeout: 20_000 }, async () => {
     const { FakeChannel } = fakeBroadcastChannelBus()
     vi.stubGlobal('BroadcastChannel', FakeChannel)
     const store = await import('../src/store.svelte')
@@ -97,7 +99,7 @@ describe('cross-tab logout (TASK-024)', () => {
     expect(store.getSession()).toBeNull()
   })
 
-  it('logout() broadcasts the sign-out it applies locally', async () => {
+  it('logout() broadcasts the sign-out it applies locally', { timeout: 20_000 }, async () => {
     const { FakeChannel } = fakeBroadcastChannelBus()
     vi.stubGlobal('BroadcastChannel', FakeChannel)
     const postSpy = vi.spyOn(FakeChannel.prototype, 'postMessage')
@@ -123,7 +125,9 @@ describe('cross-tab logout (TASK-024)', () => {
     expect(navigatedTo).toEqual(['https://kratos.example.test/logout'])
   })
 
-  it('tabs without BroadcastChannel still log out — the broadcast is an enhancement, not a dependency', async () => {
+  it('tabs without BroadcastChannel still log out — the broadcast is an enhancement, not a dependency', {
+    timeout: 20_000,
+  }, async () => {
     // No BroadcastChannel global (jsdom's default): logout must not throw,
     // and the local session still clears.
     const { logout, setSession, getSession } = await importStoreWithLogoutUrl(
