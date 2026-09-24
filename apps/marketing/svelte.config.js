@@ -44,17 +44,16 @@ const env = loadPublicEnv()
 const apiOrigin = env['PUBLIC_API_ORIGIN'] ?? 'http://localhost:8080'
 const mediaOrigin = env['PUBLIC_MEDIA_ORIGIN']
 
-// TASK-024: no `unsafe-inline` in any built policy. The dev-only exception:
-// `vite dev` injects component CSS as runtime `<style>` elements; production
-// extracts CSS to files.
-// sanvi-csp: dev-only inline styles (checked by check:csp's allow-list)
+// TASK-024: no inline style allowance reaches a built policy. The dev-only
+// exception: `vite dev` injects component CSS as runtime `<style>` elements;
+// production extracts CSS to files.
 const isDev = process.env.NODE_ENV !== 'production'
 const directives = buildContentSecurityPolicyDirectivesForApp('marketing', {
   apiOrigin,
   mediaOrigin,
 })
 if (isDev && directives['style-src']) {
-  directives['style-src'] = [...directives['style-src'], "'unsafe-inline'"]
+  directives['style-src'] = [...directives['style-src'], "'unsafe-inline'"] // sanvi-csp: dev-only
 }
 
 /** @type {import('@sveltejs/kit').Config} */

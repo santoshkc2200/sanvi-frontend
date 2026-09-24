@@ -84,4 +84,17 @@ test('logout in one tab clears the session in every open tab', async ({ browser 
   // vanished nav entry.
   await tabB.getByRole('link', { name: 'Settings', exact: true }).click()
   await expect(tabB).toHaveURL(/\/login/)
+
+  // Storage-surface walk (TASK-024): after boot, a tenant journey and a
+  // logout, the only things persisted client-side are namespaced
+  // preferences and drafts — never a token, session artifact, or personal
+  // data (the reviewed inventory is packages/lint-gates'
+  // check-storage-surface.mjs).
+  const storageKeys = await tabB.evaluate(() => ({
+    local: Object.keys(window.localStorage),
+    session: Object.keys(window.sessionStorage),
+  }))
+  for (const key of [...storageKeys.local, ...storageKeys.session]) {
+    expect(key, key).toMatch(/^sanvi[:_]/)
+  }
 })

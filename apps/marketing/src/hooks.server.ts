@@ -36,18 +36,17 @@ export const handle: Handle = async ({ event, resolve }) => {
   )
 
   const { apiOrigin, mediaOrigin } = getAppEnv()
-  // TASK-024: the shipped policy has no `unsafe-inline`; the dev-only
-  // exception exists because `vite dev` injects component CSS as runtime
-  // `<style>` elements that `style-src` would otherwise block. Production
-  // pages have file CSS, so the exception never ships. (`NODE_ENV`, not
-  // `$app/environment`, so the hook stays testable without the kit plugin —
-  // same check `svelte.config.js` makes for the storefront.)
-  // sanvi-csp: dev-only inline styles (checked by check:csp's allow-list)
+  // TASK-024: the shipped policy has no inline style allowance for style
+  // *elements*; the dev-only exception below exists because `vite dev`
+  // injects component CSS as runtime `<style>` elements that `style-src`
+  // would otherwise block. Production pages have file CSS, so it never
+  // ships. (`NODE_ENV`, not `$app/environment`, so the hook stays testable
+  // without the kit plugin — same check `svelte.config.js` makes.)
   const csp = buildContentSecurityPolicyForApp('marketing', { apiOrigin, mediaOrigin })
   response.headers.set(
     'content-security-policy',
     process.env.NODE_ENV === 'development'
-      ? csp.replace('style-src', "style-src 'unsafe-inline'")
+      ? csp.replace('style-src', "style-src 'unsafe-inline'") // sanvi-csp: dev-only
       : csp,
   )
   response.headers.set('content-language', locale)

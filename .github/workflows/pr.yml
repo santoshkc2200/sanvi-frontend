@@ -49,6 +49,15 @@ jobs:
       - name: check:boundaries
         run: pnpm check:boundaries
 
+      - name: check:csp
+        run: pnpm check:csp
+
+      - name: check:storage-surface
+        run: pnpm check:storage-surface
+
+      - name: check:runtime-code-sources
+        run: pnpm check:runtime-code-sources
+
       - name: check:budget
         run: pnpm turbo run check:budget
 
@@ -212,9 +221,17 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: pnpm audit (high+ severity)
-        run: pnpm audit --audit-level=high
-        continue-on-error: true # advisory until phase 00's DoD review tunes the threshold
+      # TASK-024: blocking on the *production* dependency tree at moderate+ —
+      # everything that ships to a browser must be advisory-free. The dev-only
+      # tree still carries unpatchable advisories (Lighthouse CI's extract-zip
+      # has no fixed release upstream; vitest's fix is the v4 major) — a full-
+      # tree gate would be permanently red, i.e. a gate someone disables, so
+      # the full tree is reported, not enforced:
+      - name: pnpm audit (prod tree, blocking)
+        run: |
+          pnpm audit --prod --audit-level=moderate
+          pnpm audit --audit-level=moderate > /dev/null 2>&1 || echo "dev-tree advisories present (advisory-only; see TASK-024 notes)"
+
 
       - name: Secret scan (gitleaks)
         uses: gitleaks/gitleaks-action@v2
