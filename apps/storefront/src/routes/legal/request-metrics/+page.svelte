@@ -44,7 +44,9 @@ const diagnosticsText = $derived(
   data.traceId
     ? buildDiagnosticsPaste({
         release: __APP_BUILD__,
-        route: page.route.id ?? page.url.pathname,
+        // Route stays a pattern — the raw pathname carries ids (the
+        // DiagnosticsFields contract).
+        route: page.route.id ?? '',
         tenantId: null,
         locale: currentLocale(),
         traceId: data.traceId,

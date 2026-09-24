@@ -73,6 +73,10 @@ const problems = []
 for (const app of APPS) {
   const appRoot = join(root, 'apps', app.name)
   const publicRoots = []
+  // Per-app snapshot: `problems` is global, so comparing against the count
+  // on entry lets each clean app still print its summary after another failed.
+  const problemsBefore = problems.length
+
   for (const dir of app.publicDirs) {
     const full = join(appRoot, dir)
     if (await exists(full)) publicRoots.push([dir, full])
@@ -108,7 +112,7 @@ for (const app of APPS) {
     )
   }
 
-  if (problems.length === 0) {
+  if (problems.length === problemsBefore) {
     console.log(
       `check:sourcemaps-not-served ${app.name}: ${publicFiles} public files clean, ${privateMaps} map(s) staged privately`,
     )

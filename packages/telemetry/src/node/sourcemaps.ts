@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 
 /**
@@ -87,7 +87,10 @@ export function privateSourceMapsPlugin(options: PrivateSourceMapsPluginOptions 
           typeof entry.source === 'string'
             ? entry.source
             : Buffer.from(entry.source).toString('utf8')
-        staged.push({ stagedPath: namespace ? join(namespace, fileName) : fileName, content })
+        staged.push({
+          stagedPath: namespace ? join(namespace, fileName) : fileName,
+          content,
+        })
         stagedFromAssets.add(fileName)
         delete bundle[fileName]
       }
@@ -112,20 +115,33 @@ export function privateSourceMapsPlugin(options: PrivateSourceMapsPluginOptions 
       const pending = [...staged]
       staged.length = 0
       await mkdir(privateDir, { recursive: true })
-      const manifest: Record<string, string> = {}
+      const batchPaths: string[] = []
       for (const map of pending) {
         const target = join(privateDir, map.stagedPath)
         await mkdir(join(target, '..'), { recursive: true })
         await writeFile(target, map.content)
-        manifest[map.stagedPath] = 'staged'
+        batchPaths.push(map.stagedPath)
+      }
+      // Merge into the manifest on disk instead of replacing it: the client
+      // and server builds each get their own instance of this plugin, and the
+      // server build's writeBundle runs last — a whole-file rewrite there
+      // would drop every client map from the manifest while their files sat
+      // staged on disk.
+      const manifestPath = join(privateDir, 'manifest.json')
+      const maps = new Set<string>(batchPaths)
+      try {
+        const existing = JSON.parse(await readFile(manifestPath, 'utf8')) as {
+          maps?: unknown
+        }
+        if (Array.isArray(existing.maps)) {
+          for (const entry of existing.maps) if (typeof entry === 'string') maps.add(entry)
+        }
+      } catch {
+        // No manifest yet (first batch) or unreadable — this batch defines it.
       }
       await writeFile(
-        join(privateDir, 'manifest.json'),
-        JSON.stringify(
-          { stagedAt: new Date().toISOString(), maps: Object.keys(manifest) },
-          null,
-          2,
-        ),
+        manifestPath,
+        JSON.stringify({ stagedAt: new Date().toISOString(), maps: [...maps].sort() }, null, 2),
       )
     },
   }

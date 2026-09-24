@@ -91,11 +91,15 @@ export function createSessionLogger(options: SessionLoggerOptions): SessionLogge
     defaultEnabled,
     isEnabled: () => defaultEnabled || flagEnabled(),
     enable(operatorId) {
-      storage?.setItem(STORAGE_KEY, 'true')
+      // Without storage the flag cannot persist, so nothing was enabled —
+      // and an enablement that did not happen must not produce an audit entry.
+      if (!storage) return
+      storage.setItem(STORAGE_KEY, 'true')
       audit('session_logging.enabled', operatorId)
     },
     disable(operatorId) {
-      storage?.removeItem(STORAGE_KEY)
+      if (!storage) return
+      storage.removeItem(STORAGE_KEY)
       audit('session_logging.disabled', operatorId)
     },
     debug(message, fields) {

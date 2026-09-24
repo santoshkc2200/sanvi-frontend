@@ -117,7 +117,9 @@ const routeErrorDiagnostics = $derived(
   routeErrorTraceId
     ? buildDiagnosticsPaste({
         release: __APP_BUILD__,
-        route: router.pattern ?? router.pathname,
+        // Route stays a pattern — the raw pathname carries ids (the
+        // DiagnosticsFields contract), so an unmatched route reports `none`.
+        route: router.pattern ?? '',
         tenantId: null,
         locale: currentLocale(),
         traceId: routeErrorTraceId,

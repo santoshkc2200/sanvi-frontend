@@ -85,10 +85,13 @@ describe('session logging discipline (FR-1106)', () => {
   })
 
   it('a fresh session starts disabled again — enablement cannot outlive the tab', () => {
-    // No storage: the session flag simply cannot exist, so the default rules.
-    const logger = createSessionLogger({ release: PRODUCTION, audit: () => {} })
+    // No storage: the session flag simply cannot exist, so the default rules —
+    // and no audit entry, because no enablement ever happened.
+    const audits: LoggingAuditEntry[] = []
+    const logger = createSessionLogger({ release: PRODUCTION, audit: (e) => audits.push(e) })
     logger.enable('op-7')
     expect(logger.isEnabled()).toBe(false)
+    expect(audits).toEqual([])
   })
 
   it('log lines are scrubbed before they are written', () => {
