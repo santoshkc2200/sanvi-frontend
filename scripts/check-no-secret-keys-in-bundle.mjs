@@ -56,6 +56,32 @@ const PATTERNS = [
     // counts where an `access_token`-shaped key or query param carries it.
     pattern: /access_?[Tt]oken["']?\s*[:=]\s*["']?EA[A-Za-z0-9_-]{20,}/,
   },
+  // ── TASK-024: every secret class the backend's threat model names ──
+  {
+    name: 'aws access key id',
+    pattern: /\bAKIA[0-9A-Z]{16}\b/,
+  },
+  {
+    name: 'private key material (PEM)',
+    pattern: /-----BEGIN (RSA |EC |OPENSSH |PGP |DSA )?PRIVATE KEY( BLOCK)?-----/,
+  },
+  {
+    name: 'signing key assignment',
+    // Contextual, like the Google Ads token: a signing/signing-key-shaped
+    // name carrying a secret-shaped value. Bare hex is indistinguishable
+    // from a hash in a bundle, so only a named assignment counts.
+    pattern: /signing_?[Kk]ey["']?\s*[:=]\s*["'][A-Za-z0-9+/=_-]{16,}["']/,
+  },
+  {
+    name: 'internal hostname',
+    // RFC 1918 and `.internal`/`cluster.local` hosts must never appear in a
+    // public bundle: they leak topology (a frontend that could *reach* them
+    // would be a worse bug, and the CSP `connect-src` gate would block it —
+    // this catches the leak before the CSP report does). `localhost` and
+    // `*.localhost` are the documented local dev/e2e origins and don't match.
+    pattern:
+      /https?:\/\/[a-z0-9][a-z0-9.-]*\.(internal|cluster\.local)\b|https?:\/\/(?:10\.\d{1,3}|192\.168\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}(?::\d+)?\b/,
+  },
 ]
 
 function walk(dir, out = []) {
@@ -150,6 +176,29 @@ function selfTest() {
       'const url = "https://graph.facebook.com/me?access_token=EAAGsbCDi1Q5B7vzW1234567890abcdefghij";\n',
       'meta access token in a query string',
     )
+    // TASK-024: one planted credential per class — a scan that has never
+    // caught anything is a scan nobody has tested.
+    caught('const awsKey = "AKIAIOSFODNN7EXAMPLE";\n', 'aws access key id literal')
+    caught(
+      'const pem = "-----BEGIN RSA PRIVATE KEY-----\\nMIIB";\n',
+      'PEM private key header',
+    )
+    caught(
+      'const cfg = { signingKey: "1aBcD2eFg3hIj4K5l6mNoPQr" };\n',
+      'signing key assignment',
+    )
+    caught(
+      'const svc = "http://auth.internal.example/oauth";\n',
+      'internal hostname (.internal)',
+    )
+    caught(
+      'const svc = "http://10.0.14.7:8080/api";\n',
+      'internal hostname (RFC 1918)',
+    )
+    caught(
+      'const svc = "http://sanvi-api.default.cluster.local/health";\n',
+      'internal hostname (cluster.local)',
+    )
     ignored('const publishableKey = "pk_live_abcdefghijklmnop";\n', 'the publishable key (pk_)')
     ignored(
       'const clientId = "1234567890-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com";\n',
@@ -162,6 +211,15 @@ function selfTest() {
     ignored(
       'const blob = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAEAAYABA3EAAB/+wKG";\n',
       'a base64 blob that merely contains an EA… run',
+    )
+    // Non-secrets the new patterns must not flag:
+    ignored(
+      'const site = "https://acme.localhost:4174";\n',
+      'a *.localhost dev/e2e origin',
+    )
+    ignored(
+      'const cfg = { signingKeyAlgo: "Ed25519" };\n',
+      'a signing-key name with a non-secret algorithm value',
     )
   } finally {
     rmSync(join(ROOT, 'apps', '__bundle_scan_fixture__'), { recursive: true, force: true })
