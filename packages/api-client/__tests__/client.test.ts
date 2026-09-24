@@ -64,6 +64,50 @@ describe('createApiClient', () => {
     expect(fetchCall()[1].credentials).toBe('omit')
   })
 
+  /**
+   * TASK-024's CSRF posture: every non-GET carries `content-type:
+   * application/json`, body or not. A body-less POST without a custom
+   * content type would be a CORS simple request — form-able cross-site with
+   * the session cookie attached and no preflight. `application/json` is not
+   * form-representable, so the preflight it forces is the gate.
+   */
+  it.each([
+    ['post', 'POST'],
+    ['put', 'PUT'],
+    ['patch', 'PATCH'],
+    ['delete', 'DELETE'],
+  ])('forces content-type application/json on a body-less %s', async (helper, method) => {
+    fetchMock.mockResolvedValue(jsonResponse({}))
+    const client = createApiClient({ baseUrl: 'https://api.example.com' })
+
+    await client[helper as 'post' | 'put' | 'patch' | 'delete']('/v1/thing')
+
+    const [url, init] = fetchCall()
+    expect(url).toBe('https://api.example.com/v1/thing')
+    expect(init.method).toBe(method)
+    expect(init.headers['content-type']).toBe('application/json')
+  })
+
+  it('keeps a caller-supplied content type on a non-GET (override wins)', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({}))
+    const client = createApiClient({ baseUrl: 'https://api.example.com' })
+
+    await client.post('/v1/uploads', undefined, {
+      headers: { 'content-type': 'application/octet-stream' },
+    })
+
+    expect(fetchCall()[1].headers['content-type']).toBe('application/octet-stream')
+  })
+
+  it('a GET never grows a content type', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({}))
+    const client = createApiClient({ baseUrl: 'https://api.example.com' })
+
+    await client.get('/v1/me')
+
+    expect(fetchCall()[1].headers['content-type']).toBeUndefined()
+  })
+
   it('sends the session cookie when the caller opts in with credentials: "include"', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({}))
     const client = createApiClient({ baseUrl: 'https://api.example.com', credentials: 'include' })

@@ -288,6 +288,14 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     // override wins, and this cell must name the trace the backend actually saw.
     lastTraceId = traceIdFromTraceparent(requestHeaders['traceparent'])
     if (body !== undefined) requestHeaders['content-type'] = 'application/json'
+    // Every non-GET carries a custom content type, body or not (TASK-024's
+    // CSRF posture): a body-less POST without one is a CORS *simple request*
+    // — form-able cross-site, no preflight, and the browser sends the cookie
+    // for `'include'` callers. `application/json` is never form-representable,
+    // so the preflight it forces is the gate every mutation passes.
+    if (method !== 'GET' && requestHeaders['content-type'] === undefined) {
+      requestHeaders['content-type'] = 'application/json'
+    }
     if (token) requestHeaders['authorization'] = `Bearer ${token}`
     if (tenantId) requestHeaders['x-tenant-id'] = tenantId
     if (idempotencyKey) requestHeaders['idempotency-key'] = idempotencyKey
