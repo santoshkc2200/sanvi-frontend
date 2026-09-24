@@ -1,6 +1,7 @@
 import { createApiClient, createTypedApiClient, getPublicTheme } from '@sanvi/api-client'
 import { resolveSession } from '@sanvi/auth/server'
 import { buildContentSecurityPolicyDirectivesForApp } from '@sanvi/csp'
+import { buildSecurityHeaders, isLocalhostHost } from '@sanvi/csp/security-headers'
 import {
   BASE_LOCALE,
   LOCALE_COOKIE,
@@ -264,10 +265,32 @@ export const runtimeConnectSrc: Handle = async ({ event, resolve }) => {
   return response
 }
 
+/**
+ * The backend-specified security headers (NFR-1114), from
+ * `@sanvi/csp/security-headers`'s builder so the apps and the API answer
+ * with the same posture. `x-frame-options`/`frame-ancestors` are deliberate
+ * belt-and-braces: the CSP already carries `frame-ancestors 'none'`, and
+ * `X-Frame-Options: DENY` covers agents that never grew CSP support.
+ * HSTS stays off for localhost hosts — it pins the *hostname* (no port), so
+ * a dev-server HSTS would force HTTPS on every other local server; the
+ * backend's middleware gates it the same way.
+ */
+export const securityHeaders: Handle = async ({ event, resolve }) => {
+  const response = await resolve(event)
+  const headers = buildSecurityHeaders({
+    hsts: !isLocalhostHost(event.request.headers.get('host')),
+  })
+  for (const [name, value] of Object.entries(headers)) {
+    response.headers.set(name, value)
+  }
+  return response
+}
+
 export const handle: Handle = sequence(
   resolveTenant,
   resolveAuth,
   resolveLocale,
   resolveTheme,
   runtimeConnectSrc,
+  securityHeaders,
 )

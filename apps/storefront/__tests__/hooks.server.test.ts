@@ -150,6 +150,40 @@ describe('storefront hooks.server.ts', () => {
   })
 })
 
+// ── TASK-024: the backend-specified security headers on every response ──
+
+describe('securityHeaders', () => {
+  async function run(host?: string) {
+    const { securityHeaders } = await import('../src/hooks.server')
+    const request = new Request('http://ignored.internal/', {
+      headers: host ? { host } : {},
+    })
+    const event = { request, url: new URL('http://ignored.internal/'), locals: {} }
+    const resolve = vi.fn().mockResolvedValue(new Response('ok'))
+    const response = await securityHeaders({ event: event as never, resolve: resolve as never })
+    return response.headers
+  }
+
+  it('sets the exact specified header set for a production host', async () => {
+    const headers = await run('acme.example')
+    expect(headers.get('x-content-type-options')).toBe('nosniff')
+    expect(headers.get('referrer-policy')).toBe('same-origin')
+    expect(headers.get('x-frame-options')).toBe('DENY')
+    expect(headers.get('permissions-policy')).toBe(
+      'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+    )
+    expect(headers.get('strict-transport-security')).toBe('max-age=31536000; includeSubDomains')
+  })
+
+  it('keeps HSTS off for localhost hosts — it pins the hostname, not the port', async () => {
+    for (const host of ['localhost:5173', '127.0.0.1:4173']) {
+      const headers = await run(host)
+      expect(headers.get('strict-transport-security'), host).toBeNull()
+      expect(headers.get('x-frame-options')).toBe('DENY')
+    }
+  })
+})
+
 // ── Phase 06: resolveLocale ──
 
 describe('resolveLocale', () => {

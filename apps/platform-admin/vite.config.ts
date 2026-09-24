@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { sanviCspMetaPlugin } from '@sanvi/csp/vite'
+import { securityHeadersRecord } from '@sanvi/csp/security-headers'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { resolveReleaseStamp } from '@sanvi/telemetry/release'
 import { privateSourceMapsPlugin } from '@sanvi/telemetry/release/sourcemaps'
@@ -44,9 +45,16 @@ export default defineConfig(({ mode }) => {
     ],
     server: {
       port: 5176,
+      // The backend-specified security headers (NFR-1114) on every dev/preview
+      // response — a static SPA's only local header surface. HSTS stays off:
+      // these servers are localhost by definition and HSTS pins the hostname,
+      // not the port. Production sets the same record (plus HSTS) at the
+      // static host/CDN, from this same builder.
+      headers: securityHeadersRecord(),
     },
     preview: {
       port: 4176,
+      headers: securityHeadersRecord(),
     },
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),

@@ -1,4 +1,5 @@
 import { buildContentSecurityPolicyForApp } from '@sanvi/csp'
+import { buildSecurityHeaders, isLocalhostHost } from '@sanvi/csp/security-headers'
 import { BASE_LOCALE, ensureLocaleLoaded, parseLocalePrefix } from '@sanvi/i18n'
 import { runWithLocale } from '@sanvi/i18n/server'
 import type { Handle } from '@sveltejs/kit'
@@ -40,6 +41,17 @@ export const handle: Handle = async ({ event, resolve }) => {
     buildContentSecurityPolicyForApp('marketing', { apiOrigin, mediaOrigin }),
   )
   response.headers.set('content-language', locale)
+
+  // The backend-specified security headers (NFR-1114) from the shared
+  // builder — same posture the API answers with. HSTS stays off for
+  // localhost hosts (it pins the hostname, not the port); production's
+  // edge sets it the same way the backend's middleware does.
+  const securityHeaders = buildSecurityHeaders({
+    hsts: !isLocalhostHost(event.request.headers.get('host')),
+  })
+  for (const [name, value] of Object.entries(securityHeaders)) {
+    response.headers.set(name, value)
+  }
 
   return response
 }

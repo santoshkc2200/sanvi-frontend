@@ -16,6 +16,11 @@
       "types": "./src/vite-plugin.ts",
       "import": "./src/vite-plugin.ts",
       "require": "./src/vite-plugin.ts"
+    },
+    "./security-headers": {
+      "types": "./src/security-headers.ts",
+      "import": "./src/security-headers.ts",
+      "require": "./src/security-headers.ts"
     }
   },
   "sideEffects": false,
