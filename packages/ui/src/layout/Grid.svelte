@@ -21,7 +21,8 @@ const templateColumns = $derived(
 <svelte:element
   this={as}
   class="sanvi-grid {className}"
-  style="--sanvi-grid-columns: {templateColumns}; --sanvi-grid-gap: {spacingVar(gap)};"
+  style:--sanvi-grid-columns={templateColumns}
+  style:--sanvi-grid-gap={spacingVar(gap)}
 >
   {@render children()}
 </svelte:element>

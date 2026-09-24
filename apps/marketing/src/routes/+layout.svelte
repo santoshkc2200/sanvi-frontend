@@ -64,6 +64,14 @@ const localeLinks = $derived(
 </footer>
 
 <style>
+  /* The app shell wrapper (app.html) — global, not scoped: the element
+     lives outside Svelte's component tree. Replaces the old inline
+     style="display: contents" attribute, which the TASK-024 tightened CSP
+     (no unsafe-inline) would block as a style-src-attr violation. */
+  :global(.sanvi-app-body) {
+    display: contents;
+  }
+
   .sanvi-marketing-footer {
     margin-top: var(--sanvi-spacing-8);
     border-top: var(--sanvi-border-width-thin) solid var(--sanvi-color-border-default);

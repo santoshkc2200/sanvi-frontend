@@ -27,9 +27,10 @@ let {
 <svelte:element
   this={as}
   class="sanvi-cluster {className}"
-  style="--sanvi-cluster-gap: {spacingVar(gap)}; --sanvi-cluster-align: {align}; --sanvi-cluster-justify: {justify}; --sanvi-cluster-wrap: {wrap
-    ? 'wrap'
-    : 'nowrap'};"
+  style:--sanvi-cluster-gap={spacingVar(gap)}
+  style:--sanvi-cluster-align={align}
+  style:--sanvi-cluster-justify={justify}
+  style:--sanvi-cluster-wrap={wrap ? 'wrap' : 'nowrap'}
 >
   {@render children()}
 </svelte:element>

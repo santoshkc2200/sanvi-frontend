@@ -21,6 +21,7 @@ export {
   isDarkModeActive,
   parseCssVars,
   theme,
+  themeStyleCss,
   themeStyleTag,
 } from './apply'
 

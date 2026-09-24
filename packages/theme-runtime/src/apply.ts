@@ -161,20 +161,29 @@ export function applyTheme(resolved: ResolvedTheme): void {
 }
 
 /**
- * SSR-safe helper that generates the literal `<style>` tag string to inline in HTML <head>.
- * Safely escapes style content to prevent breaking out of the style tag.
+ * The exact CSS content {@link themeStyleTag} places inside its
+ * `<style id="sanvi-theme">` element — the tenant's `css_vars` plus custom
+ * CSS, with the `</style`/`<!--` break-out escapes applied. TASK-024's CSP
+ * tightening removed `style-src 'unsafe-inline'`, so the storefront's
+ * server hook allows this one inline style by a per-request `sha256` hash of
+ * *this* string; both the tag renderer and the hook must therefore produce
+ * byte-identical content, which is why the two share this helper.
  */
-export function themeStyleTag(resolved: ResolvedTheme): string {
-  if (!resolved) {
-    return '<style id="sanvi-theme"></style>'
-  }
+export function themeStyleCss(resolved: ResolvedTheme): string {
+  if (!resolved) return ''
 
   let css = resolved.css_vars || ''
   if (resolved.custom_css) {
     css += `\n${resolved.custom_css}`
   }
 
-  const safeCss = css.replace(/<\/style/gi, '<\\/style').replace(/<!--/g, '<\\!--')
+  return css.replace(/<\/style/gi, '<\\/style').replace(/<!--/g, '<\\!--')
+}
 
-  return `<style id="sanvi-theme">${safeCss}</style>`
+/**
+ * SSR-safe helper that generates the literal `<style>` tag string to inline in HTML <head>.
+ * Safely escapes style content to prevent breaking out of the style tag.
+ */
+export function themeStyleTag(resolved: ResolvedTheme): string {
+  return `<style id="sanvi-theme">${themeStyleCss(resolved)}</style>`
 }

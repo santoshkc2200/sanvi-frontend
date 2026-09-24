@@ -93,7 +93,7 @@ const badgeVariant = $derived(
     aria-valuemax={100}
     aria-valuenow={Math.round(clamped * 100)}
   >
-    <div class="sanvi-cap-progress__fill" style="--sanvi-cap-progress-ratio: {clamped};"></div>
+    <div class="sanvi-cap-progress__fill" style:--sanvi-cap-progress-ratio={clamped}></div>
   </div>
 
   <dl class="sanvi-cap-progress__meta">

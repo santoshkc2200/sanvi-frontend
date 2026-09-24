@@ -50,7 +50,8 @@ its pre-advertising form.
 
 | Source | Origin | Disposition |
 | --- | --- | --- |
-| `style-src 'unsafe-inline'` | phase 00 bootstrap | **Removed (TASK-024).** The one relaxation that made the whole policy say less: an inline-style allowance covers `<style>` elements *and* `style="…"` attributes everywhere, for every tenant. What needed it: (a) the theme runtime's SSR-inlined `<style id="sanvi-theme">` carrying tenant `css_vars` + custom CSS — now allowed by a per-request `sha256` hash of exactly that content, injected by the storefront hook; (b) `style="…"` attributes in `@sanvi/ui` layout/chart components — converted to Svelte `style:` directives, which set styles through CSSOM and are not CSP-governed; (c) `vite dev`'s injected styles — handled by an explicit `devInlineStyles` option that no production preset can reach. |
+| `style-src 'unsafe-inline'` | phase 00 bootstrap | **Removed for style *elements*** (TASK-024), with one recorded exception split off — see below. What needed inline styles: (a) the theme runtime's SSR-inlined `<style id="sanvi-theme">` carrying tenant `css_vars` + custom CSS — now allowed by a per-request `sha256` hash of exactly that content, injected by the storefront hook; (b) `style="…"` attributes — see `style-src-attr`; (c) `vite dev`'s injected styles — handled by an explicit `devInlineStyles` flag that only dev configs pass. |
+| `style-src-attr 'unsafe-inline'` (new, scoped) | TASK-024 | **The policy's one recorded exception.** Svelte's SSR renders every `style:` directive — the token-valued gaps in the layout primitives, and *data-driven* chart colors and bar geometry (`ChartSeries.color` is caller-supplied) — as a literal `style="…"` attribute in the server HTML. Blocking attributes breaks every screen at first paint; the alternatives are an `@sanvi/ui` API rework (enumerable class variants + a fixed chart palette) that is far beyond this gate task and would touch every screen the GA half is about to harden. CSP3's `style-src-attr` split makes the trade-off precise: style **elements** — the exfiltration-capable vector (`url()`, attribute-selector oracles) — are governed by the strict `style-src`; only presentation attributes keep an inline allowance. Recorded for the follow-up that reworks the chart colour contract. |
 | `img-src https:` | phase 00 bootstrap | **Keep (reviewed).** Course media uses presigned URLs against whatever storage origin the deploy configures — S3, R2, MinIO — so the scheme wildcard is the honest description of production traffic. `mediaOrigin` pins a specific (dev, HTTP) origin when configured. Pinning the storage origin per environment is the future tightening, owned by whichever task reworks media delivery. |
 | `worker-src 'self' 'blob:'` | phase 00 bootstrap | **Keep (reviewed).** Blob workers back media/video tooling; no first-party script origin is implied. |
 | `frame-src` Stripe/YouTube/Link hosts | phase 00 bootstrap | **Keep (reviewed).** Embedded billing (phase 04), tenant payments (phase 09) and course video all frame these hosts today. |
@@ -69,6 +70,11 @@ its pre-advertising form.
 
 The tightened policy shipped **report-only first**: the full e2e suites of all four apps ran with a
 `securitypolicyviolation` collector installed (`apps/*/e2e/csp.spec.ts`) and recorded **zero
-violations** across the enforced tightened policy, in place of the staging cycle this repo has no
-host for (see `docs/release/needs-humans.md`). A staging deployment must re-run a real report-only
-cycle with a collector endpoint before production enforcement at the edge.
+violations** under the enforced tightened policy — the local production-build substitute for the
+staging cycle this repo has no host for (see `docs/release/needs-humans.md`). The exercise caught
+two real findings before enforcement: the prerendered marketing pages had **no policy at all**
+(fixed by configuring `kit.csp` so `adapter-node`'s static-served pages carry a baked meta), and the
+pricing page's universal load re-ran client-side against a runtime origin the baked meta could not
+name (fixed by moving the load server-side, so plans are build-time content). A staging deployment
+must still re-run a real report-only cycle with a collector endpoint before production enforcement
+at the edge.

@@ -53,7 +53,7 @@ const valueText = $derived(
       aria-valuemin={0}
       aria-valuemax={limit}
     >
-      <div class="sanvi-usage-meter__fill sanvi-usage-meter__fill--{status}" style="--sanvi-usage-meter-ratio: {ratio};"></div>
+      <div class="sanvi-usage-meter__fill sanvi-usage-meter__fill--{status}" style:--sanvi-usage-meter-ratio={ratio}></div>
     </div>
   {/if}
 </div>

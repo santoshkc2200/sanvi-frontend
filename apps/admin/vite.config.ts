@@ -36,7 +36,10 @@ export default defineConfig(({ mode }) => {
       // nesting, or svelte-check's vite-config inspector can't find it
       // ("No Svelte configuration found in vite config").
       ...svelte(),
-      sanviCspMetaPlugin('admin', cspOrigins()),
+      // `devInlineStyles`: `vite dev` injects component CSS as runtime <style>
+      // elements; production builds extract CSS to files, so the shipped
+      // meta policy stays strict (the e2e suites exercise it).
+      sanviCspMetaPlugin('admin', cspOrigins(), { devInlineStyles: mode !== 'production' }),
       // FR-1104/NFR-1104: stage `.map` files into `sourcemaps-private/`
       // instead of `dist/` — maps are generated but never served.
       privateSourceMapsPlugin(),

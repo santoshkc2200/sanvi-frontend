@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit'
 import { createApiClient, createTypedApiClient, previewTenantTheme } from '@sanvi/api-client'
+import { themeStyleCss } from '@sanvi/theme-runtime'
 import { getAppEnv } from '$lib/env'
 import type { PageServerLoad } from './$types'
 
@@ -36,6 +37,13 @@ export const load: PageServerLoad = async ({ url, locals, setHeaders, request })
     if (!theme || typeof theme !== 'object' || !('theme_key' in theme)) {
       error(403, { message: 'Invalid or expired preview token' })
     }
+
+    // TASK-024: this page renders a second inline theme `<style>` (the
+    // previewed theme, not `locals.theme`). The tightened CSP has no
+    // `unsafe-inline`, so its exact content is enumerated here and hashed
+    // into `style-src` by the `runtimeConnectSrc` hook.
+    locals.themeStyleOverrides ??= []
+    locals.themeStyleOverrides.push(themeStyleCss(theme))
 
     return {
       theme,

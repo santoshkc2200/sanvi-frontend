@@ -17,6 +17,14 @@ declare global {
       session: Session | null
       /** Resolved from the host/tenant and cached per host/locale or fallback. */
       theme: ResolvedTheme
+      /**
+       * Extra inline `<style>` contents a server load renders on top of the
+       * layout's theme tag (e.g. `_theme-preview`'s previewed theme).
+       * `runtimeConnectSrc` hashes each into `style-src` — the TASK-024
+       * tightened policy has no `unsafe-inline`, so every inline style the
+       * page emits must be enumerated here.
+       */
+      themeStyleOverrides: string[]
     }
     interface Error {
       message: string

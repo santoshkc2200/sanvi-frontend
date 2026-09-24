@@ -50,6 +50,24 @@ const mediaOrigin = env['PUBLIC_MEDIA_ORIGIN']
 const themeAssetOrigin = env['PUBLIC_THEME_ASSET_ORIGIN']
 const kratosOrigin = env['PUBLIC_KRATOS_ORIGIN'] ?? 'http://localhost:4433'
 
+// TASK-024: the shipped policy has no `unsafe-inline` anywhere. The one
+// dev-only exception: `vite dev` injects component CSS as runtime `<style>`
+// elements, which `style-src` without an inline allowance blocks — all of
+// dev goes unstyled. Production builds extract CSS to files, and the SSR
+// theme `<style>` is allowed by a per-request hash injected in
+// `hooks.server.ts`, so the exception never reaches a built policy.
+// sanvi-csp: dev-only inline styles (checked by check:csp's allow-list)
+const isDev = process.env.NODE_ENV !== 'production'
+const directives = buildContentSecurityPolicyDirectivesForApp('storefront', {
+  apiOrigin,
+  mediaOrigin,
+  themeAssetOrigin,
+  kratosOrigin,
+})
+if (isDev && directives['style-src']) {
+  directives['style-src'] = [...directives['style-src'], "'unsafe-inline'"]
+}
+
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
   preprocess: vitePreprocess(),
@@ -60,12 +78,7 @@ const config = {
     },
     csp: {
       mode: 'hash',
-      directives: buildContentSecurityPolicyDirectivesForApp('storefront', {
-        apiOrigin,
-        mediaOrigin,
-        themeAssetOrigin,
-        kratosOrigin,
-      }),
+      directives,
     },
   },
 }

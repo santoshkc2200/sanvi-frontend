@@ -311,6 +311,14 @@ const LOCALE_TO_SUBSET: Record<string, string> = {
 {/if}
 
 <style>
+  /* The app shell wrapper (app.html) — global, not scoped: the element
+     lives outside Svelte's component tree. Replaces the old inline
+     style="display: contents" attribute, which the TASK-024 tightened CSP
+     (no unsafe-inline) would block as a style-src-attr violation. */
+  :global(.sanvi-app-body) {
+    display: contents;
+  }
+
   .sanvi-consent-spacer {
     /* Scroll headroom for content under the floating consent banner: the
        banner's stacked mobile height, plus the footer (whose locale nav

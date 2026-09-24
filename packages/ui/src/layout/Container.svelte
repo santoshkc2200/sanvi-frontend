@@ -28,7 +28,8 @@ const maxWidth = $derived(MAX_WIDTH[size])
 <svelte:element
   this={as}
   class="sanvi-container {className}"
-  style="--sanvi-container-max-width: {maxWidth}; --sanvi-container-padding: {spacingVar(padding)};"
+  style:--sanvi-container-max-width={maxWidth}
+  style:--sanvi-container-padding={spacingVar(padding)}
 >
   {@render children()}
 </svelte:element>

@@ -32,4 +32,36 @@ describe('sanviCspMetaPlugin', () => {
   it('throws when there is no </head> to inject into — never silently skips the CSP', () => {
     expect(() => transform('<html><body></body></html>')).toThrow(/no <\/head> found/)
   })
+
+  /**
+   * TASK-024: `devInlineStyles` is the one, explicitly-dev-only inline-style
+   * allowance (vite dev injects component CSS as runtime `<style>` nodes).
+   * It must default to off so a production config that forgets the flag
+   * gets the strict policy, and the flag must touch `style-src` only.
+   */
+  it('devInlineStyles defaults to a strict style-src', () => {
+    const result = transform('<html><head></head><body></body></html>')
+    expect(result).toContain('style-src')
+    // The recorded style-src-attr exception is present in every policy; the
+    // dev flag must be the only thing adding element-level inline styles.
+    expect(result).toContain("style-src-attr 'unsafe-inline'")
+    expect(result).toMatch(/style-src 'self'(?!-attr)[^;]*(;|$)/)
+    expect(result).not.toMatch(/style-src '[^']*unsafe-inline/)
+  })
+
+  it('devInlineStyles adds unsafe-inline to style-src only', () => {
+    const plugin = sanviCspMetaPlugin(
+      'admin',
+      { apiOrigin: 'https://api.example.com' },
+      { devInlineStyles: true },
+    )
+    const hook = plugin.transformIndexHtml as (html: string) => string
+    const result = hook('<html><head></head><body></body></html>')
+    const content = result.match(
+      /<meta http-equiv="Content-Security-Policy" content="([\s\S]*?)">/,
+    )?.[1]
+    expect(content).toContain("style-src 'unsafe-inline'")
+    expect(content).not.toMatch(/script-src[^;]*unsafe-inline/)
+    expect(content).not.toMatch(/script-src[^;]*unsafe-eval/)
+  })
 })

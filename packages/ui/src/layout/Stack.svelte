@@ -18,7 +18,8 @@ let { gap = '4', align = 'stretch', as = 'div', class: className = '', children 
 <svelte:element
   this={as}
   class="sanvi-stack {className}"
-  style="--sanvi-stack-gap: {spacingVar(gap)}; --sanvi-stack-align: {align};"
+  style:--sanvi-stack-gap={spacingVar(gap)}
+  style:--sanvi-stack-align={align}
 >
   {@render children()}
 </svelte:element>

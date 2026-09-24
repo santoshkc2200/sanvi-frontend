@@ -2,6 +2,7 @@ import { createApiClient, createTypedApiClient, getPublicTheme } from '@sanvi/ap
 import { resolveSession } from '@sanvi/auth/server'
 import { buildContentSecurityPolicyDirectivesForApp } from '@sanvi/csp'
 import { buildSecurityHeaders, isLocalhostHost } from '@sanvi/csp/security-headers'
+import { createHash } from 'node:crypto'
 import {
   BASE_LOCALE,
   LOCALE_COOKIE,
@@ -13,7 +14,12 @@ import {
 } from '@sanvi/i18n'
 import { resolveRequestLocale, runWithLocale } from '@sanvi/i18n/server'
 import { TenantHostCache, resolveTenantForHost } from '@sanvi/tenant/server'
-import { DEFAULT_FALLBACK_THEME, getCachedTheme, setCachedTheme } from '@sanvi/theme-runtime'
+import {
+  DEFAULT_FALLBACK_THEME,
+  getCachedTheme,
+  setCachedTheme,
+  themeStyleCss,
+} from '@sanvi/theme-runtime'
 import type { Handle } from '@sveltejs/kit'
 import { sequence } from '@sveltejs/kit/hooks'
 import { getAppEnv } from '$lib/env'
@@ -218,8 +224,18 @@ export const resolveLocale: Handle = async ({ event, resolve }) => {
  * can't know. But kit freezes `connect-src` and theme origins at *build* time,
  * while the origins are runtime env — so the header is rewritten here, on the
  * way out, with the runtime origins. Everything else stays as kit built it.
+ *
+ * TASK-024 additionally folds the per-request `sha256` of the theme's inline
+ * `<style id="sanvi-theme">` content into `style-src`: the tightened policy
+ * has no `'unsafe-inline'`, so the one inline style the storefront renders —
+ * tenant `css_vars` + custom CSS — is allowed by the hash of its exact
+ * content (`themeStyleCss` is the shared helper that makes tag and hash
+ * byte-identical). Any extra inline styles a server load renders (the theme
+ * preview route) must append to `locals.themeStyleOverrides`, hashed the
+ * same way.
  */
 const CONNECT_SRC = 'connect-src'
+const STYLE_SRC = 'style-src'
 
 export const runtimeConnectSrc: Handle = async ({ event, resolve }) => {
   const response = await resolve(event)
@@ -233,6 +249,11 @@ export const runtimeConnectSrc: Handle = async ({ event, resolve }) => {
     themeAssetOrigin,
     kratosOrigin,
   })[CONNECT_SRC]
+
+  const styleHashes = [
+    themeStyleCss(event.locals.theme),
+    ...(event.locals.themeStyleOverrides ?? []),
+  ].map((css) => `'sha256-${createHash('sha256').update(css).digest('base64')}'`)
 
   const rewritten = header
     .split(';')
@@ -255,6 +276,10 @@ export const runtimeConnectSrc: Handle = async ({ event, resolve }) => {
           }
           return `${name} ${sourceList.join(' ')}`
         }
+      }
+
+      if (match?.[1] === STYLE_SRC && styleHashes.length) {
+        return `${STYLE_SRC} ${[...match[2].split(/\s+/).filter(Boolean), ...styleHashes].join(' ')}`
       }
 
       return trimmed

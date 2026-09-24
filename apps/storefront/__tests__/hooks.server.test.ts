@@ -93,7 +93,10 @@ describe('storefront hooks.server.ts', () => {
       return vi.fn().mockResolvedValue(new Response('ok', { headers }))
     }
 
-    const event = { url: new URL('http://ignored.internal/') }
+    const event = (locals: Record<string, unknown> = { theme: undefined }) => ({
+      url: new URL('http://ignored.internal/'),
+      locals,
+    })
 
     it('replaces connect-src with the runtime origins and leaves other directives alone', async () => {
       const { runtimeConnectSrc } = await import('../src/hooks.server')
@@ -104,7 +107,10 @@ describe('storefront hooks.server.ts', () => {
         "default-src 'self'; script-src 'self' 'sha256-abc'; connect-src 'self' https://api.stale.test",
       )
 
-      const response = await runtimeConnectSrc({ event: event as never, resolve: resolve as never })
+      const response = await runtimeConnectSrc({
+        event: event() as never,
+        resolve: resolve as never,
+      })
 
       expect(response.headers.get('content-security-policy')).toBe(
         "default-src 'self'; script-src 'self' 'sha256-abc'; " +
@@ -126,7 +132,7 @@ describe('storefront hooks.server.ts', () => {
       })
       const resolve = respondWith("default-src 'self'; connect-src 'self'")
 
-      await runtimeConnectSrc({ event: event as never, resolve: resolve as never })
+      await runtimeConnectSrc({ event: event() as never, resolve: resolve as never })
 
       expect(buildDirectivesMock).toHaveBeenCalledWith(
         'storefront',
@@ -143,9 +149,68 @@ describe('storefront hooks.server.ts', () => {
       buildDirectivesMock.mockReturnValue({ 'connect-src': ["'self'"] })
       const resolve = respondWith(null)
 
-      const response = await runtimeConnectSrc({ event: event as never, resolve: resolve as never })
+      const response = await runtimeConnectSrc({
+        event: event() as never,
+        resolve: resolve as never,
+      })
 
       expect(response.headers.get('content-security-policy')).toBeNull()
+    })
+
+    /**
+     * TASK-024: the tightened policy has no `unsafe-inline`, so the theme's
+     * inline `<style>` is allowed by a per-request `sha256` hash of exactly
+     * the content `themeStyleTag` renders.
+     */
+    it('folds the sha256 of the theme style content into style-src', async () => {
+      const { createHash } = await import('node:crypto')
+      const { themeStyleCss } = await import('@sanvi/theme-runtime')
+      const { runtimeConnectSrc } = await import('../src/hooks.server')
+      buildDirectivesMock.mockReturnValue({ 'connect-src': ["'self'"] })
+      const theme = {
+        css_vars: '--sanvi-color-brand-primary: #0066cc;',
+        custom_css: '.banner { display: block; }',
+      }
+      const expectedHash = `'sha256-${createHash('sha256')
+        .update(themeStyleCss(theme as never))
+        .digest('base64')}'`
+      const resolve = respondWith("default-src 'self'; style-src 'self'")
+
+      const response = await runtimeConnectSrc({
+        event: event({ theme }) as never,
+        resolve: resolve as never,
+      })
+
+      const styleSrc = /style-src ([^;]+)/.exec(
+        response.headers.get('content-security-policy') ?? '',
+      )?.[1]
+      expect(styleSrc).toBe(`'self' ${expectedHash}`)
+      // And it must be the hash of exactly what the tag will render:
+      expect(themeStyleCss(theme as never)).not.toContain('sanvi-theme')
+    })
+
+    it('hashes extra inline styles from locals.themeStyleOverrides as well', async () => {
+      const { createHash } = await import('node:crypto')
+      const { runtimeConnectSrc } = await import('../src/hooks.server')
+      buildDirectivesMock.mockReturnValue({ 'connect-src': ["'self'"] })
+      const hashOf = (css: string) =>
+        `'sha256-${createHash('sha256').update(css).digest('base64')}'`
+      const resolve = respondWith("default-src 'self'; style-src 'self'")
+
+      const response = await runtimeConnectSrc({
+        event: event({
+          theme: undefined,
+          themeStyleOverrides: ['.preview { color: red; }', '.second {}'],
+        }) as never,
+        resolve: resolve as never,
+      })
+
+      const styleSrc = /style-src ([^;]+)/.exec(
+        response.headers.get('content-security-policy') ?? '',
+      )?.[1]
+      expect(styleSrc).toBe(
+        `'self' ${hashOf('')} ${hashOf('.preview { color: red; }')} ${hashOf('.second {}')}`,
+      )
     })
   })
 })

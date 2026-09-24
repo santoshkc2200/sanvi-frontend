@@ -215,7 +215,7 @@ const flaggedIndexes = $derived.by(() => {
         <span
           aria-hidden="true"
           class="sanvi-overlay-chart__legend-bar"
-          style="background: {colorAt(0, barSeries)}"
+          style:background={colorAt(0, barSeries)}
         ></span>
         <span>{barSeries.label}</span>
       </li>

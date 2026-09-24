@@ -21,14 +21,6 @@ export interface ContentSecurityPolicyOptions {
    */
   kratosOrigin?: string
   /**
-   * Adds `'unsafe-inline'` to `script-src`. Next.js injects inline
-   * hydration/bootstrap scripts it doesn't nonce by default, so Next apps
-   * need this; static SPA shells that only load scripts by `src` don't.
-   */
-  allowInlineScripts?: boolean
-  /** Adds `'unsafe-eval'` to `script-src` — only for dev-mode tooling that relies on it. */
-  allowEval?: boolean
-  /**
    * How the policy reaches the browser. `frame-ancestors` is ignored by
    * browsers when the policy is delivered through a `<meta http-equiv>`
    * element, so it is omitted from `'meta'` policies rather than emitted
@@ -41,12 +33,14 @@ export interface ContentSecurityPolicyOptions {
    */
   delivery?: 'header' | 'meta'
   /**
-   * Folds the ad-platform origins from the {@link ads} preset into the
-   * policy — OAuth handoff hosts (`connect-src`, `form-action`) and creative
-   * preview CDNs (`img-src`). Opt-in per app: the admin console turns it on
-   * (its `APP_PRESETS` entry), the storefront deliberately does not, so the
-   * storefront policy is byte-identical to its pre-advertising form — first
-   * party tracking is same-origin by design and needs no third-party origin.
+   * Folds the ad-platform *creative-preview* origins from the {@link ads}
+   * preset into the policy (`img-src`). Opt-in per app: the admin console
+   * turns it on (its `APP_PRESETS` entry), the storefront deliberately does
+   * not, so the storefront policy is byte-identical to its pre-advertising
+   * form. The preset's original OAuth-handoff allowances (`connect-src`,
+   * `form-action`) were removed in TASK-024 — see
+   * `docs/security/csp-widenings.md`: the handoff is a top-level navigation,
+   * which CSP does not govern, and token exchange is server-side.
    *
    * @default false
    */
@@ -58,28 +52,21 @@ export interface ContentSecurityPolicyOptions {
  * rather than per-app ad-hoc additions, so `admin` and `storefront` cannot
  * drift apart.
  *
- * - **OAuth handoff** — the browser is redirected to the platform's
- *   authorization page at an URL the *backend* mints (signed `state`
- *   included; the frontend never constructs it and never sees a token), so
- *   the origins are the two authorization hosts, allowed for `form-action`
- *   (a handoff may be a form navigation) and `connect-src` (any in-page
- *   fetch during the handoff). The token endpoints
- *   (`oauth2.googleapis.com`, `graph.facebook.com`) are deliberately absent:
- *   token exchange is server-to-server, and a browser that could reach them
- *   would mean client-side token handling, which the design forbids.
- * - **Creative previews** — campaign creatives are rendered from the
- *   platforms' own media CDNs: Google serves ad assets from
- *   `googleusercontent.com`, Meta from `fbcdn.net`.
+ * Creative previews render the platforms' own media CDNs — Google serves ad
+ * assets from `googleusercontent.com`, Meta from `fbcdn.net` — so those two
+ * hosts are allowed for `img-src`.
  *
- * Never adds anything to `script-src` or `style-src` — no `unsafe-inline`
- * widening, no platform script is ever loaded into Sanvi pages (asserted in
- * the package tests).
+ * Never adds anything to `script-src` or `style-src`, and — since TASK-024
+ * narrowed it — nothing to `connect-src` or `form-action` either: the OAuth
+ * handoff is a top-level navigation to an URL the *backend* mints (signed
+ * `state` included; the frontend never constructs it and never sees a
+ * token), and CSP does not govern plain navigations, while token exchange is
+ * server-to-server. Every entry here must earn its place; see
+ * `docs/security/csp-widenings.md` for the accounting.
  */
 export function ads(): Partial<CspDirectives> {
   return {
-    'connect-src': ['https://accounts.google.com', 'https://www.facebook.com'],
     'img-src': ['https://*.googleusercontent.com', 'https://*.fbcdn.net'],
-    'form-action': ['https://accounts.google.com', 'https://www.facebook.com'],
   }
 }
 
@@ -117,8 +104,6 @@ export function buildContentSecurityPolicyDirectives(
     mediaOrigin = '',
     themeAssetOrigin = '',
     kratosOrigin = '',
-    allowInlineScripts = false,
-    allowEval = false,
     delivery = 'header',
     ads: adsOrigins = false,
   } = options
@@ -126,15 +111,17 @@ export function buildContentSecurityPolicyDirectives(
 
   return {
     ...directiveSources('default-src', "'self'"),
-    ...directiveSources(
-      'script-src',
-      "'self'",
-      allowInlineScripts && "'unsafe-inline'",
-      allowEval && "'unsafe-eval'",
-      'https://js.stripe.com',
-      'https://*.stripe.com',
-    ),
-    ...directiveSources('style-src', "'self'", "'unsafe-inline'", themeAssetOrigin),
+    ...directiveSources('script-src', "'self'", 'https://js.stripe.com', 'https://*.stripe.com'),
+    ...directiveSources('style-src', "'self'", themeAssetOrigin),
+    // TASK-024: style *elements* (the exfiltration-capable vector) are
+    // governed by `style-src` above — no `unsafe-inline`; the theme's inline
+    // `<style>` is allowed by a per-request hash injected by the storefront
+    // hook. Style *attributes* are split off into `style-src-attr` with the
+    // policy's one recorded exception: Svelte's SSR renders every `style:`
+    // directive (data-driven chart colors, token-valued layout gaps) as a
+    // literal style attribute in server HTML, and blocking those breaks
+    // every screen at first paint. See docs/security/csp-widenings.md.
+    ...directiveSources('style-src-attr', "'unsafe-inline'"),
     ...directiveSources(
       'img-src',
       "'self'",
@@ -170,17 +157,11 @@ export function buildContentSecurityPolicyDirectives(
       'https://api.stripe.com',
       'https://*.stripe.com',
       'https://*.link.com',
-      ...(adPreset['connect-src'] ?? []),
     ),
     ...directiveSources('worker-src', "'self'", 'blob:'),
     ...directiveSources('object-src', "'none'"),
     ...directiveSources('base-uri', "'self'"),
-    ...directiveSources(
-      'form-action',
-      "'self'",
-      'https://*.stripe.com',
-      ...(adPreset['form-action'] ?? []),
-    ),
+    ...directiveSources('form-action', "'self'", 'https://*.stripe.com'),
     ...(delivery === 'header' ? directiveSources('frame-ancestors', "'none'") : {}),
   }
 }
@@ -198,8 +179,6 @@ export function buildContentSecurityPolicy(options: ContentSecurityPolicyOptions
     mediaOrigin = '',
     themeAssetOrigin = '',
     kratosOrigin = '',
-    allowInlineScripts = false,
-    allowEval = false,
     delivery = 'header',
     ads: adsOrigins = false,
   } = options
@@ -207,15 +186,11 @@ export function buildContentSecurityPolicy(options: ContentSecurityPolicyOptions
 
   return [
     directive('default-src', "'self'"),
-    directive(
-      'script-src',
-      "'self'",
-      allowInlineScripts && "'unsafe-inline'",
-      allowEval && "'unsafe-eval'",
-      'https://js.stripe.com',
-      'https://*.stripe.com',
-    ),
-    directive('style-src', "'self'", "'unsafe-inline'", themeAssetOrigin),
+    directive('script-src', "'self'", 'https://js.stripe.com', 'https://*.stripe.com'),
+    directive('style-src', "'self'", themeAssetOrigin),
+    // See the directives builder above — the one recorded exception, scoped
+    // to style attributes only. docs/security/csp-widenings.md.
+    directive('style-src-attr', "'unsafe-inline'"),
     directive(
       'img-src',
       "'self'",
@@ -250,12 +225,11 @@ export function buildContentSecurityPolicy(options: ContentSecurityPolicyOptions
       'https://api.stripe.com',
       'https://*.stripe.com',
       'https://*.link.com',
-      ...(adPreset['connect-src'] ?? []),
     ),
     directive('worker-src', "'self'", 'blob:'),
     directive('object-src', "'none'"),
     directive('base-uri', "'self'"),
-    directive('form-action', "'self'", 'https://*.stripe.com', ...(adPreset['form-action'] ?? [])),
+    directive('form-action', "'self'", 'https://*.stripe.com'),
     delivery === 'header' ? directive('frame-ancestors', "'none'") : undefined,
   ]
     .filter((value): value is string => value !== undefined)
