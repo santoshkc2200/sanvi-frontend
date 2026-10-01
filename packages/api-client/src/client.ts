@@ -292,8 +292,14 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     // CSRF posture): a body-less POST without one is a CORS *simple request*
     // — form-able cross-site, no preflight, and the browser sends the cookie
     // for `'include'` callers. `application/json` is never form-representable,
-    // so the preflight it forces is the gate every mutation passes.
-    if (method !== 'GET' && requestHeaders['content-type'] === undefined) {
+    // so the preflight it forces is the gate every mutation passes. The
+    // presence check is case-insensitive: a caller's capitalized
+    // `Content-Type` is the same header, and injecting a second would
+    // combine in the sent Headers rather than count as present.
+    const hasContentType = Object.keys(requestHeaders).some(
+      (name) => name.toLowerCase() === 'content-type',
+    )
+    if (method !== 'GET' && !hasContentType) {
       requestHeaders['content-type'] = 'application/json'
     }
     if (token) requestHeaders['authorization'] = `Bearer ${token}`

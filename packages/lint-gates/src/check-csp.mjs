@@ -97,15 +97,20 @@ export function scanWorkspace(root) {
       const line = strippedLines[i]
       if (!line) continue
       const lower = line.toLowerCase()
-      const hit = POLICY_TOKENS.find((token) => lower.includes(token))
-      if (!hit) continue
-      if (ALLOWED.has(`${relativePath.split('\\').join('/')}:${hit}`)) continue
+      // Every token on the line, not just the first match: a line naming an
+      // exempted token and an unlisted one must still fail on the latter.
+      const hits = POLICY_TOKENS.filter((token) => lower.includes(token))
+      if (hits.length === 0) continue
+      const normalizedPath = relativePath.split('\\').join('/')
       // The dev-branch escape: the marker must trail the code on the same
       // line (the comment-stripped line still carries it — the marker is
       // matched against the raw line here), so every exception sits next to
       // its reason instead of in a comment block above.
       if (rawLines[i]?.includes(MARKER)) continue
-      violations.push({ file: relativePath, line: i + 1, token: hit })
+      for (const token of hits) {
+        if (ALLOWED.has(`${normalizedPath}:${token}`)) continue
+        violations.push({ file: relativePath, line: i + 1, token })
+      }
     }
   }
   return violations

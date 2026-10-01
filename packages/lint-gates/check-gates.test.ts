@@ -31,8 +31,28 @@ describe('check:csp scanner', () => {
       "export const policy = \"script-src 'self' 'unsafe-inline'\"\n",
     )
     const violations = scanWorkspace(workspace)
-    expect(violations).toHaveLength(1)
-    expect(violations[0]).toMatchObject({ file: 'apps/admin/src/rogue.ts', token: 'unsafe-inline' })
+    // Every token on the line is reported, in POLICY_TOKENS order — not just
+    // the first match.
+    expect(violations).toEqual([
+      { file: 'apps/admin/src/rogue.ts', line: 1, token: 'unsafe-inline' },
+      { file: 'apps/admin/src/rogue.ts', line: 1, token: 'script-src' },
+    ])
+  })
+
+  it('a line whose only listed token is exempted still fails on its other tokens', () => {
+    workspace = makeWorkspace()
+    mkdirSync(join(workspace, 'apps/storefront/src'), { recursive: true })
+    // `apps/storefront/src/hooks.server.ts:style-src` is on the ALLOWED list
+    // (the hook names the directive to inject the theme hash); the
+    // `default-src` on the same line is not, and must still be caught.
+    writeFileSync(
+      join(workspace, 'apps/storefront/src/hooks.server.ts'),
+      "const directives = \"default-src 'self'; style-src 'self'\"\n",
+    )
+    const violations = scanWorkspace(workspace)
+    expect(violations).toEqual([
+      { file: 'apps/storefront/src/hooks.server.ts', line: 1, token: 'default-src' },
+    ])
   })
 
   it('passes a clean tree and exempts packages/csp, tests, and dot-directory artifacts', () => {

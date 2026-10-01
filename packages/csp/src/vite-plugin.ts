@@ -41,8 +41,11 @@ export function sanviCspMetaPlugin(
     name: 'sanvi-csp-meta',
     transformIndexHtml(html) {
       const csp = buildContentSecurityPolicyForApp(app, options)
+      // The trailing space anchors the match on the element directive:
+      // `style-src-attr` also contains `style-src`, and the relaxation must
+      // never land there.
       const content = pluginOptions.devInlineStyles
-        ? csp.replace('style-src', "style-src 'unsafe-inline'")
+        ? csp.replace('style-src ', "style-src 'unsafe-inline' ")
         : csp
       const meta = `<meta http-equiv="Content-Security-Policy" content="${content.replace(/"/g, '&quot;')}">`
       if (!html.includes('</head>')) {
