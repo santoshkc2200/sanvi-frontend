@@ -1,0 +1,12 @@
+import enCommon from '../../messages/en/common.json'
+import enErrors from '../../messages/en/errors.json'
+export function registerMarketingSurface(): void {
+  registerCatalogSurface('marketing', {
+    en: [enCommon, enErrors],
+    loadJa: async () =>
+      (await Promise.all([
+        import('../../messages/ja/common.json'),
+        import('../../messages/ja/errors.json'),
+      ])).map(toShard),
+  })
+}

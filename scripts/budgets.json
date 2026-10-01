@@ -1,15 +1,15 @@
 {
-  "_readme": "Per-app JS budgets, gzip KB (TASK-031). Seeded from the current build plus a small margin so the gate is meaningful immediately; TASK-022 tightens initial budgets to the architecture targets (storefront ≤ 100, admin ≤ 250) and becomes blocking there. `initialKb` counts SvelteKit entry+chunks; SPA builds have no initial convention yet, so their initial is reported but not enforced, and the per-route `routeKb` carries the budget. The SPA per-chunk `chunkKb` still caps every non-route chunk.",
+  "_readme": "Per-app JS budgets, gzip KB (TASK-031). Seeded from the current build plus a small margin so the gate is meaningful immediately; TASK-022 tightens initial budgets to the architecture targets (storefront ≤ 100, admin ≤ 250) and becomes blocking there. `initialKb` counts SvelteKit entry+chunks; SPA builds have no initial convention yet, so their initial is reported but not enforced, and the per-route `routeKb` carries the budget. The SPA per-chunk `chunkKb` still caps every non-route chunk. TASK-032 re-lowered the SvelteKit initial budgets after sharding the i18n catalogs by surface: the storefront dropped 180 → 88 and marketing 150 → 50 (measured 86.1 / 48.2) because neither app ships admin/platform strings anymore. The SPA `initialKb` values are inert (unmeasured build shape) and stay as-is.",
   "apps": {
     "storefront": {
       "type": "sveltekit",
-      "initialKb": 180,
+      "initialKb": 88,
       "chunkKb": 70,
       "routeKb": 6
     },
     "marketing": {
       "type": "sveltekit",
-      "initialKb": 150,
+      "initialKb": 50,
       "chunkKb": 70,
       "routeKb": 11
     },

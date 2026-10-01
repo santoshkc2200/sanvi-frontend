@@ -225,7 +225,7 @@ onLocaleChange(() => clearCache())
     <LocaleSwitcher
       options={localeOptions().map((o) => ({ code: o.code, label: o.label }))}
       current={currentLocale()}
-      label={t['admin.nav.switchLanguage']()}
+      label={t['common.nav.switchLanguage']()}
       onSwitch={(code) => void switchLocale(code)}
     />
   {/snippet}

@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { registerAllSurfaces } from '../src/surfaces/all'
 import { currentLocale, initI18n, locale, onLocaleChange, setLocale } from '../src/runtime.svelte'
+
+registerAllSurfaces()
 import { isPseudoMode, pseudoize, setPseudoMode } from '../src/pseudo'
 import { t } from '../src/translate'
 

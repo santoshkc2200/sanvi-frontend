@@ -13,6 +13,7 @@ import {
   withLocalePrefix,
 } from '@sanvi/i18n'
 import { resolveRequestLocale, runWithLocale } from '@sanvi/i18n/server'
+import { registerStorefrontSurface } from '@sanvi/i18n/surfaces/storefront'
 import { TenantHostCache, resolveTenantForHost } from '@sanvi/tenant/server'
 import {
   DEFAULT_FALLBACK_THEME,
@@ -31,6 +32,11 @@ import { getAvailableLocales } from '$lib/locales.server'
  * across concurrent requests (see `TenantHostCache`'s own doc comment).
  */
 const tenantHostCache = new TenantHostCache()
+
+// TASK-032: the server bundle registers the storefront's catalog shards at
+// module scope — every surface this app can render is loaded before the
+// first request resolves a locale, and no admin/platform strings ship here.
+registerStorefrontSurface()
 
 /**
  * `/health` must answer even when the backend it would otherwise call is

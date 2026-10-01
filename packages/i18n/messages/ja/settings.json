@@ -1,0 +1,10 @@
+{
+  "settings.security.title": "セキュリティ",
+  "settings.security.genericError": "問題が発生しました。今しばらくしてからもう一度お試しください。",
+  "settings.security.saved": "保存しました。",
+  "settings.security.sessionsTitle": "セッション",
+  "settings.security.currentSession": "{methods} でサインイン中",
+  "settings.security.unknownMethod": "不明な方法",
+  "settings.security.revoke": "このセッションをサインアウト",
+  "settings.security.signOutEverywhere": "すべてのセッションをサインアウト"
+}

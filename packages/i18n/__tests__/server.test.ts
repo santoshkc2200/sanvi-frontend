@@ -1,5 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { ensureLocaleLoaded } from '../src/catalogs'
+import { registerAllSurfaces } from '../src/surfaces/all'
+
+registerAllSurfaces()
 import { t } from '../src/translate'
 import { resolveRequestLocale, runWithLocale } from '../src/server'
 

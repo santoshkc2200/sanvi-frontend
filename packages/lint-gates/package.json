@@ -15,6 +15,7 @@
     "./check-tokens": "./src/check-tokens.mjs",
     "./check-budget": "./src/check-budget.mjs",
     "./check-boundaries": "./src/check-boundaries.mjs",
+    "./check-i18n-shards": "./src/check-i18n-shards.mjs",
     "./perf-profiles": "./src/perf-profiles.mjs",
     "./routes": "./src/routes.mjs",
     "./walk-files": "./src/walk-files.mjs"

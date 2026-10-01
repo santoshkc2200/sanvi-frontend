@@ -1,0 +1,9 @@
+{
+  "errors.notFound.title": "Page not found",
+  "errors.generic.title": "Something went wrong",
+  "errors.default.description": "Try reloading the page.",
+  "errors.traceId": "Reference: {id}",
+  "errors.diagnostics.copy": "Copy diagnostics",
+  "errors.diagnostics.copied": "Copied!",
+  "errors.brand": "Sanvi"
+}

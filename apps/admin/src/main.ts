@@ -1,5 +1,6 @@
 import { bootSession, startSessionAutoRefresh } from '@sanvi/auth'
 import { initI18n, t, currentLocale } from '@sanvi/i18n'
+import { registerAdminSurface } from '@sanvi/i18n/surfaces/admin'
 import {
   buildDiagnosticsPaste,
   errorTraceId,
@@ -19,6 +20,10 @@ function resolveTarget(): HTMLElement {
 
 const target = resolveTarget()
 
+// TASK-032: this app's catalog shards before the first `t()` — the admin
+// console's own copy plus payments/common/errors, never storefront/platform.
+registerAdminSurface()
+
 // Phase 06: negotiate the locale *before* anything renders — device cookie
 // (already seeded by the runtime) then `navigator.languages`. The account
 // preference leg joins after `bootSession` (below), so even the boot-failure
@@ -36,7 +41,7 @@ initI18n({ acceptLanguages: typeof navigator !== 'undefined' ? [...navigator.lan
 function renderBootFailure(error: unknown): void {
   const traceId = errorTraceId(error)
   const message = document.createElement('p')
-  message.textContent = t['admin.boot.failureMessage']()
+  message.textContent = t['common.boot.failureMessage']()
 
   const children: HTMLElement[] = [message]
   if (traceId) {

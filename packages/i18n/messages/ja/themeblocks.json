@@ -1,0 +1,15 @@
+{
+  "themeblocks.header.navAriaLabel": "メインナビゲーション",
+  "themeblocks.contactForm.heading": "お問い合わせ",
+  "themeblocks.contactForm.nameLabel": "お名前",
+  "themeblocks.contactForm.emailLabel": "メールアドレス",
+  "themeblocks.contactForm.messageLabel": "メッセージ",
+  "themeblocks.contactForm.submitButton": "送信する",
+  "themeblocks.contactForm.successMessage": "お問い合わせいただきありがとうございます。追ってご連絡いたします。",
+  "themeblocks.contactForm.errorMessage": "メッセージの送信に失敗しました。後でもう一度お試しください。",
+  "themeblocks.contactForm.unconfiguredMessage": "お問い合わせフォームの送信先が設定されていません。",
+  "themeblocks.cta.heading": "今すぐ始めませんか?",
+  "themeblocks.cta.buttonText": "今すぐ始める",
+  "themeblocks.faq.heading": "よくある質問",
+  "themeblocks.productGrid.emptyMessage": "現在、商品はありません"
+}

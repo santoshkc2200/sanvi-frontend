@@ -1,6 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { en, jaCatalog, messages, compiledPattern, ensureLocaleLoaded } from '../src/catalogs'
+import { registerAllSurfaces } from '../src/surfaces/all'
 import { OTHER_LOCALES } from '../tools/check.mjs'
+
+registerAllSurfaces()
 
 describe('catalogs', () => {
   beforeAll(async () => {

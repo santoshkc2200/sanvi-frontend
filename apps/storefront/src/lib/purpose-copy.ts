@@ -5,7 +5,7 @@ import { t } from '@sanvi/i18n'
 /**
  * Copy per processing purpose, straight from the phase-06 catalog (the
  * phase-05 English literals these keys replaced live in
- * `messages/en.json`). Keys are
+ * `messages/en/consent.json`). Keys are
  * `consent.purpose.<name>.{label,description,consequence}`; the names below
  * are the catalog's purpose list, and a `ProcessingPurpose` arriving from
  * the registry that the catalog doesn't know yet falls back to `essential`

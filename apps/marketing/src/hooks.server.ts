@@ -2,6 +2,7 @@ import { buildContentSecurityPolicyForApp } from '@sanvi/csp'
 import { buildSecurityHeaders, isLocalhostHost } from '@sanvi/csp/security-headers'
 import { BASE_LOCALE, ensureLocaleLoaded, parseLocalePrefix } from '@sanvi/i18n'
 import { runWithLocale } from '@sanvi/i18n/server'
+import { registerMarketingSurface } from '@sanvi/i18n/surfaces/marketing'
 import type { Handle } from '@sveltejs/kit'
 import { getAppEnv } from '$lib/env'
 
@@ -25,6 +26,10 @@ import { getAppEnv } from '$lib/env'
  * prerendered HTML ends up in Japanese with `lang="ja"` — no flash of
  * English, no client-side rewrite.
  */
+// TASK-032: module scope, so it runs once per process — including at
+// prerender time, before the first `ensureLocaleLoaded` below.
+registerMarketingSurface()
+
 export const handle: Handle = async ({ event, resolve }) => {
   const locale = parseLocalePrefix(event.url.pathname)?.locale ?? BASE_LOCALE
   await ensureLocaleLoaded(locale)
@@ -41,12 +46,15 @@ export const handle: Handle = async ({ event, resolve }) => {
   // injects component CSS as runtime `<style>` elements that `style-src`
   // would otherwise block. Production pages have file CSS, so it never
   // ships. (`NODE_ENV`, not `$app/environment`, so the hook stays testable
-  // without the kit plugin — same check `svelte.config.js` makes.)
+  // without the kit plugin — same check `svelte.config.js` makes.) The
+  // trailing space anchors the match on the element directive:
+  // `style-src-attr` also contains `style-src`, and the relaxation must
+  // never land there.
   const csp = buildContentSecurityPolicyForApp('marketing', { apiOrigin, mediaOrigin })
   response.headers.set(
     'content-security-policy',
     process.env['NODE_ENV'] === 'development'
-      ? csp.replace('style-src', "style-src 'unsafe-inline'") // sanvi-csp: dev-only
+      ? csp.replace('style-src ', "style-src 'unsafe-inline' ") // sanvi-csp: dev-only
       : csp,
   )
   response.headers.set('content-language', locale)

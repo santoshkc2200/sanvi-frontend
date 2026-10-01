@@ -19,12 +19,33 @@
     "./routing": {
       "types": "./src/routing.ts",
       "default": "./src/routing.ts"
+    },
+    "./surfaces/storefront": {
+      "types": "./src/surfaces/storefront.ts",
+      "default": "./src/surfaces/storefront.ts"
+    },
+    "./surfaces/marketing": {
+      "types": "./src/surfaces/marketing.ts",
+      "default": "./src/surfaces/marketing.ts"
+    },
+    "./surfaces/admin": {
+      "types": "./src/surfaces/admin.ts",
+      "default": "./src/surfaces/admin.ts"
+    },
+    "./surfaces/platform-admin": {
+      "types": "./src/surfaces/platform-admin.ts",
+      "default": "./src/surfaces/platform-admin.ts"
+    },
+    "./surfaces/all": {
+      "types": "./src/surfaces/all.ts",
+      "default": "./src/surfaces/all.ts"
     }
   },
   "sideEffects": false,
   "scripts": {
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
+    "i18n:check": "node tools/check.mjs",
     "lint": "biome lint --write .",
     "format": "biome format --write .",
     "format:check": "biome format .",

@@ -1,0 +1,9 @@
+{
+  "common.retry": "Try again",
+  "common.loading": "Loading",
+  "common.close": "Close",
+  "common.confirm": "Confirm",
+  "common.cancel": "Cancel",
+  "common.nav.switchLanguage": "Switch language",
+  "common.boot.failureMessage": "Could not reach the server. Check your connection and try again."
+}

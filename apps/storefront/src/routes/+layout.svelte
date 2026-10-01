@@ -35,8 +35,14 @@ import { consentablePurposeCopy } from '$lib/purpose-copy'
 import { localePath, setClientDefaultLocale } from '$lib/links'
 import { stashLandingClickIds } from '$lib/tracking/click-ids'
 import { initStorefrontTelemetry } from '$lib/telemetry'
+import { registerStorefrontSurface } from '@sanvi/i18n/surfaces/storefront'
 
 registerAllBlocks()
+// TASK-032: the client bundle merges the storefront's catalog shards before
+// this component (and every child) renders — mirrors the hook's server-side
+// registration, so hydration translates from the same key set the server
+// rendered with.
+registerStorefrontSurface()
 // Preload targets for ja pages (see `<svelte:head>` below): the two
 // highest-value unicode-range subsets, vendored in `static/fonts/` from
 // `@fontsource-variable/noto-sans-jp` (OFL-1.1 — see static/fonts/README).

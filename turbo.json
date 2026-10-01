@@ -51,6 +51,9 @@
       "dependsOn": ["build"],
       "outputs": []
     },
+    "i18n:check": {
+      "outputs": []
+    },
     "clean": {
       "cache": false
     }

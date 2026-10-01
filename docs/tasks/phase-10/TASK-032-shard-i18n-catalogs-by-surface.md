@@ -1,7 +1,7 @@
 # TASK-032: Shard the i18n catalogs by surface
 
 **Phase:** 10
-**Status:** todo
+**Status:** done
 **Requirement(s):** NFR-1006
 **Depends on:** none
 **Created:** 2026-09-03
@@ -74,11 +74,88 @@ strings.
 
 ## Acceptance criteria
 
-- [ ] No app's build output contains a key from a surface it does not render;
+- [x] No app's build output contains a key from a surface it does not render;
       asserted by a check, not by inspection.
-- [ ] The `MessageKey` union and the Japanese parity assertion still fail at compile
+- [x] The `MessageKey` union and the Japanese parity assertion still fail at compile
       time on a missing key.
-- [ ] `pnpm i18n:check` passes and understands the shard layout.
-- [ ] `apps/storefront`'s `--initial-kb` is lowered to its measured figure, and
+- [x] `pnpm i18n:check` passes and understands the shard layout.
+- [x] `apps/storefront`'s `--initial-kb` is lowered to its measured figure, and
       `pnpm check:budget` passes at that number.
-- [ ] `pnpm check:quiet` green across the workspace.
+- [x] `pnpm check:quiet` green across the workspace.
+
+## Execution notes (2026-10-01)
+
+- **Shards** — `messages/{en,ja}/<shard>.json`, split on the key's first path
+  segment (13 shards, 2,608 keys; `admin` alone is 1,734 keys / 137.6 KB raw by
+  now, larger than the 979 this task was written against). Two keys moved to
+  `common` so no console carries another console's shard:
+  `admin.boot.failureMessage` → `common.boot.failureMessage` (both `main.ts`
+  boot-failure screens) and `admin.nav.switchLanguage` → `common.nav.switchLanguage`
+  (both `App.svelte` locale switchers). No other key renames.
+- **Surfaces** — `packages/i18n/src/surfaces/{storefront,marketing,admin,platform-admin,all}.ts`,
+  exported as `@sanvi/i18n/surfaces/*`. Sets, audited by usage scan *and* by the
+  per-app unit suites (which now boot with only their own surface — a component
+  reaching outside it renders a raw key and fails its test):
+  storefront = storefront, privacy, consent, legal, auth, settings, errors, common,
+  themeblocks; marketing = marketing, errors, common; admin = admin, payments,
+  consent (the advertising tracking screens read `consent.purpose.<name>.label`
+  dynamically — `lib/advertising/tracking.ts:26` — caught by this very test
+  discipline, not the static scan), errors, common; platform-admin = platform,
+  errors, common. `all` is the tests-only completeness witness.
+- **Type safety without bundling** — `MessageKey` is now computed from
+  *type-only* `typeof import('…en/<shard>.json')` intersections (no runtime
+  import, complete union). Japanese parity is asserted the same way:
+  `Exclude<MessageKey, keyof JaShards>` and its mirror must satisfy `never`.
+  Falsified: deleting one ja key fails `svelte-check` with
+  `Type '"storefront.home.fallbackTitle"' does not satisfy the constraint 'never'`.
+- **Registration** — apps call their registrar before the first `t()`:
+  SvelteKit apps in `hooks.server.ts` (module scope, server bundle) *and* the
+  root `+layout.svelte` (client bundle, mirrors the hook for hydration parity);
+  SPAs at the top of `main.ts` (before `initI18n`, so the boot-failure screen
+  translates). `catalogs.ts` keeps `en`/`messages`/`jaCatalog` as live merged
+  views, so `import { en }` (marketing pricing, admin AdvertisingSettings)
+  keeps working. An unloaded shard's key behaves exactly like an unknown key
+  (console error + the key itself) — decided per this file's notes.
+- **Gates** — `pnpm i18n:check` now actually exists (it was documented but
+  wired to nothing): shard-aware catalog gate in `packages/i18n/tools/check.mjs`
+  + root script + turbo task, in `check:all`/`check:quiet`. New
+  `check:i18n-shards` build-output gate (`packages/lint-gates/src/check-i18n-shards.mjs`)
+  asserts per app that no foreign-shard string value appears in the built client
+  JS (longest shard-unique values as markers — ~215 short chrome strings like
+  "Loading"/"Members" are duplicated across shards and are excluded as
+  non-attributable), and that every *own* shard is provably present so the gate
+  cannot pass vacuously (the `sideEffects: false` tree-shaking trap). Both gates
+  grew unit tests (`check-tool.test.ts`, `check-i18n-shards.test.ts`).
+- **Budgets** — `scripts/budgets.json`: storefront initialKb 180 → **88**
+  (measured 86.1), marketing 150 → **50** (measured 48.2). The SPA `initialKb`
+  values are inert (unmeasured build shape) and unchanged. The storefront is
+  now *below* the ≤100 KB architecture target TASK-022 was going to chase.
+- `pnpm check:quiet` green across the workspace (final run exit 0). On this
+  machine the test stage flaked repeatedly on rotating, unrelated 5000 ms
+  timeouts (ui capability-form, storefront tracking-beacon, admin
+  diagnostics, platform-admin TenantDetail/oauth — each passing in
+  isolation) while the system load average sat at ~46 from other work;
+  TASK-019 documented the same class. The chain's every stage is green,
+  the tail gates (`boundaries`, `connect-bundle`, `sourcemaps`, `csp`,
+  `storage-surface`, `runtime-code-sources`, `i18n-shards`, `secrets`,
+  `i18n:check`) also verified standalone. Fixture note: the parser unit
+  tests' import-shaped sample sources moved into `__fixtures__/**.txt`
+  because `check:boundaries`' regex scanner read them as real
+  cross-package imports.
+- **e2e**: the storefront `locale.spec.ts` subset was run, not re-baselined
+  against a clean-main worktree. Observed failures match the documented
+  pre-existing baseline (locale/us-privacy ×18–22 on main since TASK-014's
+  lazy-ja, reproduced on clean main in TASK-019): they rotate between
+  engines and runs under this machine's load — including an English-only
+  assertion (`unprefixed pages are English`), which a shard defect could
+  not produce. Positive evidence the sharded paths work end to end: the
+  prerendered `/ja` marketing HTML is Japanese, and the storefront's built
+  server chunks contain the ja shard values the specs assert on
+  (`言語`, `プライバシーの設定`). Per-app component suites (which now boot
+  with only their own surface) cover the sharded rendering paths.
+- Status recorded in `docs/tasks/backlog.md` in the same commit, on branch
+  `feat/task-032-shard-i18n-catalogs`, merged to `main`. The working tree
+  also carries unrelated pre-existing edits (`api-client/src/client.ts`,
+  `csp/src/vite-plugin.ts`, `lint-gates` check-csp bits,
+  `docs/release/needs-humans.md`) that predate this task — deliberately left
+  out of this task's commit.

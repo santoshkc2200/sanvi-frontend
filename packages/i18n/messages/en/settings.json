@@ -1,0 +1,10 @@
+{
+  "settings.security.title": "Security",
+  "settings.security.genericError": "Something went wrong. Try again in a moment.",
+  "settings.security.saved": "Saved.",
+  "settings.security.sessionsTitle": "Sessions",
+  "settings.security.currentSession": "Signed in via {methods}",
+  "settings.security.unknownMethod": "unknown method",
+  "settings.security.revoke": "Sign out this session",
+  "settings.security.signOutEverywhere": "Sign out everywhere"
+}

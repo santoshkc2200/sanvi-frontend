@@ -1,0 +1,15 @@
+{
+  "themeblocks.header.navAriaLabel": "Main navigation",
+  "themeblocks.contactForm.heading": "Contact Us",
+  "themeblocks.contactForm.nameLabel": "Your Name",
+  "themeblocks.contactForm.emailLabel": "Email Address",
+  "themeblocks.contactForm.messageLabel": "Message",
+  "themeblocks.contactForm.submitButton": "Send Message",
+  "themeblocks.contactForm.successMessage": "Thank you for reaching out. We will get back to you soon.",
+  "themeblocks.contactForm.errorMessage": "Failed to send message. Please try again later.",
+  "themeblocks.contactForm.unconfiguredMessage": "Contact form submissions are not configured.",
+  "themeblocks.cta.heading": "Ready to get started?",
+  "themeblocks.cta.buttonText": "Get Started",
+  "themeblocks.faq.heading": "Frequently Asked Questions",
+  "themeblocks.productGrid.emptyMessage": "No products available"
+}

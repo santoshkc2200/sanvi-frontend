@@ -12,6 +12,11 @@ import {
 import { page } from '$app/state'
 import type { Snippet } from 'svelte'
 import { initMarketingTelemetry } from '$lib/telemetry'
+import { registerMarketingSurface } from '@sanvi/i18n/surfaces/marketing'
+
+// TASK-032: the client bundle's catalog shards, before any child renders —
+// mirrors the hook's server-side registration for hydration parity.
+registerMarketingSurface()
 
 let { children }: { children: Snippet } = $props()
 

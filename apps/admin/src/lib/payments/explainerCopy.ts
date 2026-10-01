@@ -6,8 +6,8 @@
  * definition — TASK-003 imports these keys for the embedded onboarding
  * screen rather than duplicating the strings.
  *
- * The actual user-facing strings live in `packages/i18n/messages/en.json`
- * and `ja.json` under `admin.payments.explainerTitle` /
+ * The actual user-facing strings live in `packages/i18n/messages/en/admin.json`
+ * and `ja/admin.json` under `admin.payments.explainerTitle` /
  * `admin.payments.explainerBody`; this file just re-exports the keys so
  * both tasks reference the same identifiers.
  */
