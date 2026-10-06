@@ -6,9 +6,11 @@
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { runBudgetCheck } from '../packages/lint-gates/src/check-budget.mjs'
 
-const ROOT = new URL('..', import.meta.url).pathname
+// fileURLToPath, not URL.pathname — see assert-connect-js-bundle.mjs.
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
 
 const APPS = [
   { name: 'marketing', dir: 'build/client', initialKb: 100, chunkKb: 50 },

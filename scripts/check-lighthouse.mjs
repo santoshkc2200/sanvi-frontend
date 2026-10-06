@@ -21,7 +21,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import { findWorkspaceRoot, loadPerfProfiles } from '@sanvi/lint-gates/perf-profiles'
 import { isMainEntryPoint } from '@sanvi/lint-gates/walk-files'
 import { startStorefrontMockApi } from './lib/serving.mjs'
@@ -29,8 +29,9 @@ import { startStorefrontMockApi } from './lib/serving.mjs'
 const ROOT = findWorkspaceRoot()
 const PROFILES = loadPerfProfiles({ root: ROOT })
 /** Mirrors `APPS` in `lighthouserc.cjs` — the runner needs URL lists the LHCI
- * config doesn't hand back. Ports and server commands live only there. */
-const { APPS } = createRequire(import.meta.url)(join(ROOT, 'lighthouserc.cjs'))
+ * config doesn't hand back. Ports, server commands, and the Windows env-prefix
+ * split-out (`APP_SERVER_ENV`) live only there. */
+const { APPS, APP_SERVER_ENV } = createRequire(import.meta.url)(join(ROOT, 'lighthouserc.cjs'))
 
 function parseArgs(argv) {
   const args = {
@@ -110,6 +111,19 @@ function isDirectory(path) {
 }
 
 function chromeVersion(binary) {
+  if (process.platform === 'win32') {
+    // `chrome.exe --version` neither prints nor exits on Windows — read the
+    // version resource instead. The pin check below is the same either way.
+    return execFileSync(
+      'powershell',
+      [
+        '-NoProfile',
+        '-Command',
+        `(Get-Item -LiteralPath '${binary.replaceAll("'", "''")}').VersionInfo.ProductVersion`,
+      ],
+      { encoding: 'utf8' },
+    ).trim()
+  }
   return execFileSync(binary, ['--version'], { encoding: 'utf8' })
     .trim()
     .replace(/^.*?([\d.]+).*$/, '$1')
@@ -135,10 +149,24 @@ function extractRun(report) {
     accessibility: report.categories?.accessibility?.score ?? -1,
     bestPractices: report.categories?.['best-practices']?.score ?? -1,
     seo: report.categories?.seo?.score ?? -1,
+    // Host CPU speed under emulation — devtools throttling multiplies host
+    // latency, so absolute lab milliseconds travel badly between machines
+    // even at identical pins. Recorded, not compared: rc.1 (macOS) vs rc.3
+    // (Windows) LCP deltas are platform, and saying so needs this number.
+    benchmarkIndex: Number((report.environment?.benchmarkIndex ?? -1).toFixed(1)),
   }
 }
 
-const METRICS = ['lcpMs', 'tbtMs', 'cls', 'performance', 'accessibility', 'bestPractices', 'seo']
+const METRICS = [
+  'lcpMs',
+  'tbtMs',
+  'cls',
+  'performance',
+  'accessibility',
+  'bestPractices',
+  'seo',
+  'benchmarkIndex',
+]
 
 function summarize(runs) {
   const summary = { runs: runs.length }
@@ -187,13 +215,19 @@ export async function collectLighthouse({ apps }) {
   // against; its e2e mock API is the stand-in (see lib/serving.mjs).
   const mockApi = apps.includes('storefront') ? await startStorefrontMockApi() : null
 
-  // LHCI starts preview servers via a bare /bin/sh, which does not have
-  // pnpm's per-package node_modules/.bin on PATH (`vite preview` et al).
+  // LHCI starts preview servers through a bare shell, which does not have
+  // pnpm's per-package node_modules/.bin on PATH (`vite preview` et al). On
+  // Windows the shell is cmd.exe, so the per-app config hands lhci the bare
+  // command and the split-out env assignments flow through this process env —
+  // lhci's server children inherit them (see lighthouserc.cjs splitEnvPrefix).
   const pathPrefix = [
     join(ROOT, 'node_modules', '.bin'),
     ...apps.map((app) => join(ROOT, 'apps', app, 'node_modules', '.bin')),
     process.env.PATH ?? '',
-  ].join(':')
+  ].join(delimiter)
+  // The package's own JS entry, not the node_modules/.bin shim — the shim has
+  // no .exe/.cmd-free form Windows can exec, and node runs the entry identically.
+  const lhciEntry = createRequire(import.meta.url).resolve('@lhci/cli/src/cli.js')
 
   try {
     for (const app of apps) {
@@ -203,11 +237,16 @@ export async function collectLighthouse({ apps }) {
 
       console.log(`\n==> ${app} (${APPS[app].urls.join(', ')}) — lhci collect`)
       execFileSync(
-        join(ROOT, 'node_modules', '.bin', 'lhci'),
-        ['collect', `--config=${join(appDir, 'lighthouserc.cjs')}`],
+        process.execPath,
+        [lhciEntry, 'collect', `--config=${join(appDir, 'lighthouserc.cjs')}`],
         {
           cwd: appDir,
-          env: { ...process.env, CHROME_PATH: chrome, PATH: pathPrefix },
+          env: {
+            ...process.env,
+            CHROME_PATH: chrome,
+            PATH: pathPrefix,
+            ...(process.platform === 'win32' ? APP_SERVER_ENV[app] : null),
+          },
           stdio: ['ignore', process.stderr, process.stderr],
         },
       )

@@ -16,7 +16,7 @@
     "SANVI_BUILT_AT",
     "SANVI_ENVIRONMENT"
   ],
-  "globalPassThroughEnv": ["CHROME_PATH"],
+  "globalPassThroughEnv": ["CHROME_PATH", "ProgramFiles"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

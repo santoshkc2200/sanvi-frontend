@@ -1,0 +1,18 @@
+diff --git a/dist/chrome-launcher.js b/dist/chrome-launcher.js
+index d7fb4cf753f817e241554438b317ec333af2e7fc..ee8b9573b4dae6a54f8c28b2ac486be9aeeff040 100644
+--- a/dist/chrome-launcher.js
++++ b/dist/chrome-launcher.js
+@@ -364,7 +364,13 @@ class Launcher {
+         // backwards support for node v12 + v14.14+
+         // https://nodejs.org/api/deprecations.html#DEP0147
+         const rmSync = this.fs.rmSync || this.fs.rmdirSync;
++        // Windows: a chrome crashpad child can hold the profile dir past the 10
++        // rmSync retries; a leftover tmp dir beats a crashed audit run.
++        try {
+         rmSync(this.userDataDir, { recursive: true, force: true, maxRetries: 10 });
++        } catch (err) {
++            log.warn('ChromeLauncher', `tmp dir cleanup failed: ${err.message}`);
++        }
+     }
+ }
+ ;
