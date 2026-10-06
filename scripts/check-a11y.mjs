@@ -127,7 +127,12 @@ export async function sweepA11y({ apps, locales }) {
   }
 
   const mockApi = apps.includes('storefront') ? await startStorefrontMockApi() : null
-  const browser = await chromium.launch()
+  // The sweep runs the pinned Chrome when the operator points CHROME_PATH at
+  // it (same convention as the Lighthouse runner) — otherwise playwright's
+  // own cache default, whose build can drift from pins.chrome.
+  const browser = await chromium.launch({
+    executablePath: process.env.CHROME_PATH || undefined,
+  })
 
   try {
     for (const app of apps) {

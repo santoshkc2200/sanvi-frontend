@@ -12,8 +12,8 @@
  * fake backend to drift against.
  */
 import { spawn } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { delimiter, join } from 'node:path'
 import { findWorkspaceRoot } from '@sanvi/lint-gates/perf-profiles'
 
 const ROOT = findWorkspaceRoot()
@@ -69,9 +69,11 @@ export async function startStorefrontMockApi() {
 
 /**
  * A built app served by its own preview command, ready to answer requests.
- * The command is spawned through plain `sh` (no pnpm in the middle to orphan
- * on stop), so the workspace's and the app's `node_modules/.bin` are
- * prepended to PATH for binaries like `vite` to resolve.
+ * The command is spawned through a POSIX shell (no pnpm in the middle to
+ * orphan on stop), so the workspace's and the app's `node_modules/.bin` are
+ * prepended to PATH for binaries like `vite` to resolve. On Windows that
+ * shell is Git Bash — the SvelteKit preview scripts use `PORT=… node build`
+ * env-var syntax cmd.exe cannot parse.
  * @param {string} app
  * @returns {Promise<{ stop: () => void, url: string }>}
  */
@@ -82,8 +84,8 @@ export async function serveApp(app, port) {
     join(ROOT, 'node_modules', '.bin'),
     join(cwd, 'node_modules', '.bin'),
     process.env.PATH ?? '',
-  ].join(':')
-  const child = spawn('sh', ['-c', command], {
+  ].join(delimiter)
+  const child = spawn(posixShell(), ['-c', command], {
     cwd,
     env: { ...process.env, PATH: pathPrefix },
     stdio: ['ignore', 'ignore', 'inherit'],
@@ -101,11 +103,40 @@ export async function serveApp(app, port) {
     stop() {
       if (stopped) return
       stopped = true
-      child.kill('SIGTERM')
+      if (process.platform === 'win32') {
+        // SIGTERM reaches the shell, not its children, on Windows — without
+        // a tree kill the preview server outlives the harness and holds the
+        // inherited stdio pipes open, hanging whichever run spawned it.
+        spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+      } else {
+        child.kill('SIGTERM')
+      }
     },
   }
 }
 
 function readAppPackageJson(app) {
   return JSON.parse(readFileSync(join(ROOT, 'apps', app, 'package.json'), 'utf8'))
+}
+
+/**
+ * The POSIX shell preview commands run under: `sh` everywhere except
+ * Windows, where Git Bash's `bash.exe` is located explicitly (it is not
+ * guaranteed to be on a cmd-native PATH). Exported because the Lighthouse
+ * runner points lhci's internal `shell: true` spawns at the same binary via
+ * COMSPEC — `PORT=4174 node build` must parse under whichever shell runs it,
+ * and node only uses the POSIX `-c` argument form for a COMSPEC whose
+ * basename is not cmd.exe.
+ * @returns {string}
+ */
+export function posixShell() {
+  if (process.platform !== 'win32') return 'sh'
+  for (const candidate of [
+    join(process.env.ProgramFiles ?? '', 'Git', 'bin', 'bash.exe'),
+    join(process.env.ProgramFiles ?? '', 'Git', 'usr', 'bin', 'bash.exe'),
+    join(process.env.ProgramFiles ?? '', 'Git', 'bin', 'sh.exe'),
+  ]) {
+    if (candidate && existsSync(candidate)) return candidate
+  }
+  return 'sh'
 }

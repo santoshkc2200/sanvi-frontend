@@ -27,6 +27,42 @@ const APPS = {
 }
 
 /**
+ * Splits a POSIX env-prefix command (`PORT=4174 … node build`) into its env
+ * assignments and the bare command. On Windows, lhci runs startServerCommand
+ * through cmd.exe, which can neither parse the env-prefix syntax nor reliably
+ * quote a `C:\Program Files\…` bash path — so the per-app config hands lhci
+ * the bare command and `APP_SERVER_ENV` carries the assignments for the
+ * runner to inject into the lhci process env (server children inherit them).
+ * @param {string} script
+ */
+function splitEnvPrefix(script) {
+  const env = {}
+  const parts = script.split(/\s+/)
+  const assignment = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/
+  let i = 0
+  while (i < parts.length && assignment.test(parts[i])) {
+    const match = /** @type {RegExpExecArray} */ (assignment.exec(parts[i]))
+    env[match[1]] = match[2]
+    i += 1
+  }
+  return { env, command: parts.slice(i).join(' ') }
+}
+
+/** Per-app start-server env for the runner to inject on Windows (null = none). */
+const APP_SERVER_ENV = Object.fromEntries(
+  Object.keys(APPS).map((name) => {
+    const script = JSON.parse(
+      require('node:fs').readFileSync(
+        require('node:path').join(__dirname, 'apps', name, 'package.json'),
+        'utf8',
+      ),
+    ).scripts.preview
+    const { env } = splitEnvPrefix(script)
+    return [name, Object.keys(env).length > 0 ? env : null]
+  }),
+)
+
+/**
  * A complete LHCI config for one app. `startServerCommand` is the app's own
  * `preview` script so the harness serves exactly what a developer serves —
  * no parallel serving convention to drift. (Read with plain JSON `require`:
@@ -48,10 +84,15 @@ function forApp(name) {
     ),
   ).scripts.preview
 
+  // POSIX keeps the app's own script verbatim; Windows gets the bare command
+  // with the env prefix split out (see splitEnvPrefix / APP_SERVER_ENV).
+  const startServerCommand =
+    process.platform === 'win32' ? splitEnvPrefix(previewScript).command : previewScript
+
   return {
     ci: {
       collect: {
-        startServerCommand: previewScript,
+        startServerCommand,
         // adapter-node prints "Listening on …"; vite preview prints "➜  Local: …"
         startServerReadyPattern: 'Listening|Local:|ready',
         // LHCI wants absolute URLs — the list in APPS is path-shaped.
@@ -88,4 +129,4 @@ function forApp(name) {
   }
 }
 
-module.exports = { profiles, APPS, forApp }
+module.exports = { profiles, APPS, APP_SERVER_ENV, forApp }

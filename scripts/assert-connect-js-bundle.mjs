@@ -9,8 +9,12 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const ROOT = new URL('..', import.meta.url).pathname
+// fileURLToPath, not URL.pathname: on Windows the pathname keeps a leading
+// `/C:/` that existsSync cannot resolve, so the gate read every build as
+// "not found" and passed vacuously-by-failing.
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
 
 function walk(dir, out = []) {
   if (!existsSync(dir)) return out

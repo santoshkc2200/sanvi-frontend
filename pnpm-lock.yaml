@@ -95,6 +95,11 @@ overrides:
   devalue@<5.9.2: '>=5.9.2'
   tmp@<0.2.6: '>=0.2.6'
 
+patchedDependencies:
+  chrome-launcher@1.2.1:
+    hash: 9df00c92488c8a75e998e848c501ad85e3dfa064114d8445a4b662c1b5865484
+    path: patches/chrome-launcher@1.2.1.patch
+
 importers:
 
   .:
@@ -7995,7 +8000,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  chrome-launcher@1.2.1:
+  chrome-launcher@1.2.1(patch_hash=9df00c92488c8a75e998e848c501ad85e3dfa064114d8445a4b662c1b5865484):
     dependencies:
       '@types/node': 26.2.0
       escape-string-regexp: 4.0.0
@@ -9378,7 +9383,7 @@ snapshots:
       '@paulirish/trace_engine': 0.0.53
       '@sentry/node': 7.120.4
       axe-core: 4.13.0
-      chrome-launcher: 1.2.1
+      chrome-launcher: 1.2.1(patch_hash=9df00c92488c8a75e998e848c501ad85e3dfa064114d8445a4b662c1b5865484)
       configstore: 5.0.1
       csp_evaluator: 1.1.5
       devtools-protocol: 0.0.1467305

@@ -2,7 +2,7 @@
   "name": "sanvi-frontend",
   "version": "0.1.0",
   "private": true,
-  "description": "Sanvi frontend monorepo \u2014 SvelteKit storefront/marketing, Svelte admin SPAs, shared packages.",
+  "description": "Sanvi frontend monorepo — SvelteKit storefront/marketing, Svelte admin SPAs, shared packages.",
   "type": "module",
   "engines": {
     "node": ">=20.9.0",
@@ -84,6 +84,9 @@
       "fast-uri@>=3.0.0 <3.1.6": ">=3.1.6",
       "devalue@<5.9.2": ">=5.9.2",
       "tmp@<0.2.6": ">=0.2.6"
+    },
+    "patchedDependencies": {
+      "chrome-launcher@1.2.1": "patches/chrome-launcher@1.2.1.patch"
     }
   }
 }

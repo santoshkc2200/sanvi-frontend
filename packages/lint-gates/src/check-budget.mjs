@@ -124,7 +124,9 @@ export function routeSizes(appRoot, type, buildDir) {
     let kb = null
     try {
       const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-      const entry = manifest[join('src', route.sourcePath)]
+      // Manifest keys are always posix-relative — `join` would emit `\` on
+      // Windows and every route would read as chunk-not-found.
+      const entry = manifest[`src/${route.sourcePath}`]
       if (entry?.file) kb = gzipSizeKb(join(buildDir, entry.file))
     } catch {
       // manifest missing/unparseable — stays null, reported as missing
