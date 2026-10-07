@@ -280,3 +280,26 @@ export function previewFrameAspectRatio(spec: AdAssetSpec): string | undefined {
   if (width === undefined || height === undefined) return undefined
   return `${width} / ${height}`
 }
+
+/**
+ * Integer `width`/`height` attributes matching the preview frame's ratio
+ * (TASK-022 image contract): the preview `<img>` reserves the same box the
+ * frame enforces, so an uploaded creative arriving late shifts nothing.
+ * Smaller side normalized to 100 — the attrs express the ratio, not a
+ * rendering size.
+ */
+export function previewFrameDimensions(
+  spec: AdAssetSpec,
+): { width: number; height: number } | undefined {
+  const first = spec.aspect_ratios[0]
+  if (!first) return undefined
+  const separator = first.indexOf(':')
+  if (separator < 0) return undefined
+  const width = numericSide(first.slice(0, separator))
+  const height = numericSide(first.slice(separator + 1))
+  if (width === undefined || height === undefined || width <= 0 || height <= 0) {
+    return undefined
+  }
+  const scale = 100 / Math.min(width, height)
+  return { width: Math.round(width * scale), height: Math.round(height * scale) }
+}

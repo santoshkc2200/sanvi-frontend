@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { Snippet } from 'svelte'
 import Cluster from './layout/Cluster.svelte'
+import { prefetchOnIntent } from './prefetch'
 
 export interface AppShellNavItem {
   href: string
@@ -14,6 +15,13 @@ interface Props {
   nav: AppShellNavItem[]
   currentPath: string
   onNavigate: (event: MouseEvent, href: string) => void
+  /**
+   * Warm a nav target's route code on hover/focus (TASK-022). Receives the
+   * item's href; the app maps that to its router's lazy loader. The
+   * Save-Data / slow-connection guard lives in `prefetchOnIntent`, so every
+   * consumer of the shell gets it without re-implementing it.
+   */
+  prefetch?: (href: string) => void
   /** e.g. the tenant switcher — admin only, `platform-admin` has no per-tenant scope. */
   headerExtra?: Snippet
   userMenu?: Snippet
@@ -28,6 +36,7 @@ let {
   nav,
   currentPath,
   onNavigate,
+  prefetch,
   headerExtra,
   userMenu,
   breadcrumb,
@@ -48,6 +57,7 @@ let {
                 href={item.href}
                 aria-current={currentPath === item.href ? 'page' : undefined}
                 onclick={(event) => onNavigate(event, item.href)}
+                use:prefetchOnIntent={prefetch ? () => prefetch(item.href) : () => {}}
               >
                 {item.label}
               </a>

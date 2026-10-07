@@ -205,58 +205,91 @@ async function load(background = false): Promise<void> {
   }
 
   try {
-    const result = await listPaymentProviders(apiClient)
-    if (seq !== loadSeq) return
-    providers = result?.providers ?? []
+    // TASK-022 (audit F5): providers, the localStorage-recovered connection,
+    // payouts, and tax are four legs that share no request input — only the
+    // rendering wants them ordered. They fire together; the
+    // current-connection/composite endpoint that would collapse them is the
+    // backend batch candidate TASK-008 already recorded (see the KNOWN GAP
+    // below), so this is the client half only.
+    const connectEnabled = hasFeature('payments.stripe_connect')
+    const tenantId = getActiveTenantId()
+    // KNOWN GAP: the connection id is only recoverable from localStorage.
+    // `GET /payments/providers` returns a bare catalog (`ProvidersView` has
+    // one property, `providers`; `ProviderView` carries no connection id),
+    // and there is no list endpoint — only `GET /payments/connections/{id}`.
+    // So a merchant on a second browser/device, or after clearing site data,
+    // sees the not-connected state — no status, disconnect or onboarding UI —
+    // even though a connection exists server-side. Payouts and tax settings
+    // are unaffected; they load below regardless. Fixing this needs a backend
+    // current-connection endpoint; do not paper over it with a speculative
+    // cast on the catalog response.
+    const connId = connectEnabled ? readPersistedConnectionId(tenantId ?? undefined) : null
 
-    if (hasFeature('payments.stripe_connect')) {
-      const tenantId = getActiveTenantId()
-      // KNOWN GAP: the connection id is only recoverable from localStorage.
-      // `GET /payments/providers` returns a bare catalog (`ProvidersView` has
-      // one property, `providers`; `ProviderView` carries no connection id),
-      // and there is no list endpoint — only `GET /payments/connections/{id}`.
-      // So a merchant on a second browser/device, or after clearing site data,
-      // sees the not-connected state — no status, disconnect or onboarding UI —
-      // even though a connection exists server-side. Payouts and tax settings
-      // are unaffected; they load below regardless. Fixing this needs a backend
-      // current-connection endpoint; do not paper over it with a speculative
-      // cast on the catalog response.
-      const connId = readPersistedConnectionId(tenantId ?? undefined)
-      if (connId) {
-        try {
-          const conn = await getPaymentConnection(apiClient, connId)
-          if (seq !== loadSeq) return
-          if (conn) {
-            connection = conn
-            if (tenantId && conn.id) {
-              persistConnectionId(tenantId, conn.id)
-            }
-            if (conn.status === 'pending' || conn.status === 'onboarding') {
-              onboardingConnectionId = connId
-              onboardingKey = 0
-              startPollingConnection(connId)
-            } else {
-              onboardingConnectionId = null
-            }
+    const [providersResult, connectionResult, payoutsRes, taxRes] = await Promise.allSettled([
+      listPaymentProviders(apiClient),
+      connId ? getPaymentConnection(apiClient, connId) : Promise.resolve(null),
+      connectEnabled ? listTenantPayouts(apiClient) : Promise.resolve(null),
+      connectEnabled ? getTenantTaxSettings(apiClient) : Promise.resolve(null),
+    ])
+    if (seq !== loadSeq) return
+
+    // The catalog failing is the page-level failure it always was; the
+    // parallel payouts/tax results are discarded so the failure render is
+    // exactly what it was before the parallelisation.
+    if (providersResult.status === 'rejected') {
+      const err = providersResult.reason
+      if (err instanceof ApiError && err.type === 'payments/provider-unavailable') {
+        degradedMode = true
+      } else if (err instanceof ApiError && err.status === 403) {
+        // The catalog is NOT entitlement-gated (payments routes.rs registers no
+        // RequiredFeature on it), so a 403 is a missing `payments.read`
+        // permission, never a plan boundary. Do not answer it with an upgrade
+        // prompt.
+        error = t['admin.payments.permissionDenied']()
+        providers = []
+      } else if (err instanceof ApiError && err.status === 404) {
+        // The route is absent when the `payments.enabled` phase flag is off, so
+        // a 404 does mean the tenant cannot use payments at all.
+        entitled = false
+        providers = []
+      } else {
+        error = t['admin.payments.genericError']()
+      }
+      return
+    }
+    providers = providersResult.value?.providers ?? []
+
+    if (connectEnabled && connId) {
+      if (connectionResult.status === 'fulfilled') {
+        const conn = connectionResult.value
+        if (conn) {
+          connection = conn
+          if (tenantId && conn.id) {
+            persistConnectionId(tenantId, conn.id)
           }
-        } catch (connErr) {
-          if (connErr instanceof ApiError) {
-            if (connErr.type === 'payments/provider-unavailable') {
-              degradedMode = true
-            } else if (connErr.status === 404) {
-              clearPersistedConnectionId(tenantId ?? undefined)
-              connection = null
-              onboardingConnectionId = null
-            }
+          if (conn.status === 'pending' || conn.status === 'onboarding') {
+            onboardingConnectionId = connId
+            onboardingKey = 0
+            startPollingConnection(connId)
+          } else {
+            onboardingConnectionId = null
+          }
+        }
+      } else {
+        const connErr = connectionResult.reason
+        if (connErr instanceof ApiError) {
+          if (connErr.type === 'payments/provider-unavailable') {
+            degradedMode = true
+          } else if (connErr.status === 404) {
+            clearPersistedConnectionId(tenantId ?? undefined)
+            connection = null
+            onboardingConnectionId = null
           }
         }
       }
+    }
 
-      const [payoutsRes, taxRes] = await Promise.allSettled([
-        listTenantPayouts(apiClient),
-        getTenantTaxSettings(apiClient),
-      ])
-      if (seq !== loadSeq) return
+    if (connectEnabled) {
       if (payoutsRes.status === 'fulfilled') {
         payouts = payoutsRes.value?.payouts ?? []
         payoutsLoadError = undefined

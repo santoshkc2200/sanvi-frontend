@@ -183,12 +183,23 @@ async function load(): Promise<void> {
   serverViolations = []
   submitError = undefined
 
-  try {
-    const catalog = await listAdPlatforms(apiClient)
-    if (seq !== loadSeq) return
-    platforms = catalog?.platforms ?? []
-  } catch (err) {
-    if (seq !== loadSeq) return
+  // TASK-022 (audit, builder head): platforms, connections, and the edit
+  // campaign's only shared input is the URL — the old three-round staircase
+  // serialised habit, not dependency. All fire together; the 403/404
+  // entitlement gate on platforms still decides what renders (an
+  // unauthorized operator sees the flag-off state exactly as before — the
+  // backend authorizes each endpoint independently, so the parallel legs
+  // leak nothing the same operator could not request directly).
+  const editTarget = editMode && editId ? getAdCampaign(apiClient, editId) : null
+  const [platformsResult, connectionsResult, campaignResult] = await Promise.allSettled([
+    listAdPlatforms(apiClient),
+    listAdConnections(apiClient),
+    editTarget ?? Promise.resolve(null),
+  ])
+  if (seq !== loadSeq) return
+
+  if (platformsResult.status === 'rejected') {
+    const err = platformsResult.reason
     if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
       entitled = false
     } else {
@@ -197,32 +208,28 @@ async function load(): Promise<void> {
     loading = false
     return
   }
+  platforms = platformsResult.value?.platforms ?? []
 
-  try {
-    const view = await listAdConnections(apiClient)
-    if (seq !== loadSeq) return
-    connections = view?.connections ?? []
-  } catch {
-    if (seq !== loadSeq) return
+  if (connectionsResult.status === 'rejected') {
     error = t['admin.advertising.campaigns.loadError']()
     loading = false
     return
   }
+  connections = connectionsResult.value?.connections ?? []
 
   if (editMode && editId) {
-    try {
-      const view = await getAdCampaign(apiClient, editId)
-      if (seq !== loadSeq) return
-      campaign = view
-      connectionId = view.connection_id
-    } catch (err) {
-      if (seq !== loadSeq) return
+    if (campaignResult.status === 'rejected') {
+      const err = campaignResult.reason
       error =
         err instanceof ApiError && err.status === 404
           ? t['admin.advertising.builder.notFound']()
           : t['admin.advertising.campaigns.loadError']()
       loading = false
       return
+    }
+    if (campaignResult.value) {
+      campaign = campaignResult.value
+      connectionId = campaignResult.value.connection_id
     }
   } else {
     const query =

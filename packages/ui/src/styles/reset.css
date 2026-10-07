@@ -12,6 +12,35 @@
 @import "@fontsource-variable/noto-sans-jp";
 @import "@sanvi/design-tokens/css";
 
+/*
+ * TASK-022: metric-compatible fallback for the CJK web font. While
+ * "Noto Sans JP Variable" streams in (`font-display: swap` — blocking would
+ * trade the CLS for the LCP), ja text renders in the first available local
+ * JP face. Without this rule those faces' own metrics (Yu Gothic 98/30,
+ * Meiryo 106/44, vs Noto's 116/29 per em) re-flow every line box at swap
+ * time — the 0.1369 ja CLS in the rc.1/rc.3 baselines. The overrides pin
+ * the fallback's layout metrics to Noto's exactly; since every local face
+ * here has full-width (1em) kana, size-adjust stays 100%. The Windows/macOS
+ * *UI* variants (Yu Gothic UI, Meiryo UI) are deliberately excluded — their
+ * kana are proportional (~0.82em), which no metric override can reconcile.
+ * Values re-derivable with `node scripts/font-metrics.mjs` (measures the
+ * real build under the pinned Chrome; measured 2026-10-07 on 152.0.7977.8).
+ */
+@font-face {
+  font-family: "Noto Sans JP Fallback";
+  src:
+    local("Hiragino Kaku Gothic ProN"),
+    local("Hiragino Sans"),
+    local("Yu Gothic"),
+    local("Meiryo");
+  font-weight: 100 900;
+  font-style: normal;
+  size-adjust: 100%;
+  ascent-override: 116%;
+  descent-override: 29%;
+  line-gap-override: 0%;
+}
+
 *,
 *::before,
 *::after {

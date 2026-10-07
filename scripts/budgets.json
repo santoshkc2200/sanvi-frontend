@@ -1,5 +1,5 @@
 {
-  "_readme": "Per-app JS budgets, gzip KB (TASK-031). Seeded from the current build plus a small margin so the gate is meaningful immediately; TASK-022 tightens initial budgets to the architecture targets (storefront ≤ 100, admin ≤ 250) and becomes blocking there. `initialKb` counts SvelteKit entry+chunks; SPA builds have no initial convention yet, so their initial is reported but not enforced, and the per-route `routeKb` carries the budget. The SPA per-chunk `chunkKb` still caps every non-route chunk. TASK-032 re-lowered the SvelteKit initial budgets after sharding the i18n catalogs by surface: the storefront dropped 180 → 88 and marketing 150 → 50 (measured 86.1 / 48.2) because neither app ships admin/platform strings anymore. The SPA `initialKb` values are inert (unmeasured build shape) and stay as-is.",
+  "_readme": "Per-app JS budgets, gzip KB (TASK-031; every dimension blocking since TASK-022). `initialKb` counts SvelteKit entry+chunks; for the SPAs it is the Vite manifest entry's static import closure (what the script + modulepreload chain loads at boot) — measured 74.6 KB for admin and 40.9 KB for platform-admin in rc.3, budgeted with headroom inside the architecture's admin ≤ 250 target. The per-route `routeKb` and the SPA per-chunk `chunkKb` cap every other chunk. `fonts` budgets the Japanese preloaded subsets raw (woff2 is already compressed) as their own line — a single global font number would hide the one hard locale. TASK-032 had lowered storefront initial to 88 and marketing to 50 after sharding the i18n catalogs.",
   "apps": {
     "storefront": {
       "type": "sveltekit",
@@ -15,15 +15,25 @@
     },
     "admin": {
       "type": "spa",
-      "initialKb": 250,
+      "initialKb": 100,
       "chunkKb": 65,
       "routeKb": 16
     },
     "platform-admin": {
       "type": "spa",
-      "initialKb": 250,
+      "initialKb": 60,
       "chunkKb": 75,
       "routeKb": 9
+    }
+  },
+  "fonts": {
+    "storefront": {
+      "label": "ja preloaded subsets (kana + common kanji)",
+      "budgetKb": 100,
+      "files": [
+        "apps/storefront/static/fonts/noto-sans-jp-119-wght-normal.woff2",
+        "apps/storefront/static/fonts/noto-sans-jp-118-wght-normal.woff2"
+      ]
     }
   }
 }

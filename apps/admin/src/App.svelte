@@ -593,6 +593,7 @@ function retry(): void {
   nav={visibleNav}
   currentPath={router.pathname}
   onNavigate={router.handleLinkClick}
+  prefetch={router.prefetch}
 >
   {#snippet headerExtra()}
     <Cluster gap="4" align="center">

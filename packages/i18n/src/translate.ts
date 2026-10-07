@@ -5,10 +5,8 @@ import { formatPattern, MissingParamError, type MessageParams } from './icu'
 export function hasMessage(key: string): key is MessageKey {
   return Object.hasOwn(en, key)
 }
-import { currentLocale } from './runtime.svelte'
-import { isPseudoMode, pseudoize } from './pseudo'
-
-/**
+import { catalogRevision, currentLocale } from './runtime.svelte'
+import { isPseudoMode, pseudoize } from './pseudo' /**
  * `t` — the typed message accessor. `t['key.name']({ count: 3 })` resolves
  * the current locale (AsyncLocalStorage on the server, the rune store on
  * the client), renders the ICU pattern, and falls back per-key to the base
@@ -30,6 +28,10 @@ function render(locale: Locale, key: MessageKey, params?: MessageParams): string
 
 export function translate(key: MessageKey, params?: MessageParams): string {
   const locale = currentLocale()
+  // Reactive dependency on catalog arrival (TASK-022): a call made while the
+  // locale's lazy shards were still in flight fell back to the base locale;
+  // when the catalog lands, this read re-runs every derivation holding it.
+  void catalogRevision()
   let text = render(locale, key, params)
   if (text === null && locale !== BASE_LOCALE) text = render(BASE_LOCALE, key, params)
   if (text === null) {

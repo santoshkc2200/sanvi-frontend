@@ -182,6 +182,12 @@ async function load(): Promise<void> {
     )
   }
 
+  // TASK-022 (audit F4): the metrics pair reads nothing from the core-4 —
+  // the serialisation was habit. Both fire together now; `loadMetrics` is
+  // seq-guarded like everything else, and its own 403/400 handling is
+  // unchanged. Range changes still refetch metrics alone (below).
+  const metricsPromise = loadMetrics(seq)
+
   const [connectionsResult, platformsResult, campaignsResult, freshnessResult] =
     await Promise.allSettled([
       listAdConnections(apiClient),
@@ -214,7 +220,7 @@ async function load(): Promise<void> {
     }
   }
 
-  await loadMetrics(seq)
+  await metricsPromise
   if (seq !== loadSeq) return
   loading = false
 }

@@ -1,6 +1,14 @@
 import { fileURLToPath } from 'node:url'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { describe, expect, it } from 'vitest'
-import { formatAppReport, runBudgetCheck } from '../src/check-budget.mjs'
+import {
+  fontPreloadResult,
+  formatAppReport,
+  runBudgetCheck,
+  spaInitialKb,
+} from '../src/check-budget.mjs'
 
 const FIXTURES = fileURLToPath(new URL('../__fixtures__/', import.meta.url))
 
@@ -70,5 +78,74 @@ describe('formatAppReport — the --app/--all path', () => {
     const report = formatAppReport({ ...failingSpaResult, svelteKit: true, initialKbTotal: 120 })
     expect(report).toContain('1 chunk(s) over the 5 KB budget:')
     expect(report).toContain('Dashboard-Cj2_.js: 42.7 KB')
+  })
+})
+
+describe('spaInitialKb — the TASK-022 SPA initial convention', () => {
+  function writeSpaFixture(manifest) {
+    const dir = join(tmpdir(), `sanvi-spa-initial-${Math.random().toString(36).slice(2)}`)
+    rmSync(dir, { recursive: true, force: true })
+    mkdirSync(join(dir, 'assets'), { recursive: true })
+    mkdirSync(join(dir, '.vite'), { recursive: true })
+    writeFileSync(join(dir, '.vite', 'manifest.json'), JSON.stringify(manifest))
+    return dir
+  }
+
+  it('measures the entry plus its transitive static import closure, nothing else', () => {
+    const dir = writeSpaFixture({
+      'src/main.ts': { isEntry: true, file: 'assets/entry.js', imports: ['src/shared.ts'] },
+      'src/shared.ts': { file: 'assets/shared.js', imports: ['src/vendor.ts'] },
+      'src/vendor.ts': { file: 'assets/vendor.js' },
+      'src/lazy-route.ts': { file: 'assets/lazy.js', isDynamicEntry: true },
+    })
+    writeFileSync(join(dir, 'assets', 'entry.js'), 'x'.repeat(10_000))
+    writeFileSync(join(dir, 'assets', 'shared.js'), 'y'.repeat(5_000))
+    writeFileSync(join(dir, 'assets', 'vendor.js'), 'z'.repeat(2_000))
+    writeFileSync(join(dir, 'assets', 'lazy.js'), 'l'.repeat(50_000))
+
+    const kb = spaInitialKb(dir)
+    expect(kb).not.toBeNull()
+    // The three closure chunks (17 KB raw of repeated characters) must be
+    // well under 1 KB gzipped; the excluded 50 KB lazy chunk would push the
+    // total over that bound — this is the "closure, not directory" claim.
+    expect(kb).toBeLessThan(1)
+    expect(kb).toBeGreaterThan(0)
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('returns null without a manifest or without an entry — unmeasured, never guessed', () => {
+    expect(spaInitialKb(join(tmpdir(), 'definitely-not-here'))).toBeNull()
+    const dir = writeSpaFixture({ 'src/a.ts': { file: 'assets/a.js' } })
+    expect(spaInitialKb(dir)).toBeNull()
+    rmSync(dir, { recursive: true, force: true })
+  })
+})
+
+describe('fontPreloadResult — the Japanese font budget line', () => {
+  const root = fileURLToPath(new URL('../__fixtures__/', import.meta.url))
+  const config = {
+    label: 'test preloads',
+    budgetKb: 1,
+    files: ['fonts/tiny.woff2'],
+  }
+
+  it('sums raw woff2 bytes and enforces the cap', () => {
+    mkdirSync(join(root, 'fonts'), { recursive: true })
+    writeFileSync(join(root, 'fonts', 'tiny.woff2'), Buffer.alloc(512))
+    const result = fontPreloadResult({ config, root })
+    expect(result.totalKb).toBeCloseTo(0.5, 5)
+    expect(result.ok).toBe(true)
+    writeFileSync(join(root, 'fonts', 'tiny.woff2'), Buffer.alloc(4096))
+    expect(fontPreloadResult({ config, root }).ok).toBe(false)
+    rmSync(join(root, 'fonts'), { recursive: true, force: true })
+  })
+
+  it('reports a missing file as unmeasured and fails the budget', () => {
+    const result = fontPreloadResult({
+      config: { ...config, files: ['fonts/absent.woff2'] },
+      root,
+    })
+    expect(result.totalKb).toBeNull()
+    expect(result.ok).toBe(false)
   })
 })

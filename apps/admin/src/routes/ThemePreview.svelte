@@ -182,6 +182,8 @@ const localeSelectOptions = $derived(
               <iframe
                 title={t['admin.theme.preview.desktopFrame']()}
                 src={previewUrl}
+                width={1280}
+                height={800}
                 class="sanvi-device-frame__iframe sanvi-device-frame__iframe--desktop"
               ></iframe>
             </div>
@@ -193,6 +195,8 @@ const localeSelectOptions = $derived(
               <iframe
                 title={t['admin.theme.preview.mobileFrame']()}
                 src={previewUrl}
+                width={390}
+                height={844}
                 class="sanvi-device-frame__iframe sanvi-device-frame__iframe--mobile"
               ></iframe>
             </div>

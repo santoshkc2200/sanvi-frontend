@@ -36,6 +36,26 @@ function initialClientLocale(): Locale {
 
 let clientLocale: Locale = $state(initialClientLocale())
 
+/**
+ * Bumped whenever a locale's catalog shards finish loading. `t()` reads it
+ * (via `catalogRevision`) so every locale-dependent derivation re-renders
+ * when a lazily-loaded catalog lands — without it, anything that rendered
+ * while the catalog was still in flight stays stuck on the base-locale
+ * fallback until an unrelated state change (TASK-022: the storefront's ja
+ * consent banner rendered English post-hydration and stayed that way).
+ */
+let catalogEpoch = $state(0)
+
+/** Reactive read for `t()` — establishes the dependency on catalog arrival. */
+export function catalogRevision(): number {
+  return catalogEpoch
+}
+
+/** Notifies every `t()` consumer that catalog contents changed. */
+function bumpCatalogEpoch(): void {
+  catalogEpoch += 1
+}
+
 let localeSource: (() => Locale | null) | null = null
 
 /**
@@ -95,6 +115,7 @@ export function initI18n(options: I18nInitOptions = {}): void {
       clientLocale = locale
       document.documentElement.lang = locale
       void ensureLocaleLoaded(locale).then(() => {
+        bumpCatalogEpoch()
         for (const listener of changeListeners) listener(locale)
       })
     }
@@ -109,6 +130,7 @@ export function initI18n(options: I18nInitOptions = {}): void {
       clientLocale = sessionLocale
       document.documentElement.lang = sessionLocale
       void ensureLocaleLoaded(sessionLocale).then(() => {
+        bumpCatalogEpoch()
         for (const listener of changeListeners) listener(sessionLocale)
       })
     }

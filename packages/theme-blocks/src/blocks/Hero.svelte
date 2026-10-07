@@ -1,4 +1,5 @@
 <script lang="ts">
+import { Image } from '@sanvi/ui'
 import { resolveText, type LocalizedText } from '../utils'
 
 export interface HeroCta {
@@ -60,7 +61,20 @@ const altText = $derived(resolveText(imageAlt))
 
     {#if imageUrl}
       <div class="sanvi-block-hero__media">
-        <img src={imageUrl} alt={altText} class="sanvi-block-hero__image" />
+        <!-- The hero media is the storefront's LCP candidate more often than
+             not: eager + fetchpriority=high, with the box reserved up front
+             (16:9 — tenant uploads arrive with no intrinsic size in the
+             block payload, so the reserved box is the ratio the CSS
+             enforces; object-fit crops to it). -->
+        <Image
+          src={imageUrl}
+          alt={altText}
+          width={1600}
+          height={900}
+          loading="eager"
+          fetchpriority="high"
+          class="sanvi-block-hero__image"
+        />
       </div>
     {/if}
   </div>
@@ -152,5 +166,8 @@ const altText = $derived(resolveText(imageAlt))
     height: auto;
     border-radius: var(--sanvi-radius-lg);
     object-fit: cover;
+    /* The reserved box is 16:9 (the width/height attrs); keep it enforced
+       when the intrinsic ratio differs so nothing re-flows on load. */
+    aspect-ratio: 16 / 9;
   }
 </style>

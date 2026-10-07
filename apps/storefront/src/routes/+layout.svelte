@@ -1,3 +1,10 @@
+<script lang="ts" module>
+// TASK-022: holds hydration until the URL's locale catalog shards are in —
+// see `$lib/hydration-catalog` for the why and the ordering constraints
+// (registrar before await; en and the server resolve synchronously).
+import '$lib/hydration-catalog'
+</script>
+
 <script lang="ts">
 import { registerAllBlocks } from '@sanvi/theme-blocks'
 import { renderLayout, themeStyleTag } from '@sanvi/theme-runtime'
@@ -35,14 +42,14 @@ import { consentablePurposeCopy } from '$lib/purpose-copy'
 import { localePath, setClientDefaultLocale } from '$lib/links'
 import { stashLandingClickIds } from '$lib/tracking/click-ids'
 import { initStorefrontTelemetry } from '$lib/telemetry'
-import { registerStorefrontSurface } from '@sanvi/i18n/surfaces/storefront'
 
 registerAllBlocks()
 // TASK-032: the client bundle merges the storefront's catalog shards before
 // this component (and every child) renders — mirrors the hook's server-side
 // registration, so hydration translates from the same key set the server
-// rendered with.
-registerStorefrontSurface()
+// rendered with. (The call itself moved to the module script in TASK-022:
+// it must precede that script's catalog await, and a module-level
+// registration covers the server render equally. Idempotent either way.)
 // Preload targets for ja pages (see `<svelte:head>` below): the two
 // highest-value unicode-range subsets, vendored in `static/fonts/` from
 // `@fontsource-variable/noto-sans-jp` (OFL-1.1 — see static/fonts/README).

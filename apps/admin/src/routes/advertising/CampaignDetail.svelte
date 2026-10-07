@@ -105,12 +105,28 @@ async function load(): Promise<void> {
     return
   }
 
-  try {
-    const view = await getAdCampaign(apiClient, campaignId)
-    if (seq !== loadSeq) return
-    campaign = view
-  } catch (err) {
-    if (seq !== loadSeq) return
+  // TASK-022 (audit F3/F2): campaign, platforms, connections, changes, and
+  // members are five requests whose only shared input is the URL's
+  // campaignId — the old campaign → catalogs → changes → members staircase
+  // paid four serialised round-trips for habit, not dependency. All five
+  // fire together; only the *joins* below read earlier results. Each result
+  // degrades independently exactly as before: a catalog failure degrades
+  // the header, a changes failure keeps the timeline retriable, a members
+  // failure falls back to ids-as-names. (F2's real fix is backend-side —
+  // actor identity embedded in the changes response — recorded in the
+  // call-pattern audit handover.)
+  const [campaignResult, platformsResult, connectionsResult, changesResult, membersResult] =
+    await Promise.allSettled([
+      getAdCampaign(apiClient, campaignId),
+      listAdPlatforms(apiClient),
+      listAdConnections(apiClient),
+      listAdCampaignChanges(apiClient, campaignId),
+      listMembers(apiClient),
+    ])
+  if (seq !== loadSeq) return
+
+  if (campaignResult.status === 'rejected') {
+    const err = campaignResult.reason
     if (err instanceof ApiError && err.status === 404) {
       notFound = true
     } else {
@@ -119,14 +135,8 @@ async function load(): Promise<void> {
     loading = false
     return
   }
+  campaign = campaignResult.value
 
-  // Context loads are individually optional: a catalog or connection failure
-  // degrades the header, it does not blank the page.
-  const [platformsResult, connectionsResult] = await Promise.allSettled([
-    listAdPlatforms(apiClient),
-    listAdConnections(apiClient),
-  ])
-  if (seq !== loadSeq) return
   if (platformsResult.status === 'fulfilled') {
     platform = (platformsResult.value?.platforms ?? []).find(
       (candidate) => candidate.key === campaign?.platform,
@@ -138,12 +148,9 @@ async function load(): Promise<void> {
     )
   }
 
-  try {
-    const view = await listAdCampaignChanges(apiClient, campaignId)
-    if (seq !== loadSeq) return
-    changes = view?.changes ?? []
-  } catch {
-    if (seq !== loadSeq) return
+  if (changesResult.status === 'fulfilled') {
+    changes = changesResult.value?.changes ?? []
+  } else {
     // History failing to load must not hide the campaign — the timeline
     // section shows the retriable error instead.
     changes = []
@@ -152,14 +159,12 @@ async function load(): Promise<void> {
 
   // Actor names resolve best-effort: an operator without directory
   // permission still gets history, with ids standing in for names.
-  try {
-    const members = await listMembers(apiClient)
-    if (seq !== loadSeq) return
-    actorNames = Object.fromEntries((members ?? []).map((member) => [member.user_id, member.email]))
-  } catch {
-    if (seq !== loadSeq) return
-    actorNames = {}
-  }
+  actorNames =
+    membersResult.status === 'fulfilled'
+      ? Object.fromEntries(
+          (membersResult.value ?? []).map((member) => [member.user_id, member.email]),
+        )
+      : {}
 
   loading = false
 }

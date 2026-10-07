@@ -220,6 +220,7 @@ onLocaleChange(() => clearCache())
   nav={NAV}
   currentPath={router.pathname}
   onNavigate={router.handleLinkClick}
+  prefetch={router.prefetch}
 >
   {#snippet headerExtra()}
     <LocaleSwitcher

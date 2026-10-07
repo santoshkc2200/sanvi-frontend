@@ -22,16 +22,17 @@
  *   sanvi-check-budget --dir <dir> [--initial-kb N] [--chunk-kb N]
  *       legacy single-directory shape (still what the unit tests exercise)
  *
- * `--report-only` prints the same table but never fails the process — the
- * "baseline first, gate second" invariant: budgets become blocking in
- * TASK-022, and until then the gate must not block a build.
+ * `--report-only` prints the same table but never fails the process — for
+ * exploratory runs against unbudgeted branches. Since TASK-022 the default
+ * run blocks on every dimension: initial, per-chunk, per-route, SPA initial
+ * (manifest closure), and the Japanese font preloads.
  *
  * The *initial* budget is precise for SvelteKit's `adapter-node` output
  * (`_app/immutable/entry/` + `_app/immutable/chunks/`, summed and checked
- * — `_app/immutable/nodes/` is per-route code). For a Vite SPA build there's
- * no such directory convention to key off, so the total is reported for
- * visibility but not hard-enforced — the per-route chunks are what carry the
- * SPA budget until a manifest-based initial check is worth it.
+ * — `_app/immutable/nodes/` is per-route code). For a Vite SPA build the
+ * initial set is the manifest entry's static import closure (see
+ * `spaInitialKb`) — what the emitted script + modulepreload chain loads at
+ * boot.
  */
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, sep } from 'node:path'
@@ -70,11 +71,78 @@ function parseArgs(argv) {
 /**
  * Per-app budget config from `scripts/budgets.json` — the single place a
  * budget number is written. Values are KB, gzip, derived from the current
- * build plus a small margin (TASK-031); TASK-022 tightens them to targets.
+ * build plus a small margin (TASK-031); TASK-022 tightened them to the
+ * architecture targets and made every dimension blocking (initial JS,
+ * per-route JS, SPA initial via the Vite manifest, and the Japanese font
+ * preloads).
  */
 export function loadBudgets({ root = findWorkspaceRoot() } = {}) {
   const file = join(root, 'scripts', 'budgets.json')
   return JSON.parse(readFileSync(file, 'utf8'))
+}
+
+/**
+ * SPA initial JS (gzip KB): the entry chunk plus its transitive static
+ * import closure from the Vite build manifest — exactly the modules the
+ * emitted `<script src>` and its `modulepreload` chain load before any
+ * route code runs. TASK-022's answer to "the SPA initial convention": the
+ * manifest is the build's own declaration of the boot set, so the gate
+ * measures what the browser actually fetches, not a directory-shape guess.
+ * `null` when the manifest is missing or has no entry — reported as
+ * unmeasured, never guessed.
+ */
+export function spaInitialKb(buildDir) {
+  const manifestPath = join(buildDir, '.vite', 'manifest.json')
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    const entryKey = Object.keys(manifest).find((key) => manifest[key]?.isEntry)
+    if (!entryKey) return null
+    const seen = new Set()
+    const queue = [entryKey]
+    while (queue.length > 0) {
+      const key = queue.shift()
+      if (seen.has(key) || !manifest[key]?.file) continue
+      seen.add(key)
+      for (const imp of manifest[key].imports ?? []) queue.push(imp)
+    }
+    let kb = 0
+    for (const key of seen) {
+      kb += gzipSizeKb(join(buildDir, manifest[key].file))
+    }
+    return kb
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Font preloads (TASK-022): the Japanese subsets the ja layout preloads,
+ * budgeted as their own line — a single global font number would hide the
+ * one case that is hard. Raw (not gzip'd) file sizes: woff2 is already
+ * compressed, so gzip arithmetic on it measures nothing.
+ */
+export function fontPreloadResult({ config, root }) {
+  const files = (config?.files ?? []).map((rel) => {
+    const abs = join(root, rel)
+    let kb = null
+    try {
+      kb = readFileSync(abs).length / 1024
+    } catch {
+      // missing file — reported as missing, never dropped
+    }
+    return { file: rel, kb }
+  })
+  const measured = files.filter((f) => f.kb !== null)
+  const totalKb = measured.length === files.length && files.length > 0
+    ? measured.reduce((sum, f) => sum + f.kb, 0)
+    : null
+  return {
+    label: config?.label ?? 'font preloads',
+    files,
+    totalKb: totalKb === null ? null : Number(totalKb.toFixed(2)),
+    budgetKb: config?.budgetKb,
+    ok: totalKb !== null && config?.budgetKb !== undefined && totalKb <= config.budgetKb,
+  }
 }
 
 function isSvelteKitClientOutput(dir) {
@@ -191,12 +259,12 @@ export function runBudgetCheck({ dir, initialKb, chunkKb }) {
  * Budget check for one app from `scripts/budgets.json`, with the per-route
  * dimension added.
  *
- * `ok` — the process-failing verdict — carries only the dimensions the
- * phase-00 gate already blocked on (initial JS, flat chunk budget). The
- * per-route dimension (`routeOk`) is **reporting-only until TASK-022**: the
- * route budgets were seeded with thin margins precisely so TASK-022 can
- * tighten them, and a gate switched on before its baseline exists is a gate
- * someone disables in week one.
+ * `ok` — the process-failing verdict — covers every dimension since
+ * TASK-022 turned the gate blocking: initial JS (SvelteKit's
+ * `_app/immutable` convention, or the Vite-manifest closure for SPAs), the
+ * flat per-chunk budget, the per-route budget, and (via `fontsOk` on the
+ * workspace-level report) the Japanese font preload budget. The baseline
+ * first existed (TASK-031's rc.1, tightened by rc.3); the gate now blocks.
  *
  * @param {{ name: string, config: { type: 'sveltekit'|'spa', initialKb: number, chunkKb: number, routeKb: number }, root: string }} params
  */
@@ -217,17 +285,27 @@ export function runAppBudgetCheck({ name, config, root }) {
       routeKb: config.routeKb,
       routesMissing: 0,
       routeOk: true,
+      fontsOk: true,
     }
+  }
+
+  // The SPA initial convention TASK-022 added: manifest closure when the
+  // directory shape can't express it.
+  let initialKbTotal = base.initialKbTotal
+  if (initialKbTotal === null && !base.svelteKit) {
+    initialKbTotal = spaInitialKb(buildDir)
   }
 
   const sizes = routeSizes(appRoot, config.type, buildDir)
   const routes = sizes.map((r) => ({ ...r, over: r.kb !== null && r.kb > config.routeKb }))
   const routesMissing = routes.filter((r) => r.kb === null).length
   const anyRouteOver = routes.some((r) => r.over)
+  const initialOverBudget = initialKbTotal !== null && initialKbTotal > config.initialKb
 
   return {
     ...base,
-    ok: base.ok,
+    initialKbTotal,
+    ok: base.ok && !initialOverBudget,
     name,
     routes,
     routeKb: config.routeKb,
@@ -248,21 +326,21 @@ export function formatAppReport(result) {
   if (result.initialKbTotal !== null) {
     const status = result.initialKbTotal > result.initialKb ? '✗' : '✓'
     lines.push(
-      `${status} Initial JS (entry+chunks, gzip): ${result.initialKbTotal.toFixed(1)} KB / ${result.initialKb} KB budget`,
+      `${status} Initial JS (gzip): ${result.initialKbTotal.toFixed(1)} KB / ${result.initialKb} KB budget`,
     )
   } else {
     lines.push(
-      `  Initial JS: not measured for this build shape (no _app/immutable convention) — total reported above for visibility only.`,
+      `  ✗ Initial JS: unmeasured (no _app/immutable convention and no Vite manifest with an entry) — the gate cannot verify this build shape.`,
     )
   }
 
-  lines.push(`Per-route (budget ${result.routeKb} KB — reporting-only until TASK-022):`)
+  lines.push(`Per-route (budget ${result.routeKb} KB):`)
   for (const route of result.routes) {
     if (route.kb === null) {
-      lines.push(`  ? ${route.id} — chunk not found in build output`)
+      lines.push(`  ✗ ${route.id} — chunk not found in build output`)
     } else if (route.over) {
       lines.push(
-        `  ✗ ${route.id}: ${route.kb.toFixed(1)} KB — over by ${(route.kb - result.routeKb).toFixed(2)} KB (non-blocking)`,
+        `  ✗ ${route.id}: ${route.kb.toFixed(1)} KB — over by ${(route.kb - result.routeKb).toFixed(2)} KB`,
       )
     } else {
       lines.push(`  ✓ ${route.id}: ${route.kb.toFixed(1)} KB`)
@@ -330,16 +408,29 @@ async function main() {
     for (const name of names) {
       const result = runAppBudgetCheck({ name, config: budgets.apps[name], root })
       console.log(formatAppReport(result))
-      if (!result.ok) failed = true
-      if (!result.routeOk) {
-        console.log(
-          '  per-route: reporting-only until TASK-022 — over/missing routes do not fail this gate',
-        )
+      if (!result.ok || !result.routeOk) failed = true
+    }
+
+    // Japanese font preloads — their own lines, blocking (TASK-022): the
+    // one hard locale's payload must not hide inside a global number.
+    if (budgets.fonts) {
+      for (const [name, config] of Object.entries(budgets.fonts)) {
+        const fonts = fontPreloadResult({ config, root })
+        const status = fonts.ok ? '✓' : '✗'
+        const total = fonts.totalKb === null ? 'unmeasured (file missing)' : `${fonts.totalKb.toFixed(1)} KB`
+        console.log(`${status} ${name} font preloads — ${fonts.label}: ${total} / ${fonts.budgetKb} KB budget`)
+        for (const file of fonts.files) {
+          console.log(
+            `    ${file.kb === null ? '✗ missing' : `${file.kb.toFixed(1)} KB`}  ${file.file}`,
+          )
+        }
+        if (!fonts.ok) failed = true
       }
     }
+
     if (failed && !args.reportOnly) process.exit(1)
     if (args.reportOnly && failed)
-      console.log('\n(report-only — nothing here fails the build; blocking returns with TASK-022)')
+      console.log('\n(report-only — nothing here fails the build in this mode)')
     return
   }
 
@@ -355,7 +446,7 @@ async function main() {
 
   if (!result.ok && !result.skipped && !args.reportOnly) process.exit(1)
   if (args.reportOnly && !result.ok && !result.skipped)
-    console.log('\n(report-only — nothing here fails the build; blocking returns with TASK-022)')
+    console.log('\n(report-only — nothing here fails the build in this mode)')
 }
 
 if (isMainEntryPoint(import.meta.url)) {

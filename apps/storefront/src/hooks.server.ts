@@ -58,15 +58,30 @@ function isHealthCheck(pathname: string): boolean {
  */
 export const resolveTenant: Handle = async ({ event, resolve }) => {
   if (isHealthCheck(event.url.pathname)) return resolve(event)
+  await tenantAndSessionLegs(event)
+  return resolve(event)
+}
 
+/**
+ * TASK-022 (audit F1): tenant and session resolve **concurrently**. The two
+ * legs share nothing — `resolveTenantForHost` keys off the `Host` header
+ * with its own cross-request cache, `resolveSession` reads only the
+ * `Cookie` header with a fresh per-request client — while everything
+ * downstream (locale → theme → privacy → page data) genuinely needs both.
+ * Serialising them paid one extra backend round-trip on every cold
+ * storefront request, straight off LCP; `Promise.all` removes it without
+ * touching any downstream ordering.
+ */
+async function tenantAndSessionLegs(event: Parameters<Handle>[0]['event']): Promise<void> {
   const host = event.request.headers.get('host') ?? event.url.host
   const { apiOrigin } = getAppEnv()
 
-  const resolution = await resolveTenantForHost(tenantHostCache, { apiOrigin, host })
+  const [resolution] = await Promise.all([
+    resolveTenantForHost(tenantHostCache, { apiOrigin, host }),
+    sessionLeg(event),
+  ])
   event.locals.tenant = resolution.tenant
   event.locals.tenantResolution = resolution.status
-
-  return resolve(event)
 }
 
 /**
@@ -79,15 +94,12 @@ export const resolveTenant: Handle = async ({ event, resolve }) => {
  * Runs *before* locale resolution: the locale chain's "account preference"
  * leg reads `locals.session.locale` (`MeView.locale`).
  */
-const resolveAuth: Handle = async ({ event, resolve }) => {
-  if (isHealthCheck(event.url.pathname)) return resolve(event)
-
+async function sessionLeg(event: Parameters<Handle>[0]['event']): Promise<void> {
   const { apiOrigin } = getAppEnv()
   event.locals.session = await resolveSession({
     apiOrigin,
     cookieHeader: event.request.headers.get('cookie'),
   })
-  return resolve(event)
 }
 
 /**
@@ -319,7 +331,6 @@ export const securityHeaders: Handle = async ({ event, resolve }) => {
 
 export const handle: Handle = sequence(
   resolveTenant,
-  resolveAuth,
   resolveLocale,
   resolveTheme,
   runtimeConnectSrc,

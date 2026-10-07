@@ -54,6 +54,7 @@ export function comparableMetrics(a, b) {
   const metrics = []
 
   for (const [app, budget] of Object.entries(a.budget ?? {})) {
+    if (app === 'fonts') continue // font preload section — its own shape, not a JS budget
     metrics.push({
       path: `budget.${app}.initialKb`,
       a: budget.initialKb ?? null,
