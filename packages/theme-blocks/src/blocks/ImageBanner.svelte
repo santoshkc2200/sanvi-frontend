@@ -1,4 +1,5 @@
 <script lang="ts">
+import { Image } from '@sanvi/ui'
 import { resolveText, type LocalizedText } from '../utils'
 
 export interface BannerCta {
@@ -34,7 +35,17 @@ const altText = $derived(resolveText(imageAlt))
 <section class="sanvi-block-image-banner sanvi-block-image-banner--{height} {className}">
   {#if imageUrl}
     <div class="sanvi-block-image-banner__media">
-      <img src={imageUrl} alt={altText} class="sanvi-block-image-banner__image" />
+      <!-- Absolutely positioned and stretched by the container, so these
+           dimensions never size the banner — they satisfy the image
+           contract (reserve a box, never shift layout) at the 3:1 ratio the
+           cover crop enforces. -->
+      <Image
+        src={imageUrl}
+        alt={altText}
+        width={1500}
+        height={500}
+        class="sanvi-block-image-banner__image"
+      />
     </div>
   {/if}
 

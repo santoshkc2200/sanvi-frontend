@@ -1,3 +1,10 @@
+<script lang="ts" module>
+// TASK-022: holds hydration until the URL's locale catalog shards are in —
+// see `$lib/hydration-catalog` (registrar before await; en and the
+// prerender server resolve synchronously).
+import '$lib/hydration-catalog'
+</script>
+
 <script lang="ts">
 import '@sanvi/ui/styles.css'
 import {
@@ -12,11 +19,11 @@ import {
 import { page } from '$app/state'
 import type { Snippet } from 'svelte'
 import { initMarketingTelemetry } from '$lib/telemetry'
-import { registerMarketingSurface } from '@sanvi/i18n/surfaces/marketing'
 
 // TASK-032: the client bundle's catalog shards, before any child renders —
-// mirrors the hook's server-side registration for hydration parity.
-registerMarketingSurface()
+// the call lives in the module script (TASK-022: it must precede that
+// script's catalog await; module-level registration covers the prerender
+// server equally).
 
 let { children }: { children: Snippet } = $props()
 

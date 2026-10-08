@@ -14,7 +14,11 @@
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { loadBudgets, runAppBudgetCheck } from '@sanvi/lint-gates/check-budget'
+import {
+  fontPreloadResult,
+  loadBudgets,
+  runAppBudgetCheck,
+} from '@sanvi/lint-gates/check-budget'
 import { findWorkspaceRoot, loadPerfProfiles } from '@sanvi/lint-gates/perf-profiles'
 import { isMainEntryPoint } from '@sanvi/lint-gates/walk-files'
 import { sweepA11y } from './check-a11y.mjs'
@@ -59,7 +63,16 @@ function budgetSection({ apps }) {
       })),
       routesMissing: result.routesMissing,
       ok: result.ok,
+      routeOk: result.routeOk,
     }
+  }
+  if (budgets.fonts) {
+    section.fonts = Object.fromEntries(
+      Object.entries(budgets.fonts).map(([name, config]) => [
+        name,
+        fontPreloadResult({ config, root: ROOT }),
+      ]),
+    )
   }
   return section
 }
@@ -82,6 +95,14 @@ async function main() {
   console.log('==> budget (static, off the last build)')
   const budget = budgetSection({ apps })
   for (const [name, entry] of Object.entries(budget)) {
+    if (name === 'fonts') {
+      for (const [fontApp, fonts] of Object.entries(entry)) {
+        console.log(
+          `  fonts.${fontApp}: ${fonts.totalKb === null ? 'unmeasured' : `${fonts.totalKb.toFixed(1)} KB`} / ${fonts.budgetKb} KB (${fonts.label}), ok=${fonts.ok}`,
+        )
+      }
+      continue
+    }
     console.log(
       `  ${name}: initial ${entry.initialKb === null ? 'n/a' : `${entry.initialKb.toFixed(1)} KB`}, ${entry.routes.length} routes, ok=${entry.ok}`,
     )

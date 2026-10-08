@@ -1,18 +1,44 @@
 import type { TypedApiClient } from './typed'
 
+/** Per-call knobs the session-hydration pair needs (TASK-022, audit F10). */
+export interface MeCallOptions {
+  signal?: AbortSignal
+  /**
+   * Overrides the client's retry count for this one call. Boot-hydration
+   * passes `0`: two calls with one purpose should not each walk the full
+   * retry ladder against a dead origin before the boot error renders.
+   */
+  retries?: number
+}
+
+function meOptions(options?: MeCallOptions) {
+  if (!options) return undefined
+  const resolved: { signal?: AbortSignal; retries?: number } = {}
+  if (options.signal !== undefined) resolved.signal = options.signal
+  if (options.retries !== undefined) resolved.retries = options.retries
+  return Object.keys(resolved).length > 0 ? resolved : undefined
+}
+
 /**
  * `GET /api/v1/me` — the signed-in user's profile, including every tenant
  * membership (with role ids and the effective permissions those roles
  * grant). The single hydration call `@sanvi/auth`'s session store is built
  * on — see `sanvi-frontend/docs/phase-02-auth-ux`.
  */
-export function getMe(client: TypedApiClient, signal?: AbortSignal) {
-  return client.GET('/api/v1/me', signal ? { signal } : undefined)
+export function getMe(client: TypedApiClient, signalOrOptions?: AbortSignal | MeCallOptions) {
+  const options =
+    signalOrOptions instanceof AbortSignal ? { signal: signalOrOptions } : signalOrOptions
+  return client.GET('/api/v1/me', meOptions(options))
 }
 
 /** `GET /api/v1/me/sessions` — the current session (self-management scope in phase 02). */
-export function listSessions(client: TypedApiClient, signal?: AbortSignal) {
-  return client.GET('/api/v1/me/sessions', signal ? { signal } : undefined)
+export function listSessions(
+  client: TypedApiClient,
+  signalOrOptions?: AbortSignal | MeCallOptions,
+) {
+  const options =
+    signalOrOptions instanceof AbortSignal ? { signal: signalOrOptions } : signalOrOptions
+  return client.GET('/api/v1/me/sessions', meOptions(options))
 }
 
 /** `DELETE /api/v1/me/sessions/{session_id}` — revoke a session; takes effect on its next request. */

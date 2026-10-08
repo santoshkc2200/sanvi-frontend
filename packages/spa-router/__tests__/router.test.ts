@@ -272,3 +272,64 @@ describe('standalone navigate/handleLinkClick', () => {
     expect(window.location.pathname).toBe('/')
   })
 })
+
+describe('Router#loaderFor / Router#prefetch — intent prefetch (TASK-022)', () => {
+  it('loaderFor resolves the loader a path would navigate to, params included', async () => {
+    const load = vi.fn(async () => ({ default: TenantDetailComponent }))
+    const router = createRouter({
+      routes: [
+        {
+          path: 'tenants',
+          load: async () => ({ default: DashboardComponent }),
+          children: [{ path: ':id', load }],
+        },
+      ],
+      notFound: async () => ({ default: NotFoundComponent }),
+    })
+
+    expect(router.loaderFor('/tenants/acme-1')).toBe(load)
+    expect(router.loaderFor('/nowhere')).toBeNull()
+  })
+
+  it('prefetch warms the matched route without navigating', async () => {
+    const load = vi.fn(async () => ({ default: DashboardComponent }))
+    setPath('/')
+    const router = createRouter({
+      routes: [
+        { path: '', load: async () => ({ default: NotFoundComponent }) },
+        { path: 'billing', load },
+      ],
+      notFound: async () => ({ default: NotFoundComponent }),
+    })
+    await vi.waitFor(() => expect(router.component).toBe(NotFoundComponent))
+
+    router.prefetch('/billing')
+    await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(1))
+
+    // Warmed, not navigated: the route still shows the current component.
+    expect(router.pathname).toBe('/')
+    expect(router.component).toBe(NotFoundComponent)
+  })
+
+  it('prefetch on an unmatched path is a silent no-op', () => {
+    const router = createRouter({
+      routes: [{ path: '', load: async () => ({ default: DashboardComponent }) }],
+      notFound: async () => ({ default: NotFoundComponent }),
+    })
+    expect(() => router.prefetch('/missing')).not.toThrow()
+  })
+
+  it('prefetch swallows a failing warm — a failed prefetch must never raise', async () => {
+    const load = vi.fn(async () => {
+      throw new Error('network refused')
+    })
+    const router = createRouter({
+      routes: [{ path: 'billing', load }],
+      notFound: async () => ({ default: NotFoundComponent }),
+    })
+
+    router.prefetch('/billing')
+    await sleep(10)
+    expect(load).toHaveBeenCalledTimes(1)
+  })
+})

@@ -733,7 +733,12 @@ const columns: TableColumn<CreativeRow>[] = $derived([
             <ul class="sanvi-ad-creatives__assets">
               {#each editorAssets as asset, index (asset.id)}
                 <li>
-                  <img src={asset.localUrl} alt="" />
+                  <img
+                    src={asset.localUrl}
+                    alt=""
+                    width={asset.metadata.width_px}
+                    height={asset.metadata.height_px}
+                  />
                   <Button variant="ghost" size="sm" onclick={() => removeAsset(index)}>
                     {t['admin.advertising.creatives.removeAssetAction']()}
                   </Button>

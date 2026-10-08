@@ -1,4 +1,5 @@
 <script lang="ts">
+import { Image } from '@sanvi/ui'
 import { t } from '@sanvi/i18n'
 import { resolveText, type LocalizedText } from '../utils'
 
@@ -36,7 +37,16 @@ const navLabel = $derived(
     <div class="sanvi-block-header__brand">
       {#if brandLogoUrl}
         <a href="/" class="sanvi-block-header__logo-link">
-          <img src={brandLogoUrl} alt={brand} class="sanvi-block-header__logo" />
+          <!-- Above the fold by definition, but small: eager without
+               fetchpriority — the hero/lcp image outranks it. -->
+          <Image
+            src={brandLogoUrl}
+            alt={brand}
+            width={120}
+            height={40}
+            loading="eager"
+            class="sanvi-block-header__logo"
+          />
         </a>
       {:else if brand}
         <a href="/" class="sanvi-block-header__brand-link">

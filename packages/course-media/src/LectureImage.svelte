@@ -77,7 +77,13 @@ onMount(() => {
 {#if lightboxOpen && src}
   <div class="lightbox" role="dialog" aria-modal="true" aria-label={alt || labels.imagePreview} tabindex="-1">
     <button class="close" type="button" on:click={closeLightbox}>{labels.close}</button>
-    <img {src} {alt} style={`transform: rotate(${rotation}deg)`} />
+    <img
+      {src}
+      {alt}
+      {width}
+      {height}
+      style={`transform: rotate(${rotation}deg)`}
+    />
   </div>
 {/if}
 

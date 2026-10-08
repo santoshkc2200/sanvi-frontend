@@ -1,5 +1,5 @@
 {
-  "_readme": "Per-app JS budgets, gzip KB (TASK-031). Seeded from the current build plus a small margin so the gate is meaningful immediately; TASK-022 tightens initial budgets to the architecture targets (storefront ≤ 100, admin ≤ 250) and becomes blocking there. `initialKb` counts SvelteKit entry+chunks; SPA builds have no initial convention yet, so their initial is reported but not enforced, and the per-route `routeKb` carries the budget. The SPA per-chunk `chunkKb` still caps every non-route chunk. TASK-032 re-lowered the SvelteKit initial budgets after sharding the i18n catalogs by surface: the storefront dropped 180 → 88 and marketing 150 → 50 (measured 86.1 / 48.2) because neither app ships admin/platform strings anymore. The SPA `initialKb` values are inert (unmeasured build shape) and stay as-is.",
+  "_readme": "Per-app JS budgets, gzip KB (TASK-031; every dimension blocking since TASK-022). `initialKb` counts SvelteKit entry+chunks; for the SPAs it is the Vite manifest entry's static import closure (what the script + modulepreload chain loads at boot) — measured 74.6 KB for admin and 40.9 KB for platform-admin in rc.3, budgeted with headroom inside the architecture's admin ≤ 250 target. The per-route `routeKb` and the SPA per-chunk `chunkKb` cap every other chunk. `fonts` budgets the Japanese preloaded subsets raw (woff2 is already compressed) as their own line — a single global font number would hide the one hard locale. TASK-032 had lowered storefront initial to 88 and marketing to 50 after sharding the i18n catalogs.",
   "apps": {
     "storefront": {
       "type": "sveltekit",
@@ -15,15 +15,74 @@
     },
     "admin": {
       "type": "spa",
-      "initialKb": 250,
+      "initialKb": 100,
       "chunkKb": 65,
       "routeKb": 16
     },
     "platform-admin": {
       "type": "spa",
-      "initialKb": 250,
+      "initialKb": 60,
       "chunkKb": 75,
       "routeKb": 9
+    }
+  },
+  "fonts": {
+    "storefront": {
+      "label": "ja preloaded subsets (kana + common kanji)",
+      "budgetKb": 100,
+      "files": [
+        "apps/storefront/static/fonts/noto-sans-jp-119-wght-normal.woff2",
+        "apps/storefront/static/fonts/noto-sans-jp-118-wght-normal.woff2"
+      ]
+    }
+  },
+  "lighthouse": {
+    "_readme": "TASK-022's blocking Lighthouse assertions: medians-of-3 on the pinned profile, asserted by check-lighthouse (calibrated against benchmarks/frontend/VARIANCE.md — median LCP ~6% noise, scores ±0.02). Millisecond caps carry host headroom above the local rc.4 measurement because devtools throttling multiplies HOST latency (benchmarkIndex records the class); the DoD's own ms evidence is the committed rc artifact compared same-host. Scores and CLS are dimensionless and asserted tightly. The SPAs assert no LCP/perf: the harness leaves their API origin unanswered, so those numbers measure the boot-error path — a harness artifact (rc.3's call-pattern audit, F10) — not the product; TBT/CLS/scores still gate them. SPA SEO is unasserted (0.45 is the known pre-prerender shell state).",
+    "storefront": {
+      "/": {
+        "lcpMs": 4000,
+        "tbtMs": 150,
+        "cls": 0.1,
+        "performance": 0.8,
+        "accessibility": 1,
+        "bestPractices": 1,
+        "seo": 0.9
+      },
+      "/ja/": {
+        "lcpMs": 4800,
+        "tbtMs": 150,
+        "cls": 0.1,
+        "performance": 0.7,
+        "accessibility": 1,
+        "bestPractices": 1,
+        "seo": 0.9
+      }
+    },
+    "marketing": {
+      "/": {
+        "lcpMs": 3200,
+        "tbtMs": 100,
+        "cls": 0.1,
+        "performance": 0.9,
+        "accessibility": 1,
+        "bestPractices": 1,
+        "seo": 0.9
+      },
+      "/ja/": {
+        "lcpMs": 3800,
+        "tbtMs": 100,
+        "cls": 0.1,
+        "performance": 0.8,
+        "accessibility": 1,
+        "bestPractices": 1,
+        "seo": 0.9
+      }
+    },
+    "admin": {
+      "/": { "tbtMs": 200, "cls": 0.1, "accessibility": 1, "bestPractices": 0.9 }
+    },
+    "platform-admin": {
+      "/": { "tbtMs": 200, "cls": 0.1, "accessibility": 1, "bestPractices": 0.9 }
     }
   }
 }

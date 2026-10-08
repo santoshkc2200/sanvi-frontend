@@ -1,4 +1,5 @@
 <script lang="ts">
+import { Image } from '@sanvi/ui'
 import { t } from '@sanvi/i18n'
 import { resolveText, type LocalizedText } from '../utils'
 
@@ -61,7 +62,14 @@ const colsClass = $derived(`sanvi-block-product-grid--cols-${columns}`)
             <a href={link} class="sanvi-block-product-grid__card-link">
               <div class="sanvi-block-product-grid__image-wrapper">
                 {#if product.imageUrl}
-                  <img src={product.imageUrl} alt={alt} class="sanvi-block-product-grid__image" />
+                  <!-- Square, matching the wrapper's enforced ratio -->
+                  <Image
+                    src={product.imageUrl}
+                    alt={alt}
+                    width={600}
+                    height={600}
+                    class="sanvi-block-product-grid__image"
+                  />
                 {:else}
                   <div class="sanvi-block-product-grid__placeholder" aria-hidden="true"></div>
                 {/if}

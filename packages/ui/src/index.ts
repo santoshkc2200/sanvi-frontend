@@ -92,6 +92,7 @@ export { default as EmptyState } from './EmptyState.svelte'
 export { default as ErrorView } from './ErrorView.svelte'
 export { default as ErrorDiagnostics } from './errors/ErrorDiagnostics.svelte'
 export { default as Field, type FieldControlProps } from './Field.svelte'
+export { default as Image } from './Image.svelte'
 export { default as FilterBar, type FilterFieldConfig } from './FilterBar.svelte'
 export {
   formatAdCurrency,
@@ -196,4 +197,6 @@ export {
   type SpacingScale,
   spacingVar,
 } from './tokens'
+// Intent-based prefetch primitives (TASK-022)
+export { type NetworkInformationLike, prefetchOnIntent, shouldPrefetch } from './prefetch'
 export { default as UsageMeter } from './UsageMeter.svelte'

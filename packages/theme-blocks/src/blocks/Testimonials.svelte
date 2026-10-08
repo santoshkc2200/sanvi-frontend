@@ -1,4 +1,5 @@
 <script lang="ts">
+import { Image } from '@sanvi/ui'
 import { resolveText, type LocalizedText } from '../utils'
 
 export interface TestimonialItem {
@@ -43,9 +44,11 @@ const subheadingText = $derived(resolveText(subheading))
             </blockquote>
             <figcaption class="sanvi-block-testimonials__author-info">
               {#if item.avatarUrl}
-                <img
+                <Image
                   src={item.avatarUrl}
                   alt={resolveText(item.author)}
+                  width={96}
+                  height={96}
                   class="sanvi-block-testimonials__avatar"
                 />
               {/if}

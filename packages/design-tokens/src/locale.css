@@ -15,11 +15,15 @@
  */
 
 /* [lang='ja'] deliberately ties `:root`'s specificity (0,1,0) and wins by
-   bundle order — a `:where()` wrapper (0,0,0) would lose to `:root` entirely. */
+   bundle order — a `:where()` wrapper (0,0,0) would lose to `:root` entirely.
+   TASK-022: the local faces ride behind the metric-compatible
+   "Noto Sans JP Fallback" @font-face (see `@sanvi/ui`'s reset.css), so the
+   fallback→web-font swap re-flows nothing. The *UI* Windows/macOS variants
+   are excluded from that face (proportional kana); they are excluded here
+   for the same reason. */
 [lang="ja"] {
   --sanvi-font-family-sans:
-    "Noto Sans JP Variable", "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Meiryo",
-    system-ui, sans-serif;
+    "Noto Sans JP Variable", "Noto Sans JP Fallback", system-ui, sans-serif;
   --sanvi-line-height-tight: 1.4;
   --sanvi-line-height-normal: 1.7;
   --sanvi-line-height-relaxed: 1.9;

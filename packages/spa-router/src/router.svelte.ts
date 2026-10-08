@@ -182,6 +182,34 @@ export class Router {
     this.navigate(href)
   }
 
+  /**
+   * The loader a path would navigate to, or `null` when no route matches —
+   * what intent-based prefetch (`@sanvi/ui`'s `prefetchOnIntent`) warms.
+   * Deliberately *not* guarded: guards run at navigation, never at prefetch,
+   * so an unauthorized hover warms a chunk it cannot render — a few KB of
+   * code, not a privilege check moved client-side.
+   */
+  loaderFor(pathname: string): RouteDefinition['load'] | null {
+    const pathSegments = splitPath(pathname)
+    const matched = this.#routes.find(
+      (route) => matchSegments(route.segments, pathSegments) !== null,
+    )
+    return matched?.load ?? null
+  }
+
+  /**
+   * Warm a path's route code for a likely navigation (TASK-022). The
+   * connection-class / Save-Data decision belongs to the caller's prefetch
+   * primitive (`@sanvi/ui`'s `shouldPrefetch`), so this method stays a pure
+   * "resolve and load" and the guard is testable against a fake connection.
+   */
+  prefetch(pathname: string): void {
+    this.loaderFor(pathname)?.().catch(() => {
+      // A failed warm is a navigation that will fail with a real error
+      // surface; prefetch must never raise on its own.
+    })
+  }
+
   #syncFromLocation(): void {
     const pathname = browserPathname()
     this.#pathname = pathname

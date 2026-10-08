@@ -8,12 +8,15 @@
  * with the profile block embedded, and prints a table plus the run-to-run
  * variance TASK-031's DoD requires recording.
  *
- * Reporting-only: nothing here fails a build. Assertions and a blocking gate
- * are TASK-022. Lighthouse is Chromium-only, so per the profiles file it runs
- * the SSR apps (storefront, marketing) in both locales via their `/{locale}`
- * URL prefixes, and the SPAs in the default locale only — their locale signal
- * is a cookie Lighthouse cannot set. The axe sweep covers both locales for
- * every app; this gap is recorded in the artifact, not papered over.
+ * TASK-022 made the default run **blocking**: medians are asserted against
+ * the caps in `scripts/budgets.json`'s `lighthouse` section (calibrated
+ * against `benchmarks/frontend/VARIANCE.md`; see {@linkcode assertLighthouseCaps}).
+ * `--report-only` collects and prints without asserting. Lighthouse is
+ * Chromium-only, so per the profiles file it runs the SSR apps (storefront,
+ * marketing) in both locales via their `/{locale}` URL prefixes, and the
+ * SPAs in the default locale only — their locale signal is a cookie
+ * Lighthouse cannot set. The axe sweep covers both locales for every app;
+ * this gap is recorded in the artifact, not papered over.
  *
  * Requires a build first (`pnpm build`): the harness serves build output, not
  * dev servers, because a number from a dev server is not a number about the product.
@@ -27,8 +30,7 @@ import { isMainEntryPoint } from '@sanvi/lint-gates/walk-files'
 import { startStorefrontMockApi } from './lib/serving.mjs'
 
 const ROOT = findWorkspaceRoot()
-const PROFILES = loadPerfProfiles({ root: ROOT })
-/** Mirrors `APPS` in `lighthouserc.cjs` — the runner needs URL lists the LHCI
+const PROFILES = loadPerfProfiles({ root: ROOT })/** Mirrors `APPS` in `lighthouserc.cjs` — the runner needs URL lists the LHCI
  * config doesn't hand back. Ports, server commands, and the Windows env-prefix
  * split-out (`APP_SERVER_ENV`) live only there. */
 const { APPS, APP_SERVER_ENV } = createRequire(import.meta.url)(join(ROOT, 'lighthouserc.cjs'))
@@ -293,13 +295,81 @@ function printLighthouseReport(artifact) {
   }
 }
 
+/**
+ * TASK-022's blocking assertions. Caps live in `scripts/budgets.json`'s
+ * `lighthouse` section, per app per URL: `lcpMs`/`tbtMs`/`cls` are
+ * lower-is-better maximums, `performance`/`seo`/`bestPractices`/
+ * `accessibility` are minimums (omit what you do not want asserted).
+ *
+ * Threshold calibration comes from `benchmarks/frontend/VARIANCE.md`:
+ * median LCP is stable to ~6 % and category scores to ±0.02 on a fixed
+ * build, so absolute caps on medians-of-3 are meaningful. Millisecond caps
+ * carry host headroom on top of the local measurement (devtools throttling
+ * multiplies *host* latency — `benchmarkIndex` records the class) — the
+ * DoD's own ≤ 2.0 s / ≤ 200 ms evidence is the committed rc artifact, not
+ * a CI runner. Scores and CLS are dimensionless and asserted tightly.
+ */
+const LOWER_IS_BETTER = new Set(['lcpMs', 'tbtMs', 'cls'])
+const HIGHER_IS_BETTER = new Set(['performance', 'seo', 'bestPractices', 'accessibility'])
+
+/**
+ * @param {object} artifact a collectLighthouse result
+ * @param {object} budgets the parsed budgets.json
+ * @returns {{ ok: boolean, failures: string[], checked: number }}
+ */
+export function assertLighthouseCaps(artifact, budgets) {
+  const caps = budgets.lighthouse ?? {}
+  const failures = []
+  let checked = 0
+  for (const [app, urls] of Object.entries(caps)) {
+    if (app.startsWith('_')) continue // `_readme` and friends — config, not an app
+    for (const [url, limits] of Object.entries(urls)) {
+      const summary = artifact.apps?.[app]?.[url]
+      if (!summary) {
+        failures.push(`${app}${url}: no Lighthouse result to assert against (was it collected?)`)
+        continue
+      }
+      for (const [metric, limit] of Object.entries(limits)) {
+        const value = summary[metric]
+        if (typeof value !== 'number' || typeof limit !== 'number') continue
+        checked += 1
+        if (LOWER_IS_BETTER.has(metric) && value > limit) {
+          failures.push(`${app}${url}.${metric}: ${value} > cap ${limit}`)
+        } else if (HIGHER_IS_BETTER.has(metric) && value < limit) {
+          failures.push(`${app}${url}.${metric}: ${value} < floor ${limit}`)
+        }
+      }
+    }
+  }
+  return { ok: failures.length === 0, failures, checked }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2))
   const artifact = await collectLighthouse({ apps: args.apps })
   writeFileSync(args.out, `${JSON.stringify(artifact, null, 2)}\n`)
   printLighthouseReport(artifact)
   console.log(`\nArtifact: ${args.out}`)
-  console.log('report-only — Lighthouse assertions are not blocking until TASK-022')
+
+  if (args.reportOnly) {
+    console.log('report-only — assertions skipped (TASK-022 made the default run blocking)')
+    return
+  }
+
+  const budgets = JSON.parse(readFileSync(join(ROOT, 'scripts', 'budgets.json'), 'utf8'))
+  const verdict = assertLighthouseCaps(artifact, budgets)
+  if (verdict.checked === 0) {
+    console.error('✗ check:lighthouse: no assertions configured in budgets.json lighthouse section')
+    process.exit(1)
+  }
+  if (!verdict.ok) {
+    console.error(`✗ ${verdict.failures.length} Lighthouse assertion(s) failed:`)
+    for (const failure of verdict.failures) {
+      console.error(`    ${failure}`)
+    }
+    process.exit(1)
+  }
+  console.log(`✓ ${verdict.checked} Lighthouse assertion(s) inside their caps`)
 }
 
 if (isMainEntryPoint(import.meta.url)) {

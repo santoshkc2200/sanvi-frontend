@@ -165,7 +165,17 @@ function nodeKey(node: UiNode): string {
       {:else if node.type === 'a' && node.attributes.href}
         <a class="sanvi-kratos-form__link" href={node.attributes.href}>{labelFor(node)}</a>
       {:else if node.type === 'img' && node.attributes.src}
-        <img class="sanvi-kratos-form__image" src={node.attributes.src} alt={labelFor(node)} />
+        <!-- Kratos only sometimes carries width/height on the node; the
+             square fallback reserves the CSS-sized box so the logo's late
+             arrival cannot shift the form (TASK-022 image contract). -->
+        <img
+          class="sanvi-kratos-form__image"
+          src={node.attributes.src}
+          alt={labelFor(node)}
+          width={node.attributes.width ?? 96}
+          height={node.attributes.height ?? 96}
+          loading="lazy"
+        />
       {/if}
     {/each}
   </Stack>

@@ -49,6 +49,9 @@ jobs:
       - name: check:boundaries
         run: pnpm check:boundaries
 
+      - name: check:images
+        run: pnpm check:images
+
       - name: check:csp
         run: pnpm check:csp
 
@@ -75,14 +78,15 @@ jobs:
           if-no-files-found: ignore
 
   benchmarks:
-    name: Perf & a11y harnesses (reporting-only)
+    name: Perf gates (budget + Lighthouse blocking since TASK-022; axe report-only until TASK-027)
     runs-on: ubuntu-latest
-    # TASK-031 constraint: nothing here blocks. The three harnesses run
-    # reporting-only until their baselines exist and TASK-022 (budgets,
-    # Lighthouse) / TASK-027 (axe) switch them to blocking. A failed or
-    # regressed report is still visible on the PR — the job fails, the PR
-    # still merges, which is the intended behaviour at this stage.
-    continue-on-error: true
+    # TASK-022 flipped the bundle and Lighthouse harnesses to blocking: the
+    # job fails the PR when a route fatten, an SPA-initial regression, a font
+    # preload growth, or a Lighthouse cap regression lands. TASK-031's
+    # baseline-first phase is over. The axe sweep stays reporting-only —
+    # its serious-findings gate switches on in TASK-027, and the 0→12
+    # "serious" move TASK-021 attributed to sweep timing on ssr=false routes
+    # is exactly the kind of artifact a premature gate would encode.
     steps:
       - uses: actions/checkout@v4
 
@@ -100,17 +104,36 @@ jobs:
         run: pnpm turbo run build
 
       # The pinned browser (scripts/perf-profiles.json pins Chrome; the
-      # harnesses refuse to run on a different version).
-      - name: Install pinned Chromium
-        run: pnpm exec playwright install --with-deps chromium
+      # harnesses refuse to run on a different version). The report-only era
+      # installed Playwright's chromium and the pin mismatch quietly killed
+      # the Lighthouse step behind continue-on-error; the blocking gate
+      # installs the exact pinned Chrome-for-Testing build instead. Playwright
+      # still supplies the system libraries headless Chrome needs.
+      - name: Install browser system dependencies
+        run: pnpm exec playwright install-deps chromium
 
-      - name: check:budget (report-only)
-        run: pnpm check:budget --report-only
+      - name: Install pinned Chrome-for-Testing
+        env:
+          CHROME_VERSION: '152.0.7977.8'
+        run: |
+          dir="$HOME/.cache/ms-playwright/chrome-for-testing-${CHROME_VERSION}"
+          mkdir -p "$dir"
+          curl -sSfL "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chrome-linux64.zip" -o /tmp/cft.zip
+          unzip -q /tmp/cft.zip -d "$dir"
+          echo "CHROME_PATH=$dir/chrome-linux64/chrome" >> "$GITHUB_ENV"
 
-      - name: check:lighthouse (report-only)
-        run: pnpm check:lighthouse --report-only
+      # The whole-workspace budget view, blocking: per-app initial + SPA
+      # manifest-closure initial + per-route + chunk caps + the Japanese
+      # font preload line (the app-level per-app slice already ran in ci).
+      - name: check:budget (workspace, blocking)
+        run: node packages/lint-gates/src/check-budget.mjs --all
 
-      - name: check:a11y (report-only)
+      # Medians-of-3 asserted against scripts/budgets.json's lighthouse caps
+      # (calibrated against benchmarks/frontend/VARIANCE.md).
+      - name: check:lighthouse (blocking)
+        run: pnpm check:lighthouse
+
+      - name: check:a11y (report-only until TASK-027)
         run: pnpm check:a11y --report-only
 
       - name: Upload harness artifacts

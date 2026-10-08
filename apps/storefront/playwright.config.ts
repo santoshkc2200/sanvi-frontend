@@ -55,5 +55,22 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
     { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } },
+    {
+      // TASK-022 "a throttled run of the critical journeys": the pinned
+      // midrange-android network shape (scripts/perf-profiles.json) applied
+      // via Playwright networkConditions, scoped to specs tagged
+      // `@slow-3g` so the rest of the suite stays unthrottled. The full
+      // slow-network/offline suite is TASK-023's.
+      name: 'slow-3g',
+      grep: /@slow-3g/,
+      use: {
+        ...devices['Pixel 7'],
+        networkConditions: {
+          download: 184_325, // 1474.6 Kbps
+          upload: 84_375, // 675 Kbps
+          latency: 562.5, // requestLatencyMs
+        },
+      },
+    },
   ],
 })

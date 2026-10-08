@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test'
 
-test('home page renders with no console errors', async ({ page }) => {
+/** Tagged for the slow-3g project (TASK-022): the critical journey must
+ * complete — render, no console errors — under the pinned throttled
+ * profile, not only on a fast connection. */
+test('home page renders with no console errors @slow-3g', async ({ page }) => {
   const consoleErrors: string[] = []
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text())

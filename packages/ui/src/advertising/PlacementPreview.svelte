@@ -1,5 +1,5 @@
 <script lang="ts">
-import { previewFrameAspectRatio } from './creative-spec'
+import { previewFrameAspectRatio, previewFrameDimensions } from './creative-spec'
 import type { AdAssetSpec } from '../forms/types'
 
 /**
@@ -61,6 +61,7 @@ const COPY = {
 }
 
 const frameAspectRatio = $derived(previewFrameAspectRatio(spec))
+const frameDimensions = $derived(previewFrameDimensions(spec) ?? { width: 100, height: 100 })
 const display = $derived({
   frameLabel: labels.frameLabel ?? `${placementLabel} ${COPY.frameLabel}`,
   noImageLabel: labels.noImageLabel ?? COPY.noImageLabel,
@@ -72,7 +73,15 @@ const lines = $derived(copyLines.filter((line) => line.trim() !== ''))
 <figure class="sanvi-ad-preview {className}" aria-label={display.frameLabel} data-placement={placementKey}>
   <div class="sanvi-ad-preview__frame" style:aspect-ratio={frameAspectRatio}>
     {#if imageUrl}
-      <img class="sanvi-ad-preview__image" src={imageUrl} alt={imageAlt} />
+      <img
+        class="sanvi-ad-preview__image"
+        src={imageUrl}
+        alt={imageAlt}
+        width={frameDimensions.width}
+        height={frameDimensions.height}
+        loading="lazy"
+        decoding="async"
+      />
     {:else}
       <div class="sanvi-ad-preview__no-image">{display.noImageLabel}</div>
     {/if}
