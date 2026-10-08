@@ -49,5 +49,6 @@
   "storefront.checkout.error.notFound": "Order not found",
   "storefront.checkout.error.notFoundBody": "We couldn't find the requested checkout session.",
   "storefront.checkout.canceled.title": "Payment canceled",
-  "storefront.checkout.notFound.title": "Order not found"
+  "storefront.checkout.notFound.title": "Order not found",
+  "storefront.home.metaDescription": "Browse products, check out securely, and manage your orders at {name}."
 }

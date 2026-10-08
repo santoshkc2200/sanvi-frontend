@@ -322,6 +322,7 @@ export function assertLighthouseCaps(artifact, budgets) {
   const failures = []
   let checked = 0
   for (const [app, urls] of Object.entries(caps)) {
+    if (app.startsWith('_')) continue // `_readme` and friends — config, not an app
     for (const [url, limits] of Object.entries(urls)) {
       const summary = artifact.apps?.[app]?.[url]
       if (!summary) {

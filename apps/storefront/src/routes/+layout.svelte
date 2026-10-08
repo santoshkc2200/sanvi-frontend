@@ -181,6 +181,11 @@ const saleShareNote = $derived(
 )
 
 const pageTitle = $derived(data.tenant?.display_name ?? t['storefront.home.fallbackTitle']())
+// TASK-022: the SEO audit's one storefront failure was the missing meta
+// description — tenant-named, localized, per page locale.
+const pageDescription = $derived(
+  t['storefront.home.metaDescription']({ name: data.tenant?.display_name ?? t['storefront.home.fallbackTitle']() }),
+)
 
 const layoutTree = $derived(
   renderLayout('storefront.home', {
@@ -199,6 +204,7 @@ const LOCALE_TO_SUBSET: Record<string, string> = {
 
 <svelte:head>
   <title>{pageTitle}</title>
+  <meta name="description" content={pageDescription} />
   <!-- eslint-disable-next-line svelte/no-at-html-tags -->
   {@html themeStyleTag(data.theme)}
   <link rel="canonical" href="{page.url.origin}{data.seo.canonicalPath}" />

@@ -35,5 +35,54 @@
         "apps/storefront/static/fonts/noto-sans-jp-118-wght-normal.woff2"
       ]
     }
+  },
+  "lighthouse": {
+    "_readme": "TASK-022's blocking Lighthouse assertions: medians-of-3 on the pinned profile, asserted by check-lighthouse (calibrated against benchmarks/frontend/VARIANCE.md — median LCP ~6% noise, scores ±0.02). Millisecond caps carry host headroom above the local rc.4 measurement because devtools throttling multiplies HOST latency (benchmarkIndex records the class); the DoD's own ms evidence is the committed rc artifact compared same-host. Scores and CLS are dimensionless and asserted tightly. The SPAs assert no LCP/perf: the harness leaves their API origin unanswered, so those numbers measure the boot-error path — a harness artifact (rc.3's call-pattern audit, F10) — not the product; TBT/CLS/scores still gate them. SPA SEO is unasserted (0.45 is the known pre-prerender shell state).",
+    "storefront": {
+      "/": {
+        "lcpMs": 4000,
+        "tbtMs": 150,
+        "cls": 0.1,
+        "performance": 0.8,
+        "accessibility": 1,
+        "bestPractices": 1,
+        "seo": 0.9
+      },
+      "/ja/": {
+        "lcpMs": 4800,
+        "tbtMs": 150,
+        "cls": 0.1,
+        "performance": 0.7,
+        "accessibility": 1,
+        "bestPractices": 1,
+        "seo": 0.9
+      }
+    },
+    "marketing": {
+      "/": {
+        "lcpMs": 3200,
+        "tbtMs": 100,
+        "cls": 0.1,
+        "performance": 0.9,
+        "accessibility": 1,
+        "bestPractices": 1,
+        "seo": 0.9
+      },
+      "/ja/": {
+        "lcpMs": 3800,
+        "tbtMs": 100,
+        "cls": 0.1,
+        "performance": 0.8,
+        "accessibility": 1,
+        "bestPractices": 1,
+        "seo": 0.9
+      }
+    },
+    "admin": {
+      "/": { "tbtMs": 200, "cls": 0.1, "accessibility": 1, "bestPractices": 0.9 }
+    },
+    "platform-admin": {
+      "/": { "tbtMs": 200, "cls": 0.1, "accessibility": 1, "bestPractices": 0.9 }
+    }
   }
 }
