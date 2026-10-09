@@ -13,9 +13,12 @@ let { variant = 'info', title, class: className = '', children }: Props = $props
 // Warning/error interrupt (assertive); info/success just report (polite) —
 // matches the urgency a screen reader user actually needs.
 const role = $derived(variant === 'error' || variant === 'warning' ? 'alert' : 'status')
+// Only an *error* alert is a terminal async state (TASK-023's marker
+// contract); a warning is a condition, not a failure.
+const asyncState = $derived(variant === 'error' ? 'error' : undefined)
 </script>
 
-<div class="sanvi-alert sanvi-alert--{variant} {className}" {role}>
+<div class="sanvi-alert sanvi-alert--{variant} {className}" {role} data-async-state={asyncState}>
   {#if title}
     <p class="sanvi-alert__title">{title}</p>
   {/if}

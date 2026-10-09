@@ -13,6 +13,7 @@ let { size = 'md', label }: Props = $props()
   role={label ? 'status' : undefined}
   aria-label={label}
   aria-hidden={label ? undefined : 'true'}
+  data-async-state="loading"
 >
   {#if label}<span class="sanvi-visually-hidden">{label}</span>{/if}
 </span>

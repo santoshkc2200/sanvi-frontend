@@ -12,7 +12,7 @@ interface Props {
 let { title, description, icon, action, class: className = '' }: Props = $props()
 </script>
 
-<div class="sanvi-empty-state {className}">
+<div class="sanvi-empty-state {className}" data-async-state="empty">
   {#if icon}
     <div class="sanvi-empty-state__icon" aria-hidden="true">
       {@render icon()}
