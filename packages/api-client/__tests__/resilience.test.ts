@@ -247,3 +247,38 @@ describe('idempotency-aware retry (TASK-023 step 6)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('onResponseMeta is per-call (TASK-023 review finding 4)', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('does not coalesce a GET that carries onResponseMeta — each callback fires', async () => {
+    // A fresh Response per call — real fetches never hand one body to two
+    // callers.
+    fetchMock.mockImplementation(() =>
+      jsonResponse({}, { headers: { [DEGRADED_RESPONSE_HEADER]: 'scope-a' } }),
+    )
+    const client = createApiClient({ baseUrl: 'https://api.example.com' })
+    const first: unknown[] = []
+    const second: unknown[] = []
+
+    await Promise.all([
+      client.get('/v1/metrics', { onResponseMeta: (m) => first.push(m) }),
+      client.get('/v1/metrics', { onResponseMeta: (m) => second.push(m) }),
+    ])
+
+    // A shared request would fire only the first caller's callback — the
+    // per-call contract (and the degraded signal it carries) would be lost.
+    expect(first).toHaveLength(1)
+    expect(second).toHaveLength(1)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+})

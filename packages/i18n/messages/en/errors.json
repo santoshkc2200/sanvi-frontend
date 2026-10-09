@@ -12,5 +12,6 @@
   "errors.failure.network": "We couldn't reach the service. Check your connection and try again.",
   "errors.failure.timeout": "This took too long and was stopped before it could finish. Nothing was applied twice — try again.",
   "errors.outage.title": "Sanvi is having a problem right now",
-  "errors.outage.description": "We're working on it. Your data is safe — try again in a few minutes."
+  "errors.outage.description": "We're working on it. Your data is safe — try again in a few minutes.",
+  "errors.failure.client": "That request was rejected — check the link and try again, or contact support."
 }

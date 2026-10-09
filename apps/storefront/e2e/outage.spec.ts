@@ -96,28 +96,30 @@ test.describe('stale content — cached tenant says what is stale', () => {
     request,
     page,
   }) => {
-    // Ensure the tenant cache has an entry (other specs share this server
-    // process's cache, so it may already be warm — either way this visit
-    // leaves a resolution in it).
-    await page.goto('http://localhost:4174/', { waitUntil: 'load' })
+    // A dedicated host (review finding 5): flipping `localhost:4174` under a
+    // fullyParallel suite would 503 every other spec's tenant resolution for
+    // the flip window, and a neighbour's healthy fetch could refresh the
+    // entry out from under this assertion. Nothing else visits this host.
+    const HOST = 'stale.localhost:4174'
+
+    // Warm the tenant cache through a normal visit.
+    await page.goto(`http://${HOST}/`, { waitUntil: 'load' })
 
     // Kill the backend for this host only, then wait out the (e2e-shortened)
     // fresh window so the next resolution takes the stale-while-revalidate
     // path.
-    const flipped = await request.patch(
-      'http://localhost:8090/__mock/outage?host=localhost:4174&mode=503',
-    )
+    const flipped = await request.patch(`http://localhost:8090/__mock/outage?host=${HOST}&mode=503`)
     expect(flipped.ok()).toBeTruthy()
     try {
       await page.waitForTimeout(2_500)
-      await page.goto('http://localhost:4174/', { waitUntil: 'load' })
+      await page.goto(`http://${HOST}/`, { waitUntil: 'load' })
 
       // Cached content still renders (the shell is up) and *says* it is stale.
       await expect(page.locator('[data-degraded="stale"]')).toBeVisible({ timeout: 15_000 })
       await expect(page.getByText('Some content may be out of date')).toBeVisible()
-      await expect(page.getByText('Default Tenant')).toBeVisible()
+      await expect(page.getByText('Stale Content Tenant')).toBeVisible()
     } finally {
-      await request.patch('http://localhost:8090/__mock/outage?host=localhost:4174&mode=off')
+      await request.patch(`http://localhost:8090/__mock/outage?host=${HOST}&mode=off`)
     }
   })
 })

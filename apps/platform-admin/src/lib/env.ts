@@ -18,8 +18,11 @@ export function getAppEnv(): AppEnv {
   }
 
   const apiTimeoutRaw = import.meta.env['VITE_API_TIMEOUT_MS'] as string | undefined
+  const apiTimeoutParsed = apiTimeoutRaw ? Number(apiTimeoutRaw) : Number.NaN
+  // Mirrors the storefront's normalizeMs: `0` would abort every request
+  // instantly, so only a positive finite number is an override.
   const apiTimeoutMs =
-    apiTimeoutRaw && Number.isFinite(Number(apiTimeoutRaw)) ? Number(apiTimeoutRaw) : undefined
+    Number.isFinite(apiTimeoutParsed) && apiTimeoutParsed > 0 ? apiTimeoutParsed : undefined
 
   return {
     apiOrigin,

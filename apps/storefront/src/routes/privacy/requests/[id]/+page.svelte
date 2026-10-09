@@ -1,7 +1,14 @@
 <script lang="ts">
-import { t, type MessageKey } from '@sanvi/i18n'
+import { t } from '@sanvi/i18n'
+import { failureMessageKey } from '$lib/failure-copy'
 import { Alert, Badge, Container, EmptyState, Spinner, Stack } from '@sanvi/ui'
-import { failureKindOf, ApiError, getDsrStatus, exportDownloadUrl } from '@sanvi/api-client'
+import {
+  failureKindOf,
+  ApiError,
+  getDsrStatus,
+  exportDownloadUrl,
+  type FailureKind,
+} from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import { apiClient } from '$lib/auth'
 import { getAppEnv } from '$lib/env'
@@ -119,7 +126,7 @@ const steps = $derived.by(() => {
     {#if loading}
       <Spinner label={COPY.loadTitle} />
     {:else if failure}
-      <Alert variant="error" title={t[`errors.failure.${failure.kind}` as MessageKey]()}>
+      <Alert variant="error" title={t[failureMessageKey(failure.kind as FailureKind)]()}>
         <Stack>
           {#if failureTraceLine}
             <span>{failureTraceLine}</span>

@@ -50,6 +50,7 @@ import {
   StackedBarChart,
   StatCard,
   UpgradePrompt,
+  StaleContentBanner,
 } from '@sanvi/ui'
 import {
   capStatusFor,
@@ -120,6 +121,10 @@ let summaryCurrent = $state<MetricsSummaryRow[]>([])
 let summaryCompared = $state<MetricsSummaryRow[] | undefined>(undefined)
 let metricRows = $state<MetricPoint[]>([])
 let hasMetrics = $state(false)
+// TASK-023 (FR-1111): the backend answered metrics from a degraded fallback
+// (`x-sanvi-degraded`) — the banner above the charts names it; the figures
+// still render, labelled.
+let metricsDegraded = $state(false)
 
 let preset = $state<RangePreset | 'custom'>('30d')
 let customFrom = $state('')
@@ -228,14 +233,30 @@ async function load(): Promise<void> {
 /** Metrics only — applying a new range refetches these, not the connections. */
 async function loadMetrics(seq: number): Promise<void> {
   rangeError = undefined
+  // A clean response clears the flag; any degraded scope in a settled
+  // response sets it — per-call callbacks, so the attribution is exact.
+  metricsDegraded = false
+  const onMetricsMeta = (meta: { degradedScopes: string[] }): void => {
+    if (meta.degradedScopes.length > 0) metricsDegraded = true
+  }
   const compareFrom = previousRange(activeRange)
   const [summaryResult, rowsResult] = await Promise.allSettled([
-    getAdMetricsSummary(apiClient, {
-      from: activeRange.from,
-      to: activeRange.to,
-      compareTo: compareFrom.from,
-    }),
-    getAdMetrics(apiClient, { from: activeRange.from, to: activeRange.to, groupBy: 'campaign' }),
+    getAdMetricsSummary(
+      apiClient,
+      {
+        from: activeRange.from,
+        to: activeRange.to,
+        compareTo: compareFrom.from,
+      },
+      undefined,
+      onMetricsMeta,
+    ),
+    getAdMetrics(
+      apiClient,
+      { from: activeRange.from, to: activeRange.to, groupBy: 'campaign' },
+      undefined,
+      onMetricsMeta,
+    ),
   ])
   if (seq !== loadSeq) return
 
@@ -751,6 +772,15 @@ function capPeriodLabel(item: SpendStatusItem): string {
 
       {#if rangeError}
         <Alert variant="warning">{rangeError}</Alert>
+      {/if}
+
+      {#if metricsDegraded}
+        <!-- TASK-023: degraded responses are surfaced as degraded — the
+             figures still render, but never as if they were normal. -->
+        <StaleContentBanner
+          title={t['admin.advertising.dashboard.degradedTitle']()}
+          description={t['admin.advertising.dashboard.degradedBody']()}
+        />
       {/if}
 
       <Stack gap="2">

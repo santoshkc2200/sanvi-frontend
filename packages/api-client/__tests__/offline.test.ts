@@ -159,3 +159,20 @@ describe('OfflineActionQueue', () => {
     expect(queue.pending).toHaveLength(0)
   })
 })
+
+describe('OfflineActionQueue hydration (TASK-023 review finding 6)', () => {
+  it('re-enforces the idempotency gate on persisted entries — a tampered payload cannot smuggle in a double-executable mutation', () => {
+    const storage = fakeStorage()
+    storage.setItem(
+      'sanvi:offline-queue',
+      JSON.stringify([
+        { id: 'ok', method: 'POST', path: '/v1/a', idempotencyKey: 'k1' },
+        { id: 'smuggled', method: 'POST', path: '/v1/b' },
+        { id: 'bad-method', method: 'PATCH', path: '/v1/c' },
+        { id: 'bogus', method: 'BREW', path: '/v1/d' },
+      ]),
+    )
+    const queue = new OfflineActionQueue({ client: { request: vi.fn() }, storage })
+    expect(queue.pending.map((a) => a.id)).toEqual(['ok'])
+  })
+})

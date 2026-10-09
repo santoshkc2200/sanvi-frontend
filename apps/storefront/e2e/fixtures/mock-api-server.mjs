@@ -97,6 +97,18 @@ const TENANTS = {
     resolution_source: 'subdomain',
   },
 
+  // TASK-023: the stale-content spec's host — a normal active tenant whose
+  // backend the spec flips away *by host*, so no other spec's traffic (all
+  // on localhost:4174) is ever affected by the outage override.
+  'stale.localhost:4174': {
+    tenant_id: '88888888-8888-8888-8888-888888888888',
+    slug: 'stale-co',
+    display_name: 'Stale Content Tenant',
+    status: 'active',
+    region: 'us',
+    default_locale: 'en',
+    resolution_source: 'subdomain',
+  },
   // TASK-020: the trace-id spec's host. Same shape as any active tenant;
   // the only difference is the metrics endpoint below failing with the
   // backend's problem-details conventions (trace_id + traceparent header).

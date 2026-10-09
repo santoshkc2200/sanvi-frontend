@@ -5,13 +5,21 @@ import type { RequestOptions } from './client'
  * Offline detection and the safe-action queue (TASK-023 step 7, FR-1112).
  *
  * The one rule that shapes this module: **nothing is queued that could
- * execute twice.** "Safe to defer" is a narrower set than it looks — a queued
- * action is a *resend that will happen after the user stopped looking at it*,
- * so it is only queueable when the backend can answer the resend with the
- * original result instead of applying it again. Concretely: a mutation needs
- * an `Idempotency-Key`, or it is not queueable and the honest answer is to
- * say so (the caller shows "this needs a connection" instead of pretending
- * it will happen later).
+ * execute twice.** Within a tab that is enforced structurally (dedupe by
+ * id, serialized flush, idempotency-key gate). Across tabs it is NOT: two
+ * tabs hydrating the same persisted queue can both flush. For POST/PATCH
+ * the idempotency key still makes the backend apply it once; for
+ * PUT/DELETE a cross-tab double-send re-executes. If an app ever adopts the
+ * queue for key-less methods, cross-tab coordination (a storage-event lock)
+ * is the missing piece — recorded here where the guarantee is written.
+ *
+ * "Safe to defer" is a narrower set than it looks — a queued action is a
+ * *resend that will happen after the user stopped looking at it*, so it is
+ * only queueable when the backend can answer the resend with the original
+ * result instead of applying it again. Concretely: a mutation needs an
+ * `Idempotency-Key`, or it is not queueable and the honest answer is to say
+ * so (the caller shows "this needs a connection" instead of pretending it
+ * will happen later).
  */
 
 /** One deferrable action, expressed as a wire request — never a closure, so the queue survives a reload. */
@@ -56,6 +64,7 @@ export interface OfflineActionQueueOptions {
 }
 
 const METHODS_NEEDING_KEY = new Set(['POST', 'PATCH'])
+const ENQUEUEABLE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const DEFAULT_STORAGE_KEY = 'sanvi:offline-queue'
 
 /**
@@ -91,6 +100,12 @@ export function watchOnline(handlers: {
 }
 
 export class OfflineActionQueue {
+  /** The one enqueue rule, shared by `enqueue` and `#hydrate` (review finding 6). */
+  static isEnqueueable(action: QueuedAction): boolean {
+    if (!ENQUEUEABLE_METHODS.has(action.method)) return false
+    return !(METHODS_NEEDING_KEY.has(action.method) && action.idempotencyKey === undefined)
+  }
+
   #client: OfflineActionQueueOptions['client']
   #storage: OfflineActionQueueOptions['storage']
   #storageKey: string
@@ -114,7 +129,7 @@ export class OfflineActionQueue {
    * hope. A duplicate action id is a no-op returning `duplicate`.
    */
   enqueue(action: QueuedAction): SafeActionEnqueueResult {
-    if (METHODS_NEEDING_KEY.has(action.method) && action.idempotencyKey === undefined) {
+    if (!OfflineActionQueue.isEnqueueable(action)) {
       return { accepted: false, reason: 'not-idempotent' }
     }
     if (this.#pending.has(action.id)) return { accepted: false, reason: 'duplicate' }
@@ -202,8 +217,12 @@ export class OfflineActionQueue {
         if (
           typeof action?.id === 'string' &&
           typeof action?.method === 'string' &&
-          typeof action?.path === 'string'
+          typeof action?.path === 'string' &&
+          OfflineActionQueue.isEnqueueable(action)
         ) {
+          // The enqueue invariant is re-enforced on hydration (TASK-023
+          // review): a tampered or stale payload cannot smuggle in a
+          // mutation that could execute twice.
           this.#pending.set(action.id, action)
         }
       }

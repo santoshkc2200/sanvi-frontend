@@ -469,8 +469,15 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
 
   async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
     const method = options.method ?? 'GET'
+    // `onResponseMeta` is excluded too (TASK-023 review): a coalesced hit
+    // returns the *first* caller's promise, so a sharer's callback would
+    // never fire — the per-call contract, and the degraded signal it
+    // carries, would be silently dropped.
     const canShare =
-      method === 'GET' && options.signal === undefined && options.headers === undefined
+      method === 'GET' &&
+      options.signal === undefined &&
+      options.headers === undefined &&
+      options.onResponseMeta === undefined
     if (!canShare) return requestWithRetries<T>(path, options)
 
     // Two GETs may share a response only when everything that shapes it

@@ -1733,5 +1733,7 @@
   "admin.advertising.audiences.neverSynced": "Never",
   "admin.app.panelErrorTitle": "This panel failed to render",
   "admin.app.panelErrorDescription": "The rest of the console is unaffected. Retry this panel — if it keeps failing, copy the diagnostics for support.",
-  "admin.settingsSecurity.loadError": "Could not load your security settings."
+  "admin.settingsSecurity.loadError": "Could not load your security settings.",
+  "admin.advertising.dashboard.degradedTitle": "Some advertising metrics may be out of date",
+  "admin.advertising.dashboard.degradedBody": "The platform answered from a fallback while it recovers. Treat the figures below as indicative — they will refresh automatically on the next load."
 }

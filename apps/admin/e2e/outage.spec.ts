@@ -10,12 +10,16 @@ import { mockBackend } from './mock-backend'
  * `503` (`platform/overloaded` + `Retry-After`), and a hang that only the
  * client timeout can end.
  *
- * The designed bar (FR-1111): boot either succeeds or renders the boot
- * failure screen; every route then renders a *terminal* state — the
- * router-level `ErrorView` (retry + trace id + diagnostics), a panel error
- * `Alert`, a labelled empty state, or the page's own content — and no
- * `[data-async-state="loading"]` marker survives the bound. The outage must
- * never blank the shell: navigation stays, the app survives.
+ * The designed bar (FR-1111), and exactly what this spec asserts: boot
+ * either succeeds or renders the boot failure screen; no
+ * `[data-async-state="loading"]` marker survives the bound on any route
+ * (nothing spins forever — NFR-1105's assertable core); the shell never
+ * blanks — navigation stays, the app survives. Routes whose outage answer
+ * is a failure surface show their terminal marker; routes whose outage
+ * answer is legitimate *content* (data loaded before the outage, static
+ * pages, forms degrading their secondary lists) count as terminal by that
+ * content — an outage may not spin, but a page that honestly renders is not
+ * a failure.
  *
  * Chromium-only: the harness's pinned browser.
  */
@@ -71,8 +75,9 @@ function probePath(route: string): string {
 
 /**
  * The bound a route needs to reach a *terminal* state. Everything settles in
- * seconds: mocked failures answer instantly and the client timeout (1.5 s in
- * this build) ends every hang. `/activating` is the deliberate exception —
+ * seconds: mocked failures answer instantly and the client timeout (4 s in
+ * this build; a hung GET runs its ≈13 s three-attempt ladder) ends every
+ * hang. `/activating` is the deliberate exception —
  * its designed behavior is a bounded poll (20 attempts, progressive backoff)
  * that only then reaches its `timeout` terminal state, so it gets a bound
  * above that poll instead of a free pass.

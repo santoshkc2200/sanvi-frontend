@@ -12,5 +12,6 @@
   "errors.failure.network": "サービスに接続できませんでした。接続を確認して、もう一度お試しください。",
   "errors.failure.timeout": "時間内に処理が完了しないため、中止しました。操作が二重に適用されることはありません。もう一度お試しください。",
   "errors.outage.title": "Sanvi は現在問題が発生しています",
-  "errors.outage.description": "対応中です。データは安全です。数分後にもう一度お試しください。"
+  "errors.outage.description": "対応中です。データは安全です。数分後にもう一度お試しください。",
+  "errors.failure.client": "リクエストが拒否されました。リンクを確認してもう一度お試しいただくか、サポートにお問い合わせください。"
 }

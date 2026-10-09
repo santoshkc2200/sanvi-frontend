@@ -37,8 +37,8 @@ import { getAvailableLocales } from '$lib/locales.server'
  * defaults are the product decision.
  */
 const tenantHostCache = new TenantHostCache({
-  freshMs: normalizeMs(process.env.TENANT_CACHE_FRESH_MS),
-  staleMs: normalizeMs(process.env.TENANT_CACHE_STALE_MS),
+  freshMs: normalizeMs(process.env['TENANT_CACHE_FRESH_MS']),
+  staleMs: normalizeMs(process.env['TENANT_CACHE_STALE_MS']),
 })
 
 function normalizeMs(value: string | undefined): number | undefined {

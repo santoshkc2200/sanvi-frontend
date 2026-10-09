@@ -1733,5 +1733,7 @@
   "admin.advertising.audiences.neverSynced": "未同期",
   "admin.app.panelErrorTitle": "このパネルの表示に失敗しました",
   "admin.app.panelErrorDescription": "コンソールの他の部分は影響を受けません。このパネルを再試行してください。繰り返し失敗する場合は、診断情報をコピーしてサポートにお問い合わせください。",
-  "admin.settingsSecurity.loadError": "セキュリティ設定を読み込めませんでした。"
+  "admin.settingsSecurity.loadError": "セキュリティ設定を読み込めませんでした。",
+  "admin.advertising.dashboard.degradedTitle": "一部の広告指標が古い可能性があります",
+  "admin.advertising.dashboard.degradedBody": "プラットフォームが復旧までの暫定データを返しています。下記の数値は目安としてご覧ください。次回の読み込み時に自動的に更新されます。"
 }
