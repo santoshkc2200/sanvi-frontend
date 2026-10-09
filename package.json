@@ -2,7 +2,7 @@
   "name": "sanvi-frontend",
   "version": "0.1.0",
   "private": true,
-  "description": "Sanvi frontend monorepo — SvelteKit storefront/marketing, Svelte admin SPAs, shared packages.",
+  "description": "Sanvi frontend monorepo \u2014 SvelteKit storefront/marketing, Svelte admin SPAs, shared packages.",
   "type": "module",
   "engines": {
     "node": ">=20.9.0",
@@ -32,8 +32,8 @@
     "check:connect-bundle": "node scripts/assert-connect-js-bundle.mjs",
     "check:secrets": "node scripts/check-no-secret-keys-in-bundle.mjs",
     "check:sourcemaps-not-served": "node scripts/check-sourcemaps-not-served.mjs",
-    "check:all": "pnpm lint && turbo run typecheck test build check:i18n check:tokens check:budget i18n:check && pnpm check:boundaries && pnpm check:images && pnpm check:connect-bundle && pnpm check:sourcemaps-not-served && pnpm check:csp && pnpm check:storage-surface && pnpm check:runtime-code-sources && pnpm check:i18n-shards && pnpm check:secrets && node packages/lint-gates/src/check-budget.mjs --all",
-    "check:quiet": "pnpm lint && turbo run typecheck test build check:i18n check:tokens check:budget i18n:check --output-logs=errors-only && pnpm check:boundaries && pnpm check:images && pnpm check:connect-bundle && pnpm check:sourcemaps-not-served && pnpm check:csp && pnpm check:storage-surface && pnpm check:runtime-code-sources && pnpm check:i18n-shards && pnpm check:secrets && node packages/lint-gates/src/check-budget.mjs --all",
+    "check:all": "pnpm lint && turbo run typecheck test build check:i18n check:tokens check:budget i18n:check && pnpm check:boundaries && pnpm check:images && pnpm check:connect-bundle && pnpm check:sourcemaps-not-served && pnpm check:csp && pnpm check:storage-surface && pnpm check:runtime-code-sources && pnpm check:i18n-shards && pnpm check:secrets && pnpm check:async-audit && node packages/lint-gates/src/check-budget.mjs --all",
+    "check:quiet": "pnpm lint && turbo run typecheck test build check:i18n check:tokens check:budget i18n:check --output-logs=errors-only && pnpm check:boundaries && pnpm check:images && pnpm check:connect-bundle && pnpm check:sourcemaps-not-served && pnpm check:csp && pnpm check:storage-surface && pnpm check:runtime-code-sources && pnpm check:i18n-shards && pnpm check:secrets && pnpm check:async-audit && node packages/lint-gates/src/check-budget.mjs --all",
     "generate:api": "node scripts/generate-openapi.mjs",
     "clean": "turbo run clean && rimraf node_modules",
     "prepare": "husky",
@@ -41,7 +41,8 @@
     "check:storage-surface": "node packages/lint-gates/src/check-storage-surface.mjs .",
     "check:runtime-code-sources": "node packages/lint-gates/src/check-runtime-code-sources.mjs .",
     "check:i18n-shards": "node scripts/check-i18n-shards.mjs",
-    "i18n:check": "pnpm --filter @sanvi/i18n run i18n:check"
+    "i18n:check": "pnpm --filter @sanvi/i18n run i18n:check",
+    "check:async-audit": "node scripts/check-async-audit.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
