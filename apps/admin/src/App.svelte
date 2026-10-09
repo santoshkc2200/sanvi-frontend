@@ -24,6 +24,7 @@ import {
 } from '@sanvi/tenant'
 import {
   AppShell,
+  AsyncBoundary,
   Cluster,
   ErrorView,
   LocaleSwitcher,
@@ -367,6 +368,13 @@ $effect(() => {
   if (pattern) recordDiagnosticBreadcrumb('navigation', pattern)
 })
 
+// A navigation gives the panel boundary a clean slate — the previous page's
+// crash is not this page's failure.
+$effect(() => {
+  void router.pattern
+  panelError = null
+})
+
 // Tenant data cached under the previous tenant's id must never render while
 // the switcher shows the new tenant — clearing on every switch is the
 // enforcement, not a "remember to invalidate the right tags" convention.
@@ -484,6 +492,26 @@ const routeErrorDiagnostics = $derived(
         tenantId: getActiveTenantId() ?? null,
         locale: currentLocale(),
         traceId: routeErrorTraceId,
+        breadcrumbs: recentBreadcrumbs(),
+      })
+    : undefined,
+)
+
+// TASK-023 step 3: the panel boundary's own correlation. A crash *inside* a
+// rendered page never reaches `router.error` — the boundary reports it here,
+// and the failed view shows the same recovery action and trace id any other
+// error screen does. Cleared when the route changes so a stale panel error
+// can't tint the next page's boundary.
+let panelError = $state<unknown>(null)
+const panelTraceId = $derived(errorTraceId(panelError) ?? apiClient.getLastTraceId())
+const panelDiagnostics = $derived(
+  panelTraceId
+    ? buildDiagnosticsPaste({
+        release: __APP_BUILD__,
+        route: router.pattern ?? '',
+        tenantId: getActiveTenantId() ?? null,
+        locale: currentLocale(),
+        traceId: panelTraceId,
         breadcrumbs: recentBreadcrumbs(),
       })
     : undefined,
@@ -641,7 +669,21 @@ function retry(): void {
     {:else if router.component}
       {@const Page = router.component}
       {#key Page}
-        <Page {...router.params} />
+        <AsyncBoundary
+          title={t['admin.app.panelErrorTitle']()}
+          description={t['admin.app.panelErrorDescription']()}
+          retryLabel={t['common.retry']()}
+          onRetry={() => retry()}
+          onError={(error) => {
+            panelError = error
+          }}
+          traceLine={panelTraceId ? t['errors.traceId']({ id: panelTraceId }) : undefined}
+          diagnosticsText={panelDiagnostics}
+          copyLabel={t['errors.diagnostics.copy']()}
+          copiedLabel={t['errors.diagnostics.copied']()}
+        >
+          <Page {...router.params} />
+        </AsyncBoundary>
       {/key}
     {:else if router.loading}
       <Spinner label={t['admin.app.loading']()} />

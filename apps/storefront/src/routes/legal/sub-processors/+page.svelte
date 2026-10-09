@@ -1,7 +1,9 @@
 <script lang="ts">
-import { t } from '@sanvi/i18n'
-import { Container, EmptyState, Stack, Table, type TableColumn } from '@sanvi/ui'
+import { buildDiagnosticsPaste, recentBreadcrumbs } from '@sanvi/telemetry/diagnostics'
+import { currentLocale, t } from '@sanvi/i18n'
+import { Container, EmptyState, ErrorDiagnostics, Stack, Table, type TableColumn } from '@sanvi/ui'
 import type { components } from '@sanvi/api-client'
+import { page } from '$app/state'
 import type { PageData } from './$types'
 
 /**
@@ -32,6 +34,22 @@ const columns: TableColumn<SubProcessor>[] = $derived([
   { key: 'location', header: COPY.locationColumn },
   { key: 'purpose', header: COPY.purposeColumn },
 ])
+
+// The unavailable state carries its correlation (FR-1106), same as
+// request-metrics: the server-side trace id, extended with the client-side
+// breadcrumbs for the one-paste support action.
+const diagnosticsText = $derived(
+  data.traceId
+    ? buildDiagnosticsPaste({
+        release: __APP_BUILD__,
+        route: page.route.id ?? '',
+        tenantId: null,
+        locale: currentLocale(),
+        traceId: data.traceId,
+        breadcrumbs: recentBreadcrumbs(),
+      })
+    : undefined,
+)
 </script>
 
 <svelte:head><title>{COPY.title}</title></svelte:head>
@@ -43,6 +61,12 @@ const columns: TableColumn<SubProcessor>[] = $derived([
 
     {#if data.subprocessors === null}
       <EmptyState title={COPY.unavailableTitle} description={COPY.unavailableBody} />
+      <ErrorDiagnostics
+        traceLine={data.traceId ? t['errors.traceId']({ id: data.traceId }) : undefined}
+        {diagnosticsText}
+        copyLabel={t['errors.diagnostics.copy']()}
+        copiedLabel={t['errors.diagnostics.copied']()}
+      />
     {:else}
       <Table rows={active} getRowId={(row) => row.name} caption={COPY.title} {columns} />
     {/if}

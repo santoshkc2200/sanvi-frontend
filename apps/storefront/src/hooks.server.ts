@@ -77,11 +77,22 @@ async function tenantAndSessionLegs(event: Parameters<Handle>[0]['event']): Prom
   const { apiOrigin } = getAppEnv()
 
   const [resolution] = await Promise.all([
-    resolveTenantForHost(tenantHostCache, { apiOrigin, host }),
+    // TASK-023: a tenant-resolution failure with no cache to fall back on
+    // (cold cache, backend down) no longer 500s the whole storefront — it
+    // degrades to `backend-unavailable`, and the root layout renders the
+    // designed outage view. When the cache *can* answer (the SWR window),
+    // resolution succeeds and rides a `stale` flag the layout turns into the
+    // stale-content banner: cached content, honestly labelled.
+    resolveTenantForHost(tenantHostCache, { apiOrigin, host }).catch(() => {
+      // `unknown-host` resolves rather than throwing; everything that lands
+      // here is a resolution *failure* — cold cache, backend down.
+      return { status: 'backend-unavailable' as const, tenant: null, stale: false }
+    }),
     sessionLeg(event),
   ])
   event.locals.tenant = resolution.tenant
   event.locals.tenantResolution = resolution.status
+  event.locals.tenantStale = resolution.stale ?? false
 }
 
 /**

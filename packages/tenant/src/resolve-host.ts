@@ -5,6 +5,13 @@ import type { TenantContext } from './types'
 export interface TenantResolution {
   status: 'ok' | 'unknown-host'
   tenant: TenantContext | null
+  /**
+   * Set when this resolution came from the stale half of the
+   * stale-while-revalidate window (TASK-023): the answer may be out of date,
+   * and the storefront renders a stale-content banner when it is. Absent on
+   * a fresh or network-fetched resolution.
+   */
+  stale?: boolean
 }
 
 export class TenantResolutionError extends Error {
@@ -146,7 +153,10 @@ export class TenantHostCache {
             entry.revalidating = false
           })
       }
-      return entry.resolution
+      // The stale flag rides the *returned* resolution, not the cached entry:
+      // the entry stays byte-identical to what the network last said, and the
+      // staleness is a property of this serving decision.
+      return { ...entry.resolution, stale: true }
     }
 
     return this.#fetchAndStore(options)

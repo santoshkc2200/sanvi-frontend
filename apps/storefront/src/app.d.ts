@@ -8,9 +8,18 @@ import type { BuildDetails } from '@sanvi/api-client'
 declare global {
   namespace App {
     interface Locals {
-      /** Resolved from the request's `Host` header by `hooks.server.ts`'s `resolveTenant`. `null` when `tenantResolution` is `'unknown-host'`. */
+      /** Resolved from the request's `Host` header by `hooks.server.ts`'s `resolveTenant`. `null` when `tenantResolution` is `'unknown-host'` or `'backend-unavailable'`. */
       tenant: TenantContext | null
-      tenantResolution: 'ok' | 'unknown-host'
+      /**
+       * `'backend-unavailable'` (TASK-023) means the tenant-context request
+       * *failed* — cold cache, backend down. Unlike `'unknown-host'` (a 404:
+       * nobody's tenant), the root layout renders the designed outage view
+       * instead of a 500, because "we're having a problem" is the honest
+       * answer and the theme/privacy legs may still have cache to serve.
+       */
+      tenantResolution: 'ok' | 'unknown-host' | 'backend-unavailable'
+      /** The tenant resolution came from the stale-while-revalidate window — the layout renders the stale-content banner (says what is stale). */
+      tenantStale: boolean
       /** The negotiated render locale — phase 06's `resolveLocale` hook (URL prefix → cookie → session → tenant default → `Accept-Language` → base). */
       locale: Locale
       /** Resolved from the request's `Cookie` header by `hooks.server.ts`'s `resolveAuth`. `null` when signed out. */

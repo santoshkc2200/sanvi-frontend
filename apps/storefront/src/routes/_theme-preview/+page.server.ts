@@ -59,6 +59,10 @@ export const load: PageServerLoad = async ({ url, locals, setHeaders, request })
     ) {
       throw err
     }
-    error(403, { message: 'Invalid or expired preview token' })
+    // TASK-023: a network/timeout failure is an outage, not a bad token —
+    // the 403 here used to mislabel every backend failure as an invalid
+    // preview link. The API-shaped errors above (403/404/410 from the
+    // backend) keep their own statuses and render the +error screen.
+    error(503, { message: 'Preview is temporarily unavailable' })
   }
 }

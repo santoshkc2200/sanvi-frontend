@@ -94,7 +94,14 @@ const checklist: ChecklistItem[] = $derived([
     <h1>{t['admin.dashboard.title']()}</h1>
 
     {#if error}
-      <Alert variant="error">{error}</Alert>
+      <!-- TASK-023: the landing surface's failure carries a recovery action
+           — an outage must explain itself and offer retry here, at the
+           first screen an operator sees. -->
+      <Alert variant="error" title={error}>
+        <Button variant="secondary" onclick={() => void load()}>
+          {t['common.retry']()}
+        </Button>
+      </Alert>
     {/if}
 
     {#if loading}

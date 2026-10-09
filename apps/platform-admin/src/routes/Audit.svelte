@@ -3,6 +3,7 @@ import { listAudit } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import { t } from '@sanvi/i18n'
 import {
+  Alert,
   AuditTrail,
   type AuditEntryRow,
   Badge,
@@ -138,7 +139,15 @@ function exportCsv(): void {
   onDeleteView={(id) => listState.deleteView(id)}
 />
 
-<AuditTrail entries={rows} {loading} loadingLabel={t['common.loading']()} emptyMessage={error ?? t['platform.audit.emptyMessage']()} />
+{#if error}
+  <!-- TASK-023: a failed audit load is a terminal error state with a
+       recovery action — it must never read as "no audit activity". -->
+  <Alert variant="error" title={error}>
+    <Button variant="secondary" onclick={() => void load()}>{t['common.retry']()}</Button>
+  </Alert>
+{:else}
+  <AuditTrail entries={rows} {loading} loadingLabel={t['common.loading']()} emptyMessage={t['platform.audit.emptyMessage']()} />
+{/if}
 
 <div class="sanvi-audit__pagination">
   <Button variant="ghost" size="sm" disabled={!listState.hasPrevPage} onclick={() => listState.prevPage()}>

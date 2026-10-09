@@ -1730,5 +1730,7 @@
   "admin.advertising.audiences.refreshErrorToast": "Refreshing the audience failed. Try again.",
   "admin.advertising.audiences.emptyTitle": "No audiences yet",
   "admin.advertising.audiences.emptyBody": "Build an audience to sync a hashed customer list to one of your connected platforms.",
-  "admin.advertising.audiences.neverSynced": "Never"
+  "admin.advertising.audiences.neverSynced": "Never",
+  "admin.app.panelErrorTitle": "This panel failed to render",
+  "admin.app.panelErrorDescription": "The rest of the console is unaffected. Retry this panel — if it keeps failing, copy the diagnostics for support."
 }

@@ -6,7 +6,15 @@ import { clearCache, QueryDevtools } from '@sanvi/query'
 import { handleLinkClick } from '@sanvi/spa-router'
 import type { Router, RouteDefinition } from '@sanvi/spa-router'
 import { createRouter } from '@sanvi/spa-router'
-import { AppShell, Cluster, ErrorView, LocaleSwitcher, Spinner, ToastViewport } from '@sanvi/ui'
+import {
+  AppShell,
+  AsyncBoundary,
+  Cluster,
+  ErrorView,
+  LocaleSwitcher,
+  Spinner,
+  ToastViewport,
+} from '@sanvi/ui'
 import { apiClient } from './lib/api'
 import { setPlatformAdminTelemetryRouteSource } from './lib/telemetry'
 import {
@@ -108,6 +116,13 @@ $effect(() => {
   if (pattern) recordDiagnosticBreadcrumb('navigation', pattern)
 })
 
+// A navigation gives the panel boundary a clean slate — the previous page's
+// crash is not this page's failure.
+$effect(() => {
+  void router.pattern
+  panelError = null
+})
+
 // The route-error screen carries its correlation (FR-1106): the trace id of
 // the failing ApiError, falling back to "the request this page last made"
 // for non-API failures, plus the one-paste diagnostics. Platform-admin has
@@ -123,6 +138,23 @@ const routeErrorDiagnostics = $derived(
         tenantId: null,
         locale: currentLocale(),
         traceId: routeErrorTraceId,
+        breadcrumbs: recentBreadcrumbs(),
+      })
+    : undefined,
+)
+
+// TASK-023 step 3: the panel boundary's own correlation — a crash inside a
+// rendered page never reaches `router.error`. Cleared on navigation.
+let panelError = $state<unknown>(null)
+const panelTraceId = $derived(errorTraceId(panelError) ?? apiClient.getLastTraceId())
+const panelDiagnostics = $derived(
+  panelTraceId
+    ? buildDiagnosticsPaste({
+        release: __APP_BUILD__,
+        route: router.pattern ?? '',
+        tenantId: null,
+        locale: currentLocale(),
+        traceId: panelTraceId,
         breadcrumbs: recentBreadcrumbs(),
       })
     : undefined,
@@ -254,7 +286,21 @@ onLocaleChange(() => clearCache())
          swapping to the new one, since `<Page />` alone doesn't get treated
          as a fresh element identity just because `Page`'s value changed. -->
     {#key Page}
-      <Page {...router.params} />
+      <AsyncBoundary
+        title={t['platform.app.panelErrorTitle']()}
+        description={t['platform.app.panelErrorDescription']()}
+        retryLabel={t['common.retry']()}
+        onRetry={() => retry()}
+        onError={(error) => {
+          panelError = error
+        }}
+        traceLine={panelTraceId ? t['errors.traceId']({ id: panelTraceId }) : undefined}
+        diagnosticsText={panelDiagnostics}
+        copyLabel={t['errors.diagnostics.copy']()}
+        copiedLabel={t['errors.diagnostics.copied']()}
+      >
+        <Page {...router.params} />
+      </AsyncBoundary>
     {/key}
   {:else if router.loading}
     <Spinner label={t['common.loading']()} />

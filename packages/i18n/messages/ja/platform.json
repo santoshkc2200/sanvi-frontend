@@ -427,5 +427,7 @@
   "platform.translations.valuePlaceholder": "翻訳メッセージ",
   "platform.translations.submit": "翻訳を保存",
   "platform.translations.saved": "翻訳を保存しました。",
-  "platform.translations.saveError": "この翻訳を保存できませんでした。"
+  "platform.translations.saveError": "この翻訳を保存できませんでした。",
+  "platform.app.panelErrorTitle": "このパネルの表示に失敗しました",
+  "platform.app.panelErrorDescription": "コンソールの他の部分は影響を受けません。このパネルを再試行してください。繰り返し失敗する場合は、診断情報をコピーしてサポートにお問い合わせください。"
 }
