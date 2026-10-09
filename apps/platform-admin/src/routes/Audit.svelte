@@ -45,7 +45,9 @@ async function load(): Promise<void> {
       tenant_id: listState.filters.tenant_id,
       actor_id: listState.filters.actor_id,
       action: listState.filters.action,
-      after: listState.cursor ? Number(listState.cursor) : undefined,
+      // TASK-026: the spec takes the cursor back as a string — pass the
+      // filter's cursor text through verbatim, never parse it.
+      after: listState.cursor || undefined,
       limit: 50,
     })
     if (seq !== loadSeq) return

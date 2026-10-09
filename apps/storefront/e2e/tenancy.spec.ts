@@ -36,4 +36,13 @@ test.describe('tenant resolution', () => {
     await expect(page.getByText(/suspended/i)).toBeVisible()
     await expect(page.getByText('Suspended Co')).toHaveCount(0) // maintenance branch, not the tenant's own content
   })
+
+  test('a restoring tenant renders the restore notice instead of the suspended copy', async ({
+    page,
+  }) => {
+    const response = await page.goto(`http://restoring.localhost:${PORT}/`)
+    expect(response?.ok()).toBe(true)
+    await expect(page.getByText('This store is being restored')).toBeVisible()
+    await expect(page.getByText('Restoring Co')).toHaveCount(0) // restore branch, not the tenant's own content
+  })
 })

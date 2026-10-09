@@ -1,5 +1,7 @@
 {
   "storefront.home.fallbackTitle": "Sanvi ストアフロント",
+  "storefront.restoring.title": "このストアを復元しています",
+  "storefront.restoring.description": "データを復元しているため、ストアは一時的にご利用いただけません。しばらくしてからご確認ください。",
   "storefront.home.emptyTitle": "ストアフロントのコンテンツはまだありません",
   "storefront.home.emptyDescription": "カタログやページのコンテンツは後のフェーズで接続されます。",
   "storefront.footer.language": "言語",

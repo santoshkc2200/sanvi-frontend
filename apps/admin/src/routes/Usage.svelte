@@ -1,21 +1,36 @@
 <script lang="ts">
-import { listTenantEntitlements } from '@sanvi/api-client'
-import type { components } from '@sanvi/api-client'
+import {
+  getTenantUsage,
+  isRateLimited,
+  listTenantEntitlements,
+  QUOTA_DIMENSIONS,
+} from '@sanvi/api-client'
+import type { components, QuotaDimension, TenantUsage } from '@sanvi/api-client'
 import { fmt, t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
-import { Alert, Badge, Container, EmptyState, Spinner, Stack, StatCard } from '@sanvi/ui'
+import { Alert, Badge, Container, EmptyState, Spinner, Stack, UsageDimensionCard } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
 
 type Entitlement = components['schemas']['ResolvedEntitlementView']
 
-// The resolved-entitlement endpoint reports the *limit*, not live
-// consumption — there's no "used so far" counter exposed yet, so this
-// renders limits as stats rather than a meter implying a fill level
-// (see the note under the quota grid below).
+// Catalog keys per metered dimension — the card copy (name, warning,
+// limit-reached) reads specifically to its dimension, so the names live in
+// the catalog rather than in a formatter.
+const DIMENSION_NAME_KEYS = {
+  api_requests: 'admin.usage.dimension.apiRequests',
+  tracked_conversions: 'admin.usage.dimension.trackedConversions',
+  storage_bytes: 'admin.usage.dimension.storageBytes',
+  custom_domains: 'admin.usage.dimension.customDomains',
+  seats: 'admin.usage.dimension.seats',
+  notification_sends: 'admin.usage.dimension.notificationSends',
+} as const
 
+let usage = $state<TenantUsage | null>(null)
 let entitlements = $state<Entitlement[]>([])
 let loading = $state(true)
-let error = $state<string | undefined>(undefined)
+let usageError = $state<string | undefined>(undefined)
+let entitlementsError = $state<string | undefined>(undefined)
+let rateLimited = $state(false)
 
 // Sequencing token — a tenant switch re-runs the load effect, and a slow
 // response for the previous tenant must never overwrite the new tenant's data.
@@ -24,17 +39,29 @@ let loadSeq = 0
 async function load(): Promise<void> {
   const seq = ++loadSeq
   loading = true
-  error = undefined
-  try {
-    const result = await listTenantEntitlements(apiClient)
-    if (seq !== loadSeq) return
-    entitlements = result
-  } catch {
-    if (seq !== loadSeq) return
-    error = t['admin.usage.genericError']()
-  } finally {
-    if (seq === loadSeq) loading = false
-  }
+  usageError = undefined
+  entitlementsError = undefined
+  rateLimited = false
+  // Independent settles: the usage endpoint is new (backend TASK-026), so a
+  // usage failure must not take down the entitlements section with it, and
+  // vice versa. Each section renders its own error state.
+  const [usageResult, entitlementsResult] = await Promise.all([
+    getTenantUsage(apiClient).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    ),
+    listTenantEntitlements(apiClient).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    ),
+  ])
+  if (seq !== loadSeq) return
+  if (usageResult.ok) usage = usageResult.value
+  else if (isRateLimited(usageResult.error)) rateLimited = true
+  else usageError = t['admin.usage.genericError']()
+  if (entitlementsResult.ok) entitlements = entitlementsResult.value
+  else entitlementsError = t['admin.usage.genericError']()
+  loading = false
 }
 
 $effect(() => {
@@ -43,9 +70,52 @@ $effect(() => {
   void load()
 })
 
-const quotaFeatures = $derived(entitlements.filter((entitlement) => entitlement.kind === 'quota'))
+// Dimensions in display order, skipping whatever the backend did not meter
+// (flags off): a missing dimension is absent, never a zero or a spinner.
+const dimensionCards = $derived(
+  (() => {
+    const snapshot = usage
+    if (snapshot === null) return []
+    return QUOTA_DIMENSIONS.flatMap((dimension: QuotaDimension) => {
+      const entry = snapshot.dimensions[dimension]
+      if (!entry) return []
+      const name = t[DIMENSION_NAME_KEYS[dimension]]()
+      const usedText = fmt.number(entry.used)
+      const limitText = fmt.number(entry.limit)
+      const percent = `${Math.round((entry.used / entry.limit) * 100)}%`
+      const bytes = dimension === 'storage_bytes'
+      return [
+        {
+          dimension,
+          name,
+          used: entry.used,
+          limit: entry.limit,
+          unit: bytes ? t['admin.usage.unit.bytes']() : '',
+          warningText: t[bytes ? 'admin.usage.warningStateBytes' : 'admin.usage.warningState']({
+            dimension: name,
+            used: usedText,
+            limit: limitText,
+            percent,
+          }),
+          limitReachedText: t[
+            bytes ? 'admin.usage.limitReachedStateBytes' : 'admin.usage.limitReachedState'
+          ]({
+            dimension: name,
+            used: usedText,
+            limit: limitText,
+            date: fmt.date(snapshot.period_end),
+          }),
+        },
+      ]
+    })
+  })(),
+)
+
 const booleanFeatures = $derived(
   entitlements.filter((entitlement) => entitlement.kind === 'boolean'),
+)
+const isEmpty = $derived(
+  dimensionCards.length === 0 && booleanFeatures.length === 0 && !usageError && !entitlementsError,
 )
 </script>
 
@@ -56,31 +126,40 @@ const booleanFeatures = $derived(
       <p>{t['admin.usage.description']()}</p>
     </div>
 
-    {#if error}
-      <Alert variant="error">{error}</Alert>
-    {/if}
-
     {#if loading}
       <Spinner label={t['admin.usage.loading']()} />
-    {:else if entitlements.length === 0}
+    {:else if isEmpty && !rateLimited}
       <EmptyState title={t['admin.usage.empty']()} />
     {:else}
-      {#if quotaFeatures.length > 0}
+      {#if rateLimited}
+        <Alert variant="error">{t['errors.failure.rateLimited']()}</Alert>
+      {/if}
+      {#if usageError}
+        <Alert variant="error">{usageError}</Alert>
+      {/if}
+      {#if dimensionCards.length > 0}
         <div>
-          <h2>{t['admin.usage.quotaTitle']()}</h2>
-          <p class="sanvi-usage__note">{t['admin.usage.noUsageDataNote']()}</p>
+          <h2>{t['admin.usage.liveTitle']()}</h2>
           <div class="sanvi-usage__quota-grid">
-            {#each quotaFeatures as entitlement (entitlement.feature)}
-              <StatCard
-                label={entitlement.feature}
-                value={entitlement.limit === null || entitlement.limit === undefined ? '—' : String(entitlement.limit)}
-                description={entitlement.expires_at ? t['admin.usage.expires']({ date: fmt.date(entitlement.expires_at) }) : undefined}
+            {#each dimensionCards as card (card.dimension)}
+              <UsageDimensionCard
+                name={card.name}
+                used={card.used}
+                limit={card.limit}
+                unit={card.unit}
+                warningText={card.warningText}
+                limitReachedText={card.limitReachedText}
+                upgradeCtaLabel={t['admin.usage.upgradeCta']()}
+                upgradeHref="/billing"
               />
             {/each}
           </div>
         </div>
       {/if}
 
+      {#if entitlementsError}
+        <Alert variant="error">{entitlementsError}</Alert>
+      {/if}
       {#if booleanFeatures.length > 0}
         <div>
           <h2>{t['admin.usage.featuresTitle']()}</h2>
@@ -102,12 +181,6 @@ const booleanFeatures = $derived(
 </Container>
 
 <style>
-  .sanvi-usage__note {
-    margin: 0 0 var(--sanvi-spacing-3);
-    font-size: var(--sanvi-font-size-sm);
-    color: var(--sanvi-color-text-secondary);
-  }
-
   .sanvi-usage__quota-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(var(--sanvi-spacing-48), 1fr));

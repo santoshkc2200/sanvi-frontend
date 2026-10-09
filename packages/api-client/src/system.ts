@@ -22,24 +22,17 @@ export function getSystemBuild(
 }
 
 /**
- * Dependency health as a bare state (TASK-025, backend `health.rs`).
- * The only two values the public probes ever name.
+ * Probe shapes — TASK-025 hand-wrote these while the frozen spec predated
+ * the probes (see the old comment below, kept for the record). Backend
+ * TASK-025/026 landed `LivenessResult`, `HealthState`, `DependencyState`
+ * and `ReadinessStates` in the spec, so the generated types are now the
+ * truth and the locals are deleted (TASK-026 step 1). Note the one widening
+ * this adopts deliberately: `LivenessResult.status` was locally `'ok'`, the
+ * spec says `string` — callers must compare, not assume.
  */
-export type HealthState = 'ok' | 'degraded'
-
-/**
- * Liveness: `GET /api/v1/system/health` (TASK-025). Process aliveness only —
- * deliberately a single `status` field, so there is nothing to leak.
- */
-export interface LivenessResult {
-  status: 'ok'
-}
-
-/** One dependency's readiness as a bare state — the `/ready` check row. */
-export interface DependencyState {
-  name: string
-  state: HealthState
-}
+export type HealthState = components['schemas']['HealthState']
+export type LivenessResult = components['schemas']['LivenessResult']
+export type DependencyState = components['schemas']['DependencyState']
 
 /**
  * Readiness as states only: the `GET /api/v1/system/ready` response body, on
@@ -50,16 +43,16 @@ export interface DependencyState {
  * rather than discipline. No hostname, no version, no error string, by
  * construction.
  *
- * Hand-written, not generated: the frozen spec this package generates from
- * predates the probes (backend TASK-025 11.6a), and the client regeneration
- * that picks them up belongs to TASK-026. The shapes below mirror
- * `sanvi-backend/api/system.yaml` (`LivenessResult`, `ReadinessStates`); the
- * type test fails if they drift.
+ * HISTORIC (TASK-026 step 1): TASK-025 hand-wrote these four shapes while
+ * the frozen spec predated the probes. The backend landed them, the
+ * regeneration picked them up, and the locals were deleted in favour of the
+ * generated aliases below. `isReadinessStates` stays hand-written: the 503
+ * path carries states, not problem+json, so the runtime guard is
+ * load-bearing regardless of what the spec says. Note the one widening this
+ * adopts: `LivenessResult.status` was locally `'ok'`, the spec says
+ * `string` — callers must compare, not assume.
  */
-export interface ReadinessStates {
-  status: HealthState
-  checks: DependencyState[]
-}
+export type ReadinessStates = components['schemas']['ReadinessStates']
 
 function isReadinessStates(value: unknown): value is ReadinessStates {
   if (typeof value !== 'object' || value === null) return false

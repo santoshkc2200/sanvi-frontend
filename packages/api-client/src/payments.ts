@@ -2,39 +2,20 @@ import type { components } from './generated/types'
 import type { TypedApiClient } from './typed'
 
 /**
- * The payments `CreateConnectionRequest` collides in name with the
- * advertising `CreateConnectionRequest` in the merged OpenAPI document.
- * The generated `components['schemas']['CreateConnectionRequest']` currently
- * resolves to the advertising shape (`connection_id` / `currency` …). Until
- * the backend renames one of them, we define the payments shape locally and
- * cast at the call site — runtime JSON is what matters, and the handler
- * (`crates/contexts/payments/src/adapters/http/handlers.rs`) expects
- * `provider` / `country` / `default_currency`.
+ * HISTORIC (TASK-026 step 1): the payments `CreateConnectionRequest` used to
+ * collide in name with the advertising one in the merged document, so this
+ * module defined `CreatePaymentConnectionRequest` / `PaymentConnectionView`
+ * locally and cast at the call site. The backend's consistency pass split
+ * the shapes per context (`PaymentsCreateConnectionRequest`,
+ * `PaymentsConnectionView`), the regeneration picked them up, and the locals
+ * plus every `as unknown as` cast were deleted. The old names survive below
+ * as aliases so the 16 call sites keep compiling; new code uses the
+ * `Payments*` names.
  */
-export interface CreatePaymentConnectionRequest {
-  provider: string
-  country?: string | null
-  default_currency?: string | null
-}
+export type CreatePaymentConnectionRequest =
+  components['schemas']['PaymentsCreateConnectionRequest']
 
-export interface PaymentConnectionView {
-  id: string
-  provider: string
-  status: string
-  capabilities: unknown
-  requirements: {
-    currently_due: Array<{ code: string; summary_key: string }>
-    eventually_due: Array<{ code: string; summary_key: string }>
-    past_due: Array<{ code: string; summary_key: string }>
-    deadline: string | null
-  }
-  blockers: Array<{ summary_key: string }>
-  country: string | null
-  default_currency: string | null
-  connected_at: string | null
-  last_synced_at: string | null
-  can_accept_payments: boolean
-}
+export type PaymentConnectionView = components['schemas']['PaymentsConnectionView']
 
 type ConnectionSessionView = components['schemas']['ConnectionSessionView']
 
@@ -61,14 +42,10 @@ export function createPaymentConnection(
   idempotencyKey: string,
   signal?: AbortSignal,
 ): Promise<PaymentConnectionView> {
-  return client.POST(
-    '/api/v1/tenant/payments/connections',
-    body as unknown as components['schemas']['CreateConnectionRequest'],
-    {
-      idempotencyKey,
-      ...(signal ? { signal } : {}),
-    },
-  ) as unknown as Promise<PaymentConnectionView>
+  return client.POST('/api/v1/tenant/payments/connections', body, {
+    idempotencyKey,
+    ...(signal ? { signal } : {}),
+  })
 }
 
 /**
@@ -105,7 +82,7 @@ export function getPaymentConnection(
   return client.GET('/api/v1/tenant/payments/connections/{id}', {
     params: { path: { id: connectionId } },
     ...(signal ? { signal } : {}),
-  }) as unknown as Promise<PaymentConnectionView>
+  })
 }
 
 /**
@@ -120,10 +97,9 @@ export function getCurrentPaymentConnection(
   client: TypedApiClient,
   signal?: AbortSignal,
 ): Promise<PaymentConnectionView> {
-  return client.GET(
-    '/api/v1/tenant/payments/connections/current',
-    signal ? { signal } : undefined,
-  ) as unknown as Promise<PaymentConnectionView>
+  // TASK-026: the endpoint landed in the spec, so the `as unknown as` cast
+  // TASK-008's recovery needed is gone — the typed path infers the view.
+  return client.GET('/api/v1/tenant/payments/connections/current', signal ? { signal } : undefined)
 }
 
 export type CreateCheckoutRequest = components['schemas']['CreateCheckoutRequest']
@@ -323,7 +299,7 @@ export function disconnectPaymentConnection(
     params: { path: { id: connectionId } },
     idempotencyKey,
     ...(signal ? { signal } : {}),
-  }) as unknown as Promise<PaymentConnectionView>
+  })
 }
 
 export const listPayments = listTenantPayments

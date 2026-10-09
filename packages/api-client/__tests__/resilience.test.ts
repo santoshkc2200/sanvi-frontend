@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApiClient } from '../src/client'
 import {
+  ApiError,
   DEGRADED_RESPONSE_HEADER,
   failureKindOf,
+  isRateLimited,
   NetworkError,
   parseDegradedScopes,
   parseRetryAfterMs,
@@ -245,6 +247,44 @@ describe('idempotency-aware retry (TASK-023 step 6)', () => {
 
     await expect(client.post('/v1/courses', {})).rejects.toMatchObject({ status: 503 })
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('never retries a non-idempotent POST after a 429 either — the method gate is status-blind', async () => {
+    fetchMock.mockResolvedValue(
+      problemResponse(429, { title: 'Too many requests' }, { 'retry-after': '1' }),
+    )
+    const client = createApiClient({
+      baseUrl: 'https://api.example.com',
+      retries: 3,
+      retryBaseDelayMs: 1,
+    })
+
+    const error = await client.post('/v1/courses', {}).catch((e: unknown) => e)
+    expect(error).toMatchObject({ status: 429, retryAfterMs: 1_000 })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('isRateLimited narrows the 429 case and rejects everything else', () => {
+    const rateLimited = new ApiError(
+      429,
+      { type: 'about:blank', title: 'Too many requests', status: 429 },
+      undefined,
+      1_000,
+    )
+    const overloaded = new ApiError(
+      503,
+      { type: PLATFORM_OVERLOADED_PROBLEM_TYPE, title: 'Platform overloaded', status: 503 },
+      undefined,
+    )
+    expect(isRateLimited(rateLimited)).toBe(true)
+    if (isRateLimited(rateLimited)) {
+      expect(rateLimited.retryAfterMs).toBe(1_000)
+      expect(failureKindOf(rateLimited)).toBe('rate_limited')
+    }
+    expect(isRateLimited(overloaded)).toBe(false)
+    expect(isRateLimited(new NetworkError(new Error('x')))).toBe(false)
+    expect(isRateLimited(new Error('x'))).toBe(false)
+    expect(isRateLimited(undefined)).toBe(false)
   })
 })
 

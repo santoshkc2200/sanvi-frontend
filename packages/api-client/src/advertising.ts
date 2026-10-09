@@ -34,7 +34,13 @@ export type PlatformView = components['schemas']['PlatformView']
 export type StartOAuthResponse = components['schemas']['StartOAuthResponse']
 export type PendingConnectionView = components['schemas']['PendingConnectionView']
 export type AdAccountView = components['schemas']['AccountView']
-export type ConnectionView = components['schemas']['ConnectionView']
+/**
+ * HISTORIC (TASK-026 step 1): the backend's consistency pass renamed the
+ * shared shapes per context. `ConnectionView` is byte-identical to
+ * `AdvertisingConnectionView`, so it survives as a compatibility alias —
+ * new code uses the `Advertising*` name.
+ */
+export type ConnectionView = components['schemas']['AdvertisingConnectionView']
 export type ConnectionsView = components['schemas']['ConnectionsView']
 export type ConnectionHealthView = components['schemas']['ConnectionHealthView']
 
@@ -176,7 +182,8 @@ export type CampaignChangesView = components['schemas']['CampaignChangesView']
 export type ChangeSource = components['schemas']['ChangeSource']
 export type Budget = components['schemas']['Budget']
 export type BudgetType = components['schemas']['BudgetType']
-export type Money = components['schemas']['Money']
+/** Compatibility alias — byte-identical to `AdvertisingMoney` (TASK-026 step 1). */
+export type Money = components['schemas']['AdvertisingMoney']
 export type Schedule = components['schemas']['Schedule']
 export type AdGroup = components['schemas']['AdGroup']
 export type Ad = components['schemas']['Ad']

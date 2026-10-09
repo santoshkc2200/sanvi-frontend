@@ -12,7 +12,7 @@ export interface ProblemDetails {
   instance?: string
   /** Correlates with OpenObserve; distinct from the `x-request-id` response header. */
   trace_id?: string
-  /** Machine-readable differentiator for statuses that carry one — e.g. `423` tenant-lock reasons `"suspended" | "provisioning" | "archived"`. */
+  /** Machine-readable differentiator for statuses that carry one — e.g. `423` tenant-lock reasons `"suspended" | "provisioning" | "archived" | "restoring"`. */
   reason?: string
   [extension: string]: unknown
 }
@@ -90,6 +90,17 @@ export function failureKindOf(error: unknown): FailureKind {
   return 'client'
 }
 
+/**
+ * Narrows an unknown throw to the `429` case (TASK-026 step 2): the one
+ * status whose surface can name a limit, a reset wait (`retryAfterMs`), and
+ * an upgrade action. Prefer this over `error.status === 429` at call sites —
+ * the guard also rejects non-`ApiError` throws, so a network failure never
+ * renders as a quota wall.
+ */
+export function isRateLimited(error: unknown): error is ApiError & { readonly status: 429 } {
+  return error instanceof ApiError && error.status === 429
+}
+
 function isProblemDetails(value: unknown): value is ProblemDetails {
   return (
     typeof value === 'object' &&
@@ -109,7 +120,7 @@ export class ApiError extends Error {
   readonly requestId: string | undefined
   /** `problem.trace_id` — what support wants quoted; distinct from `requestId` (the header). */
   readonly traceId: string | undefined
-  /** `problem.reason` — e.g. a `423`'s `"suspended" | "provisioning" | "archived"`. */
+  /** `problem.reason` — e.g. a `423`'s `"suspended" | "provisioning" | "archived" | "restoring"`. */
   readonly reason: string | undefined
   /** The full problem+json body, for extension members the typed fields don't cover. */
   readonly problem: ProblemDetails | undefined

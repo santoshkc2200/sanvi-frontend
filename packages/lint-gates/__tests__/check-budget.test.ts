@@ -82,7 +82,7 @@ describe('formatAppReport — the --app/--all path', () => {
 })
 
 describe('spaInitialKb — the TASK-022 SPA initial convention', () => {
-  function writeSpaFixture(manifest) {
+  function writeSpaFixture(manifest: unknown) {
     const dir = join(tmpdir(), `sanvi-spa-initial-${Math.random().toString(36).slice(2)}`)
     rmSync(dir, { recursive: true, force: true })
     mkdirSync(join(dir, 'assets'), { recursive: true })

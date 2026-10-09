@@ -17,8 +17,8 @@ function makeQuote(overrides: Record<string, unknown> = {}) {
     tld: 'com',
     available: true,
     premium: false,
-    register_price: { amount_minor: 1299, currency: 'USD' },
-    renew_price: { amount_minor: 1499, currency: 'USD' },
+    register_price: { minor: 1299, currency: 'USD' },
+    renew_price: { minor: 1499, currency: 'USD' },
     registrar_id: 'enom',
     ...overrides,
   }
@@ -77,15 +77,15 @@ describe('Admin DomainPurchase Wizard Component', () => {
         hostname: 'freshstore.net',
         tld: 'net',
         available: false,
-        register_price: { amount_minor: 1599, currency: 'USD' },
+        register_price: { minor: 1599, currency: 'USD' },
       }),
       makeQuote({
         hostname: 'freshstore.ai',
         tld: 'ai',
         available: true,
         premium: true,
-        register_price: { amount_minor: 6999, currency: 'USD' },
-        renew_price: { amount_minor: 6999, currency: 'USD' },
+        register_price: { minor: 6999, currency: 'USD' },
+        renew_price: { minor: 6999, currency: 'USD' },
       }),
     ]
     ordersList = []

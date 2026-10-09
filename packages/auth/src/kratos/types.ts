@@ -41,6 +41,9 @@ export interface UiNodeAttributes {
   href?: string
   src?: string
   id?: string
+  /** Present on `img` nodes only sometimes — Kratos carries dimensions for some images (e.g. logos). */
+  width?: number
+  height?: number
   /** Present when `node_type: 'text'` — the informational text itself (e.g. a recovery code list). */
   text?: UiText
 }

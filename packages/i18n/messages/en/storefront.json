@@ -1,5 +1,7 @@
 {
   "storefront.home.fallbackTitle": "Sanvi Storefront",
+  "storefront.restoring.title": "This store is being restored",
+  "storefront.restoring.description": "The store is temporarily unavailable while its data is restored. Please check back shortly.",
   "storefront.home.emptyTitle": "No storefront content yet",
   "storefront.home.emptyDescription": "Catalog and page content are wired up starting in a later phase.",
   "storefront.footer.language": "Language",

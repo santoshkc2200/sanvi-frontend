@@ -69,6 +69,15 @@ const TENANTS = {
     default_locale: 'en',
     resolution_source: 'subdomain',
   },
+  'restoring.localhost:4174': {
+    tenant_id: '55555555-5555-5555-5555-555555555555',
+    slug: 'restoring-co',
+    display_name: 'Restoring Co',
+    status: 'restoring',
+    region: 'us',
+    default_locale: 'en',
+    resolution_source: 'subdomain',
+  },
   'chromium.localhost:4174': {
     tenant_id: '44444444-4444-4444-4444-444444444444',
     slug: 'chromium',

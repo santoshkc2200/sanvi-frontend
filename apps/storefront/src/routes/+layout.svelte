@@ -15,6 +15,7 @@ import {
   OfflineBanner,
   PrivacyFooterLinks,
   PrivacyNoticeBanner,
+  RestoreInProgress,
   StaleContentBanner,
   SuspendedTenantNotice,
 } from '@sanvi/ui'
@@ -246,7 +247,14 @@ const LOCALE_TO_SUBSET: Record<string, string> = {
   {/if}
 </svelte:head>
 
-{#if lockedReason}
+{#if lockedReason === 'restoring'}
+  <!-- The backend's fourth lock state (TASK-025 restore): a restoring tenant
+       gets the restore notice, never the suspended-tenant copy. -->
+  <RestoreInProgress
+    title={t['storefront.restoring.title']()}
+    description={t['storefront.restoring.description']()}
+  />
+{:else if lockedReason}
   <SuspendedTenantNotice reason={lockedReason} />
 {:else if outage}
   <!-- TASK-023: the designed outage view. No tenant resolved, so there is

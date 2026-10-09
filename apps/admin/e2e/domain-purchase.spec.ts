@@ -42,8 +42,8 @@ test.describe('domain purchase wizard', () => {
         tld: 'com',
         available: true,
         premium: false,
-        register_price: { amount_minor: 1299, currency: 'USD' },
-        renew_price: { amount_minor: 1499, currency: 'USD' },
+        register_price: { minor: 1299, currency: 'USD' },
+        renew_price: { minor: 1499, currency: 'USD' },
         registrar_id: 'sandbox',
       },
     ]
@@ -88,8 +88,8 @@ test.describe('domain purchase wizard', () => {
         tld: 'com',
         available: true,
         premium: false,
-        register_price: { amount_minor: 999, currency: 'USD' },
-        renew_price: { amount_minor: 1299, currency: 'USD' },
+        register_price: { minor: 999, currency: 'USD' },
+        renew_price: { minor: 1299, currency: 'USD' },
         registrar_id: 'sandbox',
       },
     ]
@@ -119,8 +119,8 @@ test.describe('domain purchase wizard', () => {
         tld: 'com',
         available: true,
         premium: false,
-        register_price: { amount_minor: 1999, currency: 'USD' },
-        renew_price: { amount_minor: 2299, currency: 'USD' },
+        register_price: { minor: 1999, currency: 'USD' },
+        renew_price: { minor: 2299, currency: 'USD' },
         registrar_id: 'sandbox',
       },
     ]
