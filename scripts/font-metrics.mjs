@@ -52,22 +52,8 @@ function resolveChrome() {
         if (!name.startsWith('chrome-for-testing-') && !name.startsWith('chromium-')) continue
         for (const rel of [
           join(name, 'chrome-win64', 'chrome.exe'),
-          join(
-            name,
-            'chrome-mac-arm64',
-            'Google Chrome for Testing.app',
-            'Contents',
-            'MacOS',
-            'Google Chrome for Testing',
-          ),
-          join(
-            name,
-            'chrome-mac',
-            'Google Chrome for Testing.app',
-            'Contents',
-            'MacOS',
-            'Google Chrome for Testing',
-          ),
+          join(name, 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
+          join(name, 'chrome-mac', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
           join(name, 'chrome-linux', 'chrome'),
         ]) {
           const full = join(root, rel)

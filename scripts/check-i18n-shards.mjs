@@ -11,11 +11,7 @@ import { join } from 'node:path'
 import { findWorkspaceRoot } from '@sanvi/lint-gates/perf-profiles'
 
 const root = findWorkspaceRoot()
-execFileSync(
-  process.execPath,
-  [join(root, 'packages', 'lint-gates', 'src', 'check-i18n-shards.mjs')],
-  {
-    stdio: 'inherit',
-    cwd: root,
-  },
-)
+execFileSync(process.execPath, [join(root, 'packages', 'lint-gates', 'src', 'check-i18n-shards.mjs')], {
+  stdio: 'inherit',
+  cwd: root,
+})

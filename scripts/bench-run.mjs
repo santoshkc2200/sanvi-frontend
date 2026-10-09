@@ -14,7 +14,11 @@
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { fontPreloadResult, loadBudgets, runAppBudgetCheck } from '@sanvi/lint-gates/check-budget'
+import {
+  fontPreloadResult,
+  loadBudgets,
+  runAppBudgetCheck,
+} from '@sanvi/lint-gates/check-budget'
 import { findWorkspaceRoot, loadPerfProfiles } from '@sanvi/lint-gates/perf-profiles'
 import { isMainEntryPoint } from '@sanvi/lint-gates/walk-files'
 import { sweepA11y } from './check-a11y.mjs'

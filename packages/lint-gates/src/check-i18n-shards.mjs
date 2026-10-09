@@ -78,7 +78,9 @@ export function parseSurfaceFile(source) {
 export function shardMarkers(shard, { foreign, shared = new Set() }) {
   const min = foreign ? 24 : 8
   const take = foreign ? 25 : 5
-  return [...new Set(Object.values(shard).filter((v) => typeof v === 'string'))]
+  return [
+    ...new Set(Object.values(shard).filter((v) => typeof v === 'string')),
+  ]
     .filter((v) => v.length >= min && !/["\\]/.test(v) && !shared.has(v))
     .sort((a, b) => b.length - a.length)
     .slice(0, take)
@@ -236,7 +238,9 @@ export function runShardGate({ root = findWorkspaceRoot() } = {}) {
 
 export function formatShardReport(result) {
   if (result.skipped) return `==> ${result.name}: ${result.message}`
-  const lines = [`==> ${result.name} (${result.checkedFiles} JS files scanned)`]
+  const lines = [
+    `==> ${result.name} (${result.checkedFiles} JS files scanned)`,
+  ]
   if (result.foreignHits.length === 0 && result.missingOwn.length === 0) {
     lines.push('  ✓ no foreign-surface catalog strings in the build output')
     return lines.join('\n')
@@ -247,9 +251,7 @@ export function formatShardReport(result) {
     )
   }
   for (const shard of result.missingOwn) {
-    lines.push(
-      `  ✗ own shard ${shard} not found in the build — surface registrar tree-shaken or unloaded?`,
-    )
+    lines.push(`  ✗ own shard ${shard} not found in the build — surface registrar tree-shaken or unloaded?`)
   }
   return lines.join('\n')
 }

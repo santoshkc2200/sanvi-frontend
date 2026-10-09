@@ -30,9 +30,7 @@ import { isMainEntryPoint } from '@sanvi/lint-gates/walk-files'
 import { startStorefrontMockApi } from './lib/serving.mjs'
 
 const ROOT = findWorkspaceRoot()
-const PROFILES = loadPerfProfiles({
-  root: ROOT,
-}) /** Mirrors `APPS` in `lighthouserc.cjs` — the runner needs URL lists the LHCI
+const PROFILES = loadPerfProfiles({ root: ROOT })/** Mirrors `APPS` in `lighthouserc.cjs` — the runner needs URL lists the LHCI
  * config doesn't hand back. Ports, server commands, and the Windows env-prefix
  * split-out (`APP_SERVER_ENV`) live only there. */
 const { APPS, APP_SERVER_ENV } = createRequire(import.meta.url)(join(ROOT, 'lighthouserc.cjs'))

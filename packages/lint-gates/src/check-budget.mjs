@@ -133,10 +133,9 @@ export function fontPreloadResult({ config, root }) {
     return { file: rel, kb }
   })
   const measured = files.filter((f) => f.kb !== null)
-  const totalKb =
-    measured.length === files.length && files.length > 0
-      ? measured.reduce((sum, f) => sum + f.kb, 0)
-      : null
+  const totalKb = measured.length === files.length && files.length > 0
+    ? measured.reduce((sum, f) => sum + f.kb, 0)
+    : null
   return {
     label: config?.label ?? 'font preloads',
     files,
@@ -418,11 +417,8 @@ async function main() {
       for (const [name, config] of Object.entries(budgets.fonts)) {
         const fonts = fontPreloadResult({ config, root })
         const status = fonts.ok ? '✓' : '✗'
-        const total =
-          fonts.totalKb === null ? 'unmeasured (file missing)' : `${fonts.totalKb.toFixed(1)} KB`
-        console.log(
-          `${status} ${name} font preloads — ${fonts.label}: ${total} / ${fonts.budgetKb} KB budget`,
-        )
+        const total = fonts.totalKb === null ? 'unmeasured (file missing)' : `${fonts.totalKb.toFixed(1)} KB`
+        console.log(`${status} ${name} font preloads — ${fonts.label}: ${total} / ${fonts.budgetKb} KB budget`)
         for (const file of fonts.files) {
           console.log(
             `    ${file.kb === null ? '✗ missing' : `${file.kb.toFixed(1)} KB`}  ${file.file}`,
