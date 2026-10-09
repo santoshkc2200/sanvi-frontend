@@ -19,6 +19,9 @@ benchmarks/frontend/lhci/
 # private source-map staging (FR-1104) — build artifacts, never committed, never served
 apps/*/sourcemaps-private/
 
+# agent worktrees (isolated task workspaces) — never committed
+.worktrees/
+
 *.local
 .env
 .env.*
