@@ -5,5 +5,9 @@
   "common.confirm": "確認",
   "common.cancel": "キャンセル",
   "common.nav.switchLanguage": "言語を切り替える",
-  "common.boot.failureMessage": "サーバーに接続できませんでした。接続を確認して、もう一度お試しください。"
+  "common.boot.failureMessage": "サーバーに接続できませんでした。接続を確認して、もう一度お試しください。",
+  "common.offline.title": "オフラインです",
+  "common.offline.description": "すでに読み込まれたページは引き続き表示できます。サーバーが必要な操作は、オンラインに戻るまで実行されません。",
+  "common.stale.title": "一部のコンテンツが古い可能性があります",
+  "common.stale.description": "サービスの復旧まで、キャッシュされたコピーを表示しています。"
 }

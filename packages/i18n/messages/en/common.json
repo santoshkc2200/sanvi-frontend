@@ -5,5 +5,9 @@
   "common.confirm": "Confirm",
   "common.cancel": "Cancel",
   "common.nav.switchLanguage": "Switch language",
-  "common.boot.failureMessage": "Could not reach the server. Check your connection and try again."
+  "common.boot.failureMessage": "Could not reach the server. Check your connection and try again.",
+  "common.offline.title": "You're offline",
+  "common.offline.description": "Pages you've already loaded still work. Actions that need our servers won't go through until you're back online.",
+  "common.stale.title": "Some content may be out of date",
+  "common.stale.description": "We're serving a cached copy while our service recovers."
 }

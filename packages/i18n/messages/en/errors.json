@@ -5,5 +5,12 @@
   "errors.traceId": "Reference: {id}",
   "errors.diagnostics.copy": "Copy diagnostics",
   "errors.diagnostics.copied": "Copied!",
-  "errors.brand": "Sanvi"
+  "errors.brand": "Sanvi",
+  "errors.failure.rateLimited": "Too many requests. Wait a moment, then try again.",
+  "errors.failure.overloaded": "We're briefly overloaded. Your request wasn't lost — please try again shortly.",
+  "errors.failure.serverError": "Something failed on our side. Try again — if it keeps failing, we are most likely already on it.",
+  "errors.failure.network": "We couldn't reach the service. Check your connection and try again.",
+  "errors.failure.timeout": "This took too long and was stopped before it could finish. Nothing was applied twice — try again.",
+  "errors.outage.title": "Sanvi is having a problem right now",
+  "errors.outage.description": "We're working on it. Your data is safe — try again in a few minutes."
 }
