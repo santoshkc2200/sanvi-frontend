@@ -25,6 +25,7 @@ vi.mock('@sanvi/api-client', async () => {
     createPaymentConnection: vi.fn(),
     createPaymentConnectionSession: vi.fn(),
     getPaymentConnection: vi.fn(),
+    getCurrentPaymentConnection: vi.fn(),
     listTenantPayouts: vi.fn().mockResolvedValue({ payouts: [] }),
     getTenantTaxSettings: vi.fn().mockResolvedValue(null),
     updateTenantTaxSettings: vi.fn(),
@@ -162,6 +163,8 @@ beforeEach(async () => {
   localStorage.clear()
   setFetchMock(mockFetchSuccess() as unknown as typeof fetch)
   const {
+    ApiError,
+    getCurrentPaymentConnection,
     listPaymentProviders,
     createPaymentConnection,
     createPaymentConnectionSession,
@@ -203,6 +206,9 @@ beforeEach(async () => {
     expires_at: new Date().toISOString(),
     provider: 'stripe_connect',
   } as unknown as never)
+  vi.mocked(getCurrentPaymentConnection).mockRejectedValue(
+    new ApiError(404, { title: 'Not found', status: 404, type: 'about:blank' }, undefined),
+  )
 })
 
 afterEach(() => {

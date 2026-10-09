@@ -34,7 +34,7 @@
             "$ref": "#/components/schemas/Creative"
           },
           "external_id": {
-            "description": "The platform's own id for this ad, once one has been recorded — the\nonly key that correlates a review observation (which arrives keyed by\nplatform id) back onto this ad. `None` for ads the platform has never\nechoed an id for; a platform that assigns ids at creation must persist\nthem here, or its verdicts can never be matched.",
+            "description": "The platform's own id for this ad, once one has been recorded \u2014 the\nonly key that correlates a review observation (which arrives keyed by\nplatform id) back onto this ad. `None` for ads the platform has never\nechoed an id for; a platform that assigns ids at creation must persist\nthem here, or its verdicts can never be matched.",
             "type": ["string", "null"]
           },
           "id": {
@@ -48,7 +48,7 @@
           },
           "review": {
             "$ref": "#/components/schemas/AdReview",
-            "description": "Last review observation pulled from the platform. Absent (pending,\nnever checked) until a poll happens — ads only get reviewed once they\nare published."
+            "description": "Last review observation pulled from the platform. Absent (pending,\nnever checked) until a poll happens \u2014 ads only get reviewed once they\nare published."
           },
           "tracking_template": {
             "type": ["string", "null"]
@@ -85,7 +85,7 @@
         "type": "object"
       },
       "AdReview": {
-        "description": "The platform's review verdict for one ad. `reasons` preserves the\nplatform's own policy wording verbatim — a paraphrased rejection is worse\nthan useless when the tenant has to fix the ad in the native tool.",
+        "description": "The platform's review verdict for one ad. `reasons` preserves the\nplatform's own policy wording verbatim \u2014 a paraphrased rejection is worse\nthan useless when the tenant has to fix the ad in the native tool.",
         "properties": {
           "checked_at": {
             "format": "date-time",
@@ -309,10 +309,10 @@
             "type": "object"
           },
           {
-            "description": "A conflict carrying a machine-readable `reason`, surfaced as\n`ProblemDetail.reason`, so a client can distinguish conflicts of the\nsame status without parsing `detail` — cap version races, for\nexample, where missing-precondition and lost-race need different\nrecovery. The status and `type` stay the plain conflict class.",
+            "description": "A conflict carrying a machine-readable `reason`, surfaced as\n`ProblemDetail.reason`, so a client can distinguish conflicts of the\nsame status without parsing `detail` \u2014 cap version races, for\nexample, where missing-precondition and lost-race need different\nrecovery. The status and `type` stay the plain conflict class.",
             "properties": {
               "ConflictReasoned": {
-                "description": "A conflict carrying a machine-readable `reason`, surfaced as\n`ProblemDetail.reason`, so a client can distinguish conflicts of the\nsame status without parsing `detail` — cap version races, for\nexample, where missing-precondition and lost-race need different\nrecovery. The status and `type` stay the plain conflict class.",
+                "description": "A conflict carrying a machine-readable `reason`, surfaced as\n`ProblemDetail.reason`, so a client can distinguish conflicts of the\nsame status without parsing `detail` \u2014 cap version races, for\nexample, where missing-precondition and lost-race need different\nrecovery. The status and `type` stay the plain conflict class.",
                 "properties": {
                   "detail": {
                     "type": "string"
@@ -1614,7 +1614,7 @@
           },
           "unmatched_platform_ads": {
             "$ref": "#/components/schemas/UnmatchedPlatformAds",
-            "description": "What the platform listed that this campaign's tree cannot account\nfor. Non-empty means the poll could not fully correlate — an\nall-pending `ads` list alongside platform-listed ids here is a\ncorrelation gap, not a clean \"everything still in review\"."
+            "description": "What the platform listed that this campaign's tree cannot account\nfor. Non-empty means the poll could not fully correlate \u2014 an\nall-pending `ads` list alongside platform-listed ids here is a\ncorrelation gap, not a clean \"everything still in review\"."
           }
         },
         "required": ["campaign_id", "ads", "unmatched_platform_ads"],
@@ -1887,7 +1887,7 @@
             "type": ["string", "null"]
           },
           "failure_code": {
-            "description": "Server-issued exactly once per order when paid; identical on every\nrefresh of the confirmation page, so phase 10's conversion\npipeline cannot double-count.\nThe provider's decline/failure code for the newest failed attempt\n(`card_declined`, `insufficient_funds`, …), so the storefront can\ntell a buyer *why*. The provider's own message is deliberately not\nexposed: the storefront renders its own localized copy.",
+            "description": "Server-issued exactly once per order when paid; identical on every\nrefresh of the confirmation page, so phase 10's conversion\npipeline cannot double-count.\nThe provider's decline/failure code for the newest failed attempt\n(`card_declined`, `insufficient_funds`, \u2026), so the storefront can\ntell a buyer *why*. The provider's own message is deliberately not\nexposed: the storefront renders its own localized copy.",
             "example": "card_declined",
             "type": ["string", "null"]
           },
@@ -1907,7 +1907,7 @@
           },
           "url": {
             "description": "The provider-hosted payment URL, while the checkout can still be\npaid. Absent once terminal.",
-            "example": "https://checkout.stripe.com/c/pay/cs_…",
+            "example": "https://checkout.stripe.com/c/pay/cs_\u2026",
             "type": ["string", "null"]
           }
         },
@@ -2062,7 +2062,7 @@
             "type": "string"
           },
           "stalled": {
-            "description": "Ingestion is older than the configured freshness threshold — the\ndashboard's \"sync failed\" / \"still updating\" state, never presented\nas current.",
+            "description": "Ingestion is older than the configured freshness threshold \u2014 the\ndashboard's \"sync failed\" / \"still updating\" state, never presented\nas current.",
             "type": "boolean"
           }
         },
@@ -2556,10 +2556,10 @@
         "type": "object"
       },
       "CreateCheckoutRequest": {
-        "description": "`POST /api/v1/tenant/checkout` — create a checkout session on the\ntenant's connected account (09.4, direct charges). Idempotency-Key is\nrequired: a double-clicked buy button must not create two sessions.",
+        "description": "`POST /api/v1/tenant/checkout` \u2014 create a checkout session on the\ntenant's connected account (09.4, direct charges). Idempotency-Key is\nrequired: a double-clicked buy button must not create two sessions.",
         "properties": {
           "amount_minor": {
-            "description": "Minor units — ¥2,000 is `2000` (JPY is zero-decimal).",
+            "description": "Minor units \u2014 \u00a52,000 is `2000` (JPY is zero-decimal).",
             "example": 2000,
             "format": "int64",
             "type": "integer"
@@ -2578,7 +2578,7 @@
             "type": ["object", "null"]
           },
           "locale": {
-            "description": "Presentation locale for the hosted page (`ja`, `en-US`, …).",
+            "description": "Presentation locale for the hosted page (`ja`, `en-US`, \u2026).",
             "type": ["string", "null"]
           },
           "reference": {
@@ -3377,7 +3377,7 @@
         "type": "string"
       },
       "EntitlementGrant": {
-        "description": "One plan → feature grant. Feature keys reference the access context's\ncatalog (validated at write time; no FK because the catalog is runtime\ndata).",
+        "description": "One plan \u2192 feature grant. Feature keys reference the access context's\ncatalog (validated at write time; no FK because the catalog is runtime\ndata).",
         "properties": {
           "enabled": {
             "type": "boolean"
@@ -3445,7 +3445,7 @@
         "type": "object"
       },
       "FontSpec": {
-        "description": "A font the theme uses. Self-hosted only — no remote `@import` is ever\npossible through this schema.",
+        "description": "A font the theme uses. Self-hosted only \u2014 no remote `@import` is ever\npossible through this schema.",
         "properties": {
           "family": {
             "type": "string"
@@ -3723,7 +3723,7 @@
             "type": ["string", "null"]
           },
           "tokens": {
-            "description": "The merged token document `{light: …, dark: …}`."
+            "description": "The merged token document `{light: \u2026, dark: \u2026}`."
           },
           "visibility": {
             "description": "`public` or `premium`.",
@@ -3995,7 +3995,7 @@
         "type": "object"
       },
       "JurisdictionRef": {
-        "description": "A jurisdiction code (`eu`, `uk`, `jp`, `us-ca`, …). Parsed, never\nfree-form, so a typo fails at the boundary rather than silently falling\nback to the most protective profile.",
+        "description": "A jurisdiction code (`eu`, `uk`, `jp`, `us-ca`, \u2026). Parsed, never\nfree-form, so a typo fails at the boundary rather than silently falling\nback to the most protective profile.",
         "type": "string"
       },
       "LayoutOverride": {
@@ -4104,7 +4104,7 @@
         "type": "object"
       },
       "Locale": {
-        "description": "A validated, canonicalised BCP-47 language tag.\n\nCanonicalisation: language lowercase, script title-case, region\nuppercase (`ja-jp` → `ja-JP`, `EN` → `en`). Only well-formed tags\naccepted: 2–3 letter language, optional 4-letter script, optional 2-letter\nor 3-digit region. This is deliberately *not* full BCP-47 (no variants,\nno extensions): the backend only needs the granularity it can translate\nand format with.",
+        "description": "A validated, canonicalised BCP-47 language tag.\n\nCanonicalisation: language lowercase, script title-case, region\nuppercase (`ja-jp` \u2192 `ja-JP`, `EN` \u2192 `en`). Only well-formed tags\naccepted: 2\u20133 letter language, optional 4-letter script, optional 2-letter\nor 3-digit region. This is deliberately *not* full BCP-47 (no variants,\nno extensions): the backend only needs the granularity it can translate\nand format with.",
         "type": "string"
       },
       "LocalizationSettingsView": {
@@ -4229,10 +4229,10 @@
         "type": "string"
       },
       "MembershipSummary": {
-        "description": "One tenant `GET /api/v1/me` reports the caller as a member of, with the\nroles/permissions they hold there — the single hydration call the\nfrontend's session store and `can()`/`<Can>` are built on (see\n`sanvi-frontend/docs/phase-02-auth-ux`), so it carries everything a tenant\nswitcher and permission-aware render need without a per-tenant follow-up\nrequest.",
+        "description": "One tenant `GET /api/v1/me` reports the caller as a member of, with the\nroles/permissions they hold there \u2014 the single hydration call the\nfrontend's session store and `can()`/`<Can>` are built on (see\n`sanvi-frontend/docs/phase-02-auth-ux`), so it carries everything a tenant\nswitcher and permission-aware render need without a per-tenant follow-up\nrequest.",
         "properties": {
           "permissions": {
-            "description": "The union of every permission `role_ids` grants — a UX hint only; the\nbackend enforces every mutation independently of what this list says.",
+            "description": "The union of every permission `role_ids` grants \u2014 a UX hint only; the\nbackend enforces every mutation independently of what this list says.",
             "items": {
               "type": "string"
             },
@@ -4276,7 +4276,7 @@
         "type": "object"
       },
       "MetricPoint": {
-        "description": "One rollup row (TASK-016, slice 10.7). The grain depends on the\nrequest's `group_by`: `campaign` populates both `platform` and\n`campaign_id`; `platform` populates only `platform`; `tenant` leaves\nboth `None`. Tenant is supplied by the authenticated route scope.\n\n`conversion_value` (the platform's own attribution) and `sanvi_revenue`\n(Sanvi's order-based view) are always both present, always labelled\nseparately — never blended into one number (NFR-1006). Same for\n`roas_platform`/`roas_sanvi`: each is `null` on zero spend, never `∞`.",
+        "description": "One rollup row (TASK-016, slice 10.7). The grain depends on the\nrequest's `group_by`: `campaign` populates both `platform` and\n`campaign_id`; `platform` populates only `platform`; `tenant` leaves\nboth `None`. Tenant is supplied by the authenticated route scope.\n\n`conversion_value` (the platform's own attribution) and `sanvi_revenue`\n(Sanvi's order-based view) are always both present, always labelled\nseparately \u2014 never blended into one number (NFR-1006). Same for\n`roas_platform`/`roas_sanvi`: each is `null` on zero spend, never `\u221e`.",
         "properties": {
           "campaign_id": {
             "examples": ["873698342314721281"],
@@ -4290,7 +4290,7 @@
           },
           "conversion_value": {
             "$ref": "#/components/schemas/MoneyView",
-            "description": "Platform-reported conversion value — attribution the ad platform's\nown model made."
+            "description": "Platform-reported conversion value \u2014 attribution the ad platform's\nown model made."
           },
           "conversions": {
             "format": "double",
@@ -4320,7 +4320,7 @@
             ]
           },
           "restating": {
-            "description": "Still inside the platform's restatement window — this day's numbers\nmay still change on a later ingest.",
+            "description": "Still inside the platform's restatement window \u2014 this day's numbers\nmay still change on a later ingest.",
             "type": "boolean"
           },
           "roas_platform": {
@@ -4333,7 +4333,7 @@
           },
           "sanvi_revenue": {
             "$ref": "#/components/schemas/MoneyView",
-            "description": "Sanvi's own order-based revenue view. Never summed with\n`conversion_value` — see the type's doc comment."
+            "description": "Sanvi's own order-based revenue view. Never summed with\n`conversion_value` \u2014 see the type's doc comment."
           },
           "spend": {
             "$ref": "#/components/schemas/MoneyView"
@@ -4394,7 +4394,7 @@
         "type": "object"
       },
       "MetricsSummaryRow": {
-        "description": "One currency's totals across the whole requested range — the range\nitself collapsed, so unlike [`MetricPoint`] there is one row per\ncurrency, not per day.",
+        "description": "One currency's totals across the whole requested range \u2014 the range\nitself collapsed, so unlike [`MetricPoint`] there is one row per\ncurrency, not per day.",
         "properties": {
           "clicks": {
             "format": "int64",
@@ -4459,7 +4459,7 @@
         "type": "object"
       },
       "MoneyView": {
-        "description": "A stored amount is always integer minor units plus the originating ad\naccount's ISO-4217 currency. JPY ¥2,000 is represented as `2000` / `JPY`.",
+        "description": "A stored amount is always integer minor units plus the originating ad\naccount's ISO-4217 currency. JPY \u00a52,000 is represented as `2000` / `JPY`.",
         "properties": {
           "amount_minor": {
             "example": 2000,
@@ -4589,7 +4589,7 @@
             "type": "string"
           },
           "redirect_uri": {
-            "description": "Must match the `redirect_uri` sent to `start` — the platform rejects\na mismatch at exchange time.",
+            "description": "Must match the `redirect_uri` sent to `start` \u2014 the platform rejects\na mismatch at exchange time.",
             "type": "string"
           },
           "state": {
@@ -4872,7 +4872,7 @@
             "type": ["string", "null"]
           },
           "fee_minor": {
-            "description": "The provider-reported fee on this payment. When the platform's\napplication fee is enabled for the tenant, this is where it is\ndisclosed — a platform fee the merchant cannot see is not\nacceptable, whatever the contract says.",
+            "description": "The provider-reported fee on this payment. When the platform's\napplication fee is enabled for the tenant, this is where it is\ndisclosed \u2014 a platform fee the merchant cannot see is not\nacceptable, whatever the contract says.",
             "format": "int64",
             "type": ["integer", "null"]
           },
@@ -4910,7 +4910,7 @@
             "type": "string"
           },
           "status": {
-            "description": "`pending` | `paid` | `failed`. A failed payout is alerted, not\njust listed — the tenant's money is stuck at the provider.",
+            "description": "`pending` | `paid` | `failed`. A failed payout is alerted, not\njust listed \u2014 the tenant's money is stuck at the provider.",
             "example": "paid",
             "type": "string"
           }
@@ -5301,7 +5301,7 @@
         "type": "object"
       },
       "PresignPartsRequest": {
-        "description": "Wire-only shape for presigning multipart upload parts. This has no\ncounterpart in `domain::dto` because it is not a value the domain layer\nneeds to model — the use case takes the bare `Vec<i64>`.",
+        "description": "Wire-only shape for presigning multipart upload parts. This has no\ncounterpart in `domain::dto` because it is not a value the domain layer\nneeds to model \u2014 the use case takes the bare `Vec<i64>`.",
         "properties": {
           "part_numbers": {
             "items": {
@@ -5489,7 +5489,7 @@
         "type": "string"
       },
       "ProviderView": {
-        "description": "One connectable provider as the settings page renders it. Derived\nfrom the adapter's [`crate::domain::ports::ProviderDescriptor`] —\nnever hardcoded per provider anywhere in this layer or the handlers.",
+        "description": "One connectable provider as the settings page renders it. Derived\nfrom the adapter's [`crate::domain::ports::ProviderDescriptor`] \u2014\nnever hardcoded per provider anywhere in this layer or the handlers.",
         "properties": {
           "available": {
             "description": "Whether *this tenant* may connect (country support).",
@@ -5530,7 +5530,7 @@
         "type": "object"
       },
       "ProvidersView": {
-        "description": "`GET /api/v1/tenant/payments/providers` — the catalog envelope,\nderived from the provider registry.",
+        "description": "`GET /api/v1/tenant/payments/providers` \u2014 the catalog envelope,\nderived from the provider registry.",
         "properties": {
           "providers": {
             "description": "Connectable providers, in stable kind order.",
@@ -5598,7 +5598,7 @@
         "type": "object"
       },
       "PublicPlanView": {
-        "description": "A plan with its prices and entitlement grants (public pricing page; the\nStripe price ids are omitted — they are integration details).",
+        "description": "A plan with its prices and entitlement grants (public pricing page; the\nStripe price ids are omitted \u2014 they are integration details).",
         "properties": {
           "entitlements": {
             "items": {
@@ -5814,7 +5814,7 @@
             "type": "array"
           },
           "source": {
-            "description": "`ui` | `api` | `gpc` — the GPC header path supplies `gpc`.",
+            "description": "`ui` | `api` | `gpc` \u2014 the GPC header path supplies `gpc`.",
             "type": "string"
           }
         },
@@ -5882,7 +5882,7 @@
             "type": ["string", "null"]
           },
           "reason": {
-            "description": "Why the refund is being issued — required, audited and shown in\nthe timeline. Empty is rejected.",
+            "description": "Why the refund is being issued \u2014 required, audited and shown in\nthe timeline. Empty is rejected.",
             "type": "string"
           }
         },
@@ -5931,7 +5931,7 @@
         "type": "object"
       },
       "Regime": {
-        "description": "The legal regime a jurisdiction belongs to; drives nothing by itself —\nevery decision reads the profile's model fields instead.",
+        "description": "The legal regime a jurisdiction belongs to; drives nothing by itself \u2014\nevery decision reads the profile's model fields instead.",
         "enum": ["gdpr", "uk_gdpr", "appi", "us_state"],
         "type": "string"
       },
@@ -6082,7 +6082,7 @@
         "type": "string"
       },
       "RequirementEntryView": {
-        "description": "One outstanding provider requirement, with the i18n message key the\nfrontend renders it from. The mapping is data\n(`payments.requirement_keys`); a code the map has not learned falls\nback to `payments.req.unmapped`, whose catalog entry shows the raw code\nplus Stripe's requirements help link — new requirements degrade,\nnever break.",
+        "description": "One outstanding provider requirement, with the i18n message key the\nfrontend renders it from. The mapping is data\n(`payments.requirement_keys`); a code the map has not learned falls\nback to `payments.req.unmapped`, whose catalog entry shows the raw code\nplus Stripe's requirements help link \u2014 new requirements degrade,\nnever break.",
         "properties": {
           "code": {
             "description": "The provider's requirement code, verbatim.",
@@ -6216,7 +6216,7 @@
             "type": "array"
           },
           "css_vars": {
-            "description": "Precompiled `:root{--…}` block (light + dark media query).",
+            "description": "Precompiled `:root{--\u2026}` block (light + dark media query).",
             "type": "string"
           },
           "custom_css": {
@@ -6511,7 +6511,7 @@
             "type": "integer"
           },
           "reason": {
-            "description": "Why the change is being made — audited with the actor.",
+            "description": "Why the change is being made \u2014 audited with the actor.",
             "type": ["string", "null"]
           }
         },
@@ -6533,7 +6533,7 @@
         "properties": {
           "settings": {
             "additionalProperties": {},
-            "description": "Key → value map to upsert. Values are uninterpreted JSON.",
+            "description": "Key \u2192 value map to upsert. Values are uninterpreted JSON.",
             "example": {
               "checkout.currency": "JPY"
             },
@@ -6657,7 +6657,7 @@
             "type": "string"
           },
           "timezone": {
-            "description": "The tenant calendar timezone the report's period windows were\ncomputed in (resolved from the tenant's locale settings). Surfaced on\nthe report so clients holding advertising access — but not\nlocale-settings access — render projections on the same clock\nenforcement uses.",
+            "description": "The tenant calendar timezone the report's period windows were\ncomputed in (resolved from the tenant's locale settings). Surfaced on\nthe report so clients holding advertising access \u2014 but not\nlocale-settings access \u2014 render projections on the same clock\nenforcement uses.",
             "type": "string"
           }
         },
@@ -6724,7 +6724,7 @@
         "type": "object"
       },
       "SubProcessor": {
-        "description": "A sub-processor registry row. `role` is the field that turns an\nad-platform upload into a \"sale\"/\"share\" under US law — it is required\nand asserted by phase 10's uploads.",
+        "description": "A sub-processor registry row. `role` is the field that turns an\nad-platform upload into a \"sale\"/\"share\" under US law \u2014 it is required\nand asserted by phase 10's uploads.",
         "properties": {
           "added_at": {
             "format": "date-time",
@@ -6790,7 +6790,7 @@
         "type": "string"
       },
       "SubjectIdentifier": {
-        "description": "One identifier by which a subject can be looked up (email, platform user\nid, tenant-internal customer id, …).",
+        "description": "One identifier by which a subject can be looked up (email, platform user\nid, tenant-internal customer id, \u2026).",
         "properties": {
           "type": {
             "type": "string"
@@ -6820,7 +6820,7 @@
             "type": ["string", "null"]
           },
           "evidence": {
-            "description": "Jurisdiction evidence, most trusted first (country codes: `DE`,\n`GB`, `US-CA`, …).",
+            "description": "Jurisdiction evidence, most trusted first (country codes: `DE`,\n`GB`, `US-CA`, \u2026).",
             "items": {
               "$ref": "#/components/schemas/EvidenceInput"
             },
@@ -6838,7 +6838,7 @@
         "type": "object"
       },
       "SubjectKeyRef": {
-        "description": "Enough of the capturing subject's identity to rebuild the exact\n`SubjectRef` a later withdrawal re-check must query — without ever\npersisting the raw email/phone TASK-014 forbids in this context. A\ndevice ref, a tenant's own customer ref, and a platform user id are not\nthemselves the raw PII that rule targets, so they are stored verbatim;\nan email-identified (`Contact`) subject stores nothing reconstructable,\nand the retry path refuses rather than re-deriving a directive answer\nagainst the wrong subject.",
+        "description": "Enough of the capturing subject's identity to rebuild the exact\n`SubjectRef` a later withdrawal re-check must query \u2014 without ever\npersisting the raw email/phone TASK-014 forbids in this context. A\ndevice ref, a tenant's own customer ref, and a platform user id are not\nthemselves the raw PII that rule targets, so they are stored verbatim;\nan email-identified (`Contact`) subject stores nothing reconstructable,\nand the retry path refuses rather than re-deriving a directive answer\nagainst the wrong subject.",
         "oneOf": [
           {
             "properties": {
@@ -7177,7 +7177,7 @@
             "type": ["string", "null"]
           },
           "liability_account": {
-            "description": "The liable connected-account id when enabled (`{ type: 'account' }`\nrouting) — with direct charges the connected account is the\nmerchant of record.",
+            "description": "The liable connected-account id when enabled (`{ type: 'account' }`\nrouting) \u2014 with direct charges the connected account is the\nmerchant of record.",
             "type": ["string", "null"]
           },
           "platform_fee": {
@@ -7187,7 +7187,7 @@
               },
               {
                 "$ref": "#/components/schemas/PlatformFeeDisclosure",
-                "description": "The platform's fee on this tenant's payments, when one is enabled\n(off by default in 0.10.0). Disclosed here and on every affected\npayment — a platform fee the merchant cannot see is not acceptable,\nwhatever the contract says."
+                "description": "The platform's fee on this tenant's payments, when one is enabled\n(off by default in 0.10.0). Disclosed here and on every affected\npayment \u2014 a platform fee the merchant cannot see is not acceptable,\nwhatever the contract says."
               }
             ]
           },
@@ -7309,7 +7309,7 @@
         "type": "object"
       },
       "TenantContext": {
-        "description": "What a tenant looks like at request time — the shape every context reads\nfrom request extensions.",
+        "description": "What a tenant looks like at request time \u2014 the shape every context reads\nfrom request extensions.",
         "properties": {
           "default_locale": {
             "type": "string"
@@ -7524,7 +7524,7 @@
             "$ref": "#/components/schemas/ConversionEvent"
           },
           "test": {
-            "description": "Always `true` — a marker so this synthetic call is never mistaken\nfor a real event by anything reading the response.",
+            "description": "Always `true` \u2014 a marker so this synthetic call is never mistaken\nfor a real event by anything reading the response.",
             "type": "boolean"
           }
         },
@@ -7621,7 +7621,7 @@
         "type": "object"
       },
       "ThemeState": {
-        "description": "Draft or live — the two rows a tenant may hold.",
+        "description": "Draft or live \u2014 the two rows a tenant may hold.",
         "enum": ["draft", "live"],
         "type": "string"
       },
@@ -7672,7 +7672,7 @@
         "description": "One entry in the payment's timeline.",
         "properties": {
           "actor": {
-            "description": "Who caused this entry, when a human exists (refunds). Webhook-\nderived entries have no actor — the provider did.",
+            "description": "Who caused this entry, when a human exists (refunds). Webhook-\nderived entries have no actor \u2014 the provider did.",
             "type": ["string", "null"]
           },
           "amount": {
@@ -7834,10 +7834,10 @@
         "type": "object"
       },
       "UnmatchedPlatformAds": {
-        "description": "What the platform listed that this campaign's tree cannot account for.\nA published campaign whose ads were never pushed (or whose platform ids\nwere never recorded) can never match the platform's listings — surfacing\nthe gap is what keeps an all-pending response from reading as a clean,\nsuccessful poll when it is really \"nothing correlated\".",
+        "description": "What the platform listed that this campaign's tree cannot account for.\nA published campaign whose ads were never pushed (or whose platform ids\nwere never recorded) can never match the platform's listings \u2014 surfacing\nthe gap is what keeps an all-pending response from reading as a clean,\nsuccessful poll when it is really \"nothing correlated\".",
         "properties": {
           "ads_without_platform_id": {
-            "description": "Ads in the campaign tree with no recorded platform id — these can\nnever match anything until the platform's ids are persisted onto them.",
+            "description": "Ads in the campaign tree with no recorded platform id \u2014 these can\nnever match anything until the platform's ids are persisted onto them.",
             "minimum": 0,
             "type": "integer"
           },
@@ -7976,7 +7976,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/TokenValue"
             },
-            "description": "Flat token overrides (`color.brand.primary` → `{$value, $type}`).",
+            "description": "Flat token overrides (`color.brand.primary` \u2192 `{$value, $type}`).",
             "propertyNames": {
               "type": "string"
             },
@@ -7990,7 +7990,7 @@
         "type": "object"
       },
       "UploadBrandAssetCommand": {
-        "description": "The upload command: base64 payload with a declared media type (the\ndeclared type is advisory — the bytes are sniffed and must match).",
+        "description": "The upload command: base64 payload with a declared media type (the\ndeclared type is advisory \u2014 the bytes are sniffed and must match).",
         "properties": {
           "content_type": {
             "description": "The declared media type (must agree with the sniffed bytes).",
@@ -8432,7 +8432,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/access/permissions` — the central permission registry,\nfor the admin/UI contracts. Readable by any authenticated subject.",
+        "summary": "`GET /api/v1/access/permissions` \u2014 the central permission registry,\nfor the admin/UI contracts. Readable by any authenticated subject.",
         "tags": ["access"]
       }
     },
@@ -8471,7 +8471,7 @@
             "description": "Invalid input"
           }
         },
-        "summary": "`POST /api/v1/auth/link/challenge` — start the account-linking challenge.",
+        "summary": "`POST /api/v1/auth/link/challenge` \u2014 start the account-linking challenge.",
         "tags": ["identity"]
       }
     },
@@ -8520,7 +8520,7 @@
             "description": "Intent unavailable"
           }
         },
-        "summary": "`POST /api/v1/auth/link/complete` — complete the linking challenge\n(authenticated: the browser holds the nonce, the session proves\nownership of the existing account).",
+        "summary": "`POST /api/v1/auth/link/complete` \u2014 complete the linking challenge\n(authenticated: the browser holds the nonce, the session proves\nownership of the existing account).",
         "tags": ["identity"]
       }
     },
@@ -8549,7 +8549,7 @@
             "description": "Not authenticated"
           }
         },
-        "summary": "`GET /api/v1/me` — the signed-in user's profile.",
+        "summary": "`GET /api/v1/me` \u2014 the signed-in user's profile.",
         "tags": ["identity"]
       }
     },
@@ -8581,7 +8581,7 @@
             "description": "Not authenticated"
           }
         },
-        "summary": "`GET /api/v1/me/sessions` — the current session (self-management scope\nin phase 02).",
+        "summary": "`GET /api/v1/me/sessions` \u2014 the current session (self-management scope\nin phase 02).",
         "tags": ["identity"]
       }
     },
@@ -8624,7 +8624,7 @@
             "description": "Session not found"
           }
         },
-        "summary": "`DELETE /api/v1/me/sessions/{session_id}` — revoke the current session.",
+        "summary": "`DELETE /api/v1/me/sessions/{session_id}` \u2014 revoke the current session.",
         "tags": ["identity"]
       }
     },
@@ -8716,7 +8716,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/platform/admin/tenants` — operator tenant search.",
+        "summary": "`GET /api/v1/platform/admin/tenants` \u2014 operator tenant search.",
         "tags": ["platform_admin"]
       }
     },
@@ -8769,7 +8769,7 @@
             "description": "Tenant not found"
           }
         },
-        "summary": "`GET /api/v1/platform/admin/tenants/{id}` — one tenant admin view.",
+        "summary": "`GET /api/v1/platform/admin/tenants/{id}` \u2014 one tenant admin view.",
         "tags": ["platform_admin"]
       }
     },
@@ -8829,7 +8829,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/platform/approvals` — pending four-eyes requests.",
+        "summary": "`GET /api/v1/platform/approvals` \u2014 pending four-eyes requests.",
         "tags": ["platform_admin"]
       }
     },
@@ -8892,7 +8892,7 @@
             "description": "Approval no longer pending"
           }
         },
-        "summary": "`POST /api/v1/platform/approvals/{id}/approve` — approve (executes the\nrecorded action) and record both identities.",
+        "summary": "`POST /api/v1/platform/approvals/{id}/approve` \u2014 approve (executes the\nrecorded action) and record both identities.",
         "tags": ["platform_admin"]
       }
     },
@@ -8955,7 +8955,7 @@
             "description": "Approval no longer pending"
           }
         },
-        "summary": "`POST /api/v1/platform/approvals/{id}/reject` — reject a request.",
+        "summary": "`POST /api/v1/platform/approvals/{id}/reject` \u2014 reject a request.",
         "tags": ["platform_admin"]
       }
     },
@@ -9200,7 +9200,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/platform/features` — the feature catalog.",
+        "summary": "`GET /api/v1/platform/features` \u2014 the feature catalog.",
         "tags": ["access"]
       },
       "post": {
@@ -9257,7 +9257,7 @@
             "description": "Feature key already exists"
           }
         },
-        "summary": "`POST /api/v1/platform/features` — define a new feature.",
+        "summary": "`POST /api/v1/platform/features` \u2014 define a new feature.",
         "tags": ["access"]
       }
     },
@@ -9307,7 +9307,7 @@
             "description": "Feature not found"
           }
         },
-        "summary": "`DELETE /api/v1/platform/features/{key}` — deprecate a feature (it stays\nresolvable; it stops appearing in tenant-facing catalogs).",
+        "summary": "`DELETE /api/v1/platform/features/{key}` \u2014 deprecate a feature (it stays\nresolvable; it stops appearing in tenant-facing catalogs).",
         "tags": ["access"]
       },
       "patch": {
@@ -9375,7 +9375,7 @@
             "description": "Feature not found"
           }
         },
-        "summary": "`PATCH /api/v1/platform/features/{key}` — update a feature's defaults.",
+        "summary": "`PATCH /api/v1/platform/features/{key}` \u2014 update a feature's defaults.",
         "tags": ["access"]
       }
     },
@@ -9432,7 +9432,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/platform/impersonations` — active grants.",
+        "summary": "`GET /api/v1/platform/impersonations` \u2014 active grants.",
         "tags": ["platform_admin"]
       },
       "post": {
@@ -9479,7 +9479,7 @@
             "description": "Permission denied, target not a member, or fresh MFA missing"
           }
         },
-        "summary": "`POST /api/v1/platform/impersonations` — create a time-boxed grant\n(requires fresh MFA). Exchange the returned id via the\n`x-sanvi-impersonate` header.",
+        "summary": "`POST /api/v1/platform/impersonations` \u2014 create a time-boxed grant\n(requires fresh MFA). Exchange the returned id via the\n`x-sanvi-impersonate` header.",
         "tags": ["platform_admin"]
       }
     },
@@ -9532,7 +9532,7 @@
             "description": "Grant not found"
           }
         },
-        "summary": "`DELETE /api/v1/platform/impersonations/{id}` — revoke (immediate).",
+        "summary": "`DELETE /api/v1/platform/impersonations/{id}` \u2014 revoke (immediate).",
         "tags": ["platform_admin"]
       }
     },
@@ -9629,7 +9629,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/platform/plans` — the operator catalog (hidden plans too).",
+        "summary": "`GET /api/v1/platform/plans` \u2014 the operator catalog (hidden plans too).",
         "tags": ["billing"]
       },
       "post": {
@@ -9676,7 +9676,7 @@
             "description": "Plan key taken"
           }
         },
-        "summary": "`POST /api/v1/platform/plans` — create a plan (the Stripe Product must\nexist in the Dashboard first; its id goes into `stripe_product_id`).",
+        "summary": "`POST /api/v1/platform/plans` \u2014 create a plan (the Stripe Product must\nexist in the Dashboard first; its id goes into `stripe_product_id`).",
         "tags": ["billing"]
       }
     },
@@ -9739,7 +9739,7 @@
             "description": "Plan not found"
           }
         },
-        "summary": "`PATCH /api/v1/platform/plans/{id}` — update a plan's mutable fields.",
+        "summary": "`PATCH /api/v1/platform/plans/{id}` \u2014 update a plan's mutable fields.",
         "tags": ["billing"]
       }
     },
@@ -9815,7 +9815,7 @@
             "description": "Plan not found"
           }
         },
-        "summary": "`PUT /api/v1/platform/plans/{id}/entitlements` — replace the plan's\nentitlement map. Pricing changes never require a deploy; tenants get the\nnew map on their next entitlement recompute.",
+        "summary": "`PUT /api/v1/platform/plans/{id}/entitlements` \u2014 replace the plan's\nentitlement map. Pricing changes never require a deploy; tenants get the\nnew map on their next entitlement recompute.",
         "tags": ["billing"]
       }
     },
@@ -9878,7 +9878,7 @@
             "description": "Plan not found"
           }
         },
-        "summary": "`POST /api/v1/platform/plans/{id}/prices` — attach a Stripe Price\n(billing variant of the plan).",
+        "summary": "`POST /api/v1/platform/plans/{id}/prices` \u2014 attach a Stripe Price\n(billing variant of the plan).",
         "tags": ["billing"]
       }
     },
@@ -9900,7 +9900,7 @@
             "description": "Processing activities"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/activities` — Art. 30 records.",
+        "summary": "`GET /api/v1/platform/privacy/activities` \u2014 Art. 30 records.",
         "tags": ["privacy"]
       },
       "post": {
@@ -9927,7 +9927,7 @@
             "description": "Recorded"
           }
         },
-        "summary": "`POST /api/v1/platform/privacy/activities` — record a processing\nactivity.",
+        "summary": "`POST /api/v1/platform/privacy/activities` \u2014 record a processing\nactivity.",
         "tags": ["privacy"]
       }
     },
@@ -9949,7 +9949,7 @@
             "description": "Open appeals"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/appeals` — open appeals.",
+        "summary": "`GET /api/v1/platform/privacy/appeals` \u2014 open appeals.",
         "tags": ["privacy"]
       }
     },
@@ -10002,7 +10002,7 @@
             "description": "Self-review refused"
           }
         },
-        "summary": "`POST /api/v1/platform/privacy/appeals/{id}/decision` — second-operator\nreview.",
+        "summary": "`POST /api/v1/platform/privacy/appeals/{id}/decision` \u2014 second-operator\nreview.",
         "tags": ["privacy"]
       }
     },
@@ -10024,7 +10024,7 @@
             "description": "Assessments"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/assessments` — risk assessments (DPIA +\nUS state data-protection assessments).",
+        "summary": "`GET /api/v1/platform/privacy/assessments` \u2014 risk assessments (DPIA +\nUS state data-protection assessments).",
         "tags": ["privacy"]
       },
       "post": {
@@ -10051,7 +10051,7 @@
             "description": "Recorded"
           }
         },
-        "summary": "`POST /api/v1/platform/privacy/assessments` — record an assessment.",
+        "summary": "`POST /api/v1/platform/privacy/assessments` \u2014 record an assessment.",
         "tags": ["privacy"]
       }
     },
@@ -10073,7 +10073,7 @@
             "description": "Legal holds"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/holds` — legal holds.",
+        "summary": "`GET /api/v1/platform/privacy/holds` \u2014 legal holds.",
         "tags": ["privacy"]
       },
       "post": {
@@ -10100,7 +10100,7 @@
             "description": "Hold applied"
           }
         },
-        "summary": "`POST /api/v1/platform/privacy/holds` — apply a legal hold (blocks\nerasure; audited).",
+        "summary": "`POST /api/v1/platform/privacy/holds` \u2014 apply a legal hold (blocks\nerasure; audited).",
         "tags": ["privacy"]
       }
     },
@@ -10126,7 +10126,7 @@
             "description": "Hold released"
           }
         },
-        "summary": "`POST /api/v1/platform/privacy/holds/{id}/release` — release a hold.",
+        "summary": "`POST /api/v1/platform/privacy/holds/{id}/release` \u2014 release a hold.",
         "tags": ["privacy"]
       }
     },
@@ -10148,7 +10148,7 @@
             "description": "Incidents"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/incidents` — breach incidents.",
+        "summary": "`GET /api/v1/platform/privacy/incidents` \u2014 breach incidents.",
         "tags": ["privacy"]
       },
       "post": {
@@ -10175,7 +10175,7 @@
             "description": "Incident + obligations"
           }
         },
-        "summary": "`POST /api/v1/platform/privacy/incidents` — record an incident; the\nresponse includes the computed per-jurisdiction obligations.",
+        "summary": "`POST /api/v1/platform/privacy/incidents` \u2014 record an incident; the\nresponse includes the computed per-jurisdiction obligations.",
         "tags": ["privacy"]
       }
     },
@@ -10211,7 +10211,7 @@
             "description": "Recorded"
           }
         },
-        "summary": "`POST /api/v1/platform/privacy/incidents/{id}/notify` — record a\ndischarged obligation.",
+        "summary": "`POST /api/v1/platform/privacy/incidents/{id}/notify` \u2014 record a\ndischarged obligation.",
         "tags": ["privacy"]
       }
     },
@@ -10247,7 +10247,7 @@
             "description": "Obligations"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/incidents/{id}/obligations` — computed\nobligations.",
+        "summary": "`GET /api/v1/platform/privacy/incidents/{id}/obligations` \u2014 computed\nobligations.",
         "tags": ["privacy"]
       }
     },
@@ -10269,7 +10269,7 @@
             "description": "Jurisdiction profiles"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/jurisdictions` — profiles.",
+        "summary": "`GET /api/v1/platform/privacy/jurisdictions` \u2014 profiles.",
         "tags": ["privacy"]
       },
       "put": {
@@ -10289,7 +10289,7 @@
             "description": "Profile saved"
           }
         },
-        "summary": "`PUT /api/v1/platform/privacy/jurisdictions` — upsert a profile (audited\nconfiguration; a new state law is this call plus a matrix-test row).",
+        "summary": "`PUT /api/v1/platform/privacy/jurisdictions` \u2014 upsert a profile (audited\nconfiguration; a new state law is this call plus a matrix-test row).",
         "tags": ["privacy"]
       }
     },
@@ -10332,7 +10332,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/requests` — operator view.",
+        "summary": "`GET /api/v1/platform/privacy/requests` \u2014 operator view.",
         "tags": ["privacy"]
       }
     },
@@ -10366,7 +10366,7 @@
             "description": "New deadline"
           }
         },
-        "summary": "`POST /api/v1/platform/privacy/requests/{id}/extend` — one deadline\nextension (jurisdiction rules apply).",
+        "summary": "`POST /api/v1/platform/privacy/requests/{id}/extend` \u2014 one deadline\nextension (jurisdiction rules apply).",
         "tags": ["privacy"]
       }
     },
@@ -10402,7 +10402,7 @@
             "description": "Rejected"
           }
         },
-        "summary": "`POST /api/v1/platform/privacy/requests/{id}/reject` — reject with\nreason (US subjects get the appeal route in the response).",
+        "summary": "`POST /api/v1/platform/privacy/requests/{id}/reject` \u2014 reject with\nreason (US subjects get the appeal route in the response).",
         "tags": ["privacy"]
       }
     },
@@ -10424,7 +10424,7 @@
             "description": "Retention rules"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/retention-rules` — retention rules (the\nnotice's retention table comes from these rows).",
+        "summary": "`GET /api/v1/platform/privacy/retention-rules` \u2014 retention rules (the\nnotice's retention table comes from these rows).",
         "tags": ["privacy"]
       },
       "put": {
@@ -10444,7 +10444,7 @@
             "description": "Saved"
           }
         },
-        "summary": "`PUT /api/v1/platform/privacy/retention-rules` — adjust a rule (counsel\nchanges periods without a release).",
+        "summary": "`PUT /api/v1/platform/privacy/retention-rules` \u2014 adjust a rule (counsel\nchanges periods without a release).",
         "tags": ["privacy"]
       }
     },
@@ -10466,7 +10466,7 @@
             "description": "Sub-processors"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/subprocessors` — registry (incl. removed).",
+        "summary": "`GET /api/v1/platform/privacy/subprocessors` \u2014 registry (incl. removed).",
         "tags": ["privacy"]
       },
       "post": {
@@ -10486,7 +10486,7 @@
             "description": "Saved"
           }
         },
-        "summary": "`POST /api/v1/platform/privacy/subprocessors` — upsert (role is\nrequired: it decides what is a \"sale\" under US law).",
+        "summary": "`POST /api/v1/platform/privacy/subprocessors` \u2014 upsert (role is\nrequired: it decides what is a \"sale\" under US law).",
         "tags": ["privacy"]
       }
     },
@@ -10509,7 +10509,7 @@
             "description": "Removed"
           }
         },
-        "summary": "`DELETE /api/v1/platform/privacy/subprocessors/{name}` — remove.",
+        "summary": "`DELETE /api/v1/platform/privacy/subprocessors/{name}` \u2014 remove.",
         "tags": ["privacy"]
       }
     },
@@ -10541,7 +10541,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/platform/roles` — the full role catalog (operator console).",
+        "summary": "`GET /api/v1/platform/roles` \u2014 the full role catalog (operator console).",
         "tags": ["access"]
       }
     },
@@ -10611,7 +10611,7 @@
             "description": "Internal error"
           }
         },
-        "summary": "`GET /api/v1/platform/tenants` — list tenants (cursor pagination).",
+        "summary": "`GET /api/v1/platform/tenants` \u2014 list tenants (cursor pagination).",
         "tags": ["tenancy"]
       },
       "post": {
@@ -10668,7 +10668,7 @@
             "description": "Internal error"
           }
         },
-        "summary": "`POST /api/v1/platform/tenants` — provision a new tenant.",
+        "summary": "`POST /api/v1/platform/tenants` \u2014 provision a new tenant.",
         "tags": ["tenancy"]
       }
     },
@@ -10721,7 +10721,7 @@
             "description": "Internal error"
           }
         },
-        "summary": "`GET /api/v1/platform/tenants/{id}` — tenant detail.",
+        "summary": "`GET /api/v1/platform/tenants/{id}` \u2014 tenant detail.",
         "tags": ["tenancy"]
       }
     },
@@ -10784,7 +10784,7 @@
             "description": "Internal error"
           }
         },
-        "summary": "`POST /api/v1/platform/tenants/{id}/activate` — provisioning → active.",
+        "summary": "`POST /api/v1/platform/tenants/{id}/activate` \u2014 provisioning \u2192 active.",
         "tags": ["tenancy"]
       }
     },
@@ -10820,7 +10820,7 @@
             "description": "Permission denied or fresh MFA missing"
           }
         },
-        "summary": "`DELETE /api/v1/platform/tenants/{id}/application-fee` — disable (the\nrollback path: data, no deploy; the numbers are retained for review).",
+        "summary": "`DELETE /api/v1/platform/tenants/{id}/application-fee` \u2014 disable (the\nrollback path: data, no deploy; the numbers are retained for review).",
         "tags": ["platform_admin"]
       },
       "get": {
@@ -10861,7 +10861,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/platform/tenants/{id}/application-fee` — the stored\nconfiguration. A never-configured tenant renders the disabled default\nso the console has one shape to bind.",
+        "summary": "`GET /api/v1/platform/tenants/{id}/application-fee` \u2014 the stored\nconfiguration. A never-configured tenant renders the disabled default\nso the console has one shape to bind.",
         "tags": ["platform_admin"]
       },
       "put": {
@@ -10922,7 +10922,7 @@
             "description": "Permission denied or fresh MFA missing"
           }
         },
-        "summary": "`PUT /api/v1/platform/tenants/{id}/application-fee` — create or update\nthe per-tenant fee configuration. Audited with actor + reason; takes\neffect on the next checkout creation with no deploy (rollback is a\n`DELETE` away).",
+        "summary": "`PUT /api/v1/platform/tenants/{id}/application-fee` \u2014 create or update\nthe per-tenant fee configuration. Audited with actor + reason; takes\neffect on the next checkout creation with no deploy (rollback is a\n`DELETE` away).",
         "tags": ["platform_admin"]
       }
     },
@@ -10985,7 +10985,7 @@
             "description": "Internal error"
           }
         },
-        "summary": "`POST /api/v1/platform/tenants/{id}/archive` — active|suspended → archived.",
+        "summary": "`POST /api/v1/platform/tenants/{id}/archive` \u2014 active|suspended \u2192 archived.",
         "tags": ["tenancy"]
       }
     },
@@ -11031,7 +11031,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/platform/tenants/{id}/entitlements` — a tenant's stored\noverride rows.",
+        "summary": "`GET /api/v1/platform/tenants/{id}/entitlements` \u2014 a tenant's stored\noverride rows.",
         "tags": ["platform_admin"]
       },
       "post": {
@@ -11092,7 +11092,7 @@
             "description": "Permission denied or fresh MFA missing"
           }
         },
-        "summary": "`POST /api/v1/platform/tenants/{id}/entitlements` — grant an override.\nOverrides above the configured threshold require four-eyes approval and\nreturn `approval_required` with the pending request id.",
+        "summary": "`POST /api/v1/platform/tenants/{id}/entitlements` \u2014 grant an override.\nOverrides above the configured threshold require four-eyes approval and\nreturn `approval_required` with the pending request id.",
         "tags": ["platform_admin"]
       }
     },
@@ -11137,7 +11137,7 @@
             "description": "Permission denied or fresh MFA missing"
           }
         },
-        "summary": "`DELETE /api/v1/platform/tenants/{id}/entitlements/{feature}` — revoke\nan override (fresh MFA required).",
+        "summary": "`DELETE /api/v1/platform/tenants/{id}/entitlements/{feature}` \u2014 revoke\nan override (fresh MFA required).",
         "tags": ["platform_admin"]
       }
     },
@@ -11200,7 +11200,7 @@
             "description": "Internal error"
           }
         },
-        "summary": "`POST /api/v1/platform/tenants/{id}/resume` — suspended → active.",
+        "summary": "`POST /api/v1/platform/tenants/{id}/resume` \u2014 suspended \u2192 active.",
         "tags": ["tenancy"]
       }
     },
@@ -11246,7 +11246,7 @@
             "description": "Not an operator override"
           }
         },
-        "summary": "`DELETE /api/v1/platform/tenants/{id}/subscription/override` — revoke an\noperator override.",
+        "summary": "`DELETE /api/v1/platform/tenants/{id}/subscription/override` \u2014 revoke an\noperator override.",
         "tags": ["billing"]
       },
       "post": {
@@ -11310,7 +11310,7 @@
             "description": "Live Stripe subscription blocks an override"
           }
         },
-        "summary": "`POST /api/v1/platform/tenants/{id}/subscription/override` — grant a\nplan's entitlements without a Stripe subscription (audited operator\naction).",
+        "summary": "`POST /api/v1/platform/tenants/{id}/subscription/override` \u2014 grant a\nplan's entitlements without a Stripe subscription (audited operator\naction).",
         "tags": ["billing"]
       }
     },
@@ -11383,7 +11383,7 @@
             "description": "Internal error"
           }
         },
-        "summary": "`POST /api/v1/platform/tenants/{id}/suspend` — active → suspended.",
+        "summary": "`POST /api/v1/platform/tenants/{id}/suspend` \u2014 active \u2192 suspended.",
         "tags": ["tenancy"]
       }
     },
@@ -11452,7 +11452,7 @@
             "description": "Version already exists"
           }
         },
-        "summary": "`POST /api/v1/platform/themes` — install a theme version.",
+        "summary": "`POST /api/v1/platform/themes` \u2014 install a theme version.",
         "tags": ["theming"]
       }
     },
@@ -11537,7 +11537,7 @@
             "description": "Unknown theme or version"
           }
         },
-        "summary": "`POST /api/v1/platform/themes/{key}/versions/{version}/yank` — withdraw.",
+        "summary": "`POST /api/v1/platform/themes/{key}/versions/{version}/yank` \u2014 withdraw.",
         "tags": ["theming"]
       }
     },
@@ -11559,7 +11559,7 @@
             "description": "Consent ledger rows for the subject"
           }
         },
-        "summary": "`GET /api/v1/privacy/consents` — own consent ledger (proof view).",
+        "summary": "`GET /api/v1/privacy/consents` \u2014 own consent ledger (proof view).",
         "tags": ["privacy"]
       },
       "put": {
@@ -11596,7 +11596,7 @@
             "description": "Essential is not consentable"
           }
         },
-        "summary": "`PUT /api/v1/privacy/consents` — grant/withdraw one consent.",
+        "summary": "`PUT /api/v1/privacy/consents` \u2014 grant/withdraw one consent.",
         "tags": ["privacy"]
       }
     },
@@ -11615,7 +11615,7 @@
             "description": "Resolved directives"
           }
         },
-        "summary": "`GET /api/v1/privacy/directives` — the resolved state per purpose, with\nsource and jurisdiction (what the privacy centre renders). Binding\nunbound GPC signals happens here.",
+        "summary": "`GET /api/v1/privacy/directives` \u2014 the resolved state per purpose, with\nsource and jurisdiction (what the privacy centre renders). Binding\nunbound GPC signals happens here.",
         "tags": ["privacy"]
       }
     },
@@ -11644,7 +11644,7 @@
             "description": "Sensitive use limited"
           }
         },
-        "summary": "`POST /api/v1/privacy/limit-sensitive` — CPRA \"limit the use of my\nsensitive personal information\".",
+        "summary": "`POST /api/v1/privacy/limit-sensitive` \u2014 CPRA \"limit the use of my\nsensitive personal information\".",
         "tags": ["privacy"]
       }
     },
@@ -11673,7 +11673,7 @@
             "description": "Directives flipped immediately"
           }
         },
-        "summary": "`POST /api/v1/privacy/opt-out` — sale/share, targeted advertising,\nprofiling. NO verification gate; accepts `Sec-GPC`.",
+        "summary": "`POST /api/v1/privacy/opt-out` \u2014 sale/share, targeted advertising,\nprofiling. NO verification gate; accepts `Sec-GPC`.",
         "tags": ["privacy"]
       }
     },
@@ -11712,7 +11712,7 @@
             "description": "Conflict"
           }
         },
-        "summary": "`POST /api/v1/privacy/requests` — self-service DSR. Authenticated users\nare verified by their session; email requesters receive an OTP.",
+        "summary": "`POST /api/v1/privacy/requests` \u2014 self-service DSR. Authenticated users\nare verified by their session; email requesters receive an OTP.",
         "tags": ["privacy"]
       }
     },
@@ -11764,7 +11764,7 @@
             "description": "Unknown request"
           }
         },
-        "summary": "`GET /api/v1/privacy/requests/{id}` — status for the subject (owned by\nsession or challenge token).",
+        "summary": "`GET /api/v1/privacy/requests/{id}` \u2014 status for the subject (owned by\nsession or challenge token).",
         "tags": ["privacy"]
       }
     },
@@ -11817,7 +11817,7 @@
             "description": "Not appealable"
           }
         },
-        "summary": "`POST /api/v1/privacy/requests/{id}/appeal` — appeal a refusal (US).",
+        "summary": "`POST /api/v1/privacy/requests/{id}/appeal` \u2014 appeal a refusal (US).",
         "tags": ["privacy"]
       }
     },
@@ -11884,7 +11884,7 @@
             "description": "Expired or exhausted"
           }
         },
-        "summary": "`GET /api/v1/privacy/requests/{id}/download` — one-time, TTL-bound export\ndownload. The passphrase was delivered out of band; the token is the\ndownload link's secret.",
+        "summary": "`GET /api/v1/privacy/requests/{id}/download` \u2014 one-time, TTL-bound export\ndownload. The passphrase was delivered out of band; the token is the\ndownload link's secret.",
         "tags": ["privacy"]
       }
     },
@@ -11920,7 +11920,7 @@
             "description": "Corrections applied"
           }
         },
-        "summary": "`PATCH /api/v1/privacy/requests/{id}/rectify` — apply corrections.",
+        "summary": "`PATCH /api/v1/privacy/requests/{id}/rectify` \u2014 apply corrections.",
         "tags": ["privacy"]
       }
     },
@@ -11973,7 +11973,7 @@
             "description": "Challenge not found"
           }
         },
-        "summary": "`POST /api/v1/privacy/requests/{id}/verify` — consume the OTP.",
+        "summary": "`POST /api/v1/privacy/requests/{id}/verify` \u2014 consume the OTP.",
         "tags": ["privacy"]
       }
     },
@@ -11992,7 +11992,7 @@
             "description": "Supported locales"
           }
         },
-        "summary": "`GET /api/v1/public/locales` — the platform's enabled locale set.",
+        "summary": "`GET /api/v1/public/locales` \u2014 the platform's enabled locale set.",
         "tags": ["localization"]
       }
     },
@@ -12044,7 +12044,7 @@
             "description": "Unknown domain"
           }
         },
-        "summary": "`GET /api/v1/public/messages/{domain}?locale=` — catalog delivery for\nthe frontend, ETag-cached.",
+        "summary": "`GET /api/v1/public/messages/{domain}?locale=` \u2014 catalog delivery for\nthe frontend, ETag-cached.",
         "tags": ["localization"]
       }
     },
@@ -12066,7 +12066,7 @@
             "description": "Plans with prices and entitlement grants"
           }
         },
-        "summary": "`GET /api/v1/public/plans` — the pricing page catalog (localized by\nphase 06; hidden plans excluded).",
+        "summary": "`GET /api/v1/public/plans` \u2014 the pricing page catalog (localized by\nphase 06; hidden plans excluded).",
         "tags": ["billing"]
       }
     },
@@ -12100,7 +12100,7 @@
             "description": "Annual metrics"
           }
         },
-        "summary": "`GET /api/v1/public/privacy/metrics` — annual request metrics (CCPA\ndisclosure), generated from the request ledger.",
+        "summary": "`GET /api/v1/public/privacy/metrics` \u2014 annual request metrics (CCPA\ndisclosure), generated from the request ledger.",
         "tags": ["privacy"]
       }
     },
@@ -12119,7 +12119,7 @@
             "description": "The privacy notice"
           }
         },
-        "summary": "`GET /api/v1/public/privacy/notice` — the current notice + version,\ngenerated from live configuration (jurisdiction sections and the\nretention table).",
+        "summary": "`GET /api/v1/public/privacy/notice` \u2014 the current notice + version,\ngenerated from live configuration (jurisdiction sections and the\nretention table).",
         "tags": ["privacy"]
       }
     },
@@ -12138,7 +12138,7 @@
             "description": "Notice at collection"
           }
         },
-        "summary": "`GET /api/v1/public/privacy/notice-at-collection` — categories, purposes,\nretention and sale/share status, served before any collection.",
+        "summary": "`GET /api/v1/public/privacy/notice-at-collection` \u2014 categories, purposes,\nretention and sale/share status, served before any collection.",
         "tags": ["privacy"]
       }
     },
@@ -12178,7 +12178,7 @@
             "description": "Internal error"
           }
         },
-        "summary": "`GET /api/v1/public/slug-availability` — is this slug free? (boolean only.)",
+        "summary": "`GET /api/v1/public/slug-availability` \u2014 is this slug free? (boolean only.)",
         "tags": ["tenancy"]
       }
     },
@@ -12200,7 +12200,7 @@
             "description": "Sub-processors"
           }
         },
-        "summary": "`GET /api/v1/public/subprocessors` — the public sub-processor list with\nrole and transfer mechanism.",
+        "summary": "`GET /api/v1/public/subprocessors` \u2014 the public sub-processor list with\nrole and transfer mechanism.",
         "tags": ["privacy"]
       }
     },
@@ -12239,7 +12239,7 @@
             "description": "Internal error"
           }
         },
-        "summary": "`GET /api/v1/public/tenant-context` — host-based context for the\nstorefront SSR bootstrap. Unknown host → 404; suspended tenants answer\nnormally (the frontend renders the maintenance page).",
+        "summary": "`GET /api/v1/public/tenant-context` \u2014 host-based context for the\nstorefront SSR bootstrap. Unknown host \u2192 404; suspended tenants answer\nnormally (the frontend renders the maintenance page).",
         "tags": ["tenancy"]
       }
     },
@@ -12291,7 +12291,7 @@
             "description": "Invalid locale"
           }
         },
-        "summary": "`GET /api/v1/public/theme` — the resolved live theme for the request\nhost (or the platform default), ETag-cached. No authentication; tenant\nresolution happens here because public paths skip the tenant middleware.",
+        "summary": "`GET /api/v1/public/theme` \u2014 the resolved live theme for the request\nhost (or the platform default), ETag-cached. No authentication; tenant\nresolution happens here because public paths skip the tenant middleware.",
         "tags": ["theming"]
       }
     },
@@ -12310,7 +12310,7 @@
         },
         "responses": {
           "202": {
-            "description": "Always returned, regardless of outcome — see the module doc for why"
+            "description": "Always returned, regardless of outcome \u2014 see the module doc for why"
           }
         },
         "tags": ["advertising"]
@@ -12331,7 +12331,7 @@
             "description": "Release stamp of the running binary",
             "headers": {
               "Cache-Control": {
-                "description": "public — the stamp is identical for every caller of a build",
+                "description": "public \u2014 the stamp is identical for every caller of a build",
                 "schema": {
                   "type": "string"
                 }
@@ -12649,7 +12649,7 @@
         "operationId": "put_budget_cap",
         "parameters": [
           {
-            "description": "Conditional. Required when updating an existing cap — a version-less update is rejected with 409 (`reason: cap_version_required`). Omitting it is valid only for creates (no cap exists yet for this scope and period) and for dry runs. The version is a quoted entity tag (e.g. \"17\") or the bare integer; `If-Match: *` is not accepted. A stale value returns 409 (`reason: stale_revision`).",
+            "description": "Conditional. Required when updating an existing cap \u2014 a version-less update is rejected with 409 (`reason: cap_version_required`). Omitting it is valid only for creates (no cap exists yet for this scope and period) and for dry runs. The version is a quoted entity tag (e.g. \"17\") or the bare integer; `If-Match: *` is not accepted. A stale value returns 409 (`reason: stale_revision`).",
             "in": "header",
             "name": "If-Match",
             "required": false,
@@ -13537,7 +13537,7 @@
             }
           },
           {
-            "description": "Conditional. Required when updating an existing cap — a version-less update is rejected with 409 (`reason: cap_version_required`). Omitting it is valid only for creates (no cap exists yet for this scope and period) and for dry runs. The version is a quoted entity tag (e.g. \"17\") or the bare integer; `If-Match: *` is not accepted. A stale value returns 409 (`reason: stale_revision`).",
+            "description": "Conditional. Required when updating an existing cap \u2014 a version-less update is rejected with 409 (`reason: cap_version_required`). Omitting it is valid only for creates (no cap exists yet for this scope and period) and for dry runs. The version is a quoted entity tag (e.g. \"17\") or the bare integer; `If-Match: *` is not accepted. A stale value returns 409 (`reason: stale_revision`).",
             "in": "header",
             "name": "If-Match",
             "required": false,
@@ -14058,7 +14058,7 @@
                 }
               }
             },
-            "description": "Campaign not published yet — review has no meaning for a draft"
+            "description": "Campaign not published yet \u2014 review has no meaning for a draft"
           },
           "403": {
             "content": {
@@ -14893,7 +14893,7 @@
             }
           },
           {
-            "description": "Optional display-only currency for `rendered_spend`. Conversion is\nnever persisted and never replaces the native `spend` — each rendered\nvalue carries its FX rate date. Omit to keep account currencies only.",
+            "description": "Optional display-only currency for `rendered_spend`. Conversion is\nnever persisted and never replaces the native `spend` \u2014 each rendered\nvalue carries its FX rate date. Omit to keep account currencies only.",
             "example": "JPY",
             "in": "query",
             "name": "render_currency",
@@ -14998,7 +14998,7 @@
             "content": {
               "text/csv": {}
             },
-            "description": "The same labelled columns as /ads/metrics, streamed as CSV — no blended ROAS column"
+            "description": "The same labelled columns as /ads/metrics, streamed as CSV \u2014 no blended ROAS column"
           },
           "400": {
             "content": {
@@ -15036,7 +15036,7 @@
                 }
               }
             },
-            "description": "Per-connection last-ingested-at and lag — what a stalled sync looks like, not a guess based on the clock"
+            "description": "Per-connection last-ingested-at and lag \u2014 what a stalled sync looks like, not a guess based on the clock"
           },
           "403": {
             "content": {
@@ -15278,7 +15278,7 @@
             "description": "Missing advertising.metrics.read permission"
           }
         },
-        "summary": "Runs a synthetic event through the exact same capture pipeline as\n`/public/track` — including the directive gate — and returns what was\ncaptured and why, without persisting anything. Flagged as a test on\nthe client side; nothing here ever reaches `advertising.conversion_events`.",
+        "summary": "Runs a synthetic event through the exact same capture pipeline as\n`/public/track` \u2014 including the directive gate \u2014 and returns what was\ncaptured and why, without persisting anything. Flagged as a test on\nthe client side; nothing here ever reaches `advertising.conversion_events`.",
         "tags": ["advertising"]
       }
     },
@@ -15327,7 +15327,7 @@
             "description": "A live subscription already exists"
           }
         },
-        "summary": "`POST /api/v1/tenant/billing/checkout-session` — start subscribing.\nAccess is granted only when Stripe webhooks arrive, never from the\nredirect.",
+        "summary": "`POST /api/v1/tenant/billing/checkout-session` \u2014 start subscribing.\nAccess is granted only when Stripe webhooks arrive, never from the\nredirect.",
         "tags": ["billing"]
       }
     },
@@ -15372,7 +15372,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/tenant/billing/invoices` — the tenant's invoices.",
+        "summary": "`GET /api/v1/tenant/billing/invoices` \u2014 the tenant's invoices.",
         "tags": ["billing"]
       }
     },
@@ -15411,7 +15411,7 @@
             "description": "No subscription"
           }
         },
-        "summary": "`POST /api/v1/tenant/billing/portal-session` — open the Customer Portal\n(upgrades, downgrades, cancellation, payment methods).",
+        "summary": "`POST /api/v1/tenant/billing/portal-session` \u2014 open the Customer Portal\n(upgrades, downgrades, cancellation, payment methods).",
         "tags": ["billing"]
       }
     },
@@ -15447,7 +15447,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/tenant/billing/subscription` — the tenant's subscription.",
+        "summary": "`GET /api/v1/tenant/billing/subscription` \u2014 the tenant's subscription.",
         "tags": ["billing"]
       }
     },
@@ -15456,7 +15456,7 @@
         "operationId": "create_tenant_checkout",
         "parameters": [
           {
-            "description": "Required. The same key returns the same checkout — one double-clicked buy button, one session",
+            "description": "Required. The same key returns the same checkout \u2014 one double-clicked buy button, one session",
             "in": "header",
             "name": "Idempotency-Key",
             "required": true,
@@ -15558,7 +15558,7 @@
             "description": "The payments.checkout flag is off (payments/provider-unavailable)"
           }
         },
-        "summary": "`POST /api/v1/tenant/checkout` — start a purchase on the tenant's own\nconnected account. Direct charge: money lands in the **tenant's**\nStripe balance; nothing transits Sanvi. The response URL is a hint —\nthe confirmation page trusts only `GET /tenant/checkout/{id}`.",
+        "summary": "`POST /api/v1/tenant/checkout` \u2014 start a purchase on the tenant's own\nconnected account. Direct charge: money lands in the **tenant's**\nStripe balance; nothing transits Sanvi. The response URL is a hint \u2014\nthe confirmation page trusts only `GET /tenant/checkout/{id}`.",
         "tags": ["payments"]
       }
     },
@@ -15597,7 +15597,7 @@
             "description": "The payments.checkout flag is off (payments/provider-unavailable)"
           }
         },
-        "summary": "`GET /api/v1/tenant/checkout/config` — the storefront's pre-flight.\nSame permission and entitlement as the buy path it guards, because it\nanswers the same question the buy path would refuse on.",
+        "summary": "`GET /api/v1/tenant/checkout/config` \u2014 the storefront's pre-flight.\nSame permission and entitlement as the buy path it guards, because it\nanswers the same question the buy path would refuse on.",
         "tags": ["payments"]
       }
     },
@@ -15660,7 +15660,7 @@
             "description": "The payments.checkout flag is off (payments/provider-unavailable)"
           }
         },
-        "summary": "`GET /api/v1/tenant/checkout/{id}` — the confirming state. Polled by\nthe confirmation page and trusted over any redirect: a customer who\nnever returns still ends with a paid order here, a forged return URL\nyields nothing.",
+        "summary": "`GET /api/v1/tenant/checkout/{id}` \u2014 the confirming state. Polled by\nthe confirmation page and trusted over any redirect: a customer who\nnever returns still ends with a paid order here, a forged return URL\nyields nothing.",
         "tags": ["payments"]
       }
     },
@@ -15689,7 +15689,7 @@
             "description": "No tenant resolved"
           }
         },
-        "summary": "`GET /api/v1/tenant/context` — the current tenant's self-description\n(resolved by the middleware; the frontend bootstrap endpoint). Public,\nwith the signed-in subject attached when a session exists.",
+        "summary": "`GET /api/v1/tenant/context` \u2014 the current tenant's self-description\n(resolved by the middleware; the frontend bootstrap endpoint). Public,\nwith the signed-in subject attached when a session exists.",
         "tags": ["tenancy"]
       }
     },
@@ -16163,7 +16163,7 @@
             "description": "No tenant context"
           }
         },
-        "summary": "`GET /api/v1/tenant/entitlements` — the tenant's own resolved\nentitlements (feature-gated on `access.tenant_entitlements`).",
+        "summary": "`GET /api/v1/tenant/entitlements` \u2014 the tenant's own resolved\nentitlements (feature-gated on `access.tenant_entitlements`).",
         "tags": ["access"]
       }
     },
@@ -16195,7 +16195,7 @@
             "description": "Not authenticated"
           }
         },
-        "summary": "`GET /api/v1/tenant/invitations` — pending and accepted invitations.",
+        "summary": "`GET /api/v1/tenant/invitations` \u2014 pending and accepted invitations.",
         "tags": ["identity"]
       },
       "post": {
@@ -16242,7 +16242,7 @@
             "description": "Not authenticated"
           }
         },
-        "summary": "`POST /api/v1/tenant/invitations` — invite a member by email.",
+        "summary": "`POST /api/v1/tenant/invitations` \u2014 invite a member by email.",
         "tags": ["identity"]
       }
     },
@@ -16301,7 +16301,7 @@
             "description": "Invitation expired"
           }
         },
-        "summary": "`POST /api/v1/tenant/invitations/accept` — redeem an invitation token.",
+        "summary": "`POST /api/v1/tenant/invitations/accept` \u2014 redeem an invitation token.",
         "tags": ["identity"]
       }
     },
@@ -16337,7 +16337,7 @@
             "description": "Invitation not found"
           }
         },
-        "summary": "`DELETE /api/v1/tenant/invitations/{invitation_id}` — revoke.",
+        "summary": "`DELETE /api/v1/tenant/invitations/{invitation_id}` \u2014 revoke.",
         "tags": ["identity"]
       }
     },
@@ -16380,7 +16380,7 @@
             "description": "Invitation not found"
           }
         },
-        "summary": "`POST /api/v1/tenant/invitations/{invitation_id}/resend` — reissue.",
+        "summary": "`POST /api/v1/tenant/invitations/{invitation_id}/resend` \u2014 reissue.",
         "tags": ["identity"]
       }
     },
@@ -16881,7 +16881,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/tenant/members` — the tenant's members.",
+        "summary": "`GET /api/v1/tenant/members` \u2014 the tenant's members.",
         "tags": ["identity"]
       },
       "post": {
@@ -16938,7 +16938,7 @@
             "description": "User not found"
           }
         },
-        "summary": "`POST /api/v1/tenant/members` — grant a membership.",
+        "summary": "`POST /api/v1/tenant/members` \u2014 grant a membership.",
         "tags": ["identity"]
       }
     },
@@ -16984,7 +16984,7 @@
             "description": "Membership not found"
           }
         },
-        "summary": "`DELETE /api/v1/tenant/members/{user_id}` — revoke a membership.",
+        "summary": "`DELETE /api/v1/tenant/members/{user_id}` \u2014 revoke a membership.",
         "tags": ["identity"]
       }
     },
@@ -17047,7 +17047,7 @@
             "description": "Membership not found"
           }
         },
-        "summary": "`PATCH /api/v1/tenant/members/{user_id}/roles` — replace a member's roles.",
+        "summary": "`PATCH /api/v1/tenant/members/{user_id}/roles` \u2014 replace a member's roles.",
         "tags": ["identity"]
       }
     },
@@ -17162,7 +17162,7 @@
             "description": "Missing payments.read permission or the entitlement"
           }
         },
-        "summary": "`GET /api/v1/tenant/payments` — every documented filter combinable,\ncursor-paginated, tenant-scoped by RLS and indexed for the filter set.",
+        "summary": "`GET /api/v1/tenant/payments` \u2014 every documented filter combinable,\ncursor-paginated, tenant-scoped by RLS and indexed for the filter set.",
         "tags": ["payments"]
       }
     },
@@ -17253,7 +17253,46 @@
             "description": "Provider unavailable (payments/provider-unavailable)"
           }
         },
-        "summary": "`POST /api/v1/tenant/payments/connections` — connect a payment\nprovider. Creates the account at the provider (Accounts v2, keyed by\nour connection id), persists the `Pending` connection, emits\n`ProviderConnectionStarted` and writes the audit entry — in that\norder, so a crashed response never orphans an account.",
+        "summary": "`POST /api/v1/tenant/payments/connections` \u2014 connect a payment\nprovider. Creates the account at the provider (Accounts v2, keyed by\nour connection id), persists the `Pending` connection, emits\n`ProviderConnectionStarted` and writes the audit entry \u2014 in that\norder, so a crashed response never orphans an account.",
+        "tags": ["payments"]
+      }
+    },
+    "/api/v1/tenant/payments/connections/current": {
+      "get": {
+        "operationId": "get_current_payment_connection",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionView"
+                }
+              }
+            },
+            "description": "The tenant's current connection, most recent still-connected row"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Missing payments.read permission or the entitlement"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No current connection for this tenant"
+          }
+        },
+        "summary": "`GET /api/v1/tenant/payments/connections/current` - connection-id\nrecovery (frontend TASK-008). The SPA persists the connection id after\n`POST /connections`, but a cleared store, a second tab, or a fresh login\nloses it; this returns the tenant's most recent still-connected row\n(`disconnected_at IS NULL`, most recent first) or 404 when the tenant\nhas no current connection. Registered before `/{id}` so `current` is\nnever parsed as an id.",
         "tags": ["payments"]
       }
     },
@@ -17337,7 +17376,7 @@
             "description": "Money is still moving on this connection; the problem body names the blockers as extension members: blockers: [{code, summary_key}] with code in {in_flight_payments, open_disputes, pending_payouts} (payments/disconnect-blocked)"
           }
         },
-        "summary": "`DELETE /api/v1/tenant/payments/connections/{id}` — disconnect the\ntenant's payment provider (09.7). Local semantics only: the row is\nmarked `Disconnected`, new checkouts stop, every historical record\nstays. The provider account itself is never closed — it is the\ntenant's account to close in their own Dashboard.",
+        "summary": "`DELETE /api/v1/tenant/payments/connections/{id}` \u2014 disconnect the\ntenant's payment provider (09.7). Local semantics only: the row is\nmarked `Disconnected`, new checkouts stop, every historical record\nstays. The provider account itself is never closed \u2014 it is the\ntenant's account to close in their own Dashboard.",
         "tags": ["payments"]
       },
       "get": {
@@ -17388,7 +17427,7 @@
             "description": "No such connection for this tenant"
           }
         },
-        "summary": "`GET /api/v1/tenant/payments/connections/{id}` — the connection's\nstatus, capabilities, outstanding requirements (with i18n render keys\nand deadline), blockers, and the server-computed `can_accept_payments`\n(FR-903). Truthful because 09.3's webhooks and reconciliation job keep\nthe row current.",
+        "summary": "`GET /api/v1/tenant/payments/connections/{id}` \u2014 the connection's\nstatus, capabilities, outstanding requirements (with i18n render keys\nand deadline), blockers, and the server-computed `can_accept_payments`\n(FR-903). Truthful because 09.3's webhooks and reconciliation job keep\nthe row current.",
         "tags": ["payments"]
       }
     },
@@ -17482,7 +17521,7 @@
             "description": "Provider unavailable (payments/provider-unavailable)"
           }
         },
-        "summary": "`POST /api/v1/tenant/payments/connections/{id}/session` — mint an\nAccount Session client secret for the embedded onboarding component.",
+        "summary": "`POST /api/v1/tenant/payments/connections/{id}/session` \u2014 mint an\nAccount Session client secret for the embedded onboarding component.",
         "tags": ["payments"]
       }
     },
@@ -17569,7 +17608,7 @@
             "description": "Missing payments.read permission or the entitlement"
           }
         },
-        "summary": "`GET /api/v1/tenant/payments/disputes` — disputes for this tenant,\ncursor-paginated.",
+        "summary": "`GET /api/v1/tenant/payments/disputes` \u2014 disputes for this tenant,\ncursor-paginated.",
         "tags": ["payments"]
       }
     },
@@ -17651,7 +17690,7 @@
             "description": "Missing payments.read permission or the entitlement"
           }
         },
-        "summary": "`GET /api/v1/tenant/payments/export` — server-side CSV export,\ntenant-scoped, audited.",
+        "summary": "`GET /api/v1/tenant/payments/export` \u2014 server-side CSV export,\ntenant-scoped, audited.",
         "tags": ["payments"]
       }
     },
@@ -17690,13 +17729,13 @@
             "description": "Provider unavailable (payments/provider-unavailable)"
           }
         },
-        "summary": "`GET /api/v1/tenant/payments/payouts` — the connected account's payout\nhistory (schedule, next payout, recent history), read live over the\nconnected account.",
+        "summary": "`GET /api/v1/tenant/payments/payouts` \u2014 the connected account's payout\nhistory (schedule, next payout, recent history), read live over the\nconnected account.",
         "tags": ["payments"]
       }
     },
     "/api/v1/tenant/payments/providers": {
       "get": {
-        "description": "Gated two ways: the `payments.enabled` phase flag (route absent when off)\nand `payments.read` (permission extractor). Deliberately **not** gated on\nthe `payments.stripe_connect` entitlement, unlike every other payments\nroute — the catalog is how an un-entitled tenant learns which providers\nexist and therefore what upgrading would buy; the admin renders the cards\nwith the connect CTA replaced by an upgrade prompt. Connecting\n(`POST /payments/connections`) keeps the entitlement.\n\nA 403 here therefore means the caller lacks `payments.read` — a\npermission problem, not a plan problem. The frontend must not answer it\nwith an upgrade prompt.\n\nThe response is derived from the provider registry — the handler adds\nnothing provider-specific. The tenant's country (from the tenant\ncontext's region, when it parses as ISO-3166-1 alpha-2) decides\nper-tenant availability; an unparseable region leaves the provider\navailable rather than locking the tenant out.",
+        "description": "Gated two ways: the `payments.enabled` phase flag (route absent when off)\nand `payments.read` (permission extractor). Deliberately **not** gated on\nthe `payments.stripe_connect` entitlement, unlike every other payments\nroute \u2014 the catalog is how an un-entitled tenant learns which providers\nexist and therefore what upgrading would buy; the admin renders the cards\nwith the connect CTA replaced by an upgrade prompt. Connecting\n(`POST /payments/connections`) keeps the entitlement.\n\nA 403 here therefore means the caller lacks `payments.read` \u2014 a\npermission problem, not a plan problem. The frontend must not answer it\nwith an upgrade prompt.\n\nThe response is derived from the provider registry \u2014 the handler adds\nnothing provider-specific. The tenant's country (from the tenant\ncontext's region, when it parses as ISO-3166-1 alpha-2) decides\nper-tenant availability; an unparseable region leaves the provider\navailable rather than locking the tenant out.",
         "operationId": "list_payment_providers",
         "responses": {
           "200": {
@@ -17803,7 +17842,7 @@
                 }
               }
             },
-            "description": "Preflight failed — the response names the exact missing step (payments/tax-preflight-failed)"
+            "description": "Preflight failed \u2014 the response names the exact missing step (payments/tax-preflight-failed)"
           },
           "502": {
             "content": {
@@ -17816,7 +17855,7 @@
             "description": "Provider unavailable (payments/provider-unavailable)"
           }
         },
-        "summary": "`PUT /api/v1/tenant/payments/tax-settings` — enable/disable automatic\ntax. Enabling runs the preflight first: an account whose tax settings\nare not `active`, or which holds no active registration, cannot enable\n(409 naming the missing step) — without registrations Stripe collects\nnothing and returns no error, and that silence must never look like a\nworking toggle.",
+        "summary": "`PUT /api/v1/tenant/payments/tax-settings` \u2014 enable/disable automatic\ntax. Enabling runs the preflight first: an account whose tax settings\nare not `active`, or which holds no active registration, cannot enable\n(409 naming the missing step) \u2014 without registrations Stripe collects\nnothing and returns no error, and that silence must never look like a\nworking toggle.",
         "tags": ["payments"]
       }
     },
@@ -17869,13 +17908,13 @@
             "description": "No such payment for this tenant"
           }
         },
-        "summary": "`GET /api/v1/tenant/payments/{id}` — payment detail with timeline,\nrefunds and dispute state.",
+        "summary": "`GET /api/v1/tenant/payments/{id}` \u2014 payment detail with timeline,\nrefunds and dispute state.",
         "tags": ["payments"]
       }
     },
     "/api/v1/tenant/payments/{id}/refund": {
       "post": {
-        "description": "`Idempotency-Key` is required; the response is the refund record,\nnever a bare 204 — a partial refund of an unexpected amount is a\nsupport incident, so the UI must be able to show what actually\nhappened. Arithmetic is in minor units against the already-refunded\ntotal; an over-refund is rejected with the remaining refundable\namount in the error, not a generic 422. Executed on the connected\naccount — the refund is the tenant's money moving, not ours.",
+        "description": "`Idempotency-Key` is required; the response is the refund record,\nnever a bare 204 \u2014 a partial refund of an unexpected amount is a\nsupport incident, so the UI must be able to show what actually\nhappened. Arithmetic is in minor units against the already-refunded\ntotal; an over-refund is rejected with the remaining refundable\namount in the error, not a generic 422. Executed on the connected\naccount \u2014 the refund is the tenant's money moving, not ours.",
         "operationId": "refund_tenant_payment",
         "parameters": [
           {
@@ -17983,7 +18022,7 @@
             "description": "Provider unavailable (payments/provider-unavailable)"
           }
         },
-        "summary": "`POST /api/v1/tenant/payments/{id}/refund` — refund a payment.",
+        "summary": "`POST /api/v1/tenant/payments/{id}/refund` \u2014 refund a payment.",
         "tags": ["payments"]
       }
     },
@@ -18026,7 +18065,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/tenant/privacy/requests` — the tenant's own requests.",
+        "summary": "`GET /api/v1/tenant/privacy/requests` \u2014 the tenant's own requests.",
         "tags": ["privacy"]
       },
       "post": {
@@ -18063,7 +18102,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`POST /api/v1/tenant/privacy/requests` — tenant admin acting for their\nend users (processor / service-provider role).",
+        "summary": "`POST /api/v1/tenant/privacy/requests` \u2014 tenant admin acting for their\nend users (processor / service-provider role).",
         "tags": ["privacy"]
       }
     },
@@ -18095,7 +18134,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/tenant/roles` — roles assignable in the current tenant.",
+        "summary": "`GET /api/v1/tenant/roles` \u2014 roles assignable in the current tenant.",
         "tags": ["access"]
       },
       "post": {
@@ -18152,7 +18191,7 @@
             "description": "Role key already exists"
           }
         },
-        "summary": "`POST /api/v1/tenant/roles` — create a custom tenant role. The role may\nonly grant permissions the caller already holds (no escalation).",
+        "summary": "`POST /api/v1/tenant/roles` \u2014 create a custom tenant role. The role may\nonly grant permissions the caller already holds (no escalation).",
         "tags": ["access"]
       }
     },
@@ -18198,7 +18237,7 @@
             "description": "Role not found"
           }
         },
-        "summary": "`DELETE /api/v1/tenant/roles/{id}` — delete a custom tenant role.",
+        "summary": "`DELETE /api/v1/tenant/roles/{id}` \u2014 delete a custom tenant role.",
         "tags": ["access"]
       },
       "patch": {
@@ -18269,7 +18308,7 @@
             "description": "Role not found"
           }
         },
-        "summary": "`PATCH /api/v1/tenant/roles/{id}` — update a custom tenant role.",
+        "summary": "`PATCH /api/v1/tenant/roles/{id}` \u2014 update a custom tenant role.",
         "tags": ["access"]
       }
     },
@@ -18328,7 +18367,7 @@
             "description": "Internal error"
           }
         },
-        "summary": "`GET /api/v1/tenant/settings` — all settings of the current tenant.",
+        "summary": "`GET /api/v1/tenant/settings` \u2014 all settings of the current tenant.",
         "tags": ["tenancy"]
       },
       "put": {
@@ -18405,7 +18444,7 @@
             "description": "Internal error"
           }
         },
-        "summary": "`PUT /api/v1/tenant/settings` — upsert settings of the current tenant.",
+        "summary": "`PUT /api/v1/tenant/settings` \u2014 upsert settings of the current tenant.",
         "tags": ["tenancy"]
       }
     },
@@ -18619,7 +18658,7 @@
             "description": "Invalid or expired preview token"
           }
         },
-        "summary": "`GET /api/v1/tenant/theme/preview` — the draft, rendered through a\nsigned short-lived token. Never cached, never indexed.",
+        "summary": "`GET /api/v1/tenant/theme/preview` \u2014 the draft, rendered through a\nsigned short-lived token. Never cached, never indexed.",
         "tags": ["theming"]
       }
     },
@@ -18648,7 +18687,7 @@
             "description": "Preview signing is not configured"
           }
         },
-        "summary": "`POST /api/v1/tenant/theme/preview-token` — mint a short-lived token for\nthe current tenant's draft.",
+        "summary": "`POST /api/v1/tenant/theme/preview-token` \u2014 mint a short-lived token for\nthe current tenant's draft.",
         "tags": ["theming"]
       }
     },
@@ -18814,7 +18853,7 @@
             "description": "The gate is not configured"
           }
         },
-        "summary": "`GET /internal/tls/authorize` — the edge asks before issuing a\ncertificate. Self-authenticated: `x-sanvi-internal` shared secret plus\nan optional client-IP allow-list; `/internal` sits outside the authn\nmiddleware.",
+        "summary": "`GET /internal/tls/authorize` \u2014 the edge asks before issuing a\ncertificate. Self-authenticated: `x-sanvi-internal` shared secret plus\nan optional client-IP allow-list; `/internal` sits outside the authn\nmiddleware.",
         "tags": ["domains"]
       }
     },
@@ -18894,7 +18933,7 @@
       "name": "domains"
     },
     {
-      "description": "Tenant payment providers (Stripe Connect, direct charges — Sanvi is never the merchant of record). Money is minor units + ISO-4217 (JPY is zero-decimal). Problem types: payments/provider-unavailable, payments/provider-auth, payments/provider-rate-limited, payments/invalid-country, payments/country-unsupported, payments/connection-exists, payments/connection-not-active, payments/capability-missing, payments/currency-unsupported, payments/idempotency-conflict. Every mutating endpoint requires an Idempotency-Key header; connection creation keys the provider-side idempotency chain, so retries adopt instead of duplicate. Account Session secrets are never persisted or logged.",
+      "description": "Tenant payment providers (Stripe Connect, direct charges \u2014 Sanvi is never the merchant of record). Money is minor units + ISO-4217 (JPY is zero-decimal). Problem types: payments/provider-unavailable, payments/provider-auth, payments/provider-rate-limited, payments/invalid-country, payments/country-unsupported, payments/connection-exists, payments/connection-not-active, payments/capability-missing, payments/currency-unsupported, payments/idempotency-conflict. Every mutating endpoint requires an Idempotency-Key header; connection creation keys the provider-side idempotency chain, so retries adopt instead of duplicate. Account Session secrets are never persisted or logged.",
       "name": "payments"
     },
     {

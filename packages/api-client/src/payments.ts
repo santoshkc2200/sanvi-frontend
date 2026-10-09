@@ -108,6 +108,24 @@ export function getPaymentConnection(
   }) as unknown as Promise<PaymentConnectionView>
 }
 
+/**
+ * `GET /api/v1/tenant/payments/connections/current` — connection-id
+ * recovery (TASK-008, backend `c2c59ad`). The SPA persists the connection id
+ * after `POST /connections`, but a cleared store, a second tab, or a fresh
+ * login loses it; this returns the tenant's most recent still-connected row
+ * or 404 when the tenant has no current connection.
+ * Gated by `payments.read` and the `payments.stripe_connect` entitlement.
+ */
+export function getCurrentPaymentConnection(
+  client: TypedApiClient,
+  signal?: AbortSignal,
+): Promise<PaymentConnectionView> {
+  return client.GET(
+    '/api/v1/tenant/payments/connections/current',
+    signal ? { signal } : undefined,
+  ) as unknown as Promise<PaymentConnectionView>
+}
+
 export type CreateCheckoutRequest = components['schemas']['CreateCheckoutRequest']
 export type CheckoutView = components['schemas']['CheckoutView']
 export type CheckoutConfigView = components['schemas']['CheckoutConfigView']
@@ -317,3 +335,4 @@ export const listPayouts = listTenantPayouts
 export const getTaxSettings = getTenantTaxSettings
 export const updateTaxSettings = updateTenantTaxSettings
 export const disconnectConnection = disconnectPaymentConnection
+export const getCurrentConnection = getCurrentPaymentConnection

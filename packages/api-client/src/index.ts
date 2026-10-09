@@ -201,6 +201,8 @@ export {
   createTenantCheckout,
   exportPayments,
   exportTenantPayments,
+  getCurrentConnection,
+  getCurrentPaymentConnection,
   getPayment,
   getPaymentConnection,
   getTenantCheckout,

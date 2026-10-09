@@ -113,6 +113,20 @@ Anything phase 10 consumes beyond the conversion event id the confirmation page 
   Remaining work is frontend-side (consume it in `PaymentsSettings`); this task stays
   `todo` until that lands with its e2e suite, visual baselines, and flag flip.
 
+- **Recovery landed 2026-10-10 (frontend):** `PaymentsSettings` recovers the
+  connection id via `GET /payments/connections/current` when localStorage is
+  empty, and falls through to it when the stored id 404s; the recovered id is
+  persisted per tenant. `getCurrentPaymentConnection` added to `@sanvi/api-client`
+  (contract patched to match backend `c2c59ad`; `pnpm generate:api` to converge on
+  next backend-spec pull). Unit cover: api-client path test + recovery/404
+  component tests; `PaymentsSettings*` 57 green; `check:secrets`,
+  `assert-connect-js-bundle`, `check:budget`, `check:boundaries` green. Still open:
+  consolidated e2e green in Stripe test mode (blocked: live backend + sandbox;
+  `payments-onboarding` 4 failures pre-existing on base), payments visual baselines
+  (none exist; advertising pattern is the template), flag default flip + `v0.10.0`
+  tag (backend release action; frontend holds no flag defaults — `hasFeature`
+  reads backend entitlements).
+
 ---
 *On completion: satisfy every acceptance criterion, run the verification commands, then
 record status in the **same commit** in both places — the `**Status:**` line at the top of this

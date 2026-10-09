@@ -2692,6 +2692,31 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/tenant/payments/connections/current': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * `GET /api/v1/tenant/payments/connections/current` - connection-id
+     *     recovery (frontend TASK-008). The SPA persists the connection id after
+     *     `POST /connections`, but a cleared store, a second tab, or a fresh login
+     *     loses it; this returns the tenant's most recent still-connected row
+     *     (`disconnected_at IS NULL`, most recent first) or 404 when the tenant
+     *     has no current connection. Registered before `/{id}` so `current` is
+     *     never parsed as an id.
+     */
+    get: operations['get_current_payment_connection']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/tenant/payments/connections/{id}': {
     parameters: {
       query?: never
@@ -13973,6 +13998,44 @@ export interface operations {
       }
       /** @description Provider unavailable (payments/provider-unavailable) */
       502: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_current_payment_connection: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The tenant's current connection, most recent still-connected row */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ConnectionView']
+        }
+      }
+      /** @description Missing payments.read permission or the entitlement */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description No current connection for this tenant */
+      404: {
         headers: {
           [name: string]: unknown
         }

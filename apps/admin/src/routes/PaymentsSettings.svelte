@@ -3,6 +3,7 @@ import {
   ApiError,
   createPaymentConnectionSession,
   disconnectPaymentConnection,
+  getCurrentPaymentConnection,
   getPaymentConnection,
   getTenantTaxSettings,
   listPaymentProviders,
@@ -205,29 +206,53 @@ async function load(background = false): Promise<void> {
   }
 
   try {
-    // TASK-022 (audit F5): providers, the localStorage-recovered connection,
-    // payouts, and tax are four legs that share no request input — only the
-    // rendering wants them ordered. They fire together; the
-    // current-connection/composite endpoint that would collapse them is the
-    // backend batch candidate TASK-008 already recorded (see the KNOWN GAP
-    // below), so this is the client half only.
+    // TASK-022 (audit F5): providers, the connection, payouts, and tax are
+    // four legs that share no request input — only the rendering wants them
+    // ordered. They fire together; a composite endpoint that would collapse
+    // them remains the backend batch candidate, so this is the client half
+    // only.
     const connectEnabled = hasFeature('payments.stripe_connect')
     const tenantId = getActiveTenantId()
-    // KNOWN GAP: the connection id is only recoverable from localStorage.
-    // `GET /payments/providers` returns a bare catalog (`ProvidersView` has
-    // one property, `providers`; `ProviderView` carries no connection id),
-    // and there is no list endpoint — only `GET /payments/connections/{id}`.
-    // So a merchant on a second browser/device, or after clearing site data,
-    // sees the not-connected state — no status, disconnect or onboarding UI —
-    // even though a connection exists server-side. Payouts and tax settings
-    // are unaffected; they load below regardless. Fixing this needs a backend
-    // current-connection endpoint; do not paper over it with a speculative
-    // cast on the catalog response.
-    const connId = connectEnabled ? readPersistedConnectionId(tenantId ?? undefined) : null
+    // TASK-008 recovery: the connection id persists in localStorage after
+    // `POST /connections`, but a second browser/device, cleared site data, or
+    // a fresh login loses it. `GET /payments/providers` returns a bare
+    // catalog (`ProvidersView` has one property, `providers`; `ProviderView`
+    // carries no connection id), so without localStorage the page recovers
+    // via `GET /payments/connections/current` (backend `c2c59ad`) — the
+    // tenant's most recent still-connected row, or 404 when there is none.
+    // A stale stored id (404) falls through to the same endpoint.
+    const storedId = connectEnabled ? readPersistedConnectionId(tenantId ?? undefined) : null
+
+    const connectionPromise: Promise<PaymentConnectionView | null> = (async () => {
+      if (!connectEnabled) return null
+      if (storedId) {
+        try {
+          return await getPaymentConnection(apiClient, storedId)
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 404) {
+            clearPersistedConnectionId(tenantId ?? undefined)
+          } else {
+            throw err
+          }
+        }
+      }
+      try {
+        const current = await getCurrentPaymentConnection(apiClient)
+        if (current && tenantId && current.id) {
+          persistConnectionId(tenantId, current.id)
+        }
+        return current
+      } catch (err) {
+        if (err instanceof ApiError && (err.status === 404 || err.status === 403)) {
+          return null
+        }
+        throw err
+      }
+    })()
 
     const [providersResult, connectionResult, payoutsRes, taxRes] = await Promise.allSettled([
       listPaymentProviders(apiClient),
-      connId ? getPaymentConnection(apiClient, connId) : Promise.resolve(null),
+      connectionPromise,
       connectEnabled ? listTenantPayouts(apiClient) : Promise.resolve(null),
       connectEnabled ? getTenantTaxSettings(apiClient) : Promise.resolve(null),
     ])
@@ -259,7 +284,7 @@ async function load(background = false): Promise<void> {
     }
     providers = providersResult.value?.providers ?? []
 
-    if (connectEnabled && connId) {
+    if (connectEnabled) {
       if (connectionResult.status === 'fulfilled') {
         const conn = connectionResult.value
         if (conn) {
@@ -268,9 +293,9 @@ async function load(background = false): Promise<void> {
             persistConnectionId(tenantId, conn.id)
           }
           if (conn.status === 'pending' || conn.status === 'onboarding') {
-            onboardingConnectionId = connId
+            onboardingConnectionId = conn.id
             onboardingKey = 0
-            startPollingConnection(connId)
+            startPollingConnection(conn.id)
           } else {
             onboardingConnectionId = null
           }

@@ -28,6 +28,7 @@ vi.mock('@sanvi/api-client', async () => {
     createPaymentConnection: vi.fn(),
     createPaymentConnectionSession: vi.fn(),
     getPaymentConnection: vi.fn(),
+    getCurrentPaymentConnection: vi.fn(),
     listTenantPayouts: vi.fn().mockResolvedValue({ payouts: [] }),
     getTenantTaxSettings: vi.fn().mockResolvedValue(null),
     updateTenantTaxSettings: vi.fn(),
@@ -172,7 +173,12 @@ beforeEach(async () => {
   setLocale('en')
   localStorage.clear()
 
-  const { listPaymentProviders, createPaymentConnectionSession } = await import('@sanvi/api-client')
+  const {
+    ApiError,
+    getCurrentPaymentConnection,
+    listPaymentProviders,
+    createPaymentConnectionSession,
+  } = await import('@sanvi/api-client')
   vi.mocked(listPaymentProviders).mockResolvedValue({
     providers: [STRIPE_PROVIDER],
   } as unknown as never)
@@ -183,6 +189,9 @@ beforeEach(async () => {
     expires_at: new Date().toISOString(),
     provider: 'stripe_connect',
   } as unknown as never)
+  vi.mocked(getCurrentPaymentConnection).mockRejectedValue(
+    new ApiError(404, { title: 'Not found', status: 404, type: 'about:blank' }, undefined),
+  )
 })
 
 afterEach(() => {
@@ -334,5 +343,37 @@ describe('PaymentsSettings Status, Requirements & Embedded Components (TASK-004)
     await waitFor(() => {
       expect(screen.getByText('You can accept payments')).toBeInTheDocument()
     })
+  })
+})
+
+describe('PaymentsSettings connection-id recovery (TASK-008)', () => {
+  it('recovers the connection via the current endpoint when localStorage is empty', async () => {
+    const { getCurrentPaymentConnection } = await import('@sanvi/api-client')
+    vi.mocked(getCurrentPaymentConnection).mockResolvedValue(ACTIVE_CONNECTION_FIXTURE)
+
+    render(PaymentsSettings)
+
+    expect(await screen.findByText('Connection status')).toBeInTheDocument()
+    expect(screen.getByText('You can accept payments')).toBeInTheDocument()
+    expect(localStorage.getItem('sanvi:payments:connection:dev-acme')).toBe(
+      ACTIVE_CONNECTION_FIXTURE.id,
+    )
+  })
+
+  it('shows the not-connected state when the current endpoint 404s', async () => {
+    const { ApiError, getCurrentPaymentConnection, getPaymentConnection } = await import(
+      '@sanvi/api-client'
+    )
+    vi.mocked(getCurrentPaymentConnection).mockRejectedValue(
+      new ApiError(404, { title: 'Not found', status: 404, type: 'about:blank' }, undefined),
+    )
+    vi.mocked(getPaymentConnection).mockRejectedValue(
+      new ApiError(404, { title: 'Not found', status: 404, type: 'about:blank' }, undefined),
+    )
+
+    render(PaymentsSettings)
+
+    expect(await screen.findByText('Payment providers')).toBeInTheDocument()
+    expect(screen.queryByText('Connection status')).not.toBeInTheDocument()
   })
 })

@@ -5,6 +5,7 @@ import {
   createPaymentConnectionSession,
   createTenantCheckout,
   exportTenantPayments,
+  getCurrentPaymentConnection,
   getPaymentConnection,
   getTaxSettings,
   getTenantCheckout,
@@ -94,6 +95,18 @@ describe('payments api functions', () => {
 
     expect(request).toHaveBeenCalledWith(
       '/api/v1/tenant/payments/connections/conn-456',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('getCurrentPaymentConnection calls GET /api/v1/tenant/payments/connections/current', async () => {
+    const { client, request } = fakeClient()
+    const typed = createTypedApiClient(client)
+
+    await getCurrentPaymentConnection(typed)
+
+    expect(request).toHaveBeenCalledWith(
+      '/api/v1/tenant/payments/connections/current',
       expect.objectContaining({ method: 'GET' }),
     )
   })
