@@ -17,6 +17,79 @@ export interface ProblemDetails {
   [extension: string]: unknown
 }
 
+/**
+ * The backend's shedding contract (TASK-023, sanvi-backend TASK-023): a `503`
+ * whose problem type names the platform as overloaded — "we are too busy",
+ * which is a different situation from a `429` ("*you* asked too often") and
+ * gets different backoff and different copy.
+ */
+export const PLATFORM_OVERLOADED_PROBLEM_TYPE = 'https://sanvi.app/problems/platform/overloaded'
+
+/**
+ * The degraded-mode response header (TASK-023, sanvi-backend TASK-023): on a
+ * 2xx, the backend is answering from a fallback (stale cache, shed
+ * computation) and the value names the scopes that are degraded — the signal
+ * a surface needs to *say so* instead of rendering the payload as if it were
+ * normal. Read per response via {@link RequestOptions.onResponseMeta}.
+ */
+export const DEGRADED_RESPONSE_HEADER = 'x-sanvi-degraded'
+
+/**
+ * `Retry-After` → milliseconds: delay-seconds per RFC 9457/7231, or an
+ * HTTP-date relative to `now`. `undefined` for anything absent or unparseable
+ * — a malformed header must never become an infinite wait.
+ */
+export function parseRetryAfterMs(
+  value: string | null | undefined,
+  now = Date.now(),
+): number | undefined {
+  if (!value) return undefined
+  const trimmed = value.trim()
+  if (/^\d+$/.test(trimmed)) return Math.max(0, Number(trimmed) * 1000)
+  const at = Date.parse(trimmed)
+  if (Number.isNaN(at)) return undefined
+  return Math.max(0, at - now)
+}
+
+/** The scopes named by one `x-sanvi-degraded` header value (space- or comma-separated, deduplicated). */
+export function parseDegradedScopes(value: string | null | undefined): string[] {
+  if (!value) return []
+  return [
+    ...new Set(
+      value
+        .split(/[\s,]+/)
+        .map((scope) => scope.trim())
+        .filter(Boolean),
+    ),
+  ]
+}
+
+/**
+ * Why a request failed, at the granularity user-facing copy needs. `429` and
+ * `503` are deliberately distinct kinds ("asked too often" vs "we are too
+ * busy") — FR-1112 requires they render different messages — and network vs
+ * timeout is the offline-vs-slow split the honest-copy rule turns on.
+ */
+export type FailureKind =
+  | 'rate_limited'
+  | 'overloaded'
+  | 'server_error'
+  | 'timeout'
+  | 'network'
+  | 'client'
+
+export function failureKindOf(error: unknown): FailureKind {
+  if (error instanceof TimeoutError) return 'timeout'
+  if (error instanceof NetworkError) return 'network'
+  if (error instanceof ApiError) {
+    if (error.status === 429) return 'rate_limited'
+    if (error.status === 503) return 'overloaded'
+    if (error.status >= 500) return 'server_error'
+    return 'client'
+  }
+  return 'client'
+}
+
 function isProblemDetails(value: unknown): value is ProblemDetails {
   return (
     typeof value === 'object' &&
@@ -40,8 +113,20 @@ export class ApiError extends Error {
   readonly reason: string | undefined
   /** The full problem+json body, for extension members the typed fields don't cover. */
   readonly problem: ProblemDetails | undefined
+  /**
+   * The `Retry-After` header of the failure, in milliseconds — set when the
+   * response carried one (a `503` under load, a `429` over quota). The retry
+   * loop waits at least this long; a surface offering a manual retry can show
+   * the same wait honestly rather than re-sending into a shed load.
+   */
+  readonly retryAfterMs: number | undefined
 
-  constructor(status: number, problem: ProblemDetails | undefined, requestId: string | undefined) {
+  constructor(
+    status: number,
+    problem: ProblemDetails | undefined,
+    requestId: string | undefined,
+    retryAfterMs?: number,
+  ) {
     const title = problem?.title ?? `Request failed with status ${status}`
     super(title)
     this.name = 'ApiError'
@@ -54,6 +139,7 @@ export class ApiError extends Error {
     this.traceId = problem?.trace_id
     this.reason = problem?.reason
     this.problem = problem
+    this.retryAfterMs = retryAfterMs
   }
 
   /** True for the class of errors a retry can plausibly fix. */
@@ -86,6 +172,7 @@ export class TimeoutError extends Error {
 export async function apiErrorFromResponse(response: Response): Promise<ApiError> {
   const requestId = response.headers.get('x-request-id') ?? undefined
   const contentType = response.headers.get('content-type') ?? ''
+  const retryAfterMs = parseRetryAfterMs(response.headers.get('retry-after'))
 
   if (
     contentType.includes('application/problem+json') ||
@@ -93,7 +180,8 @@ export async function apiErrorFromResponse(response: Response): Promise<ApiError
   ) {
     try {
       const body: unknown = await response.json()
-      if (isProblemDetails(body)) return new ApiError(response.status, body, requestId)
+      if (isProblemDetails(body))
+        return new ApiError(response.status, body, requestId, retryAfterMs)
     } catch {
       // Fall through to the synthesized problem below.
     }
@@ -107,5 +195,6 @@ export async function apiErrorFromResponse(response: Response): Promise<ApiError
       status: response.status,
     },
     requestId,
+    retryAfterMs,
   )
 }

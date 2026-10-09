@@ -146,8 +146,16 @@ export {
   listInvoices,
   listPublicPlans,
 } from './billing'
-export type { ApiClient, ApiClientConfig, RawResponse, RequestOptions } from './client'
-export { createApiClient, traceIdFromTraceparent } from './client'
+export type {
+  ApiClient,
+  ApiClientConfig,
+  RawResponse,
+  RequestOptions,
+  ResponseMeta,
+} from './client'
+export { createApiClient, retryDelayFor, traceIdFromTraceparent } from './client'
+export type { OfflineActionQueueOptions, QueuedAction, SafeActionEnqueueResult } from './offline'
+export { isOnline, OfflineActionQueue, watchOnline } from './offline'
 export {
   claimCustomDomain,
   getDomainInstructions,

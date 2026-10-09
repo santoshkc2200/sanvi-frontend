@@ -1,4 +1,16 @@
-import { ApiError, apiErrorFromResponse, NetworkError, TimeoutError } from './problem'
+import {
+  ApiError,
+  apiErrorFromResponse,
+  DEGRADED_RESPONSE_HEADER,
+  failureKindOf,
+  NetworkError,
+  parseDegradedScopes,
+  parseRetryAfterMs,
+  TimeoutError,
+} from './problem'
+
+export type { FailureKind } from './problem'
+export { failureKindOf } from './problem'
 
 export interface ApiClientConfig {
   /** e.g. `https://api.sanvi.app` — no trailing slash. */
@@ -62,7 +74,10 @@ export interface RequestOptions {
    * Sent as the `Idempotency-Key` header. For mutations against endpoints
    * that declare an idempotency key (per their OpenAPI operation): the key
    * makes a retried/supertimed-out mutation safe — the backend answers the
-   * original result instead of processing twice.
+   * original result instead of processing twice. It is also the retry-eligibility
+   * gate for mutations (TASK-023): a POST/PATCH *with* a key retries on a
+   * retryable failure exactly like an idempotent method, because the key is
+   * what makes the resend safe; without one it never retries.
    */
   idempotencyKey?: string
   signal?: AbortSignal
@@ -70,6 +85,24 @@ export interface RequestOptions {
   timeoutMs?: number
   /** Overrides the client-level default for this call. */
   retries?: number
+  /**
+   * Called once per settled response with its transport-level metadata
+   * (TASK-023): the degraded scopes the backend named in
+   * `x-sanvi-degraded` — a `2xx` answered from a fallback the UI must *say*
+   * is degraded — plus the status. Per-call by design: the callback closes
+   * over its own call site, so unlike a "last response" getter it can never
+   * attribute another concurrent request's metadata to this one.
+   */
+  onResponseMeta?: (meta: ResponseMeta) => void
+}
+
+/** Transport-level facts about one settled response, delivered via `RequestOptions.onResponseMeta`. */
+export interface ResponseMeta {
+  status: number
+  /** Scopes named by the `x-sanvi-degraded` response header; empty when none. */
+  degradedScopes: string[]
+  /** The `Retry-After` header in milliseconds, when the response carried one. */
+  retryAfterMs: number | undefined
 }
 
 /**
@@ -185,9 +218,30 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function retryDelay(attempt: number, baseDelayMs: number): number {
-  const exponential = Math.min(baseDelayMs * 2 ** attempt, 4_000)
-  return exponential + Math.random() * baseDelayMs
+/**
+ * Exponential backoff with jitter, shaped by *why* the previous attempt
+ * failed (FR-1112). Three rules:
+ *
+ * - **A `503` backs off twice as hard as a `429`.** "We are too busy" and
+ *   "you asked too often" are different problems: an overloaded platform
+ *   wants callers to spread out more, so its base delay doubles and its cap
+ *   sits higher (8 s vs 4 s). The windows never overlap, which is what the
+ *   "different backoff" test asserts.
+ * - **`Retry-After` is respected, not ignored.** When the failure carried
+ *   one, the wait is at least the requested time (bounded at 30 s so a
+ *   pathological header can't stall a page).
+ * - **Jitter stays on everything** — without it, a shed load re-synchronizes
+ *   every retrrying client onto the same tick.
+ */
+export function retryDelayFor(error: unknown, attempt: number, baseDelayMs: number): number {
+  const kind = failureKindOf(error)
+  const overloaded = kind === 'overloaded'
+  const capMs = overloaded ? 8_000 : 4_000
+  const exponential = Math.min(baseDelayMs * (overloaded ? 2 : 1) * 2 ** attempt, capMs)
+  const jittered = exponential + Math.random() * baseDelayMs
+  const retryAfterMs = error instanceof ApiError ? error.retryAfterMs : undefined
+  if (retryAfterMs === undefined) return jittered
+  return Math.max(jittered, Math.min(retryAfterMs, 30_000))
 }
 
 /**
@@ -266,6 +320,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       signal,
       idempotencyKey,
       timeoutMs = defaultTimeoutMs,
+      onResponseMeta,
     } = options
 
     const url = buildUrl(baseUrl, path, query)
@@ -324,6 +379,11 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         credentials, // 'omit' by default; callers that need the session cookie sent pass 'include'
       })
       if (response.status === 401) onUnauthorized?.()
+      onResponseMeta?.({
+        status: response.status,
+        degradedScopes: parseDegradedScopes(response.headers.get(DEGRADED_RESPONSE_HEADER)),
+        retryAfterMs: parseRetryAfterMs(response.headers.get('retry-after')),
+      })
       return response
     } catch (error) {
       if (signal?.aborted) throw error // caller-initiated cancellation — never wrapped
@@ -340,13 +400,21 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     context?: ResolvedContext,
   ): Promise<T> {
     const method = options.method ?? 'GET'
-    // Non-idempotent methods never retry, whatever the caller asked for.
-    const retries = IDEMPOTENT_METHODS.has(method) ? (options.retries ?? defaultRetries) : 0
+    // A mutation retries only when resending it is safe (TASK-023 step 6):
+    // an idempotent method by nature, or one carrying an `Idempotency-Key`
+    // — the key is what makes the backend answer the original result instead
+    // of applying the mutation twice. Without one of those, a POST/PATCH
+    // that timed out may already have been processed, so it never retries,
+    // whatever the caller asked for.
+    const retries =
+      IDEMPOTENT_METHODS.has(method) || options.idempotencyKey !== undefined
+        ? (options.retries ?? defaultRetries)
+        : 0
 
     let lastError: unknown
 
     for (let attempt = 0; attempt <= retries; attempt += 1) {
-      if (attempt > 0) await sleep(retryDelay(attempt - 1, retryBaseDelayMs))
+      if (attempt > 0) await sleep(retryDelayFor(lastError, attempt - 1, retryBaseDelayMs))
 
       try {
         const response = await doFetch(path, options, context)
@@ -463,12 +531,15 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     options: RequestOptions = {},
   ): Promise<ReadableStream<Uint8Array>> {
     const method = options.method ?? 'GET'
-    const retries = IDEMPOTENT_METHODS.has(method) ? (options.retries ?? defaultRetries) : 0
+    const retries =
+      IDEMPOTENT_METHODS.has(method) || options.idempotencyKey !== undefined
+        ? (options.retries ?? defaultRetries)
+        : 0
 
     let lastError: unknown
 
     for (let attempt = 0; attempt <= retries; attempt += 1) {
-      if (attempt > 0) await sleep(retryDelay(attempt - 1, retryBaseDelayMs))
+      if (attempt > 0) await sleep(retryDelayFor(lastError, attempt - 1, retryBaseDelayMs))
 
       try {
         const response = await doFetch(path, options)
