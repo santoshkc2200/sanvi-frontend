@@ -152,6 +152,13 @@ that shape. A direct-to-media deployment still needs a token-minting path or a b
 (backend work, not present in `sanvi-backend`); until then a cross-origin `VITE_MEDIA_ORIGIN` is
 unsupported, not merely untested.
 
+- **Update 2026-10-09 (verified):** backend `c2c59ad` confirms the session-authenticated
+  gateway already exists — `/api/v1/tenant/media/v1/assets…` (upload, parts, complete,
+  delivery) is present in `sanvi-cli openapi` under the tenant API surface, so no new
+  backend work is needed. Remaining work is frontend-side: point the uploader at the
+  gateway, wire saved-creative preview images via the delivery endpoint, and retire the
+  same-site `VITE_MEDIA_ORIGIN` seam.
+
 **Scoping headers and credentials are per-target, not global (review follow-up).** The first cut
 sent `X-Tenant-ID` *and* `X-Namespace-ID` on every `courseApiRequest` and forced
 `credentials: 'include'` for all callers. Both break the media service in a cross-origin

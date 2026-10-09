@@ -132,6 +132,10 @@ mounting `/public/track` on the tenant's phase-08 domain as still open). This sl
 `PUBLIC_TRACKING_SITE_KEY` from the runtime env (`lib/env.ts`) — correct for single-tenant
 deployments and the e2e harness; per-tenant delivery will replace it when the backend lands the
 surface, and nothing else should need to change.
+- **Landed 2026-10-09 (verified):** backend `c2c59ad` ships
+  `GET /api/v1/tenant/ads/tracking/site-key` (present in `sanvi-cli openapi`).
+  Remaining work is frontend-side: read the key from the endpoint and retire the
+  `PUBLIC_TRACKING_SITE_KEY` env seam.
 
 **Click ids.** The confirmation page's referrer carries no `gclid`, so the backend's server-side
 extraction cannot see the landing click. `lib/tracking/click-ids.ts` observes `gclid`/`gbraid`/

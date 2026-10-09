@@ -184,6 +184,10 @@ Verified on the branch `feat/task-018-a11y-visual-export-e2e` (commits `6f6e292`
   (deleted/redacted accounts, pre-actor-tracking rows) in an audit surface. The explicit backend
   marker is the recorded cross-repo gap; the mock models the pause as an omitted `actor_id`
   (null is off-contract) plus a `metadata.automated` hint for when the field arrives.
+- **Landed 2026-10-09 (verified):** backend `c2c59ad` adds an explicit `is_system` marker
+  on `CampaignChange`, derived from `system:` attribution for old rows (present in
+  `sanvi-cli openapi`). Rendering the "Sanvi (automated)" attribution from it is a small
+  frontend follow-up.
 - Export cleanup hardening: the user-facing export error is assigned before the best-effort
   `writable.abort()` (which can itself reject on a stream `pipeTo` already errored), a save-picker
   failure other than a user abort falls back to the chunked download instead of losing the

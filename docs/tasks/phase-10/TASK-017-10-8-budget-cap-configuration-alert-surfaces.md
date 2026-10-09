@@ -118,6 +118,9 @@ the backend's `web::Query` structs — while the handlers read them from the que
 frontend sends them as query params through a narrow documented cast in
 `packages/api-client/src/advertising.ts` (the one-place escape hatch, as in `getAdMetricsExport`);
 once the contract says `in: query`, regenerate the client and drop the casts.
+- **Landed 2026-10-09 (verified):** the contract now says `in: query`
+  (`advertising.yaml`, `get_budget_alerts`). Dropping the casts rides with the
+  TASK-026 client regeneration.
 
 **Money honesty, where each rule lives.** The caps screen (`BudgetCaps.svelte`) renders one
 `CapProgress` per cap in place from the backend's `spend-status` report — spend, percentage,
@@ -149,6 +152,9 @@ The conversion declines — falling back to the unavailable note — when the ba
 rounding of the projected total stops being negligible, so a near-flat run rate never prints an
 amplified guess. A `projected_spend` field on the backend's dry-run result would retire the
 client-side conversion and its rounding entirely (contract delta to fix upstream).
+- **Landed 2026-10-09 (verified):** backend `c2c59ad` adds `projected_spend` to
+  `DryRunEvaluationResult` (present in `sanvi-cli openapi`). Retiring the client-side
+  conversion rides with the TASK-026 client regeneration.
 
 **Flag and disclosure.** `advertising.budget_guardrails` off renders the disabled state naming the
 reason, with the permanent note that caps already in place keep guarding server-side and

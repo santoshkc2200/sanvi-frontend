@@ -108,6 +108,11 @@ Anything phase 10 consumes beyond the conversion event id the confirmation page 
   independently of the stored id. Unblocking this needs a backend current-connection endpoint;
   there is no frontend-only fix.
 
+- **Blocker cleared 2026-10-09 (verified):** backend `c2c59ad` ships
+  `GET /api/v1/tenant/payments/connections/current` (present in `sanvi-cli openapi`).
+  Remaining work is frontend-side (consume it in `PaymentsSettings`); this task stays
+  `todo` until that lands with its e2e suite, visual baselines, and flag flip.
+
 ---
 *On completion: satisfy every acceptance criterion, run the verification commands, then
 record status in the **same commit** in both places — the `**Status:**` line at the top of this

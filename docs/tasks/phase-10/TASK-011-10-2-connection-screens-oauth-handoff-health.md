@@ -137,6 +137,9 @@ dashboard's "sync failed" state (TASK-016 consumes the same fields).
   the re-consent case — where the acceptance criteria name them). Explanations are keyed by a slug
   of the scope value (`admin.advertising.scope.*`, resolve-or-fallback like the option labels), so
   when the catalog exposes scopes the same data path renders them pre-connect with zero new code.
+- **Gap closed 2026-10-09 (verified):** backend `c2c59ad` exposes `requested_scopes` on
+  `PlatformView` (present in `sanvi-cli openapi`). Wiring it into the pre-connect card is a
+  small frontend follow-up — the keyed-by-slug data path above already accepts it.
   Follow-up for the backend: add the adapter's `required_scopes()` to `PlatformView`. Pending that
   backend contract addition, `admin.advertising.preConnectExplainer` was reworded to accurately
   describe Sanvi's delegated access without promising an upfront scope enumeration that the client

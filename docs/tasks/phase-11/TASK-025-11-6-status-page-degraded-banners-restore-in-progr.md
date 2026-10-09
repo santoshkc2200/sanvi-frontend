@@ -210,9 +210,13 @@ sweep artifact, `check:budget` turbo-wrapper ENOENT on Windows (underlying
 gate run directly), webkit binary absent.
 
 **Cross-repo (for sanvi-backend).** Frontend consumes `/health` + `/ready`
-as specified in backend TASK-025 11.6a. Open items backend-side: (1) emit a
-`restoring` tenant status (or 423 `restoring` reason) during single-tenant
-restore so the shell-level gate can land; (2) absorb the six journey slugs
+as specified in backend TASK-025 11.6a. Update 2026-10-09 (verified against
+`sanvi-cli openapi`, 175 paths / 353 schemas): backend `c2c59ad` now emits
+`restoring` in `TenantRuntimeStatus`, answers 423 with `reason: "restoring"`
+during single-tenant restore (CLI marks restoring before apply, anchor upsert
+restores snapshot status), exactly matching this task's forward-compatible
+handling (`isTenantRestoring`, `ErrorView reason: 'restoring'`). Shell-level
+gating stays a future frontend change. Remaining: absorb the six journey slugs
 into the status/contract review when regenerating the client in TASK-026.
 
 **Parked.** Out-of-perimeter status hosting + external probes (needs-humans,

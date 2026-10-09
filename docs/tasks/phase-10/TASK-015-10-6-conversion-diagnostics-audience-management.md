@@ -116,6 +116,9 @@ tenant + order_ref/event_id + event name; `ConversionEventView` exposes neither)
 therefore renders the identity the pipeline deduplicates on — server `event_id` and `order_ref` —
 with an explainer. If the backend later projects an outcome (duplicate/canonical), it belongs in
 `GET /conversions/{id}/diagnostics` and the row can grow a status cell without redesign.
+- **Landed 2026-10-09 (verified):** backend `c2c59ad` exposes `dedupe_key` on the event
+  plus `dedupe_source`/`dedupe_outcome` in `ConversionDiagnostics` (present in
+  `sanvi-cli openapi`). Growing the status cell is a small frontend follow-up.
 
 **Health banner thresholds are frontend presentation constants over the loaded window.** The
 backend provides no aggregate endpoint, so `diagnosticsHealth` computes the two figures over the
