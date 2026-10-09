@@ -14,9 +14,13 @@ import { readFileSync } from 'node:fs'
  *
  * Like the storefront's config, the origins here resolve at *build* time;
  * `hooks.server.ts` rewrites the header with runtime origins on the way out
- * for non-prerendered responses. Prerendered marketing pages make no
- * client-side API calls (links only), so the build-time `connect-src` in
- * the baked meta is inert.
+ * for non-prerendered responses. The one client-side API caller on a
+ * prerendered page is the status page's readiness poll (TASK-025): the baked
+ * meta's `connect-src` covers the runtime API origin only while the two are
+ * the same value — every current config (dev, e2e, CI) sets them identically,
+ * and a skew would pin the page to its honest `unknown` state rather than
+ * failing loudly (the `zero violations` e2e below visits `/status` in both
+ * locales, so a blocked poll fails that gate before it ships).
  */
 function loadPublicEnv() {
   const fromProcess = { ...process.env }

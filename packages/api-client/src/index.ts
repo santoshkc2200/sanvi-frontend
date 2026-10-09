@@ -320,8 +320,15 @@ export {
   upsertSubprocessor,
   verifyDsr,
 } from './privacy'
-export { getSystemBuild } from './system'
-export type { BuildDetails } from './system'
+export { getSystemBuild, getSystemHealth, getSystemReadiness, systemBannerFor } from './system'
+export type {
+  BuildDetails,
+  DependencyState,
+  HealthState,
+  LivenessResult,
+  ReadinessStates,
+  SystemBannerSignal,
+} from './system'
 export {
   checkSlugAvailability,
   getPublicTenantContext,

@@ -7,10 +7,22 @@ import {
   listTenantEntitlements,
 } from '@sanvi/api-client'
 import { handleLinkClick } from '@sanvi/spa-router'
-import { t } from '@sanvi/i18n'
+import { currentLocale, t } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
-import { Alert, Badge, Button, Container, EmptyState, Spinner, Stack, StatCard } from '@sanvi/ui'
+import {
+  Alert,
+  Badge,
+  Button,
+  Container,
+  EmptyState,
+  RestoreInProgress,
+  Spinner,
+  Stack,
+  StatCard,
+} from '@sanvi/ui'
 import { apiClient } from '../lib/api'
+import { getAppEnv } from '../lib/env'
+import { isTenantRestoring } from '../lib/system-status.svelte'
 
 interface ChecklistItem {
   id: string
@@ -67,6 +79,12 @@ $effect(() => {
   void load()
 })
 
+// The public status page (TASK-025): the console serves no status route of
+// its own — the restore state links out to marketing's `/status` instead.
+const statusUrl = $derived(
+  `${getAppEnv().marketingOrigin}${currentLocale() === 'ja' ? '/ja' : ''}/status`,
+)
+
 // A small, deliberately extensible registry — each item declares its own
 // completion check from data this page already has. Later phases (04
 // billing, 07 theming, 08 domains, 09 payments) register their own items
@@ -106,6 +124,15 @@ const checklist: ChecklistItem[] = $derived([
 
     {#if loading}
       <Spinner label={t['admin.dashboard.loading']()} />
+    {:else if tenant && isTenantRestoring(tenant.status)}
+      <!-- TASK-025 step 5: a tenant under restore sees this honest state,
+           never an empty dataset that reads as data loss. -->
+      <RestoreInProgress
+        title={t['admin.restore.title']()}
+        description={t['admin.restore.description']()}
+        statusHref={statusUrl}
+        statusLinkLabel={t['admin.systemBanner.statusLink']()}
+      />
     {:else if tenant}
       <div>
         <h2>{tenant.display_name}</h2>

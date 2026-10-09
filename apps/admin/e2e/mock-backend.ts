@@ -128,4 +128,13 @@ export function mockBackend(page: Page | BrowserContext): void {
   page.route('**/api/v1/public/slug-availability**', (route) =>
     route.fulfill({ json: { available: true } }),
   )
+  // TASK-025: the operator-signal probes. Healthy by default so the banner
+  // host stays quiet in every suite that boots the console; specs that need
+  // a degraded platform override these (last-registered route wins).
+  page.route('**/api/v1/system/health', (route) => route.fulfill({ json: { status: 'ok' } }))
+  page.route('**/api/v1/system/ready', (route) =>
+    route.fulfill({
+      json: { status: 'ok', checks: [{ name: 'database', state: 'ok' }] },
+    }),
+  )
 }

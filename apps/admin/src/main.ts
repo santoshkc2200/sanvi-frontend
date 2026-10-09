@@ -9,6 +9,7 @@ import {
 import { mount } from 'svelte'
 import '@sanvi/ui/styles.css'
 import { apiClient } from './lib/api'
+import { getAppEnv } from './lib/env'
 import { initAdminTelemetry } from './lib/telemetry'
 import App from './App.svelte'
 
@@ -83,6 +84,14 @@ function renderBootFailure(error: unknown): void {
   retry.textContent = t['common.retry']()
   retry.onclick = () => window.location.reload()
   children.push(retry)
+
+  // TASK-025: the boot failure is an outage screen like any other — it links
+  // to the public status page (marketing's `/status`), which the console
+  // serves no route of its own for.
+  const statusLink = document.createElement('a')
+  statusLink.href = `${getAppEnv().marketingOrigin}/status`
+  statusLink.textContent = t['admin.app.statusLink']()
+  children.push(statusLink)
 
   outage.append(...children)
   target.replaceChildren(outage)

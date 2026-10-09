@@ -1735,5 +1735,13 @@
   "admin.app.panelErrorDescription": "The rest of the console is unaffected. Retry this panel — if it keeps failing, copy the diagnostics for support.",
   "admin.settingsSecurity.loadError": "Could not load your security settings.",
   "admin.advertising.dashboard.degradedTitle": "Some advertising metrics may be out of date",
-  "admin.advertising.dashboard.degradedBody": "The platform answered from a fallback while it recovers. Treat the figures below as indicative — they will refresh automatically on the next load."
+  "admin.advertising.dashboard.degradedBody": "The platform answered from a fallback while it recovers. Treat the figures below as indicative — they will refresh automatically on the next load.",
+  "admin.app.statusLink": "View system status",
+  "admin.systemBanner.maintenance.title": "Service notice",
+  "admin.systemBanner.maintenance.description": "Affected: {checks}. Core actions still work; anything touching a degraded dependency may be slower than usual.",
+  "admin.systemBanner.degraded.title": "Service is degraded",
+  "admin.systemBanner.degraded.description": "Affected: {checks}. Actions that need a degraded dependency may fail — nothing is applied twice, so retrying is safe.",
+  "admin.systemBanner.statusLink": "View status page",
+  "admin.restore.title": "Workspace restore in progress",
+  "admin.restore.description": "Your workspace data is being restored. What you see may be incomplete until the restore finishes — nothing is lost. Check back shortly."
 }

@@ -18,6 +18,7 @@ import {
 } from '@sanvi/i18n'
 import { page } from '$app/state'
 import type { Snippet } from 'svelte'
+import { localePath } from '$lib/links'
 import { initMarketingTelemetry } from '$lib/telemetry'
 
 // TASK-032: the client bundle's catalog shards, before any child renders —
@@ -67,6 +68,7 @@ const localeLinks = $derived(
 
 <footer class="sanvi-marketing-footer">
   <nav aria-label={t['marketing.footer.language']()}>
+    <a href={localePath('/status')}>{t['marketing.footer.status']()}</a>
     {#each localeLinks as link (link.code)}
       <a href={link.href} hreflang={link.code} aria-current={link.current ? 'true' : undefined}>
         {link.label}

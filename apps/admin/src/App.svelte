@@ -30,12 +30,19 @@ import {
   LocaleSwitcher,
   PastDueBanner,
   Spinner,
+  StatusBanner,
   SuspendedInterstitial,
   TenantSwitcher,
   ToastViewport,
   TrialBanner,
 } from '@sanvi/ui'
-import { apiClient } from './lib/api'
+import { apiClient, rawApiClient } from './lib/api'
+import { getAppEnv } from './lib/env'
+import {
+  getSystemBannerSignal,
+  startSystemStatusPolling,
+  stopSystemStatusPolling,
+} from './lib/system-status.svelte'
 import { setAdminTelemetryRouteSource } from './lib/telemetry'
 import {
   buildDiagnosticsPaste,
@@ -355,6 +362,43 @@ router = createRouter({
   notFound: () => import('./routes/NotFound.svelte'),
 })
 
+// TASK-025 step 4: the operator-signal banner poll. Started once for the
+// shell's lifetime — `getSystemBannerSignal` re-reads the module rune state
+// on every render, so setting the readiness signal shows the banner and
+// clearing it removes it with no second manual action.
+$effect(() => {
+  startSystemStatusPolling(rawApiClient)
+  return () => stopSystemStatusPolling()
+})
+
+// The public status page (marketing's `/status`): the admin console serves
+// no status route of its own, so outage screens link out. Locale-prefixed —
+// marketing's reroute serves `/ja/status` in Japanese.
+const statusUrl = $derived(
+  `${getAppEnv().marketingOrigin}${currentLocale() === 'ja' ? '/ja' : ''}/status`,
+)
+const bannerSignal = $derived(getSystemBannerSignal())
+const bannerCopy = $derived(
+  bannerSignal === null
+    ? null
+    : {
+        title:
+          bannerSignal.kind === 'maintenance'
+            ? t['admin.systemBanner.maintenance.title']()
+            : t['admin.systemBanner.degraded.title'](),
+        description:
+          bannerSignal.checks.length > 0
+            ? bannerSignal.kind === 'maintenance'
+              ? t['admin.systemBanner.maintenance.description']({
+                  checks: bannerSignal.checks.join(', '),
+                })
+              : t['admin.systemBanner.degraded.description']({
+                  checks: bannerSignal.checks.join(', '),
+                })
+            : t['errors.outage.description'](),
+      },
+)
+
 // Telemetry segments by the matched route pattern (`/tenants/:id`), not the
 // raw path — ids in the path would give every visit its own bucket. A null
 // pattern (not-found) falls back to the raw path.
@@ -653,6 +697,17 @@ function retry(): void {
       />
     {/if}
 
+    {#if bannerCopy && bannerSignal}
+      <StatusBanner
+        kind={bannerSignal.kind}
+        title={bannerCopy.title}
+        description={bannerCopy.description}
+        statusHref={statusUrl}
+        statusLinkLabel={t['admin.systemBanner.statusLink']()}
+        dismissLabel={t['common.close']()}
+      />
+    {/if}
+
     {#if router.error}
       <ErrorView
         title={t['admin.app.errorTitle']()}
@@ -663,6 +718,8 @@ function retry(): void {
         diagnosticsText={routeErrorDiagnostics}
         copyLabel={t['errors.diagnostics.copy']()}
         copiedLabel={t['errors.diagnostics.copied']()}
+        statusHref={statusUrl}
+        statusLinkLabel={t['admin.app.statusLink']()}
       />
     {:else if router.guardRejected}
       <ErrorView title={t['admin.app.deniedTitle']()} description={deniedDescription} />

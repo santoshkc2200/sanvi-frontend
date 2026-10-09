@@ -133,6 +133,10 @@ every page normally. `/pricing` falls back to `DEFAULT_PLANS` at build time.
 ### `/signup`
 - Static links into admin onboarding; query-param only. All states trivially ✓ · T n/a
 
+### `/status`
+- L ✓ (build-time SSR → prerendered last-known states) · E ✓ (empty incident history → labelled-empty) · X ✓ (build-time API failure → `readiness: null` fallback, never a build error; runtime poll failure → `unknown` state with last-known checks, never a crash) · S ✓ · T ✓ (30 s client poll; no timeout spinner — the page always shows *something*)
+- degraded-ok: with the API down the page renders `unknown` with the hosting-limitation notice; live readiness refreshes it to `operational`/`degraded` without a reload.
+
 ---
 
 ## admin
