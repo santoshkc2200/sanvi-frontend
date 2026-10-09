@@ -47,6 +47,14 @@ export default tseslint.config(
       '**/test-results/**',
       '**/.turbo/**',
       '**/__fixtures__/**',
+      // TASK-023: the one file that uses Svelte 5.3's `<svelte:boundary>` —
+      // the pinned svelte-eslint-parser (0.43, what eslint-plugin-svelte
+      // 2.46 declares) predates that element and fatals with "Unknown
+      // type:SvelteBoundary". The file is still fully checked: svelte-check
+      // typechecks it (`pnpm typecheck`), Biome lints/formats it, and its
+      // behaviour is unit-tested. Remove this entry when the parser stack
+      // bumps to a version that knows the element.
+      'packages/ui/src/errors/AsyncBoundary.svelte',
       // Pre-existing packages phase 00 rescopes (@hitox → @sanvi) but does
       // not fully retrofit to every new gate — see docs/README.md "Existing
       // packages: what changes in phase 00". `course-media` in particular

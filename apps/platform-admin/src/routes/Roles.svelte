@@ -2,7 +2,7 @@
 import { listPermissions, listRolesPlatform } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import { fmt, t } from '@sanvi/i18n'
-import { Badge, EmptyState, Spinner, Stack } from '@sanvi/ui'
+import { Alert, Badge, Button, EmptyState, Spinner, Stack } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
 
 type RoleRow = components['schemas']['RoleView']
@@ -83,7 +83,13 @@ const groupedRegistry = $derived.by(() => {
   {#if loading}
     <Spinner label={t['common.loading']()} />
   {:else if error}
-    <EmptyState title={error} />
+    <!-- TASK-023: a failed load is a terminal error state with a recovery
+         action, not an empty list dressed up as one. -->
+    <Alert variant="error" title={error}>
+      <Button variant="secondary" onclick={() => void load()}>
+        {t['common.retry']()}
+      </Button>
+    </Alert>
   {:else}
     <section>
       <h2>{t['platform.roles.rolesTitle']()}</h2>

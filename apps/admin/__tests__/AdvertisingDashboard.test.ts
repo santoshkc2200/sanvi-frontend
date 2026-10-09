@@ -18,10 +18,10 @@ import { fixturePlatformByKey, platformViewFixture } from '@sanvi/ui/test-fixtur
 const GOOGLE = fixturePlatformByKey('google_ads')!
 const META = fixturePlatformByKey('meta')!
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...headers },
   })
 }
 
@@ -109,9 +109,14 @@ function setupFetch(handlers: {
   summary?: unknown
   metricsRows?: unknown[]
   metricsProblem?: { status: number; detail?: string }
+  /** TASK-023: metrics answered from a degraded fallback carry the header. */
+  metricsDegraded?: boolean
 }): ReturnType<typeof vi.fn> {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
+    const degradedHeaders = handlers.metricsDegraded
+      ? { 'x-sanvi-degraded': 'advertising-metrics' }
+      : {}
     if (url.includes('/ads/metrics/summary')) {
       if (handlers.metricsProblem) {
         return new Response(
@@ -127,10 +132,11 @@ function setupFetch(handlers: {
           },
         )
       }
-      return jsonResponse({ current: handlers.summary ?? [], compared: [] })
+      return jsonResponse({ current: handlers.summary ?? [], compared: [] }, 200, degradedHeaders)
     }
     if (url.includes('/ads/metrics/freshness')) return jsonResponse(handlers.freshness ?? {})
-    if (url.includes('/ads/metrics')) return jsonResponse({ rows: handlers.metricsRows ?? [] })
+    if (url.includes('/ads/metrics'))
+      return jsonResponse({ rows: handlers.metricsRows ?? [] }, 200, degradedHeaders)
     if (url.includes('/ads/platforms')) {
       return jsonResponse({
         platforms: [
@@ -318,5 +324,26 @@ describe('AdvertisingDashboard (phase 10, TASK-016)', () => {
     const { container } = render(Dashboard)
     await screen.findAllByText('Conversion value (platform)')
     expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
+describe('degraded metrics (TASK-023 — x-sanvi-degraded is surfaced, never rendered as normal)', () => {
+  it('renders the degraded banner when metrics come from a fallback', async () => {
+    setupFetch({ summary: [summaryRow()], metricsRows: [metricPoint()], metricsDegraded: true })
+    render(Dashboard)
+
+    expect(
+      await screen.findByText('Some advertising metrics may be out of date'),
+    ).toBeInTheDocument()
+  })
+
+  it('renders no degraded banner on normal metrics responses', async () => {
+    setupFetch({ summary: [summaryRow()], metricsRows: [metricPoint()] })
+    render(Dashboard)
+
+    await screen.findByText('¥60,000')
+    expect(
+      screen.queryByText('Some advertising metrics may be out of date'),
+    ).not.toBeInTheDocument()
   })
 })

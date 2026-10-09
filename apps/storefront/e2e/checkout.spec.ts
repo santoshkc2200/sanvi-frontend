@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test'
  */
 
 test.describe('Storefront Checkout Journey (TASK-005)', () => {
-  test('serves the order summary page with Stripe CSP intact and no page-level relaxation', async ({
+  test('serves the order summary page with Stripe CSP intact and no page-level relaxation @slow-3g', async ({
     page,
   }) => {
     const response = await page.goto('/checkout')

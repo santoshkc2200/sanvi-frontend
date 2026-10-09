@@ -41,6 +41,10 @@ initI18n({ acceptLanguages: typeof navigator !== 'undefined' ? [...navigator.lan
 // copy-diagnostics action is offered.
 function renderBootFailure(error: unknown): void {
   const traceId = errorTraceId(error)
+  const outage = document.createElement('div')
+  // The per-route outage matrix (TASK-023 step 5) reads this marker: the
+  // boot failure is a terminal designed state, not an infinite spinner.
+  outage.setAttribute('data-async-state', 'error')
   const message = document.createElement('p')
   message.textContent = t['common.boot.failureMessage']()
 
@@ -79,7 +83,8 @@ function renderBootFailure(error: unknown): void {
   retry.onclick = () => window.location.reload()
   children.push(retry)
 
-  target.replaceChildren(...children)
+  outage.append(...children)
+  target.replaceChildren(outage)
 }
 
 async function boot(): Promise<void> {

@@ -2,18 +2,22 @@
 import { KratosForm, getFlow, safeReturnTo, startFlow, submitFlow } from '@sanvi/auth'
 import type { KratosFlow, UiNode } from '@sanvi/auth'
 import { t } from '@sanvi/i18n'
-import { Alert, Container, Spinner, Stack } from '@sanvi/ui'
+import { Alert, Button, Container, Spinner, Stack } from '@sanvi/ui'
 import { kratosClient } from '../lib/api'
 
 let flow = $state<KratosFlow | undefined>(undefined)
 let submitting = $state(false)
 let error = $state<string | undefined>(undefined)
+// TASK-023: the flow *load* failing renders this error state INSTEAD of the
+// loading spinner, never a spinner next to an error.
+let flowError = $state<string | undefined>(undefined)
 
 const params = new URLSearchParams(window.location.search)
 const returnTo = safeReturnTo(params.get('return_to'))
 const flowId = params.get('flow')
 
 async function loadLoginFlow(): Promise<void> {
+  flowError = undefined
   try {
     flow = flowId
       ? await getFlow(kratosClient, 'login', flowId)
@@ -26,12 +30,14 @@ async function loadLoginFlow(): Promise<void> {
   }
 }
 
-$effect(() => {
+function retryLoad(): void {
   loadLoginFlow().catch(() => {
-    // The restart failed too (backend down, network) — show it instead of
-    // leaving an unhandled rejection under a forever-spinner.
-    error = t['platform.login.genericError']()
+    flowError = t['platform.login.genericError']()
   })
+}
+
+$effect(() => {
+  retryLoad()
 })
 
 async function handleSubmit(node: UiNode, values: Record<string, string | boolean>): Promise<void> {
@@ -79,6 +85,14 @@ async function handleSubmit(node: UiNode, values: Record<string, string | boolea
 
     {#if flow}
       <KratosForm {flow} onSubmit={handleSubmit} {submitting} />
+    {:else if flowError}
+      <!-- TASK-023: the outage terminal state — failure named, retry
+           offered, never a spinner that outlives its request. -->
+      <Alert variant="error" title={flowError}>
+        <Button variant="secondary" onclick={retryLoad}>
+          {t['common.retry']()}
+        </Button>
+      </Alert>
     {:else}
       <Spinner label={t['common.loading']()} />
     {/if}

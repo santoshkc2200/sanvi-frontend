@@ -14,17 +14,25 @@ function currentSessionLabel(methods: string[]): string {
 }
 
 let flow = $state<KratosFlow | undefined>(undefined)
+// TASK-023: the flow load failing is a terminal state — an unhandled
+// rejection under a forever-spinner is neither honest nor terminal.
+let flowError = $state<string | undefined>(undefined)
 let submitting = $state(false)
 let error = $state<string | undefined>(undefined)
 let sessions = $state<Awaited<ReturnType<typeof listSessions>>>([])
 let revokingId = $state<string | undefined>(undefined)
 
 async function loadSettingsFlow(): Promise<void> {
+  flowError = undefined
   const params = new URLSearchParams(window.location.search)
   const flowId = params.get('flow')
-  flow = flowId
-    ? await getFlow(kratosClient, 'settings', flowId)
-    : await startFlow(kratosClient, 'settings')
+  try {
+    flow = flowId
+      ? await getFlow(kratosClient, 'settings', flowId)
+      : await startFlow(kratosClient, 'settings')
+  } catch {
+    flowError = t['admin.settingsSecurity.loadError']()
+  }
 }
 
 $effect(() => {
@@ -101,6 +109,13 @@ async function handleSignOutEverywhere(): Promise<void> {
       {/if}
       {#if flow}
         <KratosForm {flow} onSubmit={handleSubmit} {submitting} />
+      {:else if flowError}
+        <!-- TASK-023: named failure with a recovery action, not a spinner. -->
+        <Alert variant="error" title={flowError}>
+          <Button variant="secondary" onclick={() => void loadSettingsFlow()}>
+            {t['common.retry']()}
+          </Button>
+        </Alert>
       {:else}
         <Spinner label={t['admin.settingsSecurity.loading']()} />
       {/if}

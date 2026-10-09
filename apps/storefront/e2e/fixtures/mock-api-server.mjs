@@ -96,6 +96,19 @@ const TENANTS = {
     default_locale: 'en',
     resolution_source: 'subdomain',
   },
+
+  // TASK-023: the stale-content spec's host — a normal active tenant whose
+  // backend the spec flips away *by host*, so no other spec's traffic (all
+  // on localhost:4174) is ever affected by the outage override.
+  'stale.localhost:4174': {
+    tenant_id: '88888888-8888-8888-8888-888888888888',
+    slug: 'stale-co',
+    display_name: 'Stale Content Tenant',
+    status: 'active',
+    region: 'us',
+    default_locale: 'en',
+    resolution_source: 'subdomain',
+  },
   // TASK-020: the trace-id spec's host. Same shape as any active tenant;
   // the only difference is the metrics endpoint below failing with the
   // backend's problem-details conventions (trace_id + traceparent header).
@@ -108,6 +121,65 @@ const TENANTS = {
     default_locale: 'en',
     resolution_source: 'subdomain',
   },
+}
+
+// TASK-023: total-outage hosts. Each fails *every* API request its mode's
+// way — the tenant-context leg included — so a navigation arrives with a
+// cold cache and a dead backend, which is the storefront's worst case. The
+// designed expectation: the outage view (or the +error screen), never a
+// raw 500, never an infinite spinner.
+//
+// 500    — every request answers a 500 problem+json immediately.
+// 503    — every request answers the backend's shedding contract:
+//          `platform/overloaded` + Retry-After.
+// hang   — the request is accepted and never answered; the storefront's
+//          server legs time out on their own.
+const OUTAGE_HOSTS = {
+  'outage500.localhost:4174': { mode: '500' },
+  'outage503.localhost:4174': { mode: '503' },
+  'outagehang.localhost:4174': { mode: 'hang' },
+}
+
+// Per-host mode overrides set through `/__mock/outage` (the stale-content
+// spec flips a *healthy* host's backend away mid-session: warm cache first,
+// outage second, so the stale-while-revalidate window is what the spec
+// sees). Cleared with mode=off.
+const outageOverrides = new Map()
+
+function outageModeFor(host) {
+  const override = outageOverrides.get(host)
+  if (override) return override
+  return OUTAGE_HOSTS[host]?.mode ?? null
+}
+
+const OUTAGE_PROBLEM_500 = {
+  type: 'about:blank',
+  title: 'Internal Server Error',
+  status: 500,
+}
+
+const OUTAGE_PROBLEM_503 = {
+  type: 'https://sanvi.app/problems/platform/overloaded',
+  title: 'Platform overloaded',
+  status: 503,
+}
+
+/** Answers an API request the way an outage would; true when handled. */
+function handleOutage(req, res, host) {
+  const mode = outageModeFor(host)
+  if (!mode) return false
+  if (mode === 'hang') return true // never answered; callers hit their own timeouts
+  if (mode === '500') {
+    res.writeHead(500, { 'content-type': 'application/problem+json' })
+    res.end(JSON.stringify(OUTAGE_PROBLEM_500))
+    return true
+  }
+  res.writeHead(503, {
+    'content-type': 'application/problem+json',
+    'retry-after': '1',
+  })
+  res.end(JSON.stringify(OUTAGE_PROBLEM_503))
+  return true
 }
 
 /**
@@ -435,6 +507,27 @@ const server = createServer(async (req, res) => {
     res.writeHead(200)
     res.end('ok')
     return
+  }
+
+  // TASK-023: flip a host's backend to an outage mode (or back). GET
+  // reports the current map so specs can arrange and assert state.
+  if (path === '/__mock/outage') {
+    const host = url.searchParams.get('host')
+    const mode = url.searchParams.get('mode')
+    if (host && mode) {
+      if (mode === 'off') outageOverrides.delete(host)
+      else outageOverrides.set(host, mode)
+    }
+    json(req, res, 200, { overrides: Object.fromEntries(outageOverrides) })
+    return
+  }
+
+  // The outage hosts (and any overridden host) fail every API call — the
+  // tenant-context leg, theme, privacy, metrics, all of it — exactly the
+  // "total backend outage" the outage spec simulates.
+  const requestHost = req.headers.host ?? ''
+  if (outageModeFor(requestHost) && path.startsWith('/api/')) {
+    if (handleOutage(req, res, requestHost)) return
   }
 
   // FR-1103 build probe: the release stamp the deployment reports. Env-first

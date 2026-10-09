@@ -146,8 +146,16 @@ export {
   listInvoices,
   listPublicPlans,
 } from './billing'
-export type { ApiClient, ApiClientConfig, RawResponse, RequestOptions } from './client'
-export { createApiClient, traceIdFromTraceparent } from './client'
+export type {
+  ApiClient,
+  ApiClientConfig,
+  RawResponse,
+  RequestOptions,
+  ResponseMeta,
+} from './client'
+export { createApiClient, retryDelayFor, traceIdFromTraceparent } from './client'
+export type { OfflineActionQueueOptions, QueuedAction, SafeActionEnqueueResult } from './offline'
+export { isOnline, OfflineActionQueue, watchOnline } from './offline'
 export {
   claimCustomDomain,
   getDomainInstructions,
@@ -256,7 +264,18 @@ export {
   suspendTenant,
 } from './platform-admin'
 export type { ProblemDetails } from './problem'
-export { ApiError, apiErrorFromResponse, NetworkError, TimeoutError } from './problem'
+export {
+  ApiError,
+  apiErrorFromResponse,
+  DEGRADED_RESPONSE_HEADER,
+  failureKindOf,
+  NetworkError,
+  parseDegradedScopes,
+  parseRetryAfterMs,
+  PLATFORM_OVERLOADED_PROBLEM_TYPE,
+  TimeoutError,
+} from './problem'
+export type { FailureKind } from './problem'
 export { createKeepalivePoster } from './beacon'
 export type { KeepalivePoster, KeepalivePosterOptions } from './beacon'
 export {

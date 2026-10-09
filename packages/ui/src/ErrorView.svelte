@@ -35,27 +35,33 @@ let {
 </script>
 
 {#if reason}
-  <SuspendedTenantNotice
-    {reason}
-    {traceLine}
-    {diagnosticsText}
-    {copyLabel}
-    {copiedLabel}
-    {billingHref}
-  />
+  <div data-async-state="error">
+    <SuspendedTenantNotice
+      {reason}
+      {traceLine}
+      {diagnosticsText}
+      {copyLabel}
+      {copiedLabel}
+      {billingHref}
+    />
+  </div>
 {:else}
-  <Container size="md" padding="6">
-    {#if retryLabel && onRetry}
-      <EmptyState {title} {description}>
-        {#snippet action()}
-          <button type="button" class="sanvi-error-view__retry" onclick={onRetry}>{retryLabel}</button>
-        {/snippet}
-      </EmptyState>
-    {:else}
-      <EmptyState {title} {description} />
-    {/if}
-    <ErrorDiagnostics {traceLine} {diagnosticsText} {copyLabel} {copiedLabel} />
-  </Container>
+  <div data-async-state="error">
+    <Container size="md" padding="6">
+      {#if retryLabel && onRetry}
+        <EmptyState {title} {description}>
+          {#snippet action()}
+            <button type="button" class="sanvi-error-view__retry" onclick={onRetry}>
+              {retryLabel}
+            </button>
+          {/snippet}
+        </EmptyState>
+      {:else}
+        <EmptyState {title} {description} />
+      {/if}
+      <ErrorDiagnostics {traceLine} {diagnosticsText} {copyLabel} {copiedLabel} />
+    </Container>
+  </div>
 {/if}
 
 <style>

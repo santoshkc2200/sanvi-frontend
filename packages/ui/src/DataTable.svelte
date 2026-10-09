@@ -279,7 +279,7 @@ const colSpan = $derived(visibleColumns.length + (selectable ? 1 : 0))
           </tr>
         {:else if error}
           <tr>
-            <td class="sanvi-table__empty" colspan={colSpan}>
+            <td class="sanvi-table__empty" colspan={colSpan} data-async-state="error">
               <p role="alert">{error}</p>
               {#if onRetry}
                 <Button variant="secondary" size="sm" onclick={onRetry}>{retryLabel}</Button>

@@ -3,8 +3,10 @@ import { approveRequest, listPendingApprovals, rejectRequest } from '@sanvi/api-
 import type { components } from '@sanvi/api-client'
 import { t } from '@sanvi/i18n'
 import {
+  Alert,
   ApprovalRequest,
   type ApprovalRequestItem,
+  Button,
   EmptyState,
   Spinner,
   Stack,
@@ -98,7 +100,13 @@ async function handleReject(id: string): Promise<void> {
   {#if loading}
     <Spinner label={t['common.loading']()} />
   {:else if error}
-    <EmptyState title={error} />
+    <!-- TASK-023: a failed load is a terminal error state with a recovery
+         action, not an empty list dressed up as one. -->
+    <Alert variant="error" title={error}>
+      <Button variant="secondary" onclick={() => void load()}>
+        {t['common.retry']()}
+      </Button>
+    </Alert>
   {:else if approvals.length === 0}
     <EmptyState title={t['platform.approvals.empty']()} />
   {:else}

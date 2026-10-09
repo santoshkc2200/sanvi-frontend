@@ -30,8 +30,22 @@ import { getAvailableLocales } from '$lib/locales.server'
  * Shared across every request on purpose — it caches by host, which is
  * exactly the "per-host, not per-request" scope that makes it safe to share
  * across concurrent requests (see `TenantHostCache`'s own doc comment).
+ *
+ * `TENANT_CACHE_FRESH_MS` shortens the *fresh* window for the outage e2e
+ * (TASK-023): the stale-content spec must reach the stale-while-revalidate
+ * window in seconds, not the 30 s default. Unset in production — the
+ * defaults are the product decision.
  */
-const tenantHostCache = new TenantHostCache()
+const tenantHostCache = new TenantHostCache({
+  freshMs: normalizeMs(process.env['TENANT_CACHE_FRESH_MS']),
+  staleMs: normalizeMs(process.env['TENANT_CACHE_STALE_MS']),
+})
+
+function normalizeMs(value: string | undefined): number | undefined {
+  if (!value) return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+}
 
 // TASK-032: the server bundle registers the storefront's catalog shards at
 // module scope — every surface this app can render is loaded before the
@@ -77,11 +91,22 @@ async function tenantAndSessionLegs(event: Parameters<Handle>[0]['event']): Prom
   const { apiOrigin } = getAppEnv()
 
   const [resolution] = await Promise.all([
-    resolveTenantForHost(tenantHostCache, { apiOrigin, host }),
+    // TASK-023: a tenant-resolution failure with no cache to fall back on
+    // (cold cache, backend down) no longer 500s the whole storefront — it
+    // degrades to `backend-unavailable`, and the root layout renders the
+    // designed outage view. When the cache *can* answer (the SWR window),
+    // resolution succeeds and rides a `stale` flag the layout turns into the
+    // stale-content banner: cached content, honestly labelled.
+    resolveTenantForHost(tenantHostCache, { apiOrigin, host }).catch(() => {
+      // `unknown-host` resolves rather than throwing; everything that lands
+      // here is a resolution *failure* — cold cache, backend down.
+      return { status: 'backend-unavailable' as const, tenant: null, stale: false }
+    }),
     sessionLeg(event),
   ])
   event.locals.tenant = resolution.tenant
   event.locals.tenantResolution = resolution.status
+  event.locals.tenantStale = resolution.stale ?? false
 }
 
 /**

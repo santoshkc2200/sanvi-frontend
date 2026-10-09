@@ -16,6 +16,7 @@ import {
   Field,
   Input,
   Select,
+  Spinner,
   Stack,
   Textarea,
   showToast,
@@ -155,9 +156,15 @@ async function handleRevoke(): Promise<void> {
   </div>
 
   {#if loading}
-    <p>{t['common.loading']()}</p>
+    <Spinner label={t['common.loading']()} />
   {:else if error}
-    <p role="alert">{error}</p>
+    <!-- TASK-023: a failed load is a terminal error state with a recovery
+         action, not a bare paragraph. -->
+    <Alert variant="error" title={error}>
+      <Button variant="secondary" onclick={() => void load()}>
+        {t['common.retry']()}
+      </Button>
+    </Alert>
   {:else}
     <section>
       <h2>{t['platform.impersonation.activeTitle']()}</h2>

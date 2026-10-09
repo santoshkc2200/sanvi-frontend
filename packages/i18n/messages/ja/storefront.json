@@ -50,5 +50,6 @@
   "storefront.checkout.error.notFoundBody": "指定されたチェックアウトセッションが見つかりませんでした。",
   "storefront.checkout.canceled.title": "お支払いがキャンセルされました",
   "storefront.checkout.notFound.title": "ご注文が見つかりません",
-  "storefront.home.metaDescription": "{name}で商品を閲覧し、安全にチェックアウトして、注文を管理しましょう。"
+  "storefront.home.metaDescription": "{name}で商品を閲覧し、安全にチェックアウトして、注文を管理しましょう。",
+  "storefront.checkout.offlineWarning": "チェックアウトには接続が必要です。オフライン中に注文を保留することはありません。注文は確定していません。接続後にもう一度お手続きください。"
 }

@@ -28,7 +28,12 @@ export default defineConfig({
       },
     },
     {
-      command: 'pnpm build && pnpm preview',
+      // `node build` with the env block below, not `pnpm preview` — the
+      // script's inline `PORT=…` prefix is POSIX-shell syntax and dies under
+      // Playwright's cmd.exe shell on Windows (TASK-023: the outage matrix
+      // runs this config on this host). The adapter reads the same variables
+      // from the process env either way.
+      command: 'pnpm build && node build',
       url: 'http://localhost:4174',
       reuseExistingServer: !process.env.CI,
       // adapter-node reads `$env/dynamic/public` from the process env at
@@ -36,6 +41,7 @@ export default defineConfig({
       // get throwaway values here because `getAppEnv()` boots them
       // unconditionally even when no auth flow runs in a spec.
       env: {
+        PORT: '4174',
         PUBLIC_API_ORIGIN: 'http://localhost:8090',
         PUBLIC_KRATOS_ORIGIN: 'http://localhost:4433',
         PUBLIC_MEDIA_ORIGIN: 'http://localhost:8091',
@@ -48,6 +54,10 @@ export default defineConfig({
         SANVI_GIT_COMMIT: E2E_BUILD_STAMP.commit,
         SANVI_BUILT_AT: E2E_BUILD_STAMP.built_at,
         SANVI_ENVIRONMENT: E2E_BUILD_STAMP.environment,
+        // TASK-023: shortens the tenant cache's fresh window so the outage
+        // spec's stale-content case reaches the stale-while-revalidate path
+        // in seconds (production default: 30 s — see hooks.server.ts).
+        TENANT_CACHE_FRESH_MS: '2000',
       },
     },
   ],
@@ -71,6 +81,14 @@ export default defineConfig({
           latency: 562.5, // requestLatencyMs
         },
       },
+    },
+    {
+      // TASK-023 (FR-1113): the offline variant — specs tagged `@offline`
+      // run under chromium's offline emulation (the specs drive it per
+      // context so the un-emulated part of each journey stays real).
+      name: 'offline',
+      grep: /@offline/,
+      use: { ...devices['Desktop Chrome'] },
     },
   ],
 })

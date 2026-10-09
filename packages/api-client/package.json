@@ -1,7 +1,7 @@
 {
   "name": "@sanvi/api-client",
   "version": "0.1.0",
-  "description": "Typed fetch runtime shared by every Sanvi app — auth/tenant headers, retries, timeouts, problem+json error mapping. The generated OpenAPI client (phase 01) wraps this.",
+  "description": "Typed fetch runtime shared by every Sanvi app \u2014 auth/tenant headers, retries, timeouts, problem+json error mapping. The generated OpenAPI client (phase 01) wraps this.",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
@@ -15,6 +15,10 @@
     "./problem": {
       "types": "./src/problem.ts",
       "default": "./src/problem.ts"
+    },
+    "./offline": {
+      "types": "./src/offline.ts",
+      "default": "./src/offline.ts"
     }
   },
   "sideEffects": false,

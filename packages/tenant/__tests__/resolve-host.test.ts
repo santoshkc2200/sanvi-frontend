@@ -129,6 +129,22 @@ describe('TenantHostCache', () => {
     }
   })
 
+  it("flags a stale-while-revalidate hit so the UI can say what's stale (TASK-023)", async () => {
+    const backend = await startFakeBackend({ 'acme.example': { status: 200, body: TENANT } })
+    const cache = new TenantHostCache({ freshMs: 10, staleMs: 60_000 })
+    try {
+      const fresh = await cache.resolve({ apiOrigin: backend.apiOrigin, host: 'acme.example' })
+      expect(fresh.stale).toBeUndefined()
+      await sleep(30) // now stale, not expired
+
+      const stale = await cache.resolve({ apiOrigin: backend.apiOrigin, host: 'acme.example' })
+      expect(stale.status).toBe('ok')
+      expect(stale.stale).toBe(true)
+    } finally {
+      await backend.close()
+    }
+  })
+
   it('negative-caches an unknown host the same way as a resolved one', async () => {
     const backend = await startFakeBackend({ 'ghost.example': { status: 404 } })
     const cache = new TenantHostCache({ freshMs: 60_000 })

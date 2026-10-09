@@ -1,4 +1,5 @@
 import type { components } from './generated/types'
+import type { ResponseMeta } from './client'
 import type { TypedApiClient } from './typed'
 
 /**
@@ -805,10 +806,19 @@ function adMetricsQueryParams(query: AdMetricsQuery) {
  * backend's configured maximum is a 400 — render its problem detail, never
  * a spinner.
  */
-export function getAdMetrics(client: TypedApiClient, query: AdMetricsQuery, signal?: AbortSignal) {
+export function getAdMetrics(
+  client: TypedApiClient,
+  query: AdMetricsQuery,
+  signal?: AbortSignal,
+  onResponseMeta?: (meta: ResponseMeta) => void,
+) {
   return client.GET('/api/v1/tenant/ads/metrics', {
     params: { query: adMetricsQueryParams(query) },
     ...(signal ? { signal } : {}),
+    // TASK-023: a 2xx answered from a fallback names its degraded scopes in
+    // `x-sanvi-degraded`; surfaces that render the numbers must be able to
+    // *say* they are degraded.
+    ...(onResponseMeta ? { onResponseMeta } : {}),
   })
 }
 
@@ -822,6 +832,7 @@ export function getAdMetricsSummary(
   client: TypedApiClient,
   query: { from: string; to: string; compareTo?: string },
   signal?: AbortSignal,
+  onResponseMeta?: (meta: ResponseMeta) => void,
 ) {
   return client.GET('/api/v1/tenant/ads/metrics/summary', {
     params: {
@@ -832,6 +843,7 @@ export function getAdMetricsSummary(
       },
     },
     ...(signal ? { signal } : {}),
+    ...(onResponseMeta ? { onResponseMeta } : {}),
   })
 }
 

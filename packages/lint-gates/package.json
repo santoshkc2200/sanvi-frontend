@@ -1,7 +1,7 @@
 {
   "name": "@sanvi/lint-gates",
   "version": "0.1.0",
-  "description": "Custom lint gates the phase-00 non-negotiables depend on — check:i18n, check:tokens, check:budget.",
+  "description": "Custom lint gates the phase-00 non-negotiables depend on \u2014 check:i18n, check:tokens, check:budget.",
   "private": true,
   "type": "module",
   "bin": {
@@ -19,7 +19,8 @@
     "./check-image-dimensions": "./src/check-image-dimensions.mjs",
     "./perf-profiles": "./src/perf-profiles.mjs",
     "./routes": "./src/routes.mjs",
-    "./walk-files": "./src/walk-files.mjs"
+    "./walk-files": "./src/walk-files.mjs",
+    "./check-async-audit": "./src/check-async-audit.mjs"
   },
   "scripts": {
     "lint": "biome lint --write .",

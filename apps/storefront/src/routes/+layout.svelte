@@ -11,13 +11,17 @@ import { renderLayout, themeStyleTag } from '@sanvi/theme-runtime'
 import { setSessionContext } from '@sanvi/auth'
 import {
   ConsentBanner,
+  EmptyState,
+  OfflineBanner,
   PrivacyFooterLinks,
   PrivacyNoticeBanner,
+  StaleContentBanner,
   SuspendedTenantNotice,
 } from '@sanvi/ui'
 import '@sanvi/ui/styles.css'
 import { setTenantContext } from '@sanvi/tenant'
 import { createCart, setCartContext } from '$lib/checkout'
+import { isOffline } from '$lib/online.svelte'
 import {
   currentLocale,
   initI18n,
@@ -93,6 +97,14 @@ setCartContext(createCart())
 const lockedReason = $derived(
   data.tenant && data.tenant.status !== 'active' ? data.tenant.status : null,
 )
+
+// TASK-023: the two degraded renderings, both honest by construction.
+// `data.outage` — the backend never answered tenant resolution, so the shell
+// renders the designed outage view over whatever caches survived; a reload
+// is the retry. `data.stale` — cached content served from the
+// stale-while-revalidate window, which must *say* it may be stale.
+const outage = $derived(data.outage)
+const offline = $derived(typeof window !== 'undefined' && isOffline())
 
 // Crawlable locale links — the switcher for an SEO-relevant app is real
 // `<a hreflang>` anchors, not a `<select>` (invisible to crawlers).
@@ -236,7 +248,33 @@ const LOCALE_TO_SUBSET: Record<string, string> = {
 
 {#if lockedReason}
   <SuspendedTenantNotice reason={lockedReason} />
+{:else if outage}
+  <!-- TASK-023: the designed outage view. No tenant resolved, so there is
+       no themed header/footer to trust — an honest minimal page with a
+       retry (reload) is the designed experience. -->
+  <div class="sanvi-outage" data-async-state="error">
+    <EmptyState
+      title={t['errors.outage.title']()}
+      description={t['errors.outage.description']()}
+    >
+      {#snippet action()}
+        <a class="sanvi-outage__retry" href={page.url.pathname}>{t['common.retry']()}</a>
+      {/snippet}
+    </EmptyState>
+  </div>
 {:else}
+  {#if offline}
+    <OfflineBanner
+      title={t['common.offline.title']()}
+      description={t['common.offline.description']()}
+    />
+  {/if}
+  {#if data.stale}
+    <StaleContentBanner
+      title={t['common.stale.title']()}
+      description={t['common.stale.description']()}
+    />
+  {/if}
   {#if headerSlot && headerSlot.blocks.length > 0}
     {#each headerSlot.blocks as block (block.id)}
       <block.component {...block.props} />
@@ -344,6 +382,24 @@ const LOCALE_TO_SUBSET: Record<string, string> = {
        made it taller in phase 06) so end-of-page controls can still scroll
        above the overlay. */
     min-height: calc(var(--sanvi-spacing-12) * 3 + var(--sanvi-spacing-8));
+  }
+
+  .sanvi-outage {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sanvi-outage__retry {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--sanvi-spacing-2) var(--sanvi-spacing-4);
+    border-radius: var(--sanvi-radius-md);
+    border: var(--sanvi-border-width-thin) solid var(--sanvi-color-border-default);
+    background: transparent;
+    color: var(--sanvi-color-text-primary);
+    font-weight: var(--sanvi-font-weight-medium);
   }
 
   .sanvi-footer {

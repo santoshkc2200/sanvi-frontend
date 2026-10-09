@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '@sanvi/api-client'
 import { load } from '../src/routes/_theme-preview/+page.server'
 
 const previewTenantThemeMock = vi.fn()
@@ -47,10 +48,16 @@ describe('storefront _theme-preview/+page.server.ts', () => {
     }
   })
 
-  it('throws 403 on invalid or expired preview token', async () => {
+  it('throws the API-shaped 403 on an invalid or expired preview token', async () => {
     const setHeaders = vi.fn()
     const locals = { tenant: TENANT, tenantResolution: 'ok' as const, locale: 'en' }
-    previewTenantThemeMock.mockRejectedValueOnce(new Error('Invalid token'))
+    previewTenantThemeMock.mockRejectedValueOnce(
+      new ApiError(
+        403,
+        { type: 'about:blank', title: 'Invalid preview token', status: 403 },
+        undefined,
+      ),
+    )
 
     try {
       await load({
@@ -67,6 +74,26 @@ describe('storefront _theme-preview/+page.server.ts', () => {
           'x-robots-tag': 'noindex',
         }),
       )
+    }
+  })
+
+  it('throws 503 — not a mislabeled 403 — when the backend is unreachable (TASK-023)', async () => {
+    const setHeaders = vi.fn()
+    const locals = { tenant: TENANT, tenantResolution: 'ok' as const, locale: 'en' }
+    // A transport failure carries no HTTP status: an outage is not an
+    // "invalid or expired preview token".
+    previewTenantThemeMock.mockRejectedValueOnce(new Error('fetch failed'))
+
+    try {
+      await load({
+        url: new URL('http://acme.test/_theme-preview?token=bad-token'),
+        locals,
+        setHeaders,
+      } as never)
+      expect.unreachable('load() should have thrown 503')
+    } catch (thrown) {
+      const httpError = thrown as { status: number }
+      expect(httpError.status).toBe(503)
     }
   })
 

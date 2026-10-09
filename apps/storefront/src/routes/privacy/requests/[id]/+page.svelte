@@ -1,7 +1,14 @@
 <script lang="ts">
 import { t } from '@sanvi/i18n'
+import { failureMessageKey } from '$lib/failure-copy'
 import { Alert, Badge, Container, EmptyState, Spinner, Stack } from '@sanvi/ui'
-import { getDsrStatus, exportDownloadUrl } from '@sanvi/api-client'
+import {
+  failureKindOf,
+  ApiError,
+  getDsrStatus,
+  exportDownloadUrl,
+  type FailureKind,
+} from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import { apiClient } from '$lib/auth'
 import { getAppEnv } from '$lib/env'
@@ -35,6 +42,7 @@ const COPY = $derived({
   loadTitle: t['privacy.requestDetail.loadTitle'](),
   notFoundTitle: t['privacy.requestDetail.notFoundTitle'](),
   notFoundBody: t['privacy.requestDetail.notFoundBody'](),
+  retryLabel: t['common.retry'](),
   rejectedTitle: t['privacy.requestDetail.rejectedTitle'](),
   appealCta: t['privacy.appeal.title'](),
   downloadTitle: t['privacy.requestDetail.downloadTitle'](),
@@ -52,19 +60,40 @@ const downloadHref = $derived(
 let status = $state<StatusView | null>(null)
 let loading = $state(true)
 let notFound = $state(false)
+// TASK-023: a failed load is not a missing request — the two get different
+// copy, and the failure names *why* (the shared failure-kind copy) plus the
+// trace id it can correlate with.
+let failure = $state<{ kind: string; traceId: string | undefined } | null>(null)
+
+async function load(): Promise<void> {
+  loading = true
+  notFound = false
+  failure = null
+  const pageToken = new URLSearchParams(window.location.search).get('token') ?? undefined
+  try {
+    status = await getDsrStatus(apiClient, params.id, pageToken ? { token: pageToken } : undefined)
+  } catch (error: unknown) {
+    status = null
+    if (error instanceof ApiError && error.status === 404) {
+      notFound = true
+    } else {
+      failure = {
+        kind: failureKindOf(error),
+        traceId: error instanceof ApiError ? error.traceId : apiClient.getLastTraceId(),
+      }
+    }
+  } finally {
+    loading = false
+  }
+}
 
 $effect(() => {
-  const pageToken = new URLSearchParams(window.location.search).get('token') ?? undefined
-  getDsrStatus(apiClient, params.id, pageToken ? { token: pageToken } : undefined)
-    .then((result) => {
-      status = result
-      loading = false
-    })
-    .catch(() => {
-      notFound = true
-      loading = false
-    })
+  void load()
 })
+
+const failureTraceLine = $derived(
+  failure?.traceId ? t['errors.traceId']({ id: failure.traceId }) : undefined,
+)
 
 const statusVariant = $derived(
   status?.status === 'completed'
@@ -96,6 +125,18 @@ const steps = $derived.by(() => {
 
     {#if loading}
       <Spinner label={COPY.loadTitle} />
+    {:else if failure}
+      <Alert variant="error" title={t[failureMessageKey(failure.kind as FailureKind)]()}>
+        <Stack>
+          {#if failureTraceLine}
+            <span>{failureTraceLine}</span>
+          {/if}
+          <button type="button" class="sanvi-request-detail__retry" onclick={() => void load()}>
+            {COPY.retryLabel}
+          </button>
+        </Stack>
+      </Alert>
+      <a href={localePath('/privacy/requests')}>{COPY.backLink}</a>
     {:else if notFound || !status}
       <EmptyState title={COPY.notFoundTitle} description={COPY.notFoundBody} />
       <a href={localePath('/privacy/requests')}>{COPY.backLink}</a>
@@ -145,3 +186,16 @@ const steps = $derived.by(() => {
     {/if}
   </Stack>
 </Container>
+
+<style>
+  .sanvi-request-detail__retry {
+    align-self: flex-start;
+    padding: var(--sanvi-spacing-2) var(--sanvi-spacing-4);
+    border-radius: var(--sanvi-radius-md);
+    border: var(--sanvi-border-width-thin) solid var(--sanvi-color-border-default);
+    background: transparent;
+    color: var(--sanvi-color-text-primary);
+    font-weight: var(--sanvi-font-weight-medium);
+    cursor: pointer;
+  }
+</style>
