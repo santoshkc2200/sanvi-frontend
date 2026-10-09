@@ -23,6 +23,9 @@ import { getAppEnv } from './env'
 export const apiClient = createTypedApiClient(
   createApiClient({
     baseUrl: getAppEnv().apiOrigin,
+    // Overridable per environment (the outage e2e shortens it); unset in
+    // production, where the client's 10 s default is the decision.
+    timeoutMs: getAppEnv().apiTimeoutMs,
     getTenantId: getActiveTenantId,
     credentials: 'include',
     locale: () => currentLocale(),

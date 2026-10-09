@@ -7,17 +7,25 @@ import { Alert, Button, Container, Spinner, Stack } from '@sanvi/ui'
 import { apiClient, kratosClient } from '../lib/api'
 
 let flow = $state<KratosFlow | undefined>(undefined)
+let flowError = $state<string | undefined>(undefined)
 let submitting = $state(false)
 let error = $state<string | undefined>(undefined)
 let sessions = $state<Awaited<ReturnType<typeof listSessions>>>([])
 let revokingId = $state<string | undefined>(undefined)
 
 async function loadSettingsFlow(): Promise<void> {
+  flowError = undefined
   const params = new URLSearchParams(window.location.search)
   const flowId = params.get('flow')
-  flow = flowId
-    ? await getFlow(kratosClient, 'settings', flowId)
-    : await startFlow(kratosClient, 'settings')
+  try {
+    flow = flowId
+      ? await getFlow(kratosClient, 'settings', flowId)
+      : await startFlow(kratosClient, 'settings')
+  } catch {
+    // TASK-023: a failed flow load is a terminal state — an unhandled
+    // rejection under a forever-spinner is neither honest nor terminal.
+    flowError = t['platform.settingsSecurity.loadError']()
+  }
 }
 
 $effect(() => {
@@ -94,6 +102,13 @@ async function handleSignOutEverywhere(): Promise<void> {
       {/if}
       {#if flow}
         <KratosForm {flow} onSubmit={handleSubmit} {submitting} />
+      {:else if flowError}
+        <!-- TASK-023: named failure with a recovery action, not a spinner. -->
+        <Alert variant="error" title={flowError}>
+          <Button variant="secondary" onclick={() => void loadSettingsFlow()}>
+            {t['common.retry']()}
+          </Button>
+        </Alert>
       {:else}
         <Spinner label={t['common.loading']()} />
       {/if}

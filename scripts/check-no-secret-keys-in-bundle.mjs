@@ -179,22 +179,10 @@ function selfTest() {
     // TASK-024: one planted credential per class — a scan that has never
     // caught anything is a scan nobody has tested.
     caught('const awsKey = "AKIAIOSFODNN7EXAMPLE";\n', 'aws access key id literal')
-    caught(
-      'const pem = "-----BEGIN RSA PRIVATE KEY-----\\nMIIB";\n',
-      'PEM private key header',
-    )
-    caught(
-      'const cfg = { signingKey: "1aBcD2eFg3hIj4K5l6mNoPQr" };\n',
-      'signing key assignment',
-    )
-    caught(
-      'const svc = "http://auth.internal.example/oauth";\n',
-      'internal hostname (.internal)',
-    )
-    caught(
-      'const svc = "http://10.0.14.7:8080/api";\n',
-      'internal hostname (RFC 1918)',
-    )
+    caught('const pem = "-----BEGIN RSA PRIVATE KEY-----\\nMIIB";\n', 'PEM private key header')
+    caught('const cfg = { signingKey: "1aBcD2eFg3hIj4K5l6mNoPQr" };\n', 'signing key assignment')
+    caught('const svc = "http://auth.internal.example/oauth";\n', 'internal hostname (.internal)')
+    caught('const svc = "http://10.0.14.7:8080/api";\n', 'internal hostname (RFC 1918)')
     caught(
       'const svc = "http://sanvi-api.default.cluster.local/health";\n',
       'internal hostname (cluster.local)',
@@ -213,10 +201,7 @@ function selfTest() {
       'a base64 blob that merely contains an EA… run',
     )
     // Non-secrets the new patterns must not flag:
-    ignored(
-      'const site = "https://acme.localhost:4174";\n',
-      'a *.localhost dev/e2e origin',
-    )
+    ignored('const site = "https://acme.localhost:4174";\n', 'a *.localhost dev/e2e origin')
     ignored(
       'const cfg = { signingKeyAlgo: "Ed25519" };\n',
       'a signing-key name with a non-secret algorithm value',

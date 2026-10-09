@@ -1732,5 +1732,6 @@
   "admin.advertising.audiences.emptyBody": "オーディエンスを作成すると、ハッシュ化した顧客リストを接続済みプラットフォームへ同期できます。",
   "admin.advertising.audiences.neverSynced": "未同期",
   "admin.app.panelErrorTitle": "このパネルの表示に失敗しました",
-  "admin.app.panelErrorDescription": "コンソールの他の部分は影響を受けません。このパネルを再試行してください。繰り返し失敗する場合は、診断情報をコピーしてサポートにお問い合わせください。"
+  "admin.app.panelErrorDescription": "コンソールの他の部分は影響を受けません。このパネルを再試行してください。繰り返し失敗する場合は、診断情報をコピーしてサポートにお問い合わせください。",
+  "admin.settingsSecurity.loadError": "セキュリティ設定を読み込めませんでした。"
 }

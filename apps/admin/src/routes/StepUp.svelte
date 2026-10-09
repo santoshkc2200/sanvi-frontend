@@ -2,7 +2,7 @@
 import { KratosForm, KratosRequestError, safeReturnTo, startFlow, submitFlow } from '@sanvi/auth'
 import type { KratosFlow, UiNode } from '@sanvi/auth'
 import { t } from '@sanvi/i18n'
-import { Alert, Container, Spinner, Stack } from '@sanvi/ui'
+import { Alert, Button, Container, Spinner, Stack } from '@sanvi/ui'
 import { kratosClient } from '../lib/api'
 
 /**
@@ -93,6 +93,14 @@ async function handleSubmit(node: UiNode, values: Record<string, string | boolea
       <a href="/settings/security">{t['admin.stepUp.enroll']()}</a>
     {:else if flow}
       <KratosForm {flow} onSubmit={handleSubmit} {submitting} />
+    {:else if error}
+      <!-- TASK-023: the error state existed in code but was never rendered —
+           a backend outage spun forever. Failure named, retry offered. -->
+      <Alert variant="error" title={error}>
+        <Button variant="secondary" onclick={() => void loadStepUpFlow()}>
+          {t['common.retry']()}
+        </Button>
+      </Alert>
     {:else}
       <Spinner label={t['common.loading']()} />
     {/if}

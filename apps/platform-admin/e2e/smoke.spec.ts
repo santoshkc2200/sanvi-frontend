@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   mockBackend(page)
 })
 
-test('app boots and renders with no console errors', async ({ page }) => {
+test('app boots and renders with no console errors @slow-3g', async ({ page }) => {
   const consoleErrors: string[] = []
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text())

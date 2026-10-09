@@ -25,7 +25,8 @@ const TAG_PATTERN = /<(img|iframe|embed)\b[^>]*?>/gs
 
 function hasDimension(tagText, dimension) {
   return (
-    new RegExp(`\\s${dimension}\\s*=`, 'i').test(tagText) || new RegExp(`\\{${dimension}\\}`).test(tagText)
+    new RegExp(`\\s${dimension}\\s*=`, 'i').test(tagText) ||
+    new RegExp(`\\{${dimension}\\}`).test(tagText)
   )
 }
 

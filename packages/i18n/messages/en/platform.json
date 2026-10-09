@@ -429,5 +429,6 @@
   "platform.translations.saved": "Translation saved.",
   "platform.translations.saveError": "Could not save this translation.",
   "platform.app.panelErrorTitle": "This panel failed to render",
-  "platform.app.panelErrorDescription": "The rest of the console is unaffected. Retry this panel — if it keeps failing, copy the diagnostics for support."
+  "platform.app.panelErrorDescription": "The rest of the console is unaffected. Retry this panel — if it keeps failing, copy the diagnostics for support.",
+  "platform.settingsSecurity.loadError": "Could not load your security settings."
 }

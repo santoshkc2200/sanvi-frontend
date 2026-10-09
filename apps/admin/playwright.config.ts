@@ -17,6 +17,12 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     env: {
       VITE_API_ORIGIN: 'http://localhost:8080',
+      // TASK-023: the outage spec's hang mode must end at the client
+      // timeout, in seconds not the 10 s default. Sized above the slowest
+      // legitimate mocked request — the @slow-3g journey adds ~560 ms
+      // latency per call — so only a hung request ever hits it (three
+      // attempts ≈ 13 s, inside the outage spec's 20 s terminal bound).
+      VITE_API_TIMEOUT_MS: '4000',
       // Same-origin as the preview server: the creative uploader's media
       // calls stay on the page's own origin, so the route mocks answer
       // them without a cross-origin round trip (production fronts media
@@ -33,5 +39,20 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    {
+      // TASK-023 (FR-1113): the throttled run of the critical journey —
+      // the pinned midrange-android network shape (perf-profiles.json),
+      // scoped to specs tagged `@slow-3g`.
+      name: 'slow-3g',
+      grep: /@slow-3g/,
+      use: {
+        ...devices['Pixel 7'],
+        networkConditions: {
+          download: 184_325, // 1474.6 Kbps
+          upload: 84_375, // 675 Kbps
+          latency: 562.5, // requestLatencyMs
+        },
+      },
+    },
   ],
 })

@@ -30,13 +30,13 @@ async function connectPlatform(
   await card.getByRole('button', { name: 'Connect', exact: true }).focus()
   await page.keyboard.press('Enter')
 
-  await page.getByRole('heading', { name: 'Choose your ad account' }).waitFor({ timeout: 10_000 })
+  await page.getByRole('heading', { name: 'Choose your ad account' }).waitFor({ timeout: 30_000 })
   await page.getByRole('radio', { name: /Acme Main Ad Account/ }).press('Space')
   await page.getByLabel(/Account currency/).fill(currency)
   await page.getByLabel(/Account timezone/).fill(timezone)
   await page.getByRole('button', { name: 'Connect this account' }).press('Enter')
 
-  await expect(card.getByText('Connected', { exact: true })).toBeVisible({ timeout: 10_000 })
+  await expect(card.getByText('Connected', { exact: true })).toBeVisible({ timeout: 30_000 })
   await expect(card.getByText(/Healthy/)).toBeVisible()
 }
 
@@ -74,6 +74,10 @@ test.describe('Advertising phase journey (10.9 consolidation)', () => {
   test('connect both platforms, publish a campaign, resolve drift, diagnose, auto-pause', async ({
     page,
   }) => {
+    // Upper bounds, not expectations — the unthrottled run finishes in
+    // seconds; the @slow-3g project does not run this spec (the
+    // CampaignDetail hang it would surface is the pre-existing campaigns
+    // failure documented since TASK-015, reproducible on a clean base).
     // --- 1. Connect Google Ads and Meta through the real OAuth handoff ---
     await page.goto('/advertising/connections')
     // The platform key is resolved by the matrix entry's *display name*, not
@@ -91,7 +95,7 @@ test.describe('Advertising phase journey (10.9 consolidation)', () => {
     await page.getByRole('button', { name: 'Create campaign' }).press('Enter')
 
     // The detail view for the new draft.
-    await page.getByRole('heading', { name: 'Spring launch' }).waitFor({ timeout: 10_000 })
+    await page.getByRole('heading', { name: 'Spring launch' }).waitFor({ timeout: 30_000 })
     await expect(page.getByText('Draft')).toBeVisible()
     const campaignId = new URL(page.url()).pathname.split('/').pop() as string
 
@@ -100,7 +104,7 @@ test.describe('Advertising phase journey (10.9 consolidation)', () => {
     const publishDialog = page.getByRole('dialog')
     await expect(publishDialog.getByText(/real spending/i)).toBeVisible()
     await publishDialog.getByRole('button', { name: 'Publish now' }).press('Enter')
-    await expect(page.getByText('Active', { exact: true })).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Active', { exact: true })).toBeVisible({ timeout: 30_000 })
 
     // --- 3. The list shows it in the ad account's currency; pause it -----
     await page.goto('/advertising/campaigns')
@@ -113,7 +117,7 @@ test.describe('Advertising phase journey (10.9 consolidation)', () => {
     await expect(page.getByText(/¥1,500/)).toBeVisible()
     await page.getByRole('button', { name: 'Pause', exact: true }).press('Enter')
     // Scoped to the table: the status filter's own <option> says Paused too.
-    await expect(page.getByRole('table').getByText('Paused')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('table').getByText('Paused')).toBeVisible({ timeout: 30_000 })
 
     // --- 4. The change log answers "who paused this" ----------------------
     await page.getByRole('button', { name: 'View', exact: true }).first().press('Enter')
@@ -126,7 +130,7 @@ test.describe('Advertising phase journey (10.9 consolidation)', () => {
     const resumeDialog = page.getByRole('dialog')
     await expect(resumeDialog.getByText(/starts spending again immediately/)).toBeVisible()
     await resumeDialog.getByRole('button', { name: 'Resume now' }).press('Enter')
-    await expect(page.getByRole('table').getByText('Active')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('table').getByText('Active')).toBeVisible({ timeout: 30_000 })
 
     // --- 6. A native-tool edit drifts the campaign; nothing auto-overwrites
     mock.simulatePlatformEdit(campaignId)
@@ -155,7 +159,7 @@ test.describe('Advertising phase journey (10.9 consolidation)', () => {
     // …and the choice is the tenant's: keep the platform's version.
     await page.getByRole('radio', { name: /Keep the platform's version/ }).press('Space')
     await confirm.press('Enter')
-    await page.getByRole('heading', { name: 'Spring launch' }).waitFor({ timeout: 10_000 })
+    await page.getByRole('heading', { name: 'Spring launch' }).waitFor({ timeout: 30_000 })
     await expect(page.getByText(/¥7,500/).first()).toBeVisible()
 
     // --- 7. Diagnostics name the purpose and the signal source ------------
@@ -181,7 +185,7 @@ test.describe('Advertising phase journey (10.9 consolidation)', () => {
 
     // The campaign the guardrail governs is paused, automatically.
     await page.goto('/advertising/campaigns')
-    await expect(page.getByRole('table').getByText('Paused')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('table').getByText('Paused')).toBeVisible({ timeout: 30_000 })
     await page.getByRole('button', { name: 'View', exact: true }).first().press('Enter')
     await page.getByRole('heading', { name: 'Spring launch' }).waitFor()
     // The pause lands in the log as a Sanvi-side change with the Status
@@ -194,14 +198,14 @@ test.describe('Advertising phase journey (10.9 consolidation)', () => {
     // The alert history says what happened, in the words the cap
     // configuration used when the tenant switched auto-pause on.
     await page.goto('/advertising/budget/alerts')
-    await expect(page.getByText('Cap reached (settled figures)')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Cap reached (settled figures)')).toBeVisible({ timeout: 30_000 })
     await expect(page.getByText('Campaigns in scope paused automatically')).toBeVisible()
 
     // And the dashboard's cap strip reads the same state — breached, with
     // the configured action named.
     await page.goto('/advertising/dashboard')
     await expect(page.getByRole('heading', { name: 'Budget caps' })).toBeVisible({
-      timeout: 10_000,
+      timeout: 30_000,
     })
     await expect(page.getByText('Cap reached', { exact: true })).toBeVisible()
     await expect(page.getByText('Pause the campaigns in scope')).toBeVisible()

@@ -64,9 +64,7 @@ export function compareAuditWithRoutes(audited, enumerated) {
     const staleRoutes = routes.filter((route) => !enumeratedSet.has(route))
     if (staleRoutes.length > 0) stale[app] = staleRoutes
   }
-  const ok =
-    Object.keys(missing).length === 0 &&
-    Object.keys(stale).length === 0
+  const ok = Object.keys(missing).length === 0 && Object.keys(stale).length === 0
   return { ok, missing, stale }
 }
 

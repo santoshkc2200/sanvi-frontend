@@ -30,8 +30,22 @@ import { getAvailableLocales } from '$lib/locales.server'
  * Shared across every request on purpose — it caches by host, which is
  * exactly the "per-host, not per-request" scope that makes it safe to share
  * across concurrent requests (see `TenantHostCache`'s own doc comment).
+ *
+ * `TENANT_CACHE_FRESH_MS` shortens the *fresh* window for the outage e2e
+ * (TASK-023): the stale-content spec must reach the stale-while-revalidate
+ * window in seconds, not the 30 s default. Unset in production — the
+ * defaults are the product decision.
  */
-const tenantHostCache = new TenantHostCache()
+const tenantHostCache = new TenantHostCache({
+  freshMs: normalizeMs(process.env.TENANT_CACHE_FRESH_MS),
+  staleMs: normalizeMs(process.env.TENANT_CACHE_STALE_MS),
+})
+
+function normalizeMs(value: string | undefined): number | undefined {
+  if (!value) return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+}
 
 // TASK-032: the server bundle registers the storefront's catalog shards at
 // module scope — every surface this app can render is loaded before the
