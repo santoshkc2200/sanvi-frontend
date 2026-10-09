@@ -78,9 +78,20 @@ function probePath(route: string): string {
  * above that poll instead of a free pass.
  */
 const TERMINAL_BOUND = 20_000
+/**
+ * `/activating`'s designed terminal state arrives only after its bounded
+ * poll (20 attempts) ends — and in the hang mode each poll iteration runs
+ * the api-client's full retry ladder against the client timeout (≈13 s per
+ * iteration), so that one route-mode pair needs a bound above the poll
+ * rather than a free pass.
+ */
 const ROUTE_BOUNDS: Record<string, number> = { '/activating': 120_000 }
+function boundFor(route: string, mode: string): number {
+  if (route === '/activating' && mode === 'hang') return 330_000
+  return ROUTE_BOUNDS[route] ?? TERMINAL_BOUND
+}
 
-async function assertTerminalDesignedState(page: Page, route = ''): Promise<void> {
+async function assertTerminalDesignedState(page: Page, bound = TERMINAL_BOUND): Promise<void> {
   await expect
     .poll(
       async () => {
@@ -96,7 +107,7 @@ async function assertTerminalDesignedState(page: Page, route = ''): Promise<void
         const content = (await page.locator('main :not([data-async-state="loading"])').count()) > 0
         return terminal || content
       },
-      { timeout: ROUTE_BOUNDS[route] ?? TERMINAL_BOUND, intervals: [500, 1_000, 2_000] },
+      { timeout: bound, intervals: [500, 1_000, 2_000] },
     )
     .toBe(true)
 }
@@ -128,13 +139,14 @@ for (const mode of ['500', '503', 'hang'] as Mode[]) {
       test(`route ${route} renders a designed state when the backend dies (${mode})`, async ({
         page,
       }) => {
-        test.setTimeout((ROUTE_BOUNDS[route] ?? 30_000) + 30_000)
+        const bound = boundFor(route, mode)
+        test.setTimeout(bound + 30_000)
         await bootThenBreakBackend(page, mode)
         await page.evaluate((path) => {
           window.history.pushState({}, '', path)
           window.dispatchEvent(new PopStateEvent('popstate'))
         }, probePath(route))
-        await assertTerminalDesignedState(page, route)
+        await assertTerminalDesignedState(page, bound)
 
         // The shell survives — navigation is still rendered, the outage is
         // contained to the content region.

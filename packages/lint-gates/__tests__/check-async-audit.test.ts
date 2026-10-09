@@ -52,18 +52,18 @@ states noted here
       { storefront: ['/', '/checkout', '/legal/cookies'] },
     )
     expect(result.ok).toBe(false)
-    expect(result.missing.storefront).toEqual(['/checkout', '/legal/cookies'])
+    expect(result.missing['storefront']).toEqual(['/checkout', '/legal/cookies'])
   })
 
   it('fails on audit entries that no longer exist in the manifest', () => {
     const result = compareAuditWithRoutes({ admin: ['/', '/removed-route'] }, { admin: ['/'] })
     expect(result.ok).toBe(false)
-    expect(result.stale.admin).toEqual(['/removed-route'])
+    expect(result.stale['admin']).toEqual(['/removed-route'])
   })
 
   it('fails on an app with routes but no audit section at all', () => {
     const result = compareAuditWithRoutes({}, { admin: ['/'] })
     expect(result.ok).toBe(false)
-    expect(result.missing.admin).toEqual(['/'])
+    expect(result.missing['admin']).toEqual(['/'])
   })
 })

@@ -29,6 +29,10 @@ const ALLOWED_STORAGE = new Map([
     'sessionStorage flag for the audited session debug logger (a boolean, session-scoped, off by default)',
   ],
   [
+    'packages/api-client/src/offline.ts',
+    "localStorage persistence for the offline safe-action queue (TASK-023): queued action wire-shapes only — method/path/body/idempotency key, never tokens — cleared on flush; access failures degrade to in-memory recall",
+  ],
+  [
     'packages/consent/src/cookie.ts',
     'consent decisions + rotating device-reference cookies, SameSite=Lax, deliberately identifier-free',
   ],
