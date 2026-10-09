@@ -47,6 +47,38 @@ describe('ErrorView', () => {
     expect(screen.getByRole('link', { name: 'Go to billing' })).toBeInTheDocument()
   })
 
+  it('links to the status page from the generic error when a status href is given', () => {
+    render(ErrorView, {
+      props: {
+        title: 'Something went wrong',
+        retryLabel: 'Try again',
+        onRetry: vi.fn(),
+        statusHref: 'http://status.example/status',
+        statusLinkLabel: 'View system status',
+      },
+    })
+
+    expect(screen.getByRole('link', { name: 'View system status' })).toHaveAttribute(
+      'href',
+      'http://status.example/status',
+    )
+  })
+
+  it('renders the restore state — never an empty dataset — when the reason is restoring', () => {
+    render(ErrorView, {
+      props: {
+        title: 'ignored',
+        reason: 'restoring',
+        restoreTitle: 'Workspace restore in progress',
+        restoreDescription: 'Your workspace data is being restored.',
+      },
+    })
+
+    const state = document.querySelector('[data-restore="in-progress"]')
+    expect(state).toBeInTheDocument()
+    expect(state).toHaveTextContent('Workspace restore in progress')
+  })
+
   it('has no accessibility violations — generic branch', async () => {
     const { container } = render(ErrorView, {
       props: { title: 'Error', retryLabel: 'Try again', onRetry: vi.fn() },

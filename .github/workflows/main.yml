@@ -11,6 +11,8 @@ concurrency:
 env:
   PUBLIC_API_ORIGIN: ${{ vars.STAGING_API_ORIGIN }}
   VITE_API_ORIGIN: ${{ vars.STAGING_API_ORIGIN }}
+  # Marketing site origin for the admin console's status page links (TASK-025).
+  VITE_MARKETING_ORIGIN: ${{ vars.STAGING_MARKETING_ORIGIN }}
 
 jobs:
   build-and-push:

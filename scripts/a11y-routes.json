@@ -32,7 +32,7 @@
     },
     "marketing": {
       "type": "sveltekit",
-      "routes": ["/", "/pricing", "/signup"]
+      "routes": ["/", "/pricing", "/signup", "/status"]
     },
     "admin": {
       "type": "spa",

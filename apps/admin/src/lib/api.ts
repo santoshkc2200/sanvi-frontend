@@ -1,4 +1,4 @@
-import { createApiClient, createTypedApiClient } from '@sanvi/api-client'
+import { createApiClient, createTypedApiClient, type ApiClient } from '@sanvi/api-client'
 import { createKratosClient, setSession } from '@sanvi/auth'
 import { currentLocale } from '@sanvi/i18n'
 import { getActiveTenantId } from '@sanvi/tenant'
@@ -20,8 +20,8 @@ import { getAppEnv } from './env'
  * strings (problem details, localized fields) arrive in the UI's language,
  * and a mid-session locale switch takes effect on the next call.
  */
-export const apiClient = createTypedApiClient(
-  createApiClient({
+function createRawClient(): ApiClient {
+  return createApiClient({
     baseUrl: getAppEnv().apiOrigin,
     // Overridable per environment (the outage e2e shortens it); unset in
     // production, where the client's 10 s default is the decision.
@@ -30,7 +30,19 @@ export const apiClient = createTypedApiClient(
     credentials: 'include',
     locale: () => currentLocale(),
     onUnauthorized: () => setSession(null),
-  }),
-)
+  })
+}
+
+const rawClient: ApiClient = createRawClient()
+
+export const apiClient = createTypedApiClient(rawClient)
+
+/**
+ * The unwrapped transport client (TASK-025): the system probes
+ * (`getSystemReadiness`) need `requestRaw` — the 503 readiness body is
+ * states, not problem+json, so the throwing typed path would discard it.
+ * Same underlying instance the typed client wraps.
+ */
+export const rawApiClient: ApiClient = rawClient
 
 export const kratosClient = createKratosClient(getAppEnv().kratosOrigin)

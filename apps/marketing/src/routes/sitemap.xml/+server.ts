@@ -9,7 +9,7 @@ export const prerender = true
 // variant, so each path emits one `<url>` per locale, cross-referenced with
 // `xhtml:link` alternates (and `x-default` pointing at the unprefixed
 // canonical) — the same model the storefront sitemap uses.
-const ROUTES = ['/', '/pricing']
+const ROUTES = ['/', '/pricing', '/status']
 
 function escapeXml(value: string): string {
   return value

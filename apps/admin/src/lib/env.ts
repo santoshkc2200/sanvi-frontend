@@ -11,6 +11,13 @@ export interface AppEnv {
   kratosOrigin: string
   storefrontOrigin: string
   /**
+   * The marketing site's origin, for the public status page link (TASK-025).
+   * The admin console serves no status route of its own — outage screens link
+   * out to marketing's `/status` instead. Optional in dev (defaults to the
+   * marketing dev server); set explicitly in production.
+   */
+  marketingOrigin: string
+  /**
    * Stripe publishable key for Connect embedded components (pk_…).
    * Build-time public env, never a secret key; empty in dev when the fake
    * provider is used, required in production when the real Stripe account
@@ -48,6 +55,7 @@ export function getAppEnv(): AppEnv {
     mediaOrigin: import.meta.env.VITE_MEDIA_ORIGIN || undefined,
     kratosOrigin,
     storefrontOrigin: import.meta.env.VITE_STOREFRONT_ORIGIN || 'http://localhost:4174',
+    marketingOrigin: import.meta.env.VITE_MARKETING_ORIGIN || 'http://localhost:4173',
     stripePublishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || undefined,
   }
 }

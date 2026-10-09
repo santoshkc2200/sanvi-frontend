@@ -65,7 +65,9 @@ test('server-rendered routes carry the CSP header and the specified security hea
 
 test('zero CSP violations across key routes in both locales', async ({ page }) => {
   await collectViolations(page)
-  for (const path of ['/', '/pricing', '/ja/pricing']) {
+  // `/status` polls the readiness API client-side (TASK-025) — its presence
+  // here is what pins the baked `connect-src` to the runtime API origin.
+  for (const path of ['/', '/pricing', '/ja/pricing', '/status', '/ja/status']) {
     await page.goto(path)
     await expect(page.locator('body')).toBeVisible()
   }

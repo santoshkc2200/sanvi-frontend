@@ -1735,5 +1735,13 @@
   "admin.app.panelErrorDescription": "コンソールの他の部分は影響を受けません。このパネルを再試行してください。繰り返し失敗する場合は、診断情報をコピーしてサポートにお問い合わせください。",
   "admin.settingsSecurity.loadError": "セキュリティ設定を読み込めませんでした。",
   "admin.advertising.dashboard.degradedTitle": "一部の広告指標が古い可能性があります",
-  "admin.advertising.dashboard.degradedBody": "プラットフォームが復旧までの暫定データを返しています。下記の数値は目安としてご覧ください。次回の読み込み時に自動的に更新されます。"
+  "admin.advertising.dashboard.degradedBody": "プラットフォームが復旧までの暫定データを返しています。下記の数値は目安としてご覧ください。次回の読み込み時に自動的に更新されます。",
+  "admin.app.statusLink": "システムステータスを見る",
+  "admin.systemBanner.maintenance.title": "サービスのお知らせ",
+  "admin.systemBanner.maintenance.description": "影響範囲：{checks}。基本操作は引き続き利用できますが、低下中の依存サービスを使う操作は通常より遅くなる場合があります。",
+  "admin.systemBanner.degraded.title": "サービスが低下しています",
+  "admin.systemBanner.degraded.description": "影響範囲：{checks}。低下中の依存サービスが必要な操作は失敗する場合があります。二重に適用されることはないため、再試行は安全です。",
+  "admin.systemBanner.statusLink": "ステータスページを見る",
+  "admin.restore.title": "ワークスペースを復元しています",
+  "admin.restore.description": "ワークスペースのデータを復元しています。復元が終わるまで表示が不完全な場合がありますが、失われることはありません。しばらくしてからご確認ください。"
 }

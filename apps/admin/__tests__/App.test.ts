@@ -60,6 +60,13 @@ function mockFetch(input: RequestInfo | URL): Promise<Response> {
     )
   if (url.includes('/tenant/billing/invoices')) return Promise.resolve(jsonResponse([]))
   if (url.includes('/public/plans')) return Promise.resolve(jsonResponse([]))
+  // TASK-025: the operator-signal probes answer healthy here, so the banner
+  // host stays quiet — banner behavior is asserted in its own suite/e2e.
+  if (url.includes('/system/ready'))
+    return Promise.resolve(
+      jsonResponse({ status: 'ok', checks: [{ name: 'database', state: 'ok' }] }),
+    )
+  if (url.includes('/system/health')) return Promise.resolve(jsonResponse({ status: 'ok' }))
   return Promise.resolve(jsonResponse({ title: 'not mocked', status: 404 }, 404))
 }
 
