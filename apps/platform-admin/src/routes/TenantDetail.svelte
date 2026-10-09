@@ -407,7 +407,10 @@ async function loadAudit(append: boolean): Promise<void> {
     const page = await listAudit(apiClient, {
       tenant_id: id,
       limit: 25,
-      after: append ? auditCursor : undefined,
+      // TASK-026: the spec takes the cursor back as a string while the
+      // response still names an int64 — stringify at the boundary, and
+      // never parse it back (an opaque cursor is passed, not interpreted).
+      after: append && auditCursor !== undefined ? String(auditCursor) : undefined,
     })
     if (seq !== auditSeq) return
     auditEntries = append

@@ -90,6 +90,17 @@ export function failureKindOf(error: unknown): FailureKind {
   return 'client'
 }
 
+/**
+ * Narrows an unknown throw to the `429` case (TASK-026 step 2): the one
+ * status whose surface can name a limit, a reset wait (`retryAfterMs`), and
+ * an upgrade action. Prefer this over `error.status === 429` at call sites —
+ * the guard also rejects non-`ApiError` throws, so a network failure never
+ * renders as a quota wall.
+ */
+export function isRateLimited(error: unknown): error is ApiError & { readonly status: 429 } {
+  return error instanceof ApiError && error.status === 429
+}
+
 function isProblemDetails(value: unknown): value is ProblemDetails {
   return (
     typeof value === 'object' &&

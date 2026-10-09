@@ -9,7 +9,7 @@ describe('check:images — explicit dimensions on every img/iframe/embed', () =>
     const violations = findMissingDimensionsInDir(`${FIXTURES}violation`)
     expect(violations).toHaveLength(2)
     expect(violations.every((v) => v.tag === 'img')).toBe(true)
-    expect(violations[0].missing).toEqual(['width', 'height'])
+    expect(violations[0]?.missing).toEqual(['width', 'height'])
   })
 
   it('passes explicit attrs, Svelte shorthand attrs, dimensioned iframes, and visible suppressions', () => {

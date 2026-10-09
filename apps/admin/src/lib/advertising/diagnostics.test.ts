@@ -49,6 +49,7 @@ function event(overrides: Partial<ConversionEvent> = {}): ConversionEvent {
     value: null,
     value_source: null,
     order_ref: null,
+    dedupe_key: 'de-1',
     subject_key: { kind: 'tenant_device', device_ref: 'dev-1' },
     ...overrides,
   }

@@ -179,7 +179,7 @@ via toasts. Timeout: api-client 10 s; the loading flag always clears.
 - L ✓ · E ✓ · X ✓ (error Alert; mutations → toasts) · S ✓ · T ✓
 
 ### `/usage`
-- L ✓ · E ✓ · X ✓ (error Alert + EmptyState) · S ✓ · T ✓
+- L ✓ · E ✓ · X ✓ (per-section error Alert; usage `429` → rate-limited notice; EmptyState) · S ✓ · T ✓
 
 ### `/payments`
 - L ✓ · E ✓ (upgrade-prompt EmptyState when not connected) · X ✓ (error Alert) · S ✓ · T ✓

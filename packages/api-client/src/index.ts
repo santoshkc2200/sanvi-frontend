@@ -269,6 +269,7 @@ export {
   apiErrorFromResponse,
   DEGRADED_RESPONSE_HEADER,
   failureKindOf,
+  isRateLimited,
   NetworkError,
   parseDegradedScopes,
   parseRetryAfterMs,
@@ -336,6 +337,8 @@ export {
   getTenantSettings,
   updateTenantSettings,
 } from './tenancy'
+export { getTenantUsage, QUOTA_DIMENSIONS } from './usage'
+export type { DimensionUsage, QuotaDimension, TenantUsage } from './usage'
 export {
   getPublicTheme,
   getTenantThemeDraft,

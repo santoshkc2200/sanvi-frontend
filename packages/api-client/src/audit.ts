@@ -9,7 +9,8 @@ export function listAudit(
     action?: string
     since?: string
     until?: string
-    after?: number
+    /** Opaque cursor (TASK-026: the spec changed this from a number to a string — pass back verbatim, never parse). */
+    after?: string
     limit?: number
   },
   signal?: AbortSignal,

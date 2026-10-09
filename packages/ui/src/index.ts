@@ -205,3 +205,4 @@ export {
 // Intent-based prefetch primitives (TASK-022)
 export { type NetworkInformationLike, prefetchOnIntent, shouldPrefetch } from './prefetch'
 export { default as UsageMeter } from './UsageMeter.svelte'
+export { default as UsageDimensionCard } from './UsageDimensionCard.svelte'

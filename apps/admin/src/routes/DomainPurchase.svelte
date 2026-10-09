@@ -94,12 +94,12 @@ const COUNTRY_OPTIONS = $derived(countryOptions(currentLocale()))
 
 const totalTodayFormatted = $derived.by(() => {
   if (!selectedQuote) return ''
-  return fmt.money(selectedQuote.register_price.amount_minor, selectedQuote.register_price.currency)
+  return fmt.money(selectedQuote.register_price.minor, selectedQuote.register_price.currency)
 })
 
 const renewPriceFormatted = $derived.by(() => {
   if (!selectedQuote) return ''
-  return fmt.money(selectedQuote.renew_price.amount_minor, selectedQuote.renew_price.currency)
+  return fmt.money(selectedQuote.renew_price.minor, selectedQuote.renew_price.currency)
 })
 
 const provisioningStatusText = $derived.by(() => {
@@ -694,12 +694,12 @@ onDestroy(() => {
                           <div class="sanvi-quote-card__pricing">
                             <span class="sanvi-quote-card__register-price">
                               {t['admin.domains.purchase.firstYearPrice']({
-                                price: fmt.money(quote.register_price.amount_minor, quote.register_price.currency),
+                                price: fmt.money(quote.register_price.minor, quote.register_price.currency),
                               })}
                             </span>
                             <span class="sanvi-quote-card__renew-price">
                               • {t['admin.domains.purchase.renewPrice']({
-                                price: fmt.money(quote.renew_price.amount_minor, quote.renew_price.currency),
+                                price: fmt.money(quote.renew_price.minor, quote.renew_price.currency),
                               })}
                             </span>
                           </div>
@@ -757,7 +757,7 @@ onDestroy(() => {
               <strong>{selectedQuote.hostname}</strong>
               <span class="sanvi-purchase__selection-price">
                 ({t['admin.domains.purchase.firstYearPrice']({
-                  price: fmt.money(selectedQuote.register_price.amount_minor, selectedQuote.register_price.currency),
+                  price: fmt.money(selectedQuote.register_price.minor, selectedQuote.register_price.currency),
                 })})
               </span>
             </div>
