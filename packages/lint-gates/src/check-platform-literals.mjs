@@ -75,6 +75,7 @@ export function isFormPath(relativePath) {
  * Removes comments while respecting string literals, so `//` inside a URL
  * string is not treated as a comment. Returns source without `//` and
  * `/*…*&#47;` comments (plus `<!--…-->` for `.svelte` templates).
+ * Preserve line positions so diagnostics and trailing markers stay aligned.
  */
 export function stripComments(source, isSvelte) {
   let out = ''
@@ -95,12 +96,16 @@ export function stripComments(source, isSvelte) {
     }
     if (ch === '/' && next === '*') {
       const end = source.indexOf('*/', i + 2)
-      i = end === -1 ? n : end + 2
+      const commentEnd = end === -1 ? n : end + 2
+      out += source.slice(i, commentEnd).replace(/[^\n\r]/g, ' ')
+      i = commentEnd
       continue
     }
     if (isSvelte && source.startsWith('<!--', i)) {
       const end = source.indexOf('-->', i + 4)
-      i = end === -1 ? n : end + 3
+      const commentEnd = end === -1 ? n : end + 3
+      out += source.slice(i, commentEnd).replace(/[^\n\r]/g, ' ')
+      i = commentEnd
       continue
     }
     out += ch

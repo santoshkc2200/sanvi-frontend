@@ -9,6 +9,8 @@ export default defineConfig({
     environment: 'node',
     globals: false,
     restoreMocks: true,
+    // Turbo runs several suites at once; bound each suite's worker pool.
+    maxWorkers: 2,
     // See jsdom.ts's comment — keeps Playwright's e2e/*.spec.ts out of Vitest's run.
     exclude: ['**/node_modules/**', '**/e2e/**', '**/.svelte-kit/**', '**/dist/**'],
     coverage: {

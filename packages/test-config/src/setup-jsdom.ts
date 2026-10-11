@@ -2,6 +2,17 @@ import '@testing-library/jest-dom/vitest'
 import { toHaveNoViolations } from 'jest-axe'
 import { expect } from 'vitest'
 
+// Node's Web Storage globals can shadow jsdom's browser storage. Keep tests
+// on the same per-window storage implementation as the components.
+// Vitest aliases `window` to globalThis; use its underlying jsdom window.
+const browserWindow = (globalThis as unknown as { jsdom: { window: Window } }).jsdom.window
+for (const name of ['localStorage', 'sessionStorage'] as const) {
+  Object.defineProperty(globalThis, name, {
+    configurable: true,
+    get: () => browserWindow[name],
+  })
+}
+
 // Registers `expect(container).toHaveNoViolations()` for every jsdom test —
 // component tests get an axe check for free instead of opting in per file.
 // `jest-axe`'s `toHaveNoViolations` export is already the `{ toHaveNoViolations: fn }`

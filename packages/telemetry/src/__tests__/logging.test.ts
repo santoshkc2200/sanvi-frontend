@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createSessionLogger } from '../logging'
 import type { LoggingAuditEntry, SessionStorageLike } from '../logging'
 import type { ReleaseStamp } from '../types'
@@ -23,6 +23,8 @@ function fakeStorage(): SessionStorageLike & { store: Map<string, string> } {
 }
 
 describe('session logging discipline (FR-1106)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
   it('is off by default in production', () => {
     const logger = createSessionLogger({
       release: PRODUCTION,
@@ -87,6 +89,7 @@ describe('session logging discipline (FR-1106)', () => {
   it('a fresh session starts disabled again — enablement cannot outlive the tab', () => {
     // No storage: the session flag simply cannot exist, so the default rules —
     // and no audit entry, because no enablement ever happened.
+    vi.stubGlobal('sessionStorage', undefined)
     const audits: LoggingAuditEntry[] = []
     const logger = createSessionLogger({ release: PRODUCTION, audit: (e) => audits.push(e) })
     logger.enable('op-7')

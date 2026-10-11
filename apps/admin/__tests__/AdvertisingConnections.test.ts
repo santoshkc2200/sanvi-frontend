@@ -307,7 +307,9 @@ describe('AdvertisingConnections screen (phase 10, TASK-011)', () => {
     expect(JSON.parse(String(startInit?.body))).toEqual({
       redirect_uri: `http://localhost:4175/advertising/connect/${META.key}/callback`,
     })
-    expect(assign).toHaveBeenCalledWith('https://accounts.example.test/oauth/authorize?state=abc')
+    await waitFor(() => {
+      expect(assign).toHaveBeenCalledWith('https://accounts.example.test/oauth/authorize?state=abc')
+    })
   })
 
   it("shows a disconnected account's fresh Connect rather than a reconnect (they disconnected it deliberately)", async () => {

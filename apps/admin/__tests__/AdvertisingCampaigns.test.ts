@@ -424,13 +424,12 @@ describe('AdvertisingCampaigns list (phase 10, TASK-012)', () => {
   })
 
   it('bulk pause retries reuse the same idempotency key for failed campaigns', async () => {
-    let callCount = 0
+    let failing = true
     const fetchMock = setupFetch({
       campaigns: [campaignView({ id: 'camp_1', campaign: { status: 'active' } })],
       mutate: (url) => {
         if (url.includes('/pause')) {
-          callCount++
-          if (callCount === 1) {
+          if (failing) {
             return new Response(
               JSON.stringify({ type: 'about:blank', title: 'Temporary error', status: 503 }),
               {
@@ -453,19 +452,20 @@ describe('AdvertisingCampaigns list (phase 10, TASK-012)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pause selected' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Pause campaigns' }))
 
-    // First attempt failed with 503
-    await screen.findByText(/not accepting changes/i)
+    // Exhaust transport retries before exercising the operator's retry.
+    await screen.findByText(/not accepting changes/i, {}, { timeout: 5000 })
+    failing = false
 
     // Retry bulk pause
     fireEvent.click(screen.getByRole('button', { name: 'Pause campaigns' }))
     await waitFor(() => {
       const pauseCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/pause'))
-      expect(pauseCalls.length).toBe(2)
+      expect(pauseCalls.length).toBe(4)
     })
 
     const pauseCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/pause'))
     const key1 = (pauseCalls[0]![1] as RequestInit).headers as Record<string, string>
-    const key2 = (pauseCalls[1]![1] as RequestInit).headers as Record<string, string>
+    const key2 = (pauseCalls[3]![1] as RequestInit).headers as Record<string, string>
     expect(key1['idempotency-key']).toBe(key2['idempotency-key'])
   })
 

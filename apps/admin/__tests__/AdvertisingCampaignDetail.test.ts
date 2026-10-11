@@ -296,13 +296,12 @@ describe('AdvertisingCampaignDetail (phase 10, TASK-012)', () => {
   })
 
   it('reuses the same idempotency key when retrying publish after non-definitive error', async () => {
-    let callCount = 0
+    let failing = true
     const fetchMock = setupFetch({
       campaign: campaignView({ campaign: { status: 'draft' } }),
       onCall: (url) => {
         if (url.includes('/publish')) {
-          callCount++
-          if (callCount === 1) {
+          if (failing) {
             return problemResponse(503, { title: 'Platform unavailable' })
           }
           return jsonResponse({ id: 'camp_1', status: 'publishing' })
@@ -316,26 +315,30 @@ describe('AdvertisingCampaignDetail (phase 10, TASK-012)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
     const dialog = await screen.findByRole('dialog')
 
-    // First attempt fails with 503
+    // Exhaust transport retries before exercising the operator's retry.
     fireEvent.click(within(dialog).getByRole('button', { name: 'Publish now' }))
-    await waitFor(() => {
-      expect(screen.getByText(/not accepting changes/i)).toBeInTheDocument()
-    })
+    await waitFor(
+      () => {
+        expect(screen.getByText(/not accepting changes/i)).toBeInTheDocument()
+      },
+      { timeout: 5000 },
+    )
 
+    failing = false
     // Retry attempt
     fireEvent.click(within(dialog).getByRole('button', { name: 'Publish now' }))
     await waitFor(() => {
       const publishCalls = fetchMock.mock.calls.filter(([input]) =>
         String(input).includes('/publish'),
       )
-      expect(publishCalls.length).toBe(2)
+      expect(publishCalls.length).toBe(4)
     })
 
     const publishCalls = fetchMock.mock.calls.filter(([input]) =>
       String(input).includes('/publish'),
     )
     const key1 = (publishCalls[0]![1] as RequestInit).headers as Record<string, string>
-    const key2 = (publishCalls[1]![1] as RequestInit).headers as Record<string, string>
+    const key2 = (publishCalls[3]![1] as RequestInit).headers as Record<string, string>
     expect(key1['idempotency-key']).toBeDefined()
     expect(key1['idempotency-key']).toBe(key2['idempotency-key'])
   })

@@ -87,3 +87,21 @@ describe('eslint gates (no-restricted-globals fetch, a11y)', () => {
     expect(errorCount).toBe(0)
   })
 })
+
+describe('workspace ESLint scope', () => {
+  it('ignores sibling checkouts while keeping the active checkout checked', async () => {
+    const root = fileURLToPath(new URL('../../../', import.meta.url))
+    const eslint = new ESLint({ cwd: root })
+    for (const directory of ['.worktrees', 'worktrees']) {
+      expect(
+        await eslint.isPathIgnored(`${root}${directory}/other/apps/admin/src/App.svelte`),
+      ).toBe(true)
+      expect(
+        await eslint.isPathIgnored(
+          `${root}${directory}/other/packages/ui/src/errors/AsyncBoundary.svelte`,
+        ),
+      ).toBe(true)
+    }
+    expect(await eslint.isPathIgnored(`${root}apps/admin/src/App.svelte`)).toBe(false)
+  })
+})

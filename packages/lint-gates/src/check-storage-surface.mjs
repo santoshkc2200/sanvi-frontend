@@ -25,12 +25,16 @@ const STORAGE_PATTERN = /\blocalStorage\b|\bsessionStorage\b|document\.cookie|\.
  */
 const ALLOWED_STORAGE = new Map([
   [
+    'packages/test-config/src/setup-jsdom.ts',
+    'Vitest-only binding of browser storage globals to per-window jsdom storage; no production storage or persistence',
+  ],
+  [
     'packages/telemetry/src/logging.ts',
     'sessionStorage flag for the audited session debug logger (a boolean, session-scoped, off by default)',
   ],
   [
     'packages/api-client/src/offline.ts',
-    "localStorage persistence for the offline safe-action queue (TASK-023): queued action wire-shapes only — method/path/body/idempotency key, never tokens — cleared on flush; access failures degrade to in-memory recall",
+    'localStorage persistence for the offline safe-action queue (TASK-023): queued action wire-shapes only — method/path/body/idempotency key, never tokens — cleared on flush; access failures degrade to in-memory recall',
   ],
   [
     'packages/consent/src/cookie.ts',

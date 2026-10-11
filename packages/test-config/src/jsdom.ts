@@ -22,6 +22,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: false,
     restoreMocks: true,
+    // Turbo runs several suites at once; bound each suite's worker pool.
+    maxWorkers: 2,
     // Every app has an `e2e/*.spec.ts` directory for Playwright — without
     // this, Vitest's default include glob (`**/*.{test,spec}.ts`) picks
     // those up too and fails them ("test() did not expect to be called
