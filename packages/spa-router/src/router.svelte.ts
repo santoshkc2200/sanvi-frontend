@@ -124,7 +124,10 @@ export class Router {
     if (typeof window !== 'undefined') {
       window.addEventListener('popstate', () => this.#syncFromLocation())
     }
-    this.#syncFromLocation()
+    // Guards may close over the caller's router variable. Resolve only after
+    // construction returns and that reference has been assigned.
+    this.#loading = true
+    queueMicrotask(() => this.#syncFromLocation())
   }
 
   get pathname(): string {

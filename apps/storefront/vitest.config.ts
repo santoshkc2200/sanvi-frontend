@@ -17,6 +17,9 @@ export default mergeConfig(vitestJsdomConfig, {
     // instead of pulling that plugin (and its server/browser condition
     // assumptions) into these tests. `$lib` just needs a plain path alias.
     alias: {
+      '$app/environment': fileURLToPath(
+        new URL('./__tests__/mocks/app-environment.ts', import.meta.url),
+      ),
       '$env/dynamic/public': fileURLToPath(
         new URL('./__tests__/mocks/env-dynamic-public.ts', import.meta.url),
       ),

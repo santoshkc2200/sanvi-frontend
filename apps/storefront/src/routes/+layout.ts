@@ -16,7 +16,9 @@ import type { LayoutLoad } from './$types'
  * marginally later hydration that agrees with the document it hydrates.
  */
 export const load: LayoutLoad = async ({ data }) => {
-  await ensureLocaleLoaded(data.locale)
+  // SvelteKit supplies null server data while recovering from a root load
+  // error. Do not replace the original error with a locale TypeError.
+  if (data?.locale) await ensureLocaleLoaded(data.locale)
   // Pass the server layout's data through untouched — a `+layout.ts` return
   // replaces what the component sees, and this load exists only to sequence
   // the catalog ahead of hydration, not to add data of its own.

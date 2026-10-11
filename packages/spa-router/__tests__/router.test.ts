@@ -28,6 +28,37 @@ afterEach(() => {
 })
 
 describe('Router', () => {
+  it('redirects on initial navigation when the guard closes over the constructed router', async () => {
+    setPath('/members?tab=invites')
+    const protectedLoad = vi.fn(async () => ({ default: TenantDetailComponent }))
+    const router = createRouter({
+      routes: [
+        {
+          path: 'members',
+          guard: () => {
+            router.navigate(
+              `/login?return_to=${encodeURIComponent(router.pathname + window.location.search)}`,
+            )
+            return false
+          },
+          load: protectedLoad,
+        },
+        { path: 'login', load: async () => ({ default: DashboardComponent }) },
+      ],
+      notFound: async () => ({ default: NotFoundComponent }),
+    })
+
+    expect(router.loading).toBe(true)
+    expect(router.component).toBeNull()
+    await vi.waitFor(() => expect(router.component).toBe(DashboardComponent))
+    expect(window.location.pathname).toBe('/login')
+    expect(new URLSearchParams(window.location.search).get('return_to')).toBe(
+      '/members?tab=invites',
+    )
+    expect(router.error).toBeNull()
+    expect(protectedLoad).not.toHaveBeenCalled()
+  })
+
   it('matches a static route and loads its component', async () => {
     setPath('/dashboard')
     const router = createRouter({

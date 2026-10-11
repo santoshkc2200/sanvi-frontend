@@ -209,10 +209,6 @@ const layoutTree = $derived(
 const headerSlot = $derived(layoutTree.slots.find((s) => s.name === 'header'))
 const footerSlot = $derived(layoutTree.slots.find((s) => s.name === 'footer'))
 
-const LOCALE_TO_SUBSET: Record<string, string> = {
-  en: 'latin',
-  ja: 'japanese',
-}
 </script>
 
 <svelte:head>
@@ -225,13 +221,8 @@ const LOCALE_TO_SUBSET: Record<string, string> = {
     <link rel="alternate" hreflang={alternate.locale} href="{page.url.origin}{alternate.href}" />
   {/each}
   <meta property="og:locale" content={data.seo.ogLocale} />
-  {#if data.theme?.fonts}
-    {#each data.theme.fonts as font (font.family)}
-      {#if !font.subsets || font.subsets.length === 0 || (data.locale && font.subsets.includes(LOCALE_TO_SUBSET[data.locale] ?? data.locale))}
-        <link rel="preload" as="font" type="font/woff2" crossorigin="anonymous" href={font.source} />
-      {/if}
-    {/each}
-  {/if}
+  <!-- FontSpec.source is hosting metadata ("self-hosted"), not an asset
+       URL. Concrete font URLs come from CSS and the locale preloads below. -->
   {#if data.locale === 'ja'}
     <!-- Japanese font preloads — only for ja pages, per the phase-06 LCP
          budget: these subsets cover kana + the most frequent kanji; the
@@ -253,6 +244,11 @@ const LOCALE_TO_SUBSET: Record<string, string> = {
   <RestoreInProgress
     title={t['storefront.restoring.title']()}
     description={t['storefront.restoring.description']()}
+  />
+{:else if lockedReason === 'suspended'}
+  <EmptyState
+    title={t['storefront.maintenance.title']()}
+    description={t['storefront.maintenance.description']()}
   />
 {:else if lockedReason}
   <SuspendedTenantNotice reason={lockedReason} />

@@ -1,4 +1,6 @@
 {
+  "storefront.maintenance.title": "このストアは現在ご利用いただけません",
+  "storefront.maintenance.description": "しばらくしてからもう一度お試しください。",
   "storefront.home.fallbackTitle": "Sanvi ストアフロント",
   "storefront.restoring.title": "このストアを復元しています",
   "storefront.restoring.description": "データを復元しているため、ストアは一時的にご利用いただけません。しばらくしてからご確認ください。",

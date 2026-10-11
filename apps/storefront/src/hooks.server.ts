@@ -25,6 +25,7 @@ import type { Handle } from '@sveltejs/kit'
 import { sequence } from '@sveltejs/kit/hooks'
 import { getAppEnv } from '$lib/env'
 import { getAvailableLocales } from '$lib/locales.server'
+import { dev } from '$app/environment'
 
 /**
  * Shared across every request on purpose — it caches by host, which is
@@ -309,20 +310,23 @@ export const runtimeConnectSrc: Handle = async ({ event, resolve }) => {
       }
 
       const match = /^([a-z-]+)\s+(.*)$/i.exec(trimmed)
-      if (match && themeAssetOrigin) {
+      if (match?.[1] && match[2]) {
         const name = match[1]
-        const sources = match[2]
-        if (name && sources && ['style-src', 'img-src', 'font-src'].includes(name)) {
-          const sourceList = sources.split(/\s+/).filter(Boolean)
-          if (!sourceList.includes(themeAssetOrigin)) {
-            sourceList.push(themeAssetOrigin)
-          }
-          return `${name} ${sourceList.join(' ')}`
+        let sources = match[2].split(/\s+/).filter(Boolean)
+        if (themeAssetOrigin && ['style-src', 'img-src', 'font-src'].includes(name)) {
+          sources.push(themeAssetOrigin)
         }
-      }
-
-      if (match && match[1] === STYLE_SRC && match[2] && styleHashes.length) {
-        return `${STYLE_SRC} ${[...match[2].split(/\s+/).filter(Boolean), ...styleHashes].join(' ')}`
+        if (name === STYLE_SRC) {
+          if (dev) {
+            // Hashes/nonces disable unsafe-inline. Vite injects styles at
+            // runtime, so the development policy must omit both.
+            sources = sources.filter((source) => !/^'(?:sha(?:256|384|512)-|nonce-)/.test(source))
+            sources.push("'unsafe-inline'") // sanvi-csp: dev-only
+          } else {
+            sources.push(...styleHashes)
+          }
+        }
+        return `${name} ${[...new Set(sources)].join(' ')}`
       }
 
       return trimmed

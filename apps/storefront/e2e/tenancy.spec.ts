@@ -33,7 +33,8 @@ test.describe('tenant resolution', () => {
   }) => {
     const response = await page.goto(`http://suspended.localhost:${PORT}/`)
     expect(response?.ok()).toBe(true)
-    await expect(page.getByText(/suspended/i)).toBeVisible()
+    await expect(page.getByText('This store is temporarily unavailable')).toBeVisible()
+    await expect(page.getByText(/billing|suspended/i)).toHaveCount(0)
     await expect(page.getByText('Suspended Co')).toHaveCount(0) // maintenance branch, not the tenant's own content
   })
 

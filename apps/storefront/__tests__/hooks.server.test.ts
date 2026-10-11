@@ -3,6 +3,10 @@ import { clearThemeCache, DEFAULT_FALLBACK_THEME } from '@sanvi/theme-runtime'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { resolveLocale } from '../src/hooks.server'
 
+const appEnvironment = vi.hoisted(() => ({ dev: false }))
+vi.mock('$app/environment', () => appEnvironment)
+vi.mock('@sanvi/auth/server', () => ({ resolveSession: vi.fn().mockResolvedValue(null) }))
+
 // `PUBLIC_API_ORIGIN` below matches vitest.config.ts's `$env/dynamic/public` alias stub.
 const resolveTenantForHostMock = vi.fn()
 vi.mock('@sanvi/tenant/server', () => ({
@@ -29,6 +33,7 @@ describe('storefront hooks.server.ts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     clearThemeCache()
+    appEnvironment.dev = false
   })
 
   it('resolveTenant sets locals.tenant + tenantResolution from the Host header, via @sanvi/tenant/server', async () => {
@@ -88,6 +93,21 @@ describe('storefront hooks.server.ts', () => {
    * request dies in the browser with nothing to see server-side.
    */
   describe('runtimeConnectSrc', () => {
+    it('permits Vite-injected styles in development without hashes disabling unsafe-inline', async () => {
+      appEnvironment.dev = true
+      const { runtimeConnectSrc } = await import('../src/hooks.server')
+      buildDirectivesMock.mockReturnValue({ 'connect-src': ["'self'"] })
+      const response = await runtimeConnectSrc({
+        event: event() as never,
+        resolve: respondWith(
+          "script-src 'self' 'sha256-script'; style-src 'self' 'unsafe-inline' 'sha256-style' 'nonce-style'",
+        ) as never,
+      })
+      expect(response.headers.get('content-security-policy')).toBe(
+        "script-src 'self' 'sha256-script'; style-src 'self' 'unsafe-inline'",
+      )
+    })
+
     function respondWith(csp: string | null) {
       const headers = csp ? { 'content-security-policy': csp } : undefined
       return vi.fn().mockResolvedValue(new Response('ok', { headers }))
@@ -211,6 +231,28 @@ describe('storefront hooks.server.ts', () => {
       expect(styleSrc).toBe(
         `'self' ${hashOf('')} ${hashOf('.preview { color: red; }')} ${hashOf('.second {}')}`,
       )
+    })
+
+    it('keeps production theme hashes when a theme asset origin is configured', async () => {
+      const appEnv = await import('../src/lib/env')
+      const envSpy = vi.spyOn(appEnv, 'getAppEnv').mockReturnValue({
+        ...appEnv.getAppEnv(),
+        themeAssetOrigin: 'https://themes.example.test',
+      })
+      try {
+        const { runtimeConnectSrc } = await import('../src/hooks.server')
+        buildDirectivesMock.mockReturnValue({ 'connect-src': ["'self'"] })
+        const response = await runtimeConnectSrc({
+          event: event() as never,
+          resolve: respondWith("style-src 'self'; img-src 'self'") as never,
+        })
+        const policy = response.headers.get('content-security-policy') ?? ''
+        expect(policy).toMatch(/style-src 'self' https:\/\/themes\.example\.test 'sha256-[^']+'/)
+        expect(policy).toContain("img-src 'self' https://themes.example.test")
+        expect(policy).not.toContain("'unsafe-inline'")
+      } finally {
+        envSpy.mockRestore()
+      }
     })
   })
 })
