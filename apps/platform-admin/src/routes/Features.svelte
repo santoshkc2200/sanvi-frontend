@@ -208,7 +208,7 @@ async function handleDeprecate(): Promise<void> {
       { key: 'default_limit', header: t['platform.features.defaultLimitHeader'](), align: 'end' },
       { key: 'visibility', header: t['platform.features.visibilityHeader'](), cell: visibilityCell },
       { key: 'deprecated_at', header: t['platform.features.deprecatedHeader']() },
-      { key: 'actions', header: '', align: 'end', cell: actionsCell, alwaysVisible: true },
+      { key: 'actions', header: t['platform.features.actionsHeader'](), align: 'end', cell: actionsCell, alwaysVisible: true },
     ]}
     rows={features}
     getRowId={(row) => row.key}

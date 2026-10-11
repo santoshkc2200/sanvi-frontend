@@ -152,6 +152,7 @@
   "platform.features.description": "Every optional capability the platform can gate — commercial defaults, not rollout flags.",
   "platform.features.keyHeader": "Key",
   "platform.features.nameHeader": "Name",
+  "platform.features.actionsHeader": "Actions",
   "platform.features.kindHeader": "Kind",
   "platform.features.defaultEnabledHeader": "Default",
   "platform.features.defaultLimitHeader": "Default limit",

@@ -622,9 +622,9 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
     activeHref={activeTab}
     onNavigate={handleTabNavigate}
     meta={metaPanel}
-    backHref="/tenants"
+    backHref="/"
     backLabel={t['platform.tenantDetail.backToTenants']()}
-    onNavigateBack={(event) => handleLinkClick(event, '/tenants')}
+    onNavigateBack={(event) => handleLinkClick(event, '/')}
   >
     {#snippet children()}
       {#if tenant}

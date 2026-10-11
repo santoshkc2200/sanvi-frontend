@@ -152,6 +152,7 @@
   "platform.features.description": "プラットフォームが提供を制御するオプション機能のすべて。商用上のデフォルトであり、ロールアウトフラグではありません。",
   "platform.features.keyHeader": "キー",
   "platform.features.nameHeader": "名前",
+  "platform.features.actionsHeader": "操作",
   "platform.features.kindHeader": "種別",
   "platform.features.defaultEnabledHeader": "デフォルト",
   "platform.features.defaultLimitHeader": "デフォルト上限",
