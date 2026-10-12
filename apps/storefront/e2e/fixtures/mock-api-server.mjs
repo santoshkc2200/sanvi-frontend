@@ -579,6 +579,20 @@ const server = createServer(async (req, res) => {
     return
   }
 
+  // TASK-008 visual sweep: the checkout pre-flight. The connected account
+  // accepts card payments and settles in JPY with automatic tax — the happy
+  // path the order summary renders. A spec that needs a different answer
+  // intercepts this path with `page.route` before it reaches the mock.
+  if (path === '/api/v1/tenant/checkout/config') {
+    json(req, res, 200, {
+      can_accept_payments: true,
+      cannot_accept_reason: null,
+      currency: 'JPY',
+      tax_enabled: true,
+    })
+    return
+  }
+
   // TASK-014: a paid checkout for the confirmation/beacon path. The id is
   // arbitrary (the return route polls whatever `?id` carried); the view is
   // `paid` and carries the server-issued conversion event id, which is
