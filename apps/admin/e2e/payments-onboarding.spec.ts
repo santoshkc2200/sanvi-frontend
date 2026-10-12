@@ -58,28 +58,62 @@ test.describe('Payments onboarding (09.2)', () => {
       }),
     )
     const connectionId = 'conn_e2e_123'
+    const pendingConnection = {
+      id: connectionId,
+      provider: 'stripe_connect',
+      status: 'pending',
+      capabilities: {},
+      requirements: { currently_due: [], eventually_due: [], past_due: [], deadline: null },
+      blockers: [],
+      country: 'US',
+      default_currency: 'USD',
+      connected_at: null,
+      last_synced_at: null,
+      can_accept_payments: false,
+    }
     await page.route('**/api/v1/tenant/payments/connections', async (r) => {
       if (r.request().method() === 'POST') {
-        await r.fulfill({
-          status: 201,
-          json: {
-            id: connectionId,
-            provider: 'stripe_connect',
-            status: 'pending',
-            capabilities: {},
-            requirements: { currently_due: [], eventually_due: [], past_due: [], deadline: null },
-            blockers: [],
-            country: 'US',
-            default_currency: 'USD',
-            connected_at: null,
-            last_synced_at: null,
-            can_accept_payments: false,
-          },
-        })
+        await r.fulfill({ status: 201, json: pendingConnection })
       } else {
         await r.continue()
       }
     })
+    // Resume half of the journey: after the reload the page re-reads the
+    // persisted id, so the by-id lookup must answer with the still-pending
+    // connection — that is what "resumes without start over" means.
+    await page.route(`**/api/v1/tenant/payments/connections/${connectionId}`, (r) =>
+      r.fulfill({ json: pendingConnection }),
+    )
+    // TASK-008 recovery path (backend c2c59ad): no connection exists yet, so
+    // the current-connection lookup 404s and the page stays in its
+    // not-connected state. Without this route the request falls through to
+    // the SPA server, whose HTML fallback the api-client cannot parse.
+    await page.route('**/api/v1/tenant/payments/connections/current', (r) =>
+      r.fulfill({
+        status: 404,
+        json: {
+          type: 'about:blank',
+          title: 'Not Found',
+          status: 404,
+        },
+      }),
+    )
+    // The settings page loads payouts and tax settings alongside the
+    // connection (TASK-022 audit F5 parallelised the four legs); both are
+    // out of scope here but must not render as load errors.
+    await page.route('**/api/v1/tenant/payments/payouts', (r) =>
+      r.fulfill({ json: { payouts: [] } }),
+    )
+    await page.route('**/api/v1/tenant/payments/tax-settings', (r) =>
+      r.fulfill({
+        json: {
+          active_registrations: 0,
+          disclaimer: 'Sanvi does not advise on tax obligations.',
+          enabled: false,
+          last_checked_at: null,
+        },
+      }),
+    )
     await page.route('**/api/v1/tenant/payments/connections/*/session', async (r) => {
       await r.fulfill({
         status: 201,
@@ -148,7 +182,10 @@ test.describe('Payments onboarding (09.2)', () => {
   test('connect → embedded onboarding renders → close tab → return resumes without start over', async ({
     page,
   }) => {
-    await page.goto('/payments')
+    // The connect flow moved to /payments/settings when TASK-006 made
+    // /payments the transactions list; this spec was written before the
+    // split and drove the old single route.
+    await page.goto('/payments/settings')
     await expect(page.getByRole('heading', { name: 'Payments' })).toBeVisible()
     await expect(page.getByText('What Stripe will ask for')).toBeVisible()
     await page.getByRole('button', { name: 'Connect' }).click()
@@ -169,7 +206,7 @@ test.describe('Payments onboarding (09.2)', () => {
         json: { title: 'Provider unavailable', type: 'payments/provider-unavailable' },
       }),
     )
-    await page.goto('/payments')
+    await page.goto('/payments/settings')
     await page.getByRole('button', { name: 'Connect' }).click()
     await expect(page.getByText('Complete your Stripe setup')).toBeVisible()
     await expect(page.getByText('Could not start onboarding')).toBeVisible()
