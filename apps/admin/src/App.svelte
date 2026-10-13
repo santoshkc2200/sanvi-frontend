@@ -356,6 +356,9 @@ const routes: RouteDefinition[] = [
   },
   { path: 'login', load: () => import('./routes/Login.svelte') },
   { path: 'health', load: () => import('./routes/Health.svelte') },
+  // TASK-027: the published accessibility statement — public, no permission,
+  // linked from the login screen so it is reachable signed-out.
+  { path: 'accessibility', load: () => import('./routes/Accessibility.svelte') },
 ]
 
 router = createRouter({

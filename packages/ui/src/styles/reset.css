@@ -29,10 +29,7 @@
 @font-face {
   font-family: "Noto Sans JP Fallback";
   src:
-    local("Hiragino Kaku Gothic ProN"),
-    local("Hiragino Sans"),
-    local("Yu Gothic"),
-    local("Meiryo");
+    local("Hiragino Kaku Gothic ProN"), local("Hiragino Sans"), local("Yu Gothic"), local("Meiryo");
   font-weight: 100 900;
   font-style: normal;
   size-adjust: 100%;

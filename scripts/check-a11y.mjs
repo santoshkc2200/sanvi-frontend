@@ -30,6 +30,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
+import { evaluateGate } from '@sanvi/lint-gates/check-a11y-gate'
 import { loadBudgets } from '@sanvi/lint-gates/check-budget'
 import { findWorkspaceRoot, loadPerfProfiles } from '@sanvi/lint-gates/perf-profiles'
 import { listRoutes } from '@sanvi/lint-gates/routes'
@@ -99,28 +100,6 @@ function pageResult(violations) {
     findings.push({ id: violation.id, impact, nodes: violation.nodes.length, help: violation.help })
   }
   return { violations: bySeverity, total: violations.length, findings }
-}
-
-/**
- * The blocking rule (TASK-027), as a pure function so the gate is unit-testable:
- * zero serious or critical axe findings, zero pages whose sweep errored, and
- * zero enumerated routes without an axe entry.
- * @param {object} artifact the sweep artifact
- * @returns {{ ok: boolean, failures: string[] }}
- */
-export function evaluateGate(artifact) {
-  const failures = []
-  if (artifact.totals.critical > 0)
-    failures.push(`${artifact.totals.critical} critical axe finding(s)`)
-  if (artifact.totals.serious > 0)
-    failures.push(`${artifact.totals.serious} serious axe finding(s)`)
-  if (artifact.totals.errors > 0)
-    failures.push(
-      `${artifact.totals.errors} page(s) whose axe run errored — a missing entry is not a pass`,
-    )
-  if (artifact.totals.uncovered > 0)
-    failures.push(`${artifact.totals.uncovered} route(s) with no axe sweep entry`)
-  return { ok: failures.length === 0, failures }
 }
 
 /**
@@ -269,10 +248,9 @@ export async function sweepA11y({ apps, locales, themes = ['light', 'dark'] }) {
                 // its content, and sweeping the spinner sweeps the wrong
                 // thing. Bounded — a wedged loader is swept as-is.
                 await page
-                  .waitForFunction(
-                    () => !document.querySelector('[data-async-state="loading"]'),
-                    { timeout: SETTLE_LOADING_MS },
-                  )
+                  .waitForFunction(() => !document.querySelector('[data-async-state="loading"]'), {
+                    timeout: SETTLE_LOADING_MS,
+                  })
                   .catch(() => {})
                 await page.waitForTimeout(SETTLE_EXTRA_MS)
                 const axeResult = await new AxeBuilder({ page }).analyze()

@@ -1755,5 +1755,6 @@
   "admin.systemBanner.statusLink": "ステータスページを見る",
   "admin.restore.title": "ワークスペースを復元しています",
   "admin.restore.description": "ワークスペースのデータを復元しています。復元が終わるまで表示が不完全な場合がありますが、失われることはありません。しばらくしてからご確認ください。",
-  "admin.health.pageTitle": "サービス正常性"
+  "admin.health.pageTitle": "サービス正常性",
+  "admin.login.accessibility": "アクセシビリティ"
 }

@@ -67,13 +67,16 @@ const localeLinks = $derived(
 <!-- TASK-027: main landmark + skip link. Every marketing page's content sat
      outside any landmark before this (axe `region` on all four routes). -->
 <a class="sanvi-skip-link" href="#main-content">{t['common.a11y.skipToContent']()}</a>
-<main id="main-content">
+<!-- tabindex=-1: the skip link targets this region and moves focus
+       here (TASK-027); the negative index keeps it out of Tab order. -->
+  <main id="main-content" tabindex="-1">
   {@render children()}
 </main>
 
 <footer class="sanvi-marketing-footer">
   <nav aria-label={t['marketing.footer.language']()}>
     <a href={localePath('/status')}>{t['marketing.footer.status']()}</a>
+    <a href={localePath('/accessibility')}>{t['marketing.footer.accessibility']()}</a>
     {#each localeLinks as link (link.code)}
       <a href={link.href} hreflang={link.code} aria-current={link.current ? 'true' : undefined}>
         {link.label}
@@ -104,6 +107,11 @@ const localeLinks = $derived(
   }
   .sanvi-skip-link:focus {
     inset-block-start: var(--sanvi-spacing-2);
+  }
+
+  main#main-content:focus {
+    /* Programmatic skip-link focus must not ring the whole page region. */
+    outline: none;
   }
 
   .sanvi-marketing-footer {

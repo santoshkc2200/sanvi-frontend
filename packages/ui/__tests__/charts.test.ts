@@ -36,33 +36,36 @@ describe('chart accessible alternatives (TASK-027 step 5)', () => {
     ['StackedBarChart', StackedBarChart],
   ] as const
 
-  it.each(CHARTS)('%s exposes a text summary and a data-table alternative', async (_name, Chart) => {
-    // OverlayChart takes one bar base plus line overlays; the rest take a
-    // series list — same accessibility contract, different data shape.
-    const props =
-      Chart === OverlayChart
-        ? {
-            categories: CATEGORIES,
-            barSeries: SERIES[0],
-            lineSeries: [SERIES[1]!],
-            labels: frameLabels,
-          }
-        : { categories: CATEGORIES, series: SERIES, labels: frameLabels }
-    const { container } = render(Chart, { props })
-    const svg = container.querySelector('svg[role="img"]')
-    expect(svg).not.toBeNull()
-    expect(svg).toHaveAccessibleName(frameLabels.summary!)
+  it.each(CHARTS)(
+    '%s exposes a text summary and a data-table alternative',
+    async (_name, Chart) => {
+      // OverlayChart takes one bar base plus line overlays; the rest take a
+      // series list — same accessibility contract, different data shape.
+      const props =
+        Chart === OverlayChart
+          ? {
+              categories: CATEGORIES,
+              barSeries: SERIES[0],
+              lineSeries: [SERIES[1]!],
+              labels: frameLabels,
+            }
+          : { categories: CATEGORIES, series: SERIES, labels: frameLabels }
+      const { container } = render(Chart, { props })
+      const svg = container.querySelector('svg[role="img"]')
+      expect(svg).not.toBeNull()
+      expect(svg).toHaveAccessibleName(frameLabels.summary!)
 
-    const disclosure = container.querySelector('details > summary')
-    expect(disclosure).toHaveTextContent('View as data table')
-    const table = container.querySelector('details table')
-    expect(table).not.toBeNull()
-    expect(table?.querySelector('caption')).toHaveTextContent('Spend by day')
-    // Headers carry scope so the table reads as a grid, not a text dump.
-    for (const th of table?.querySelectorAll('th[scope]') ?? []) {
-      expect(th.getAttribute('scope')).toBeTruthy()
-    }
-  })
+      const disclosure = container.querySelector('details > summary')
+      expect(disclosure).toHaveTextContent('View as data table')
+      const table = container.querySelector('details table')
+      expect(table).not.toBeNull()
+      expect(table?.querySelector('caption')).toHaveTextContent('Spend by day')
+      // Headers carry scope so the table reads as a grid, not a text dump.
+      for (const th of table?.querySelectorAll('th[scope]') ?? []) {
+        expect(th.getAttribute('scope')).toBeTruthy()
+      }
+    },
+  )
 
   it('the data-table alternative itself has no axe violations', async () => {
     const { container } = render(LineChart, {

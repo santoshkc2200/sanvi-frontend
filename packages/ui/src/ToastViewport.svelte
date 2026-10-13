@@ -8,8 +8,12 @@ interface Props {
 
 let { dismissLabel = 'Dismiss', class: className = '' }: Props = $props()
 
-const urgent = $derived(getToasts().filter((toast) => toast.variant === 'error' || toast.variant === 'warning'))
-const calm = $derived(getToasts().filter((toast) => toast.variant === 'info' || toast.variant === 'success'))
+const urgent = $derived(
+  getToasts().filter((toast) => toast.variant === 'error' || toast.variant === 'warning'),
+)
+const calm = $derived(
+  getToasts().filter((toast) => toast.variant === 'info' || toast.variant === 'success'),
+)
 
 function pause(event: Event, id: string): void {
   void event

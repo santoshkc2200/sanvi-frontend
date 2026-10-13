@@ -365,7 +365,9 @@ describe('CapabilityForm rendering (from matrix data alone)', () => {
       expect(target).toHaveAttribute('aria-invalid', 'true')
     }
     // The first link is the name input.
-    expect(document.getElementById(hrefs[0]!.slice(1))).toBe(screen.getByLabelText(/^Campaign name/))
+    expect(document.getElementById(hrefs[0]!.slice(1))).toBe(
+      screen.getByLabelText(/^Campaign name/),
+    )
     // Failed submit moves focus to the summary itself (not silently nowhere).
     component.focusSummary()
     expect(screen.getAllByRole('alert')[0]).toHaveFocus()
@@ -385,7 +387,9 @@ describe('CapabilityForm rendering (from matrix data alone)', () => {
     expect(first).toHaveLength(2)
     // Same violations re-delivered (a refresh of the failed response) render
     // the identical list.
-    await rerender({ props: { matrix: META, currency: 'JPY', serverViolations: [...serverViolations] } })
+    await rerender({
+      props: { matrix: META, currency: 'JPY', serverViolations: [...serverViolations] },
+    })
     const second = [...screen.getAllByRole('list')[0]!.querySelectorAll('a')].map((a) =>
       a.getAttribute('href'),
     )

@@ -1,0 +1,15 @@
+{
+  "a11y.statement.title": "Accessibility",
+  "a11y.statement.updated": "Last reviewed: 2026-10-13.",
+  "a11y.statement.intro": "We want every part of this product to be usable by everyone. This statement describes what we have tested, how we tested it, and what is still missing — it describes our method rather than claiming a conformance level.",
+  "a11y.statement.standard": "Target standard: WCAG 2.2, Level AA. We test against that standard; we do not claim conformance with it, because the independent audit that could verify a claim has not happened (see known gaps).",
+  "a11y.statement.methodTitle": "How we test",
+  "a11y.statement.methodAutomated": "Automated sweeps: an axe-core scan of every route, in both locales (English and Japanese) and both light and dark themes. Serious and critical findings block release.",
+  "a11y.statement.methodKeyboard": "Keyboard: scripted keyboard-only passes complete the critical journeys — checkout, connecting a domain, publishing a campaign, and changing a plan — without a mouse, including focus order and return-on-close for dialogs.",
+  "a11y.statement.methodLayout": "Layout: 400% zoom (320 px reflow) checks in both locales, reduced-motion and forced-colours emulation passes, and a contrast gate over our published themes. Evidence is recorded with dates in our manual-pass log.",
+  "a11y.statement.gapsTitle": "Known gaps",
+  "a11y.statement.gapAudit": "No independent WCAG audit has been carried out. Automated tools catch only part of WCAG, so this statement cannot honestly claim conformance; an external audit is the largest outstanding gap.",
+  "a11y.statement.gapScreenReaders": "Screen readers: NVDA and JAWS have not been tested, and a VoiceOver pass on macOS had not been completed when this statement was last updated. Screen-reader behaviour beyond automated structure checks is therefore unverified.",
+  "a11y.statement.feedbackTitle": "Report a barrier",
+  "a11y.statement.feedback": "If you hit a barrier using this product, contact support and include the page, what you were trying to do, and the assistive technology you use. We triage accessibility reports as product defects."
+}

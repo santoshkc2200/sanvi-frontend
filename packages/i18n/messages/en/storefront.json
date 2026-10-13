@@ -55,5 +55,6 @@
   "storefront.checkout.canceled.title": "Payment canceled",
   "storefront.checkout.notFound.title": "Order not found",
   "storefront.home.metaDescription": "Browse products, check out securely, and manage your orders at {name}.",
-  "storefront.checkout.offlineWarning": "Checkout needs a connection — orders are never queued offline. Nothing has been placed; reconnect and try again."
+  "storefront.checkout.offlineWarning": "Checkout needs a connection — orders are never queued offline. Nothing has been placed; reconnect and try again.",
+  "storefront.footer.accessibility": "Accessibility"
 }

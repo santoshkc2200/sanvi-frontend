@@ -97,6 +97,9 @@ const routes: RouteDefinition[] = [
   { path: 'login', load: () => import('./routes/Login.svelte') },
   { path: 'step-up', load: () => import('./routes/StepUp.svelte') },
   { path: 'health', load: () => import('./routes/Health.svelte') },
+  // TASK-027: the published accessibility statement — public, no permission,
+  // linked from the login screen so it is reachable signed-out.
+  { path: 'accessibility', load: () => import('./routes/Accessibility.svelte') },
 ]
 
 router = createRouter({
@@ -351,9 +354,7 @@ $effect(() => {
     color: inherit;
     text-decoration: underline;
   }
-</style>
 
-<style>
   /* Visually hidden route announcer (TASK-027): present for assistive tech
      only, never focusable, never layout-affecting. */
   .sanvi-route-announcer {

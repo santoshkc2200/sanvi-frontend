@@ -121,7 +121,9 @@ const SHARED = [
   ['**/api/v1/**', () => ({ json: {} })],
 ]
 
-const ADMIN_ROUTES = [...SHARED, ['**/api/v1/me', () => ({ json: ADMIN_ME })],
+const ADMIN_ROUTES = [
+  ...SHARED,
+  ['**/api/v1/me', () => ({ json: ADMIN_ME })],
   [
     '**/api/v1/tenant/context',
     () => ({
@@ -145,7 +147,9 @@ const ADMIN_ROUTES = [...SHARED, ['**/api/v1/me', () => ({ json: ADMIN_ME })],
   ['**/api/v1/public/slug-availability**', () => ({ json: { available: true } })],
 ]
 
-const PLATFORM_ROUTES = [...SHARED, ['**/api/v1/me', () => ({ json: PLATFORM_ME })],
+const PLATFORM_ROUTES = [
+  ...SHARED,
+  ['**/api/v1/me', () => ({ json: PLATFORM_ME })],
   ['**/api/v1/platform/admin/tenants**', () => ({ json: { tenants: [], next_cursor: null } })],
   ['**/api/v1/platform/impersonations', () => ({ json: [] })],
   ['**/api/v1/platform/roles', () => ({ json: [] })],

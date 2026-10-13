@@ -1755,5 +1755,6 @@
   "admin.systemBanner.statusLink": "View status page",
   "admin.restore.title": "Workspace restore in progress",
   "admin.restore.description": "Your workspace data is being restored. What you see may be incomplete until the restore finishes — nothing is lost. Check back shortly.",
-  "admin.health.pageTitle": "Service health"
+  "admin.health.pageTitle": "Service health",
+  "admin.login.accessibility": "Accessibility"
 }

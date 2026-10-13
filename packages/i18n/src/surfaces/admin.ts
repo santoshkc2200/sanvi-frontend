@@ -1,5 +1,6 @@
 import { registerCatalogSurface, toShard } from '../catalogs'
 import enAdmin from '../../messages/en/admin.json'
+import enA11y from '../../messages/en/a11y.json'
 import enCommon from '../../messages/en/common.json'
 import enConsent from '../../messages/en/consent.json'
 import enErrors from '../../messages/en/errors.json'
@@ -22,6 +23,7 @@ export function registerAdminSurface(): void {
       (
         await Promise.all([
           import('../../messages/ja/admin.json'),
+          import('../../messages/ja/a11y.json'),
           import('../../messages/ja/common.json'),
           import('../../messages/ja/consent.json'),
           import('../../messages/ja/errors.json'),

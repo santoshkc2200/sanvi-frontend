@@ -48,7 +48,10 @@ function armTimer(id: string, durationMs: number): void {
   const existingTimer = timers.get(id)
   if (existingTimer) clearTimeout(existingTimer)
   if (durationMs > 0) {
-    timers.set(id, setTimeout(() => dismissToast(id), durationMs))
+    timers.set(
+      id,
+      setTimeout(() => dismissToast(id), durationMs),
+    )
   } else {
     timers.delete(id)
   }

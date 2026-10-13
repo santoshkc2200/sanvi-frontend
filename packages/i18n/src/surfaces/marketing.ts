@@ -1,4 +1,5 @@
 import { registerCatalogSurface, toShard } from '../catalogs'
+import enA11y from '../../messages/en/a11y.json'
 import enCommon from '../../messages/en/common.json'
 import enErrors from '../../messages/en/errors.json'
 import enMarketing from '../../messages/en/marketing.json'
@@ -14,10 +15,11 @@ import enMarketing from '../../messages/en/marketing.json'
  */
 export function registerMarketingSurface(): void {
   registerCatalogSurface('marketing', {
-    en: [enCommon, enErrors, enMarketing],
+    en: [enA11y, enCommon, enErrors, enMarketing],
     loadJa: async () =>
       (
         await Promise.all([
+          import('../../messages/ja/a11y.json'),
           import('../../messages/ja/common.json'),
           import('../../messages/ja/errors.json'),
           import('../../messages/ja/marketing.json'),

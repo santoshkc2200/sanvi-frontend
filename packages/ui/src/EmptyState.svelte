@@ -15,8 +15,7 @@ interface Props {
   class?: string
 }
 
-let { title, description, icon, action, titleTag = 'h2', class: className = '' }: Props =
-  $props()
+let { title, description, icon, action, titleTag = 'h2', class: className = '' }: Props = $props()
 </script>
 
 <div class="sanvi-empty-state {className}" data-async-state="empty">

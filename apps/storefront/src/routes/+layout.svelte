@@ -292,7 +292,9 @@ const footerSlot = $derived(layoutTree.slots.find((s) => s.name === 'footer'))
        changes, but without a main landmark every page's content sat outside
        any landmark (axe `region`/`landmark-one-main`). -->
   <a class="sanvi-skip-link" href="#main-content">{t['common.a11y.skipToContent']()}</a>
-  <main id="main-content">
+  <!-- tabindex=-1: the skip link targets this region and moves focus
+       here (TASK-027); the negative index keeps it out of Tab order. -->
+  <main id="main-content" tabindex="-1">
     {@render children()}
   </main>
 
@@ -333,6 +335,9 @@ const footerSlot = $derived(layoutTree.slots.find((s) => s.name === 'footer'))
           sensitiveLabel={usLinks ? t['storefront.footer.usSensitive']() : undefined}
           sensitiveHref={usLinks ? localePath('/privacy/limit-sensitive') : undefined}
         />
+        <a class="sanvi-footer__accessibility" href={localePath('/accessibility')}>
+          {t['storefront.footer.accessibility']()}
+        </a>
         {#if data.tenant}
           <p class="sanvi-footer__copyright">
             {t['storefront.footer.copyright']({ name: data.tenant.display_name })}
@@ -407,6 +412,11 @@ const footerSlot = $derived(layoutTree.slots.find((s) => s.name === 'footer'))
     inset-block-start: var(--sanvi-spacing-2);
   }
 
+  main#main-content:focus {
+    /* Programmatic skip-link focus must not ring the whole page region. */
+    outline: none;
+  }
+
   .sanvi-consent-spacer {
     /* Scroll headroom for content under the floating consent banner: the
        banner's stacked mobile height, plus the footer (whose locale nav
@@ -454,6 +464,11 @@ const footerSlot = $derived(layoutTree.slots.find((s) => s.name === 'footer'))
   }
 
   .sanvi-footer__locales a {
+    color: var(--sanvi-color-text-secondary);
+    font-size: var(--sanvi-font-size-sm);
+  }
+
+  .sanvi-footer__accessibility {
     color: var(--sanvi-color-text-secondary);
     font-size: var(--sanvi-font-size-sm);
   }

@@ -83,5 +83,6 @@
   "marketing.status.incident.conversion-upload.title": "広告コンバージョンのアップロードが遅延しています",
   "marketing.status.incident.conversion-upload.body": "コンバージョンイベントは同意情報のスナップショットとともにキューに保持され、広告プラットフォームの復旧後にアップロードされます。",
   "marketing.status.incident.domain-issuance.title": "ドメインの発行が遅延しています",
-  "marketing.status.incident.domain-issuance.body": "新規カスタムドメインは発行低下中は保留のままです。公開中のドメインには影響ありません。"
+  "marketing.status.incident.domain-issuance.body": "新規カスタムドメインは発行低下中は保留のままです。公開中のドメインには影響ありません。",
+  "marketing.footer.accessibility": "アクセシビリティ"
 }

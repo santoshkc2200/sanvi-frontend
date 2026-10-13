@@ -133,8 +133,15 @@ jobs:
       - name: check:lighthouse (blocking)
         run: pnpm check:lighthouse
 
-      - name: check:a11y (report-only until TASK-027)
-        run: pnpm check:a11y --report-only
+      # TASK-027 flipped the axe gate blocking: zero serious/critical
+      # findings across every route x locale x theme, route coverage
+      # asserted, sweep errors counted as failures.
+      - name: check:a11y (blocking)
+        run: pnpm check:a11y
+
+      # TASK-027 step 6: the published-theme contrast gate.
+      - name: check:contrast --themes=published (blocking)
+        run: pnpm check:contrast --themes=published
 
       - name: Upload harness artifacts
         if: always()

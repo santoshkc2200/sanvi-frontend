@@ -36,10 +36,7 @@ describe('field-addressable validation errors', () => {
     ])
     // Order is the backend's contract — the client must not reorder it, so
     // a summary list renders identically across fetches.
-    expect(error.fieldIssues.map((issue) => issue.field)).toEqual([
-      'name',
-      'budget_amount_minor',
-    ])
+    expect(error.fieldIssues.map((issue) => issue.field)).toEqual(['name', 'budget_amount_minor'])
   })
 
   it('keeps the flat detail alongside the field issues', async () => {

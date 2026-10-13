@@ -279,7 +279,8 @@ export function collectShardProblems(shardSetsByLocale) {
       if (!set.has(shard)) problems.push(`${locale}  —  shard missing: ${shard}.json`)
     }
     for (const shard of set.keys()) {
-      if (!baseSet.has(shard)) problems.push(`${locale}  —  shard not in ${BASE_LOCALE}: ${shard}.json`)
+      if (!baseSet.has(shard))
+        problems.push(`${locale}  —  shard not in ${BASE_LOCALE}: ${shard}.json`)
     }
   }
   // Key placement — checked per locale against the shard each key sits in.
@@ -288,7 +289,9 @@ export function collectShardProblems(shardSetsByLocale) {
       for (const key of Object.keys(catalog)) {
         const prefix = key.split('.')[0]
         if (prefix !== shard) {
-          problems.push(`${locale}  ${key}  lives in shard "${shard}" but its prefix names "${prefix}"`)
+          problems.push(
+            `${locale}  ${key}  lives in shard "${shard}" but its prefix names "${prefix}"`,
+          )
         }
       }
     }
@@ -326,15 +329,19 @@ export function collectSurfaceProblems(surfaces, allShards) {
   const problems = []
   for (const [name, { en, ja }] of Object.entries(surfaces)) {
     for (const shard of en) {
-      if (!ja.has(shard)) problems.push(`surface ${name}  loads en/${shard}.json but not ja/${shard}.json`)
+      if (!ja.has(shard))
+        problems.push(`surface ${name}  loads en/${shard}.json but not ja/${shard}.json`)
     }
     for (const shard of ja) {
-      if (!en.has(shard)) problems.push(`surface ${name}  loads ja/${shard}.json but not en/${shard}.json`)
+      if (!en.has(shard))
+        problems.push(`surface ${name}  loads ja/${shard}.json but not en/${shard}.json`)
     }
   }
   const allSurface = surfaces['all']
   if (!allSurface) {
-    problems.push('surfaces  —  src/surfaces/all.ts is missing (the tests-only completeness witness)')
+    problems.push(
+      'surfaces  —  src/surfaces/all.ts is missing (the tests-only completeness witness)',
+    )
   } else {
     for (const shard of allShards) {
       if (!allSurface.en.has(shard)) {
@@ -349,7 +356,9 @@ export function collectSurfaceProblems(surfaces, allShards) {
   }
   for (const shard of allShards) {
     if (!reachable.has(shard)) {
-      problems.push(`surfaces  —  shard ${shard}.json is registered by no app surface (keys unreachable)`)
+      problems.push(
+        `surfaces  —  shard ${shard}.json is registered by no app surface (keys unreachable)`,
+      )
     }
   }
   return problems

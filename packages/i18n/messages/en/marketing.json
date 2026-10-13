@@ -83,5 +83,6 @@
   "marketing.status.incident.conversion-upload.title": "Ad conversion uploads are delayed",
   "marketing.status.incident.conversion-upload.body": "Conversion events are queued with their consent snapshot and will upload when the ad platforms recover.",
   "marketing.status.incident.domain-issuance.title": "Domain issuance is delayed",
-  "marketing.status.incident.domain-issuance.body": "New custom domains stay pending while issuance is degraded. Live domains are unaffected."
+  "marketing.status.incident.domain-issuance.body": "New custom domains stay pending while issuance is degraded. Live domains are unaffected.",
+  "marketing.footer.accessibility": "Accessibility"
 }

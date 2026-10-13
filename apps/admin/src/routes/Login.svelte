@@ -79,6 +79,9 @@ async function handleSubmit(node: UiNode, values: Record<string, string | boolea
 <Container size="sm" padding="6">
   <Stack gap="6">
     <h1>{t['admin.login.title']()}</h1>
+    <p class="sanvi-login__a11y-link">
+      <a href="/accessibility">{t['admin.login.accessibility']()}</a>
+    </p>
 
     {#if error}
       <Alert variant="error">{error}</Alert>
@@ -99,3 +102,13 @@ async function handleSubmit(node: UiNode, values: Record<string, string | boolea
     {/if}
   </Stack>
 </Container>
+
+<style>
+  .sanvi-login__a11y-link {
+    margin: 0;
+    font-size: var(--sanvi-font-size-sm);
+  }
+  .sanvi-login__a11y-link a {
+    color: var(--sanvi-color-text-secondary);
+  }
+</style>

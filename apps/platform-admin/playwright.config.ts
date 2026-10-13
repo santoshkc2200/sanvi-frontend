@@ -48,5 +48,13 @@ export default defineConfig({
         },
       },
     },
+    {
+      // TASK-027 (WCAG 1.4.10): 400% zoom / 320 px reflow — the project the
+      // `@reflow`-tagged specs run under, capturing the per-locale evidence
+      // screenshots the manual-pass record cites.
+      name: 'reflow-400',
+      grep: /@reflow/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 320, height: 800 } },
+    },
   ],
 })

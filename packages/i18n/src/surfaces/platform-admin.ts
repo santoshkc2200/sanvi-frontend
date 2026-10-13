@@ -1,4 +1,5 @@
 import { registerCatalogSurface, toShard } from '../catalogs'
+import enA11y from '../../messages/en/a11y.json'
 import enCommon from '../../messages/en/common.json'
 import enErrors from '../../messages/en/errors.json'
 import enPlatform from '../../messages/en/platform.json'
@@ -13,10 +14,11 @@ import enPlatform from '../../messages/en/platform.json'
  */
 export function registerPlatformAdminSurface(): void {
   registerCatalogSurface('platform-admin', {
-    en: [enCommon, enErrors, enPlatform],
+    en: [enA11y, enCommon, enErrors, enPlatform],
     loadJa: async () =>
       (
         await Promise.all([
+          import('../../messages/ja/a11y.json'),
           import('../../messages/ja/common.json'),
           import('../../messages/ja/errors.json'),
           import('../../messages/ja/platform.json'),
