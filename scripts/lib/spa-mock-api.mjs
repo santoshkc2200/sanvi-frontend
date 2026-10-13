@@ -119,6 +119,8 @@ const SUBSCRIPTION = {
 // ROUTES_BY_APP) — Playwright consults the last matching route first, so
 // the fallback `**/api/v1/**` inside here must lose to everything below.
 const SHARED = [
+  // Playwright uses the last matching handler, so the fallback goes first.
+  ['**/api/v1/**', () => ({ json: {} })],
   ['**/api/v1/me/sessions', () => ({ json: SESSIONS })],
   ['**/api/v1/tenant/settings', () => ({ json: { settings: { timezone: 'UTC' } } })],
   ['**/api/v1/system/health', () => ({ json: { status: 'ok' } })],
@@ -126,9 +128,6 @@ const SHARED = [
     '**/api/v1/system/ready',
     () => ({ json: { status: 'ok', checks: [{ name: 'database', state: 'ok' }] } }),
   ],
-  // Last-resort answer so a route's data load renders its designed empty
-  // state instead of an unhandled non-JSON parse.
-  ['**/api/v1/**', () => ({ json: {} })],
 ]
 
 const ADMIN_ROUTES = [

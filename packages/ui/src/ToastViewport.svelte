@@ -15,13 +15,30 @@ const calm = $derived(
   getToasts().filter((toast) => toast.variant === 'info' || toast.variant === 'success'),
 )
 
+const pauseReasons = new WeakMap<EventTarget, Set<string>>()
+
 function pause(event: Event, id: string): void {
-  void event
+  const target = event.currentTarget
+  if (!target) return
+  const reasons = pauseReasons.get(target) ?? new Set<string>()
+  reasons.add(event.type === 'focusin' ? 'focus' : 'pointer')
+  pauseReasons.set(target, reasons)
   pauseToast(id)
 }
 function resume(event: Event, id: string): void {
-  void event
-  resumeToast(id)
+  const target = event.currentTarget
+  if (!target) return
+  // A focus move between controls inside the toast is still paused.
+  if (
+    event instanceof FocusEvent &&
+    event.relatedTarget instanceof Node &&
+    target instanceof Node &&
+    target.contains(event.relatedTarget)
+  )
+    return
+  const reasons = pauseReasons.get(target)
+  reasons?.delete(event.type === 'focusout' ? 'focus' : 'pointer')
+  if (!reasons?.size) resumeToast(id)
 }
 </script>
 

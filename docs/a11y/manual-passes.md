@@ -10,6 +10,21 @@ is recorded as not executed, never implied.
 software, no human assistive-technology tester was available — see "Not run"
 below and `docs/release/needs-humans.md`.
 
+**Review correction (2026-10-13):** the original admin billing and advertising
+reflow captures showed access-denied screens. The reflow fixture now grants
+the required permissions, serves populated route data, and asserts the page
+content and translated heading before measuring. All six admin route × locale
+cases were rerun successfully, and their screenshots were regenerated. Japanese
+is selected through the shell switcher so its catalog is loaded before capture.
+
+The authenticated axe fixture's fallback previously shadowed `/me/sessions`,
+sending protected operator routes to step-up. That registration order is fixed,
+and a Playwright regression now asserts that the sweep identity reaches Roles.
+A fresh operator sweep (English, light theme, pinned Chrome 152) covered all
+14 routes with no sweep errors, but found one serious `color-contrast` finding
+on `/tenants/:id`. That remaining finding blocks the gate; the earlier passing
+artifact does not establish accessibility of those protected routes.
+
 ## Pass inventory per app
 
 ### Keyboard-only

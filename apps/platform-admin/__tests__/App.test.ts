@@ -1,7 +1,9 @@
 import type { Session } from '@sanvi/auth'
 import { setSession } from '@sanvi/auth'
+import { navigate } from '@sanvi/spa-router'
 import { axe } from '@sanvi/test-config/axe'
-import { fireEvent, render, screen } from '@testing-library/svelte'
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte'
+import { tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from '../src/App.svelte'
 
@@ -31,6 +33,18 @@ afterEach(() => {
 })
 
 describe('App shell', () => {
+  it('moves focus and announces navigation when the route component is reused', async () => {
+    window.history.pushState({}, '', '/missing-one')
+    render(App)
+    await screen.findByText('Page not found')
+    await tick()
+    document.title = 'Missing page'
+    screen.getByRole('combobox', { name: 'Switch language' }).focus()
+    navigate('/missing-two')
+    await waitFor(() => expect(screen.getByRole('main')).toHaveFocus())
+    expect(document.querySelector('.sanvi-route-announcer')).toHaveTextContent('Missing page')
+  })
+
   it('renders the nav and the tenants route by default', async () => {
     render(App)
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument()

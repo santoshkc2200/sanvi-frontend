@@ -1,12 +1,16 @@
 <script lang="ts">
-import { tick } from 'svelte'
-import { requireAal2 } from '@sanvi/auth'
 import { listImpersonations } from '@sanvi/api-client'
+import { requireAal2 } from '@sanvi/auth'
 import { currentLocale, localeOptions, onLocaleChange, setLocale, t } from '@sanvi/i18n'
 import { clearCache, QueryDevtools } from '@sanvi/query'
-import { handleLinkClick } from '@sanvi/spa-router'
-import type { Router, RouteDefinition } from '@sanvi/spa-router'
-import { createRouter } from '@sanvi/spa-router'
+import type { RouteDefinition, Router } from '@sanvi/spa-router'
+import { createRouter, handleLinkClick } from '@sanvi/spa-router'
+import {
+  buildDiagnosticsPaste,
+  errorTraceId,
+  recentBreadcrumbs,
+  recordDiagnosticBreadcrumb,
+} from '@sanvi/telemetry/diagnostics'
 import {
   AppShell,
   AsyncBoundary,
@@ -16,14 +20,9 @@ import {
   Spinner,
   ToastViewport,
 } from '@sanvi/ui'
+import { tick } from 'svelte'
 import { apiClient } from './lib/api'
 import { setPlatformAdminTelemetryRouteSource } from './lib/telemetry'
-import {
-  buildDiagnosticsPaste,
-  errorTraceId,
-  recentBreadcrumbs,
-  recordDiagnosticBreadcrumb,
-} from '@sanvi/telemetry/diagnostics'
 
 // `router` referenced inside the guard closures before assignment — see
 // `@sanvi/admin`'s `App.svelte` for why this is safe.
@@ -244,16 +243,18 @@ onLocaleChange(() => clearCache())
 let routeAnnouncement = $state('')
 let routeSeen = false
 $effect(() => {
-  // Track the mounted component, not the pathname: the router flips the
-  // path when navigation STARTS, before the lazy chunk resolves, so a
-  // title read here would name the previous page. `component` settles
-  // when the new page has mounted; the tick lets its `svelte:head` land.
-  void router.component
+  const pathname = router.pathname
+  const params = router.params
+  // A component can be reused for another path or parameter set. Wait for
+  // resolution before announcing so its title and content have settled.
+  if (router.loading) return
   if (!routeSeen) {
     routeSeen = true
     return
   }
+  routeAnnouncement = ''
   void tick().then(() => {
+    if (router.loading || router.pathname !== pathname || router.params !== params) return
     routeAnnouncement = document.title
     document.getElementById('main-content')?.focus()
   })

@@ -13,6 +13,12 @@ import { currentLocale, localeOptions, onLocaleChange, setLocale, t } from '@san
 import { clearCache, QueryDevtools } from '@sanvi/query'
 import type { RouteDefinition, Router } from '@sanvi/spa-router'
 import { createRouter } from '@sanvi/spa-router'
+import {
+  buildDiagnosticsPaste,
+  errorTraceId,
+  recentBreadcrumbs,
+  recordDiagnosticBreadcrumb,
+} from '@sanvi/telemetry/diagnostics'
 import type { TenantMembership } from '@sanvi/tenant'
 import {
   getActiveTenantId,
@@ -45,12 +51,6 @@ import {
   stopSystemStatusPolling,
 } from './lib/system-status.svelte'
 import { setAdminTelemetryRouteSource } from './lib/telemetry'
-import {
-  buildDiagnosticsPaste,
-  errorTraceId,
-  recentBreadcrumbs,
-  recordDiagnosticBreadcrumb,
-} from '@sanvi/telemetry/diagnostics'
 
 // `router` is referenced inside the guard closures below before it's
 // assigned — safe because a guard only ever runs once something navigates,
@@ -670,16 +670,18 @@ function retry(): void {
 let routeAnnouncement = $state('')
 let routeSeen = false
 $effect(() => {
-  // Track the mounted component, not the pathname: the router flips the
-  // path when navigation STARTS, before the lazy chunk resolves, so a
-  // title read here would name the previous page. `component` settles
-  // when the new page has mounted; the tick lets its `svelte:head` land.
-  void router.component
+  const pathname = router.pathname
+  const params = router.params
+  // A component can be reused for another path or parameter set. Wait for
+  // resolution before announcing so its title and content have settled.
+  if (router.loading) return
   if (!routeSeen) {
     routeSeen = true
     return
   }
+  routeAnnouncement = ''
   void tick().then(() => {
+    if (router.loading || router.pathname !== pathname || router.params !== params) return
     routeAnnouncement = document.title
     document.getElementById('main-content')?.focus()
   })

@@ -1,13 +1,13 @@
 import { join } from 'node:path'
-import { expect, test, type Page } from '@playwright/test'
-import { mockBackend } from './mock-backend'
+import { expect, type Page, test } from '@playwright/test'
+import { mockSpaApi } from '../../../scripts/lib/spa-mock-api.mjs'
+import { mockAdvertisingBackend } from './mock-advertising-backend'
 
 /**
  * 400% zoom / 320 px reflow (TASK-027, WCAG 1.4.10) — runs only under the
  * `reflow-400` project (320 px viewport). Same contract as the storefront's
  * spec: no horizontal document scroll, no clipped or spilling label text,
- * evidence screenshot per locale (the SPA negotiates locale from the
- * `sanvi_locale` cookie, set here per test).
+ * evidence screenshot per locale (selected through the shell switcher).
  */
 
 test.beforeEach(() => {
@@ -53,15 +53,38 @@ test.describe('admin reflow at 320 px', () => {
   for (const locale of LOCALES) {
     for (const route of ROUTES) {
       test(`admin ${route} reflows at 320 px in ${locale} @reflow`, async ({ page }) => {
-        mockBackend(page)
-        await page
-          .context()
-          .addCookies([{ name: 'sanvi_locale', value: locale, domain: 'localhost', path: '/' }])
+        if (route === '/advertising/dashboard') {
+          mockAdvertisingBackend(page, { seedTwoConnections: true, seedTwoCampaigns: true })
+        } else {
+          mockSpaApi(page.context(), 'admin')
+        }
         await page.goto(route)
         await page.waitForLoadState('networkidle')
         // The boot/route settles asynchronously; give the shell a beat.
         await page.locator('#main-content').waitFor()
+        // Switch from the default English render so ja is loaded and
+        // rendered before measuring CJK reflow.
+        await page.getByRole('combobox', { name: 'Switch language' }).selectOption(locale)
+        await expect(page.locator('html')).toHaveAttribute('lang', locale)
+        await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+          route === '/billing'
+            ? locale === 'ja'
+              ? '課金とサブスクリプション'
+              : 'Billing & Subscription'
+            : route === '/advertising/dashboard'
+              ? locale === 'ja'
+                ? '広告パフォーマンス'
+                : 'Advertising performance'
+              : locale === 'ja'
+                ? 'ダッシュボード'
+                : 'Dashboard',
+        )
         await page.waitForTimeout(300)
+        if (route === '/billing') {
+          await expect(page.locator('.sanvi-billing__grid')).toBeVisible()
+        } else if (route === '/advertising/dashboard') {
+          await expect(page.locator('.sanvi-ad-dashboard__kpis').first()).toBeVisible()
+        }
         await assertReflow(page)
         const label = route === '/' ? 'home' : route.replace(/\//g, '-').replace(/^-/, '')
         await page.screenshot({

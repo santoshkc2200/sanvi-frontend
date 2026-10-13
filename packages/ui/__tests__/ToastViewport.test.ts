@@ -49,6 +49,37 @@ describe('toast store + ToastViewport', () => {
 })
 
 describe('toast urgency + pause (TASK-027)', () => {
+  it.each(['info', 'error'] as const)(
+    'keeps a %s toast paused until both hover and focus end',
+    async (variant) => {
+      vi.useFakeTimers()
+      try {
+        render(ToastViewport)
+        showToast({ title: 'Reading', variant, durationMs: 5_000 })
+        await tick()
+        const toast = screen.getByRole(variant === 'error' ? 'alert' : 'status')
+        const dismiss = screen.getByRole('button', { name: 'Dismiss' })
+        await fireEvent.pointerEnter(toast)
+        await fireEvent.focusIn(dismiss)
+        await fireEvent.pointerLeave(toast)
+        vi.advanceTimersByTime(6_000)
+        await tick()
+        expect(screen.getByText('Reading')).toBeInTheDocument()
+        await fireEvent.pointerEnter(toast)
+        await fireEvent.focusOut(dismiss)
+        vi.advanceTimersByTime(6_000)
+        await tick()
+        expect(screen.getByText('Reading')).toBeInTheDocument()
+        await fireEvent.pointerLeave(toast)
+        vi.advanceTimersByTime(5_000)
+        await tick()
+        expect(screen.queryByText('Reading')).not.toBeInTheDocument()
+      } finally {
+        vi.useRealTimers()
+      }
+    },
+  )
+
   it('renders an error toast as role=alert in the assertive region, success as role=status', async () => {
     render(ToastViewport)
     showToast({ title: 'Save failed', variant: 'error', durationMs: 0 })
