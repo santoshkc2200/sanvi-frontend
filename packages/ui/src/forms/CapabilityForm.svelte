@@ -1,5 +1,5 @@
 <script lang="ts">
-import { untrack } from 'svelte'
+import { tick, untrack } from 'svelte'
 import Button from '../Button.svelte'
 import Checkbox from '../Checkbox.svelte'
 import ErrorSummary from '../ErrorSummary.svelte'
@@ -360,8 +360,10 @@ function handleSubmit(event: SubmitEvent): void {
   if (issues.length === 0) {
     onSubmit?.(form)
   } else {
-    // Failed submit moves focus to the summary, not silently nowhere.
-    focusSummary()
+    // Failed submit moves focus to the summary, not silently nowhere —
+    // after the flush, because on the FIRST failure the summary only comes
+    // into the DOM with this state change.
+    void tick().then(() => focusSummary())
   }
 }
 

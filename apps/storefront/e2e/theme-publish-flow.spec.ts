@@ -37,7 +37,10 @@ test.describe('Theme change, preview, publish, and rollback flow', () => {
         headers,
         data: {
           token_overrides: {
-            'color.brand.primary': { $value: '#ff5500' },
+            // Must pass the publish-time contrast gate (TASK-027): white on this
+            // orange is ~4.9:1. The former #ff5500 (3.21:1) is a publish
+            // rejection now.
+            'color.brand.primary': { $value: '#c2410c' },
           },
         },
       },
@@ -49,7 +52,7 @@ test.describe('Theme change, preview, publish, and rollback flow', () => {
     expect(previewRes?.status()).toBeLessThan(400)
     expect(previewRes?.headers()['x-robots-tag']).toContain('noindex')
     const previewHtml = await page.content()
-    expect(previewHtml).toContain('--sanvi-color-brand-primary: #ff5500')
+    expect(previewHtml).toContain('--sanvi-color-brand-primary: #c2410c')
 
     // 4. Storefront live before publish still shows original color
     const beforePublishRes = await page.goto(`http://${host}/`)
@@ -76,7 +79,7 @@ test.describe('Theme change, preview, publish, and rollback flow', () => {
     const afterPublishRes = await page.goto(`http://${host}/`)
     expect(afterPublishRes?.status()).toBeLessThan(400)
     const afterPublishHtml = await page.content()
-    expect(afterPublishHtml).toContain('--sanvi-color-brand-primary: #ff5500')
+    expect(afterPublishHtml).toContain('--sanvi-color-brand-primary: #c2410c')
 
     // 7. Rollback theme
     const rollbackRes = await request.post(

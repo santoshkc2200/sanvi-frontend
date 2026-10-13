@@ -670,7 +670,11 @@ function retry(): void {
 let routeAnnouncement = $state('')
 let routeSeen = false
 $effect(() => {
-  void router.pathname
+  // Track the mounted component, not the pathname: the router flips the
+  // path when navigation STARTS, before the lazy chunk resolves, so a
+  // title read here would name the previous page. `component` settles
+  // when the new page has mounted; the tick lets its `svelte:head` land.
+  void router.component
   if (!routeSeen) {
     routeSeen = true
     return

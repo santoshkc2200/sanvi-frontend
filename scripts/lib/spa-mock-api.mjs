@@ -26,6 +26,13 @@ const ME_PERMISSIONS = [
   'tenancy.settings.read',
   'tenancy.settings.update',
   'payments.read',
+  // Every route guard's permission (TASK-027 review): the sweep renders
+  // each route's content, not the designed denied view.
+  'advertising.read',
+  'billing.subscription.read',
+  'tenant.theming.read',
+  'tenant.theming.write',
+  'tenant.theming.publish',
 ]
 
 const ADMIN_ME = {
@@ -66,7 +73,10 @@ const PLATFORM_ME = {
 const SESSIONS = [
   {
     session_id: 'sweep-session',
-    aal: 'aal1',
+    // aal2: platform-admin's every route sits behind requireAal2 — an aal1
+    // session sweeps the step-up screen instead of the routes (TASK-027
+    // review). aal1 satisfies the admin console's guards.
+    aal: 'aal2',
     methods: ['password'],
     authenticated_at: '2026-08-28T00:00:00Z',
   },

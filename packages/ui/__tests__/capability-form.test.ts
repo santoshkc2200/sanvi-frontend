@@ -1,5 +1,5 @@
 import { axe } from '@sanvi/test-config/axe'
-import { fireEvent, render, screen } from '@testing-library/svelte'
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte'
 import { describe, expect, it, vi } from 'vitest'
 import CapabilityForm from '../src/forms/CapabilityForm.svelte'
 import {
@@ -347,7 +347,7 @@ describe('CapabilityForm rendering (from matrix data alone)', () => {
   })
 
   it('links the error summary to every offending field, in field order, and focuses it on a failed submit (TASK-027)', async () => {
-    const { component } = render(CapabilityForm, { props: { matrix: META, currency: 'JPY' } })
+    render(CapabilityForm, { props: { matrix: META, currency: 'JPY' } })
 
     // Nothing filled: name, objective, budget kind and amount all fail.
     await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -368,9 +368,10 @@ describe('CapabilityForm rendering (from matrix data alone)', () => {
     expect(document.getElementById(hrefs[0]!.slice(1))).toBe(
       screen.getByLabelText(/^Campaign name/),
     )
-    // Failed submit moves focus to the summary itself (not silently nowhere).
-    component.focusSummary()
-    expect(screen.getAllByRole('alert')[0]).toHaveFocus()
+    // The failed submit ITSELF moves focus to the summary (not silently
+    // nowhere) — including on the first failure, when the summary has only
+    // just rendered.
+    await waitFor(() => expect(screen.getAllByRole('alert')[0]).toHaveFocus())
   })
 
   it('lists mapped server violations in the summary with links to their fields, order stable across re-renders', async () => {

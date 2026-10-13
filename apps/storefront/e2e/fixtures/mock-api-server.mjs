@@ -36,6 +36,7 @@
  * can make network-level assertions ("no non-essential script loaded before
  * consent" is only provable at the network layer).
  */
+import { themeContrastViolations } from './theme-contrast.mjs'
 import { createServer } from 'node:http'
 import { E2E_BUILD_STAMP } from './build-stamp.mjs'
 
@@ -232,82 +233,6 @@ const INITIAL_THEME = {
 }
 
 const themes = new Map()
-
-/**
- * The publish-time contrast gate (TASK-027 step 6) — the lab stand-in for
- * the backend's `crates/contexts/theming` validation, kept self-contained
- * because this fixture must boot without a built workspace. The pairs, the
- * minimums, and the math mirror `@sanvi/design-tokens`' contrast module
- * exactly; changing one without the other breaks the contract that a theme
- * the admin's live checker passes is one publish accepts.
- */
-const THEME_CONTRAST_DEFAULTS = {
-  'color.brand.primary': '#2563eb',
-  'color.brand.hover': '#1d4ed8',
-  'color.brand.contrast': '#ffffff',
-  'color.text.primary': '#1a1d23',
-  'color.text.secondary': '#4a505c',
-  'color.text.inverse': '#ffffff',
-  'color.background.primary': '#ffffff',
-  'color.background.inverse': '#1a1d23',
-  'color.focus.ring': '#1d4ed8',
-}
-
-const THEME_CONTRAST_PAIRS = [
-  { fg: 'color.text.primary', bg: 'color.background.primary', min: 4.5 },
-  { fg: 'color.text.secondary', bg: 'color.background.primary', min: 4.5 },
-  { fg: 'color.text.inverse', bg: 'color.background.inverse', min: 4.5 },
-  { fg: 'color.brand.contrast', bg: 'color.brand.primary', min: 4.5 },
-  { fg: 'color.brand.contrast', bg: 'color.brand.hover', min: 4.5 },
-  { fg: 'color.focus.ring', bg: 'color.background.primary', min: 3.0 },
-]
-
-function themeLuminance(hex) {
-  const digits = hex
-    .replace(/^#/, '')
-    .split('')
-    .map((d) => Number.parseInt(d, 16))
-  const rgb =
-    digits.length === 3 || digits.length === 4
-      ? digits.map((d) => d * 17)
-      : [
-          digits[0] * 16 + digits[1],
-          digits[2] * 16 + digits[3],
-          digits[4] * 16 + digits[5],
-          digits[6] !== undefined ? digits[6] * 16 + digits[7] : 255,
-        ]
-  const alpha = (rgb[3] ?? 255) / 255
-  const channel = (byte) => {
-    const c = (byte / 255) * alpha + (1 - alpha)
-    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-  }
-  return 0.2126 * channel(rgb[0]) + 0.7152 * channel(rgb[1]) + 0.0722 * channel(rgb[2])
-}
-
-function themeContrastViolations(overrides) {
-  const tokens = { ...THEME_CONTRAST_DEFAULTS }
-  for (const [key, value] of Object.entries(overrides ?? {})) {
-    if (typeof value?.$value === 'string') tokens[key] = value.$value
-  }
-  const violations = []
-  for (const { fg, bg, min } of THEME_CONTRAST_PAIRS) {
-    const fgHex = tokens[fg]
-    const bgHex = tokens[bg]
-    if (!fgHex || !bgHex) continue
-    const l1 = themeLuminance(fgHex)
-    const l2 = themeLuminance(bgHex)
-    const ratio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)
-    if (ratio < min) {
-      violations.push({
-        field: `${fg}`,
-        message:
-          `${fg} (${fgHex}) on ${bg} (${bgHex}) is ${Math.round(ratio * 100) / 100}:1, ` +
-          `below the ${min}:1 WCAG AA minimum.`,
-      })
-    }
-  }
-  return violations
-}
 
 function getThemeState(req) {
   const tenantId = req?.headers?.['x-tenant-id']

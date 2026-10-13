@@ -1,4 +1,5 @@
 <script lang="ts">
+import { tick } from 'svelte'
 import {
   ApiError,
   checkSlugAvailability,
@@ -73,6 +74,21 @@ $effect(() => {
     slug = activeMembership.slug
     step = 2
   }
+})
+
+// TASK-027 wizard focus: a step change is a context change — the new
+// step's heading receives focus so keyboard position and the screen-reader
+// cursor follow the wizard. The first run consumes the initial (or
+// membership-restored) step: that is the page loading, not a navigation.
+let stepHeading: HTMLElement | undefined = $state()
+let onboardingStepSeen = false
+$effect(() => {
+  void step
+  if (!onboardingStepSeen) {
+    onboardingStepSeen = true
+    return
+  }
+  void tick().then(() => stepHeading?.focus())
 })
 
 $effect(() => {
@@ -258,7 +274,7 @@ async function handleCheckout(): Promise<void> {
     {#if step === 1}
       <div class="sanvi-onboarding__card">
         <Stack gap="5">
-          <h2>{t['admin.onboarding.step1Title']()}</h2>
+          <h2 tabindex="-1" bind:this={stepHeading}>{t['admin.onboarding.step1Title']()}</h2>
 
           <Field label={t['admin.onboarding.nameLabel']()} required>
             {#snippet children(controlProps)}
@@ -344,7 +360,7 @@ async function handleCheckout(): Promise<void> {
       <div class="sanvi-onboarding__card">
         <Stack gap="5">
           <div class="sanvi-onboarding__plan-header">
-            <h2>{t['admin.onboarding.step2Title']()}</h2>
+            <h2 tabindex="-1" bind:this={stepHeading}>{t['admin.onboarding.step2Title']()}</h2>
             {#if !activeMembership}
               <Button variant="ghost" onclick={() => { step = 1 }}>
                 {t['admin.onboarding.backButton']()}

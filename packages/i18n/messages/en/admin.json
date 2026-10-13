@@ -1756,5 +1756,6 @@
   "admin.restore.title": "Workspace restore in progress",
   "admin.restore.description": "Your workspace data is being restored. What you see may be incomplete until the restore finishes — nothing is lost. Check back shortly.",
   "admin.health.pageTitle": "Service health",
-  "admin.login.accessibility": "Accessibility"
+  "admin.login.accessibility": "Accessibility",
+  "admin.advertising.builder.errorSummaryTitle": "Fix the following errors"
 }

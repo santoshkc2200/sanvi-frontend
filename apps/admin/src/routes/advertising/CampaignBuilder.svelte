@@ -808,6 +808,7 @@ $effect(() => {
                 requiredError: t['admin.advertising.builder.requiredError'](),
                 integerError: t['admin.advertising.builder.integerError'](),
                 unavailableOptionError: t['admin.advertising.builder.unavailableOptionError'](),
+                errorSummaryTitle: t['admin.advertising.builder.errorSummaryTitle'](),
                 submitLabel: t['admin.advertising.builder.continue'](),
               }}
               formatCounter={(current, limit) => t['admin.advertising.builder.counter']({ current, limit })}

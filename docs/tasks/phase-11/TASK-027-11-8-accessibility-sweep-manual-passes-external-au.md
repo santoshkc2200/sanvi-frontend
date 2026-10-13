@@ -187,8 +187,13 @@ Branch `feat/task-027-accessibility-sweep` (commits 77aff4d, d374ad4, 9345eb7 + 
   root-caused (axe ran at `load`, before hydration on `ssr=false` routes — the runner now waits for
   networkidle plus the TASK-023 async-state markers to settle), and the sweep is **authenticated**:
   SPAs boot against `scripts/lib/spa-mock-api.mjs` (route-mock port of their e2e backends; route
-  registration order matters — the fallback registers first) and the storefront's self-service
-  forms render against `scripts/lib/kratos-mock.mjs` on the preview's `PUBLIC_KRATOS_ORIGIN`.
+  registration order matters — the fallback registers first; the sweep identity holds every route
+  guard's permission and an aal2 session, so guarded routes render their content rather than the
+  denied/step-up view) and the storefront's self-service forms render against
+  `scripts/lib/kratos-mock.mjs` on the preview's `PUBLIC_KRATOS_ORIGIN`. Honest limit, stated:
+  only the boot endpoints are mocked — each route's own data loads render the designed async
+  error/empty states, so the sweep covers real chrome + navigation + the async-state surfaces, not
+  every screen's populated success state (that depth is the per-spec e2e suites' job).
   Final sweep: **90 routes × 2 locales × 2 themes = 360 pages, 0 critical, 0 serious, full
   coverage, no errors** (moderates fell 394 → 16 via the real findings: missing `<main>` landmarks
   in both SvelteKit apps, duplicate `<header>`s in checkout views, h1-less full-page states,

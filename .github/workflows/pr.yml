@@ -78,15 +78,15 @@ jobs:
           if-no-files-found: ignore
 
   benchmarks:
-    name: Perf gates (budget + Lighthouse blocking since TASK-022; axe report-only until TASK-027)
+    name: Perf gates (budget + Lighthouse blocking since TASK-022; axe TASK-027 made it blocking)
     runs-on: ubuntu-latest
     # TASK-022 flipped the bundle and Lighthouse harnesses to blocking: the
     # job fails the PR when a route fatten, an SPA-initial regression, a font
     # preload growth, or a Lighthouse cap regression lands. TASK-031's
-    # baseline-first phase is over. The axe sweep stays reporting-only —
-    # its serious-findings gate switches on in TASK-027, and the 0→12
-    # "serious" move TASK-021 attributed to sweep timing on ssr=false routes
-    # is exactly the kind of artifact a premature gate would encode.
+    # baseline-first phase is over. The axe gate is blocking as of TASK-027
+    # — whose first act was consuming TASK-021's parked sweep-timing
+    # artifact, so the 0→12 "serious" move that argued for waiting is gone
+    # rather than encoded.
     steps:
       - uses: actions/checkout@v4
 
