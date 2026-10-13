@@ -2,6 +2,7 @@
 import { untrack } from 'svelte'
 import Button from '../Button.svelte'
 import Checkbox from '../Checkbox.svelte'
+import ErrorSummary from '../ErrorSummary.svelte'
 import Field from '../Field.svelte'
 import Input from '../Input.svelte'
 import Select from '../Select.svelte'
@@ -50,6 +51,7 @@ interface Labels {
   formSubmitError?: string
   submitLabel?: string
   localeErrorSuffix?: string
+  errorSummaryTitle?: string
 }
 
 interface Props {
@@ -146,6 +148,7 @@ const COPY = {
   formSubmitError: 'Some issues could not be matched to a field:',
   submitLabel: 'Save',
   localeErrorSuffix: ' (has errors)',
+  errorSummaryTitle: 'Fix the following errors',
 }
 
 const display = $derived({
@@ -164,9 +167,18 @@ const display = $derived({
   formSubmitError: labels.formSubmitError ?? COPY.formSubmitError,
   submitLabel: labels.submitLabel ?? COPY.submitLabel,
   localeErrorSuffix: labels.localeErrorSuffix ?? COPY.localeErrorSuffix,
+  errorSummaryTitle: labels.errorSummaryTitle ?? COPY.errorSummaryTitle,
 })
 
 const schema = $derived(campaignFormSchema(matrix, cacheKey))
+
+// Control ids are per-instance-stable (so the error summary can link to
+// them) and per-instance-unique (so several platforms' forms on one page
+// never collide). The path part is sanitized for id/CSS-selector safety.
+const instanceUid = $props.id()
+function controlId(path: string): string {
+  return `${instanceUid}--${path.replace(/[^a-zA-Z0-9-]+/g, '-')}`
+}
 
 const schemaKey = $derived(schemaCacheKey(matrix, cacheKey))
 // The $effect.pre below seeds an absent draft (the unbound single-page
@@ -261,6 +273,48 @@ const targetingMessages = $derived([
   ...form.targeting.flatMap((dimension) => issueMessages(`${FIELD_PATHS.targeting}.${dimension}`)),
 ])
 
+// The error summary (TASK-027): one link per offending field, in visual
+// field order — stable across a resubmit because it derives from the same
+// rendered-field walk every time, never from arrival order of issues.
+let summary: { focusSummary(): void } | undefined = $state()
+const summaryItems = $derived.by(() => {
+  const items: { id: string; label: string; message: string }[] = []
+  const entry = (path: string, label: string, messages: string[]): void => {
+    if (messages.length === 0) return
+    items.push({ id: controlId(path), label, message: messages.join(' ') })
+  }
+  if (shows('basics')) {
+    entry(FIELD_PATHS.name, display.nameLabel, issueMessages(FIELD_PATHS.name))
+    entry(FIELD_PATHS.objective, display.objectiveLabel, issueMessages(FIELD_PATHS.objective))
+  }
+  if (shows('budget')) {
+    entry(FIELD_PATHS.budgetKind, display.budgetKindLabel, issueMessages(FIELD_PATHS.budgetKind))
+    entry(
+      FIELD_PATHS.budgetAmount,
+      display.budgetAmountLabel,
+      issueMessages(FIELD_PATHS.budgetAmount),
+    )
+  }
+  if (shows('targeting') && targetingMessages.length > 0) {
+    entry(FIELD_PATHS.targeting, display.targetingLabel, targetingMessages)
+  }
+  if (shows('texts')) {
+    const entryIndex = form.texts.findIndex((entry) => entry.locale === activeLocale)
+    if (entryIndex !== -1) {
+      for (const field of Object.keys(activeTextFields)) {
+        const path = FIELD_PATHS.textEntry(entryIndex, field)
+        entry(path, optionLabel(field), issueMessages(path))
+      }
+    }
+  }
+  return items
+})
+
+/** Moves focus to the summary — the failed-submit behavior; also exported for a caller surfacing server violations after an API submit. */
+export function focusSummary(): void {
+  summary?.focusSummary()
+}
+
 function clientMessage(issue: FormIssue): string {
   switch (issue.code) {
     case 'required':
@@ -303,7 +357,12 @@ function handleSubmit(event: SubmitEvent): void {
     issues = issues.filter((issue) => owned.has(issue.path))
   }
   clientIssues = issues
-  if (issues.length === 0) onSubmit?.(form)
+  if (issues.length === 0) {
+    onSubmit?.(form)
+  } else {
+    // Failed submit moves focus to the summary, not silently nowhere.
+    focusSummary()
+  }
 }
 
 function budgetMinimum(): number | undefined {
@@ -313,6 +372,8 @@ function budgetMinimum(): number | undefined {
 </script>
 
 <form class="sanvi-capability-form {className}" onsubmit={handleSubmit}>
+  <ErrorSummary items={summaryItems} title={display.errorSummaryTitle} bind:this={summary} />
+
   {#if formLevelMessages.length > 0}
     <div class="sanvi-capability-form__form-level" role="alert">
       <p>{display.formSubmitError}</p>
@@ -328,6 +389,7 @@ function budgetMinimum(): number | undefined {
     <Field
       label={display.nameLabel}
       required
+      id={controlId(FIELD_PATHS.name)}
       error={issueMessages(FIELD_PATHS.name).join(' ') || undefined}
     >
       {#snippet children(control)}
@@ -346,6 +408,7 @@ function budgetMinimum(): number | undefined {
     <Field
       label={display.objectiveLabel}
       required
+      id={controlId(FIELD_PATHS.objective)}
       error={issueMessages(FIELD_PATHS.objective).join(' ') || undefined}
     >
       {#snippet children(control)}
@@ -371,6 +434,7 @@ function budgetMinimum(): number | undefined {
     <Field
       label={display.budgetKindLabel}
       required
+      id={controlId(FIELD_PATHS.budgetKind)}
       error={issueMessages(FIELD_PATHS.budgetKind).join(' ') || undefined}
     >
     {#snippet children(control)}
@@ -394,6 +458,7 @@ function budgetMinimum(): number | undefined {
   <Field
     label={display.budgetAmountLabel}
     required
+    id={controlId(FIELD_PATHS.budgetAmount)}
     hint={(() => {
       const minimum = budgetMinimum()
       return minimum === undefined ? undefined : formatMinimumHint(minimum)
@@ -419,8 +484,10 @@ function budgetMinimum(): number | undefined {
   {#if schema.targetingOptions.length > 0}
     <fieldset
       class="sanvi-capability-form__group"
+      id={controlId(FIELD_PATHS.targeting)}
+      tabindex="-1"
       aria-describedby={
-        targetingMessages.length > 0 ? 'sanvi-capability-form--targeting-error' : undefined
+        targetingMessages.length > 0 ? controlId(FIELD_PATHS.targeting) + '--error' : undefined
       }
     >
       <legend class="sanvi-capability-form__legend">{display.targetingLabel}</legend>
@@ -438,7 +505,7 @@ function budgetMinimum(): number | undefined {
       </div>
       {#if targetingMessages.length > 0}
         <p
-          id="sanvi-capability-form--targeting-error"
+          id={controlId(FIELD_PATHS.targeting) + '--error'}
           class="sanvi-capability-form__group-error"
           role="alert"
         >
@@ -478,6 +545,7 @@ function budgetMinimum(): number | undefined {
         {@const path = FIELD_PATHS.textEntry(entryIndex, field)}
         <Field
           label={optionLabel(field)}
+          id={controlId(path)}
           hint={formatCounter(codePointLength(textValue(entryIndex, field)), limit)}
           error={issueMessages(path).join(' ') || undefined}
         >

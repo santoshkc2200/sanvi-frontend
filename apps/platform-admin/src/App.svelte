@@ -1,4 +1,5 @@
 <script lang="ts">
+import { tick } from 'svelte'
 import { requireAal2 } from '@sanvi/auth'
 import { listImpersonations } from '@sanvi/api-client'
 import { currentLocale, localeOptions, onLocaleChange, setLocale, t } from '@sanvi/i18n'
@@ -230,7 +231,31 @@ async function switchLocale(code: string): Promise<void> {
   await setLocale(code)
 }
 onLocaleChange(() => clearCache())
+
+// TASK-027 route announcements: the SPAs have no SvelteKit announcer, so a
+// screen reader never learns a navigation happened. On every route change
+// after the first, the new page's title (already localized per route via
+// `svelte:head`) is announced assertively and focus moves to the shell's
+// main region — the standard SPA pattern. The first render announces
+// nothing: the page itself is the initial load, not a navigation.
+let routeAnnouncement = $state('')
+let routeSeen = false
+$effect(() => {
+  void router.pathname
+  if (!routeSeen) {
+    routeSeen = true
+    return
+  }
+  void tick().then(() => {
+    routeAnnouncement = document.title
+    document.getElementById('main-content')?.focus()
+  })
+})
 </script>
+
+<!-- Assertive: a navigation is a context change the user must hear about
+     now, not whenever the queue gets to it. -->
+<p class="sanvi-route-announcer" role="status" aria-live="assertive">{routeAnnouncement}</p>
 
 {#if activeImpersonations.length > 0}
   <div class="sanvi-impersonation-banner" role="status">
@@ -325,5 +350,21 @@ onLocaleChange(() => clearCache())
   .sanvi-impersonation-banner a {
     color: inherit;
     text-decoration: underline;
+  }
+</style>
+
+<style>
+  /* Visually hidden route announcer (TASK-027): present for assistive tech
+     only, never focusable, never layout-affecting. */
+  .sanvi-route-announcer {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
   }
 </style>

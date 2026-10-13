@@ -39,13 +39,13 @@ const COPY = {
 
 <Container size="md" padding="6">
   {#if showBillingLink}
-    <EmptyState title={COPY.title[reason]} description={COPY.description[reason]}>
+    <EmptyState title={COPY.title[reason]} description={COPY.description[reason]} titleTag="h1">
       {#snippet action()}
         <a class="sanvi-suspended-tenant-notice__billing-link" href={billingHref}>{COPY.billingLink}</a>
       {/snippet}
     </EmptyState>
   {:else}
-    <EmptyState title={COPY.title[reason]} description={COPY.description[reason]} />
+    <EmptyState title={COPY.title[reason]} description={COPY.description[reason]} titleTag="h1" />
   {/if}
   <ErrorDiagnostics {traceLine} {diagnosticsText} {copyLabel} {copiedLabel} />
 </Container>

@@ -69,7 +69,7 @@ let {
   <div data-async-state="error">
     <Container size="md" padding="6">
       {#if retryLabel && onRetry}
-        <EmptyState {title} {description}>
+        <EmptyState {title} {description} titleTag="h1">
           {#snippet action()}
             <div class="sanvi-error-view__actions">
               <button type="button" class="sanvi-error-view__retry" onclick={onRetry}>
@@ -82,7 +82,7 @@ let {
           {/snippet}
         </EmptyState>
       {:else}
-        <EmptyState {title} {description} />
+        <EmptyState {title} {description} titleTag="h1" />
       {/if}
       {#if statusHref && statusLinkLabel && !(retryLabel && onRetry)}
         <p class="sanvi-error-view__status-line">

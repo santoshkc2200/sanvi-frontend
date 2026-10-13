@@ -5,4 +5,9 @@
 // `__APP_BUILD__` defines the SvelteKit apps use.
 </script>
 
+<svelte:head>
+  <title>{t['admin.health.pageTitle']()}</title>
+</svelte:head>
+
+<h1>{t['admin.health.pageTitle']()}</h1>
 <pre>{JSON.stringify({ status: 'ok', version: __APP_VERSION__, build: __APP_BUILD__ }, null, 2)}</pre>

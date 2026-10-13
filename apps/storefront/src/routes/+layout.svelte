@@ -249,6 +249,7 @@ const footerSlot = $derived(layoutTree.slots.find((s) => s.name === 'footer'))
   <EmptyState
     title={t['storefront.maintenance.title']()}
     description={t['storefront.maintenance.description']()}
+    titleTag="h1"
   />
 {:else if lockedReason}
   <SuspendedTenantNotice reason={lockedReason} />
@@ -260,6 +261,7 @@ const footerSlot = $derived(layoutTree.slots.find((s) => s.name === 'footer'))
     <EmptyState
       title={t['errors.outage.title']()}
       description={t['errors.outage.description']()}
+      titleTag="h1"
     >
       {#snippet action()}
         <a class="sanvi-outage__retry" href={page.url.pathname}>{t['common.retry']()}</a>
@@ -285,7 +287,14 @@ const footerSlot = $derived(layoutTree.slots.find((s) => s.name === 'footer'))
     {/each}
   {/if}
 
-  {@render children()}
+  <!-- TASK-027: the storefront's main landmark and its skip link. The SPAs
+       get both from AppShell; SvelteKit's own announcer covers route
+       changes, but without a main landmark every page's content sat outside
+       any landmark (axe `region`/`landmark-one-main`). -->
+  <a class="sanvi-skip-link" href="#main-content">{t['common.a11y.skipToContent']()}</a>
+  <main id="main-content">
+    {@render children()}
+  </main>
 
   {#if view?.showOptIn || view?.showNotice}
     <!-- The banner floats over the page bottom; this keeps page content
@@ -378,6 +387,24 @@ const footerSlot = $derived(layoutTree.slots.find((s) => s.name === 'footer'))
      (no unsafe-inline) would block as a style-src-attr violation. */
   :global(.sanvi-app-body) {
     display: contents;
+  }
+
+  .sanvi-skip-link {
+    position: absolute;
+    inset-inline-start: var(--sanvi-spacing-2);
+    inset-block-start: calc(-1 * var(--sanvi-spacing-12));
+    z-index: var(--sanvi-z-index-toast);
+    padding: var(--sanvi-spacing-2) var(--sanvi-spacing-4);
+    border-radius: var(--sanvi-radius-md);
+    background: var(--sanvi-color-background-primary);
+    color: var(--sanvi-color-text-primary);
+    font-weight: var(--sanvi-font-weight-medium);
+  }
+  /* Off-screen until focused, then visible where it is — the standard
+     visible-on-focus skip link, never display:none (which would make it
+     unfocusable). */
+  .sanvi-skip-link:focus {
+    inset-block-start: var(--sanvi-spacing-2);
   }
 
   .sanvi-consent-spacer {

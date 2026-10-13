@@ -278,7 +278,8 @@ export {
   PLATFORM_OVERLOADED_PROBLEM_TYPE,
   TimeoutError,
 } from './problem'
-export type { FailureKind } from './problem'
+export type { FailureKind, FieldIssue, ProblemDetails } from './problem'
+export { fieldIssuesOf } from './problem'
 export { createKeepalivePoster } from './beacon'
 export type { KeepalivePoster, KeepalivePosterOptions } from './beacon'
 export {

@@ -50,7 +50,9 @@
     "axe": {
       "profile": "midrange-android",
       "locales": ["en", "ja"],
-      "localesNote": "SvelteKit apps via the /{locale} URL prefix; SPAs via the sanvi_locale cookie set before navigation."
+      "localesNote": "SvelteKit apps via the /{locale} URL prefix; SPAs via the sanvi_locale cookie set before navigation.",
+      "themes": ["light", "dark"],
+      "themesNote": "Dark = colorScheme emulation plus a data-theme=dark init script, covering both dark mechanisms: design-tokens' [data-theme=\"dark\"] selectors and tenant-theme css_vars' prefers-color-scheme split. Testing the default token set proves nothing about tenant themes — the published-theme population is gated separately by check:contrast --themes=published (TASK-027 step 6)."
     }
   }
 }

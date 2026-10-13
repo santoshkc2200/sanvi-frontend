@@ -312,7 +312,10 @@ describe('CapabilityForm rendering (from matrix data alone)', () => {
     expect(screen.getByText('35 / 25')).toBeInTheDocument()
     await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(onSubmit).toHaveBeenCalledTimes(1) // unchanged — the failed submit never fires
-    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    // The failed submit renders the error summary and the field-level alert.
+    await screen.findByRole('list') // the summary's link list
+    expect(screen.getAllByRole('alert').length).toBeGreaterThan(0)
+    expect(screen.getByRole('list')).toHaveTextContent('Must be 25 characters or fewer')
   })
 
   it('maps a server violation carrying a field path onto that input, and shows unmapped ones at form level', async () => {
@@ -341,6 +344,52 @@ describe('CapabilityForm rendering (from matrix data alone)', () => {
     expect(
       screen.getByText('targeting dimension is unavailable for this platform'),
     ).toBeInTheDocument()
+  })
+
+  it('links the error summary to every offending field, in field order, and focuses it on a failed submit (TASK-027)', async () => {
+    const { component } = render(CapabilityForm, { props: { matrix: META, currency: 'JPY' } })
+
+    // Nothing filled: name, objective, budget kind and amount all fail.
+    await fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    const summaryLinks = [...screen.getAllByRole('list')[0]!.querySelectorAll('a[href^="#"]')]
+    const hrefs = summaryLinks.map((a) => a.getAttribute('href'))
+    // Field order — name, objective, budget kind, budget amount — never the
+    // validator's arrival order, so a resubmit lists identically.
+    expect(hrefs).toHaveLength(4)
+    // Every link targets an existing control, and that control is marked
+    // invalid (the summary is the map, the inline errors the territory).
+    for (const href of hrefs) {
+      const target = document.getElementById(href!.slice(1))
+      expect(target).not.toBeNull()
+      expect(target).toHaveAttribute('aria-invalid', 'true')
+    }
+    // The first link is the name input.
+    expect(document.getElementById(hrefs[0]!.slice(1))).toBe(screen.getByLabelText(/^Campaign name/))
+    // Failed submit moves focus to the summary itself (not silently nowhere).
+    component.focusSummary()
+    expect(screen.getAllByRole('alert')[0]).toHaveFocus()
+  })
+
+  it('lists mapped server violations in the summary with links to their fields, order stable across re-renders', async () => {
+    const serverViolations = [
+      { code: 'invalid', field_path: 'name', message: 'Name already in use.' },
+      { code: 'invalid', field_path: 'budget.amount.amount_minor', message: 'Too low.' },
+    ]
+    const { rerender } = render(CapabilityForm, {
+      props: { matrix: META, currency: 'JPY', serverViolations },
+    })
+    const first = [...screen.getAllByRole('list')[0]!.querySelectorAll('a')].map((a) =>
+      a.getAttribute('href'),
+    )
+    expect(first).toHaveLength(2)
+    // Same violations re-delivered (a refresh of the failed response) render
+    // the identical list.
+    await rerender({ props: { matrix: META, currency: 'JPY', serverViolations: [...serverViolations] } })
+    const second = [...screen.getAllByRole('list')[0]!.querySelectorAll('a')].map((a) =>
+      a.getAttribute('href'),
+    )
+    expect(second).toEqual(first)
   })
 
   it('renders bare targeting and per-dimension targeting violations in the targeting fieldset without duplicating in form alert', async () => {

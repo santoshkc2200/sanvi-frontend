@@ -89,6 +89,7 @@ export {
 } from './DomainRecordTable.svelte'
 export { default as Drawer } from './Drawer.svelte'
 export { default as EmptyState } from './EmptyState.svelte'
+export { default as ErrorSummary } from './ErrorSummary.svelte'
 export { default as ErrorView } from './ErrorView.svelte'
 export { default as ErrorDiagnostics } from './errors/ErrorDiagnostics.svelte'
 export { default as AsyncBoundary } from './errors/AsyncBoundary.svelte'

@@ -4,5 +4,10 @@ import { Container, EmptyState } from '@sanvi/ui'
 </script>
 
 <Container size="md" padding="6">
-  <EmptyState title={t['admin.notFound.title']()} description={t['admin.notFound.description']()} />
+  <!-- A 404 is the whole page: its title is the h1 (TASK-027). -->
+  <EmptyState
+    title={t['admin.notFound.title']()}
+    description={t['admin.notFound.description']()}
+    titleTag="h1"
+  />
 </Container>

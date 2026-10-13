@@ -1754,5 +1754,6 @@
   "admin.systemBanner.degraded.description": "Affected: {checks}. Actions that need a degraded dependency may fail — nothing is applied twice, so retrying is safe.",
   "admin.systemBanner.statusLink": "View status page",
   "admin.restore.title": "Workspace restore in progress",
-  "admin.restore.description": "Your workspace data is being restored. What you see may be incomplete until the restore finishes — nothing is lost. Check back shortly."
+  "admin.restore.description": "Your workspace data is being restored. What you see may be incomplete until the restore finishes — nothing is lost. Check back shortly.",
+  "admin.health.pageTitle": "Service health"
 }

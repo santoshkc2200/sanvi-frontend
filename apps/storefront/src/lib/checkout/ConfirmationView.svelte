@@ -30,7 +30,7 @@ const returnHomeHref = $derived(localePath('/'))
 
 <Container size="md" padding="6">
   <Stack gap="6">
-    <header class="sanvi-confirmation-header">
+    <div class="sanvi-confirmation-header">
       <div class="sanvi-confirmation-badge" role="status">
         <svg
           class="sanvi-confirmation-icon"
@@ -51,7 +51,7 @@ const returnHomeHref = $derived(localePath('/'))
       <p class="sanvi-confirmation-reference">
         {t['storefront.checkout.confirmation.orderNumber']({ reference: checkout.reference })}
       </p>
-    </header>
+    </div>
 
     <div class="sanvi-confirmation-details" role="region" aria-label={t['storefront.checkout.title']()}>
       <table class="sanvi-confirmation-table">

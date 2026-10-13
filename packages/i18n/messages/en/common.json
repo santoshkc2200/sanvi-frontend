@@ -9,5 +9,7 @@
   "common.offline.title": "You're offline",
   "common.offline.description": "Pages you've already loaded still work. Actions that need our servers won't go through until you're back online.",
   "common.stale.title": "Some content may be out of date",
-  "common.stale.description": "We're serving a cached copy while our service recovers."
+  "common.stale.description": "We're serving a cached copy while our service recovers.",
+  "common.a11y.skipToContent": "Skip to main content",
+  "common.boot.failureTitle": "Could not reach the server"
 }

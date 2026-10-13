@@ -1754,5 +1754,6 @@
   "admin.systemBanner.degraded.description": "影響範囲：{checks}。低下中の依存サービスが必要な操作は失敗する場合があります。二重に適用されることはないため、再試行は安全です。",
   "admin.systemBanner.statusLink": "ステータスページを見る",
   "admin.restore.title": "ワークスペースを復元しています",
-  "admin.restore.description": "ワークスペースのデータを復元しています。復元が終わるまで表示が不完全な場合がありますが、失われることはありません。しばらくしてからご確認ください。"
+  "admin.restore.description": "ワークスペースのデータを復元しています。復元が終わるまで表示が不完全な場合がありますが、失われることはありません。しばらくしてからご確認ください。",
+  "admin.health.pageTitle": "サービス正常性"
 }

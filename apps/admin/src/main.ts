@@ -41,11 +41,17 @@ initI18n({ acceptLanguages: typeof navigator !== 'undefined' ? [...navigator.lan
 // copy-diagnostics action is offered.
 function renderBootFailure(error: unknown): void {
   const traceId = errorTraceId(error)
-  const outage = document.createElement('div')
+  const outage = document.createElement('main')
   // The per-route outage matrix (TASK-023 step 5) reads this marker: the
   // boot failure is a terminal designed state, not an infinite spinner.
   outage.setAttribute('data-async-state', 'error')
   const children: HTMLElement[] = []
+
+  // TASK-027: the failure screen is a page like any other — it carries an
+  // h1 and the main landmark it displaces from AppShell.
+  const title = document.createElement('h1')
+  title.textContent = t['common.boot.failureTitle']()
+  children.push(title)
 
   const message = document.createElement('p')
   message.textContent = t['common.boot.failureMessage']()

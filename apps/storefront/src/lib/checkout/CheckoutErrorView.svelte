@@ -19,9 +19,9 @@ const retryHref = $derived(localePath('/checkout'))
 
 <Container size="sm" padding="6">
   <Stack gap="6">
-    <header class="sanvi-checkout-error-header">
+    <div class="sanvi-checkout-error-header">
       <h1 class="sanvi-checkout-error-title">{effectiveTitle}</h1>
-    </header>
+    </div>
 
     <Alert variant="error">
       <p>{effectiveMessage}</p>

@@ -105,7 +105,9 @@ function rowId(key: string): string {
   </ul>
 
   {#if sensitiveRows.length > 0 && sensitiveTitle}
-    <h3 class="sanvi-preferences__sensitive-title">{sensitiveTitle}</h3>
+    <!-- h2, not h3: this section sits directly under the host page's h1
+         (axe heading-order — an h3 here skipped a level). -->
+    <h2 class="sanvi-preferences__sensitive-title">{sensitiveTitle}</h2>
     <ul class="sanvi-preferences__list">
       {#each sensitiveRows as row (row.key)}
         <li class="sanvi-preferences__row">

@@ -22,7 +22,7 @@ let { title, description, statusHref, statusLinkLabel, class: className = '' }: 
 
 <div class="sanvi-restore-in-progress {className}" role="status" data-restore="in-progress">
   <Container size="md" padding="6">
-    <EmptyState {title} {description}>
+    <EmptyState {title} {description} titleTag="h1">
       {#snippet action()}
         {#if statusHref && statusLinkLabel}
           <a class="sanvi-restore-in-progress__link" href={statusHref}>{statusLinkLabel}</a>

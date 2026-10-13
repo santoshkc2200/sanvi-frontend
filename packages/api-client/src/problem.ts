@@ -14,7 +14,49 @@ export interface ProblemDetails {
   trace_id?: string
   /** Machine-readable differentiator for statuses that carry one — e.g. `423` tenant-lock reasons `"suspended" | "provisioning" | "archived" | "restoring"`. */
   reason?: string
+  /**
+   * Field-addressable validation issues (TASK-027, sanvi-backend TASK-027) —
+   * the additive RFC 9457 extension member on validation problems. Read it
+   * through {@link ApiError.fieldIssues}, which validates the shape; the raw
+   * member stays untyped here because the wire format is the backend's.
+   */
+  fields?: unknown
   [extension: string]: unknown
+}
+
+/**
+ * One field-addressed validation issue. `field` is the root-relative path to
+ * the offending request field (`ad_groups[2].ads[0].creative.id`), `message`
+ * the human-readable reason — the flat `detail` remains the request-level
+ * summary and is never a replacement for these.
+ */
+export interface FieldIssue {
+  field: string
+  message: string
+}
+
+/**
+ * Validates the wire shape of a problem's `fields` member into
+ * {@link FieldIssue}s. Malformed entries are dropped, not leaked: a surface
+ * renders this list into the DOM, so anything that is not a `{field, message}`
+ * pair of non-empty strings must never reach it. Order is preserved — the
+ * backend pins it (deterministic collection ordering, sanvi-backend
+ * TASK-027) and a summary that reshuffles between fetches breaks keyboard
+ * position and screen-reader context.
+ */
+export function fieldIssuesOf(problem: ProblemDetails | undefined): FieldIssue[] {
+  const fields = problem?.fields
+  if (!Array.isArray(fields)) return []
+  const issues: FieldIssue[] = []
+  for (const entry of fields) {
+    if (typeof entry !== 'object' || entry === null) continue
+    const field = (entry as { field?: unknown }).field
+    const message = (entry as { message?: unknown }).message
+    if (typeof field !== 'string' || field.length === 0) continue
+    if (typeof message !== 'string' || message.length === 0) continue
+    issues.push({ field, message })
+  }
+  return issues
 }
 
 /**
@@ -122,6 +164,12 @@ export class ApiError extends Error {
   readonly traceId: string | undefined
   /** `problem.reason` — e.g. a `423`'s `"suspended" | "provisioning" | "archived" | "restoring"`. */
   readonly reason: string | undefined
+  /**
+   * The problem's field-addressed validation issues, in backend order
+   * (malformed entries dropped). Empty for every non-validation failure —
+   * a form renders one summary entry per issue and links each to its input.
+   */
+  readonly fieldIssues: readonly FieldIssue[]
   /** The full problem+json body, for extension members the typed fields don't cover. */
   readonly problem: ProblemDetails | undefined
   /**
@@ -149,6 +197,7 @@ export class ApiError extends Error {
     this.requestId = requestId
     this.traceId = problem?.trace_id
     this.reason = problem?.reason
+    this.fieldIssues = fieldIssuesOf(problem)
     this.problem = problem
     this.retryAfterMs = retryAfterMs
   }

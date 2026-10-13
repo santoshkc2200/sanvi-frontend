@@ -133,9 +133,13 @@ async function handleCheckout() {
 
 <Container size="md" padding="6">
   <Stack gap="6">
-    <header class="sanvi-checkout-header">
+    <!-- A div, not <header>: the storefront layout already renders the site
+         banner (the themed header block), and a second <header> here makes
+         two banner landmarks on every checkout route (axe
+         landmark-no-duplicate-banner). -->
+    <div class="sanvi-checkout-header">
       <h1 class="sanvi-checkout-title">{t['storefront.checkout.title']()}</h1>
-    </header>
+    </div>
 
     {#if canceled}
       <Alert variant="info">

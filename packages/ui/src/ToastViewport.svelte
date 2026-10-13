@@ -1,5 +1,5 @@
 <script lang="ts">
-import { dismissToast, getToasts } from './toast.svelte'
+import { dismissToast, getToasts, pauseToast, resumeToast } from './toast.svelte'
 
 interface Props {
   dismissLabel?: string
@@ -7,32 +7,83 @@ interface Props {
 }
 
 let { dismissLabel = 'Dismiss', class: className = '' }: Props = $props()
+
+const urgent = $derived(getToasts().filter((toast) => toast.variant === 'error' || toast.variant === 'warning'))
+const calm = $derived(getToasts().filter((toast) => toast.variant === 'info' || toast.variant === 'success'))
+
+function pause(event: Event, id: string): void {
+  void event
+  pauseToast(id)
+}
+function resume(event: Event, id: string): void {
+  void event
+  resumeToast(id)
+}
 </script>
 
 <!--
-  A single region, not one live region per toast: screen readers announce
-  additions to this region as they happen, and toasts are visually and
-  structurally grouped so keyboard/AT users can find and dismiss them.
+  Two regions by urgency: errors and warnings announce assertively (a polite
+  announcement of "your save failed" arrives after the user has moved on),
+  info/success stay polite. Within a region, one live region for all toasts
+  of that urgency: screen readers announce additions as they happen, and
+  toasts are visually and structurally grouped so keyboard/AT users can find
+  and dismiss them.
 -->
-<div class="sanvi-toast-viewport {className}" aria-live="polite" aria-atomic="false">
-  {#each getToasts() as toast (toast.id)}
-    <div class="sanvi-toast sanvi-toast--{toast.variant}" role="status">
-      <div class="sanvi-toast__content">
-        <p class="sanvi-toast__title">{toast.title}</p>
-        {#if toast.description}
-          <p class="sanvi-toast__description">{toast.description}</p>
-        {/if}
-      </div>
-      <button
-        type="button"
-        class="sanvi-toast__dismiss"
-        aria-label={dismissLabel}
-        onclick={() => dismissToast(toast.id)}
+<div class="sanvi-toast-viewport {className}">
+  <div class="sanvi-toast-viewport__region" aria-live="assertive" aria-atomic="false">
+    {#each urgent as toast (toast.id)}
+      <div
+        class="sanvi-toast sanvi-toast--{toast.variant}"
+        role="alert"
+        onpointerenter={(event) => pause(event, toast.id)}
+        onpointerleave={(event) => resume(event, toast.id)}
+        onfocusin={(event) => pause(event, toast.id)}
+        onfocusout={(event) => resume(event, toast.id)}
       >
-        &times;
-      </button>
-    </div>
-  {/each}
+        <div class="sanvi-toast__content">
+          <p class="sanvi-toast__title">{toast.title}</p>
+          {#if toast.description}
+            <p class="sanvi-toast__description">{toast.description}</p>
+          {/if}
+        </div>
+        <button
+          type="button"
+          class="sanvi-toast__dismiss"
+          aria-label={dismissLabel}
+          onclick={() => dismissToast(toast.id)}
+        >
+          &times;
+        </button>
+      </div>
+    {/each}
+  </div>
+  <div class="sanvi-toast-viewport__region" aria-live="polite" aria-atomic="false">
+    {#each calm as toast (toast.id)}
+      <div
+        class="sanvi-toast sanvi-toast--{toast.variant}"
+        role="status"
+        onpointerenter={(event) => pause(event, toast.id)}
+        onpointerleave={(event) => resume(event, toast.id)}
+        onfocusin={(event) => pause(event, toast.id)}
+        onfocusout={(event) => resume(event, toast.id)}
+      >
+        <div class="sanvi-toast__content">
+          <p class="sanvi-toast__title">{toast.title}</p>
+          {#if toast.description}
+            <p class="sanvi-toast__description">{toast.description}</p>
+          {/if}
+        </div>
+        <button
+          type="button"
+          class="sanvi-toast__dismiss"
+          aria-label={dismissLabel}
+          onclick={() => dismissToast(toast.id)}
+        >
+          &times;
+        </button>
+      </div>
+    {/each}
+  </div>
 </div>
 
 <style>
@@ -45,6 +96,12 @@ let { dismissLabel = 'Dismiss', class: className = '' }: Props = $props()
     flex-direction: column;
     gap: var(--sanvi-spacing-2);
     width: min(24rem, calc(100vw - var(--sanvi-spacing-8)));
+  }
+
+  .sanvi-toast-viewport__region {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sanvi-spacing-2);
   }
 
   .sanvi-toast {

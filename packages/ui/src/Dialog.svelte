@@ -22,22 +22,46 @@ let {
 let dialogEl: HTMLDialogElement | undefined = $state()
 const uid = $props.id()
 
+// TASK-027 focus management: the invoker gets focus back on close, whatever
+// path closed the dialog (close button, Escape, backdrop, bound prop). The
+// guard keeps a removed trigger from throwing or stealing focus to a dead
+// node — focus then falls where the browser puts it, which is still better
+// than focus lost inside a closed dialog.
+let previouslyFocused: HTMLElement | null = null
+function restoreFocus(): void {
+  if (previouslyFocused?.isConnected) previouslyFocused.focus()
+  previouslyFocused = null
+}
+
 // <dialog> owns the focus trap, top-layer stacking, and Escape-to-close —
 // no hand-rolled keydown handler needed. `open` stays the source of truth
 // so a parent can close the dialog by setting a bound prop, not just by
 // clicking inside it.
 $effect(() => {
   if (!dialogEl) return
-  if (open && !dialogEl.open) dialogEl.showModal()
-  else if (!open && dialogEl.open) dialogEl.close()
+  if (open && !dialogEl.open) {
+    previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    dialogEl.showModal()
+  } else if (!open && dialogEl.open) close()
 })
 
+/** Every close path funnels here so focus restore is not browser-event-dependent. */
+function close(): void {
+  if (!dialogEl?.open) return
+  dialogEl.close()
+  restoreFocus()
+}
+
 function handleNativeClose(): void {
+  // Escape and browser-native dismissal land here; `restoreFocus` is
+  // idempotent when `close()` already ran.
   open = false
+  restoreFocus()
 }
 
 function handleBackdropClick(event: MouseEvent): void {
-  if (event.target === dialogEl) dialogEl?.close()
+  if (event.target === dialogEl) close()
 }
 </script>
 
@@ -54,7 +78,7 @@ function handleBackdropClick(event: MouseEvent): void {
       type="button"
       class="sanvi-dialog__close"
       aria-label={closeLabel}
-      onclick={() => dialogEl?.close()}
+      onclick={close}
     >
       &times;
     </button>

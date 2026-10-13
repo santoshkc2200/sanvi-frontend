@@ -60,7 +60,7 @@ function retry(reset: () => void): void {
 <svelte:boundary onerror={(error) => onError?.(error)}>
   {#snippet failed(_error: unknown, reset: () => void)}
     <div class="sanvi-async-boundary {className}" data-async-state="error">
-      <EmptyState {title} {description}>
+      <EmptyState {title} {description} titleTag="h1">
         {#snippet action()}
           {#if retryLabel}
             <button type="button" class="sanvi-async-boundary__retry" onclick={() => retry(reset)}>

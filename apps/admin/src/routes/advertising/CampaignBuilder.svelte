@@ -19,6 +19,7 @@ import type {
 } from '@sanvi/api-client'
 import { can } from '@sanvi/auth'
 import { t } from '@sanvi/i18n'
+import { tick } from 'svelte'
 import { navigate } from '@sanvi/spa-router'
 import { getActiveTenantId } from '@sanvi/tenant'
 import {
@@ -382,6 +383,20 @@ function onStepperSelect(id: string): void {
   if (target >= 0 && target < stepIndex) goBackTo(id as BuilderStepId)
 }
 
+// TASK-027 wizard focus: a step change is a context change — focus lands on
+// the new step's panel (not silently inside the button that was clicked),
+// so keyboard position and the screen-reader cursor follow the wizard.
+let stepPanel: HTMLElement | undefined = $state()
+let builderStepSeen = false
+$effect(() => {
+  void step
+  if (!builderStepSeen) {
+    builderStepSeen = true
+    return
+  }
+  void tick().then(() => stepPanel?.focus())
+})
+
 // --- Submit -----------------------------------------------------------------
 
 const reviewIssues = $derived(
@@ -680,6 +695,8 @@ $effect(() => {
           <Alert variant="error">{submitError}</Alert>
         {/if}
 
+        <!-- The panel is the step-change focus target (see the effect above). -->
+        <div class="sanvi-ad-builder__panel" tabindex="-1" bind:this={stepPanel}>
         {#if step === 'creatives'}
           <!-- Creative copy and assets live in the creative library (TASK-013);
                the contract keeps them on creatives, attached to ads per ad
@@ -842,6 +859,7 @@ $effect(() => {
             {/if}
           {/if}
         {/if}
+        </div>
 
         <Cluster gap="2" align="center">
           {#if stepIndex > 0}

@@ -6,10 +6,17 @@ interface Props {
   description?: string
   icon?: Snippet
   action?: Snippet
+  /**
+   * The title's heading level. Defaults to `h2` (a section state under the
+   * page's h1); a state that *is* the page — an error view, an outage view —
+   * passes `h1` so the page still has a level-one heading (TASK-027).
+   */
+  titleTag?: 'h1' | 'h2' | 'h3'
   class?: string
 }
 
-let { title, description, icon, action, class: className = '' }: Props = $props()
+let { title, description, icon, action, titleTag = 'h2', class: className = '' }: Props =
+  $props()
 </script>
 
 <div class="sanvi-empty-state {className}" data-async-state="empty">
@@ -18,7 +25,7 @@ let { title, description, icon, action, class: className = '' }: Props = $props(
       {@render icon()}
     </div>
   {/if}
-  <p class="sanvi-empty-state__title">{title}</p>
+  <svelte:element this={titleTag} class="sanvi-empty-state__title">{title}</svelte:element>
   {#if description}
     <p class="sanvi-empty-state__description">{description}</p>
   {/if}

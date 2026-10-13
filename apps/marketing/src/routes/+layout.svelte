@@ -64,7 +64,12 @@ const localeLinks = $derived(
   <link rel="alternate" hreflang="x-default" href="{page.url.origin}{page.url.pathname}" />
 </svelte:head>
 
-{@render children()}
+<!-- TASK-027: main landmark + skip link. Every marketing page's content sat
+     outside any landmark before this (axe `region` on all four routes). -->
+<a class="sanvi-skip-link" href="#main-content">{t['common.a11y.skipToContent']()}</a>
+<main id="main-content">
+  {@render children()}
+</main>
 
 <footer class="sanvi-marketing-footer">
   <nav aria-label={t['marketing.footer.language']()}>
@@ -84,6 +89,21 @@ const localeLinks = $derived(
      (no unsafe-inline) would block as a style-src-attr violation. */
   :global(.sanvi-app-body) {
     display: contents;
+  }
+
+  .sanvi-skip-link {
+    position: absolute;
+    inset-inline-start: var(--sanvi-spacing-2);
+    inset-block-start: calc(-1 * var(--sanvi-spacing-12));
+    z-index: var(--sanvi-z-index-toast);
+    padding: var(--sanvi-spacing-2) var(--sanvi-spacing-4);
+    border-radius: var(--sanvi-radius-md);
+    background: var(--sanvi-color-background-primary);
+    color: var(--sanvi-color-text-primary);
+    font-weight: var(--sanvi-font-weight-medium);
+  }
+  .sanvi-skip-link:focus {
+    inset-block-start: var(--sanvi-spacing-2);
   }
 
   .sanvi-marketing-footer {

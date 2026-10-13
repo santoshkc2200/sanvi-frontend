@@ -80,7 +80,9 @@ let {
       {@render breadcrumb()}
     </div>
   {/if}
-  <main id="main-content" class="sanvi-app-shell__main">
+  <!-- tabindex=-1: the SPA consumers move focus here on route changes
+       (TASK-027); the negative index keeps it out of Tab order. -->
+  <main id="main-content" class="sanvi-app-shell__main" tabindex="-1">
     {@render children()}
   </main>
 </div>
@@ -98,6 +100,12 @@ let {
   }
   .sanvi-app-shell__skip-link:focus {
     inset-block-start: var(--sanvi-spacing-2);
+  }
+
+  .sanvi-app-shell__main:focus {
+    /* Programmatic route-change focus must not draw a focus ring on the
+       whole page region — visible focus is for interactive controls. */
+    outline: none;
   }
 
   .sanvi-app-shell {

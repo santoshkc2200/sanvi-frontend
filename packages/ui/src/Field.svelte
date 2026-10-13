@@ -13,24 +13,31 @@ interface Props {
   error?: string
   required?: boolean
   class?: string
+  /**
+   * Overrides the generated control id — for a form that also renders an
+   * error summary, the summary's links must target the same id the control
+   * carries. Undefined keeps the generated unique id.
+   */
+  id?: string
   children: Snippet<[FieldControlProps]>
 }
 
-let { label, hint, error, required = false, class: className = '', children }: Props = $props()
+let { label, hint, error, required = false, class: className = '', id, children }: Props = $props()
 
 const uid = $props.id()
+const controlId = $derived(id ?? uid)
 // Only an id when the hint actually renders (below, `hint && !error`) —
 // otherwise aria-describedby points at an id that isn't in the DOM.
-const hintId = $derived(hint && !error ? `${uid}-hint` : undefined)
-const errorId = $derived(error ? `${uid}-error` : undefined)
+const hintId = $derived(hint && !error ? `${controlId}-hint` : undefined)
+const errorId = $derived(error ? `${controlId}-error` : undefined)
 const describedBy = $derived([hintId, errorId].filter(Boolean).join(' ') || undefined)
 </script>
 
 <div class="sanvi-field {className}">
-  <label class="sanvi-field__label" for={uid}>
+  <label class="sanvi-field__label" for={controlId}>
     {label}{#if required}<span aria-hidden="true"> *</span>{/if}
   </label>
-  {@render children({ id: uid, describedBy, invalid: Boolean(error) })}
+  {@render children({ id: controlId, describedBy, invalid: Boolean(error) })}
   {#if hint && !error}
     <p id={hintId} class="sanvi-field__hint">{hint}</p>
   {/if}

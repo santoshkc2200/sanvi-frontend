@@ -9,5 +9,7 @@
   "common.offline.title": "オフラインです",
   "common.offline.description": "すでに読み込まれたページは引き続き表示できます。サーバーが必要な操作は、オンラインに戻るまで実行されません。",
   "common.stale.title": "一部のコンテンツが古い可能性があります",
-  "common.stale.description": "サービスの復旧まで、キャッシュされたコピーを表示しています。"
+  "common.stale.description": "サービスの復旧まで、キャッシュされたコピーを表示しています。",
+  "common.a11y.skipToContent": "メインコンテンツへスキップ",
+  "common.boot.failureTitle": "サーバーに接続できませんでした"
 }

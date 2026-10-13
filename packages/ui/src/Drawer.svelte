@@ -23,21 +23,43 @@ let {
 let dialogEl: HTMLDialogElement | undefined = $state()
 const uid = $props.id()
 
+// TASK-027 focus management, same contract as Dialog: the invoker gets
+// focus back on close through every path, and a removed trigger never
+// throws or steals focus to a dead node.
+let previouslyFocused: HTMLElement | null = null
+function restoreFocus(): void {
+  if (previouslyFocused?.isConnected) previouslyFocused.focus()
+  previouslyFocused = null
+}
+
 // Same native-<dialog> foundation as Dialog (focus trap, top layer,
 // Escape-to-close) — only the CSS differs, from a centered card to a
 // full-height edge panel.
 $effect(() => {
   if (!dialogEl) return
-  if (open && !dialogEl.open) dialogEl.showModal()
-  else if (!open && dialogEl.open) dialogEl.close()
+  if (open && !dialogEl.open) {
+    previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    dialogEl.showModal()
+  } else if (!open && dialogEl.open) close()
 })
 
+/** Every close path funnels here so focus restore is not browser-event-dependent. */
+function close(): void {
+  if (!dialogEl?.open) return
+  dialogEl.close()
+  restoreFocus()
+}
+
 function handleNativeClose(): void {
+  // Escape and browser-native dismissal land here; `restoreFocus` is
+  // idempotent when `close()` already ran.
   open = false
+  restoreFocus()
 }
 
 function handleBackdropClick(event: MouseEvent): void {
-  if (event.target === dialogEl) dialogEl?.close()
+  if (event.target === dialogEl) close()
 }
 </script>
 
@@ -54,7 +76,7 @@ function handleBackdropClick(event: MouseEvent): void {
       type="button"
       class="sanvi-drawer__close"
       aria-label={closeLabel}
-      onclick={() => dialogEl?.close()}
+      onclick={close}
     >
       &times;
     </button>

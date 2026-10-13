@@ -1,7 +1,7 @@
 import { axe } from '@sanvi/test-config/axe'
 import { fireEvent, render, screen } from '@testing-library/svelte'
 import { tick } from 'svelte'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import ToastViewport from '../src/ToastViewport.svelte'
 import { dismissToast, getToasts, showToast } from '../src/toast.svelte'
 
@@ -45,5 +45,63 @@ describe('toast store + ToastViewport', () => {
     showToast({ title: 'Saved', variant: 'success', durationMs: 0 })
     await tick()
     expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
+describe('toast urgency + pause (TASK-027)', () => {
+  it('renders an error toast as role=alert in the assertive region, success as role=status', async () => {
+    render(ToastViewport)
+    showToast({ title: 'Save failed', variant: 'error', durationMs: 0 })
+    showToast({ title: 'Saved', variant: 'success', durationMs: 0 })
+    await tick()
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Save failed')
+    expect(screen.getByRole('status')).toHaveTextContent('Saved')
+  })
+
+  it('pauses auto-dismiss while hovered and resumes on leave', async () => {
+    vi.useFakeTimers()
+    try {
+      render(ToastViewport)
+      showToast({ title: 'Retrying', variant: 'warning', durationMs: 5_000 })
+      await tick()
+
+      const toast = screen.getByRole('alert')
+      vi.advanceTimersByTime(4_000)
+      await tick()
+      await fireEvent.pointerEnter(toast)
+      vi.advanceTimersByTime(6_000)
+      await tick()
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+      await fireEvent.pointerLeave(toast)
+      vi.advanceTimersByTime(5_000)
+      await tick()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('pauses auto-dismiss while focus is inside the toast', async () => {
+    vi.useFakeTimers()
+    try {
+      render(ToastViewport)
+      showToast({ title: 'Retrying', variant: 'warning', durationMs: 5_000 })
+      await tick()
+
+      const toast = screen.getByRole('alert')
+      vi.advanceTimersByTime(4_000)
+      await tick()
+      await fireEvent.focusIn(toast)
+      vi.advanceTimersByTime(6_000)
+      await tick()
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+      await fireEvent.focusOut(toast)
+      vi.advanceTimersByTime(5_000)
+      await tick()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
