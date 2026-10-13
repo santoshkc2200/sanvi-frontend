@@ -1,5 +1,5 @@
 import { axe } from '@sanvi/test-config/axe'
-import { fireEvent, render, screen } from '@testing-library/svelte'
+import { render, screen } from '@testing-library/svelte'
 import { createRawSnippet } from 'svelte'
 import { describe, expect, it } from 'vitest'
 import Drawer from '../src/Drawer.svelte'

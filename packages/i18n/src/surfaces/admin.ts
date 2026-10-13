@@ -18,7 +18,7 @@ import enPayments from '../../messages/en/payments.json'
  */
 export function registerAdminSurface(): void {
   registerCatalogSurface('admin', {
-    en: [enAdmin, enCommon, enConsent, enErrors, enPayments],
+    en: [enAdmin, enA11y, enCommon, enConsent, enErrors, enPayments],
     loadJa: async () =>
       (
         await Promise.all([

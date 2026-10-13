@@ -1,4 +1,5 @@
 <script lang="ts">
+import { t } from '@sanvi/i18n'
 // Static hosting has no server for a real health endpoint — this route is
 // what a synthetic monitor hits instead, importing package.json's version
 // and the FR-1103 release stamp through the same `__APP_VERSION__` /

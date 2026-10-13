@@ -265,7 +265,6 @@ export {
   searchTenantAdminViews,
   suspendTenant,
 } from './platform-admin'
-export type { ProblemDetails } from './problem'
 export {
   ApiError,
   apiErrorFromResponse,

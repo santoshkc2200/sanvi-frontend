@@ -31,7 +31,8 @@ import { IcuParseError, type PatternNode, parsePattern } from './icu'
 
 // Type-only shard imports — the complete key union at zero runtime cost.
 // `keyof (A & B)` is `keyof A | keyof B`, so the intersection unions the keys.
-type EnShards = typeof import('../messages/en/admin.json') &
+type EnShards = typeof import('../messages/en/a11y.json') &
+  typeof import('../messages/en/admin.json') &
   typeof import('../messages/en/auth.json') &
   typeof import('../messages/en/common.json') &
   typeof import('../messages/en/consent.json') &
@@ -45,7 +46,8 @@ type EnShards = typeof import('../messages/en/admin.json') &
   typeof import('../messages/en/storefront.json') &
   typeof import('../messages/en/themeblocks.json')
 
-type JaShards = typeof import('../messages/ja/admin.json') &
+type JaShards = typeof import('../messages/ja/a11y.json') &
+  typeof import('../messages/ja/admin.json') &
   typeof import('../messages/ja/auth.json') &
   typeof import('../messages/ja/common.json') &
   typeof import('../messages/ja/consent.json') &

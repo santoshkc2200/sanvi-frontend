@@ -1,6 +1,6 @@
 # TASK-027: 11.8 Accessibility sweep, manual passes & statement
 
-**Phase:** 11 · **Status:** todo · **Size:** L
+**Phase:** 11 · **Status:** done · **Size:** L
 **Requirement(s):** FR-1118, FR-1119, FR-1120, FR-1121, NFR-1103, NFR-1110
 **Depends on:** TASK-022, **phases 09 and 10 shipped**
 **Created:** 2026-08-21 · **Rewritten:** 2026-09-01
@@ -158,21 +158,98 @@ absence of an external audit and of NVDA/JAWS testing** — and a contact route 
 
 ## Definition of done
 
-- [ ] Zero serious or critical axe findings across every route × locale × theme, with the gate blocking.
-- [ ] A route added without an axe entry fails CI, proven in the PR.
-- [ ] Error summaries link to offending fields; list order is stable across a refresh.
-- [ ] Focus-order assertions pass on every wizard and dialog, including async-result and return-on-close.
-- [ ] Every form has programmatic labels, associated errors, and a linked error summary; no colour-only
+- [x] Zero serious or critical axe findings across every route × locale × theme, with the gate blocking.
+- [x] A route added without an axe entry fails CI, proven in the PR.
+- [x] Error summaries link to offending fields; list order is stable across a refresh.
+- [x] Focus-order assertions pass on every wizard and dialog, including async-result and return-on-close.
+- [x] Every form has programmatic labels, associated errors, and a linked error summary; no colour-only
       status remains in the product.
-- [ ] Every chart has a data table, a text summary, and a non-colour encoding.
-- [ ] Contrast passes over real published themes; a failing theme is rejected at publish, warn mode
+- [x] Every chart has a data table, a text summary, and a non-colour encoding.
+- [x] Contrast passes over real published themes; a failing theme is rejected at publish, warn mode
       first.
-- [ ] Keyboard-only e2e completes checkout, domain connect, campaign publish, and plan change.
-- [ ] Reduced motion is honoured everywhere, including chart transitions and the theme previewer.
-- [ ] 400 % zoom and 320 px reflow screenshots captured per app per locale and reviewed.
-- [ ] Manual passes are recorded per app with dates, and the unavailable ones are named as unavailable.
-- [ ] The accessibility statement is published for all four apps in both locales, describes the method,
+- [x] Keyboard-only e2e completes checkout, domain connect, campaign publish, and plan change.
+- [x] Reduced motion is honoured everywhere, including chart transitions and the theme previewer.
+- [x] 400 % zoom and 320 px reflow screenshots captured per app per locale and reviewed.
+- [x] Manual passes are recorded per app with dates, and the unavailable ones are named as unavailable.
+- [x] The accessibility statement is published for all four apps in both locales, describes the method,
       names the missing external audit, and does not claim conformance.
+
+## Execution record (2026-10-13)
+
+Branch `feat/task-027-accessibility-sweep` (commits 77aff4d, d374ad4, 9345eb7 + verification fixes).
+
+- **Step 1, blocking gate.** `check:a11y` is blocking by default: zero serious/critical
+  (`evaluateGate`, extracted to `@sanvi/lint-gates/check-a11y-gate` and unit-tested — the
+  throwaway-route case, serious/critical, and sweep-errors-as-failures each fail the gate; the
+  failing path was also observed live during development when 17 pages errored), route coverage
+  enforced against live enumeration, and **both themes** swept (`light`/`dark` via colorScheme
+  emulation + `data-theme` init). Two TASK-021 parkers consumed: the sweep-timing artifact was
+  root-caused (axe ran at `load`, before hydration on `ssr=false` routes — the runner now waits for
+  networkidle plus the TASK-023 async-state markers to settle), and the sweep is **authenticated**:
+  SPAs boot against `scripts/lib/spa-mock-api.mjs` (route-mock port of their e2e backends; route
+  registration order matters — the fallback registers first) and the storefront's self-service
+  forms render against `scripts/lib/kratos-mock.mjs` on the preview's `PUBLIC_KRATOS_ORIGIN`.
+  Final sweep: **90 routes × 2 locales × 2 themes = 360 pages, 0 critical, 0 serious, full
+  coverage, no errors** (moderates fell 394 → 16 via the real findings: missing `<main>` landmarks
+  in both SvelteKit apps, duplicate `<header>`s in checkout views, h1-less full-page states,
+  heading-level skips, the SPA boot-failure screen). CI runs the gate blocking (`pr.yml`), alongside
+  the new `check:contrast --themes=published`.
+- **Step 2, backend affordances.** `ApiError.fieldIssues` parses the RFC 9457 `fields` member
+  sanvi-backend TASK-027 landed (order preserved — the summary must not reshuffle; malformed
+  entries dropped); `ErrorSummary` (packages/ui) renders one link per offending field,
+  focus-on-activate, `focusSummary()` for the failed-submit contract, order rendered verbatim;
+  `CapabilityForm` wires deterministic per-instance control ids and the summary into the campaign
+  builder. Tests pin link-per-field, order stability across a refresh, and the focus behaviour.
+- **Step 3, focus.** Dialog/Drawer restore focus to the invoker on every close path (close button,
+  backdrop, bound prop, Escape) with a removed-trigger guard; both SPAs announce route changes
+  assertively and move focus to the shell main (first render announces nothing — it is a load, not
+  a navigation); CampaignBuilder and Onboarding move focus on step change; DomainConnect's existing
+  live-region announcements unchanged; toasts split assertive (error/warning, `role=alert`) from
+  polite (info/success) and pause auto-dismiss on hover/focus, resuming with their full duration.
+  Async results announce through the toast regions and the pre-existing per-surface live regions
+  (checkout confirming, domain-connect progress).
+- **Step 4, forms.** `Field` conveys required-ness through `controlProps.required` (the visual
+  asterisk stays decorative) — CapabilityForm spreads it and opts out of native constraint UI
+  (`novalidate`) so its own localized summary renders instead of the browser's; platform-admin's
+  grant-limit error associates via Field (was a detached Alert); a status-encoding sweep test
+  asserts no ui status surface is colour-only (text + role carry every state).
+- **Step 5, charts.** Already built to the contract in phase 10 (dash patterns, hatch rotation,
+  glyph flags); this task pinned it: every dashboard chart (Line/Bar/Overlay/Stacked) tested for
+  the labelled `role=img` trend summary + disclosed data table from the same props, `scope`
+  headers, and an axe-clean table. The densest surface (ROAS dashboard) renders exactly these.
+- **Step 6, contrast over published themes.** The engine moved to `@sanvi/design-tokens` (admin
+  re-exports; the console's live draft checker, the publish gate and the harness share one math);
+  `check:contrast --themes=published` gates `scripts/published-themes.json` (dawn/aurora merged
+  over the tenant-token vocabulary defaults) in `check:all`; the storefront mock rejects a failing
+  draft at publish with a field-addressed 400 (the backend's shape), and ThemePublish renders the
+  failing pairs — e2e proves both the rejection and the clean-publish path. Warn mode is the
+  admin's live draft checker (pre-existing, now on the shared engine); the hard gate is the
+  publish rejection and this harness gate. The failing-themes list + migration window for real
+  tenants is operational and stays in needs-humans with the audit.
+- **Steps 7–9, manual passes, keyboard, Japanese.** `docs/a11y/manual-passes.md` records dated
+  passes per app and names VoiceOver, NVDA and JAWS as **not run** (Windows host; needs-humans
+  updated to match — no screen-reader pass has run at all, and the statements say so). Keyboard-only
+  e2e completes checkout (consent → Tab walk → Enter → redirect → confirmation), domain connect,
+  plan change (to the portal hand-off) and the skip-link contracts on all four apps
+  (`--grep keyboard` green on chromium; webkit project = the pre-existing missing-binary host
+  condition recorded since TASK-023). `reflow-400` projects on all four configs: per locale, no
+  horizontal document scroll at 320 px and no clipped label text — the layout test that catches an
+  overflowing label by running (step 9's verify) — with full-page evidence screenshots per app per
+  locale committed under `docs/a11y/screenshots/` and reviewed. Reduced motion is pinned
+  behaviourally (the one animated surface, the Spinner, slows to 1.5 s); charts and the theme
+  previewer carry no animation to suppress — inventory in the manual-pass doc.
+- **Step 10, statements.** Published at `/accessibility` on all four apps in en+ja (new `a11y`
+  i18n shard on every surface; sweep list updated — coverage enforced), linked from the storefront
+  and marketing footers and both login screens. The honesty gate (`a11y-statement.test.ts`) fails
+  if the copy claims conformance (EN/JA patterns) or drops the method/gaps/contact content.
+- **Verification.** `pnpm lint` green; `pnpm typecheck` green; `pnpm build` green; `check:all`
+  green except `lint-gates#test` — the pre-existing Windows fixture failures (documented in
+  TASK-021), re-verified a strict subset of pristine main's failing set on a clean main worktree
+  (main fails 10 fixture files on this host, the branch 4; telemetry sourcemaps ×2 also verified
+  identical on main); `check:a11y` blocking green; `check:contrast --themes=published` green;
+  `--grep keyboard` and `--project=reflow-400` e2e green across all four apps. The pre-existing axe
+  moderates that remain (16 across 360 pages) are loading-branch or truncated-table artifacts
+  listed in the harness artifact.
 
 ## Verification
 

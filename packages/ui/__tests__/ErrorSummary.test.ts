@@ -1,7 +1,6 @@
 import { axe } from '@sanvi/test-config/axe'
 import { fireEvent, render, screen } from '@testing-library/svelte'
 import { describe, expect, it } from 'vitest'
-import ErrorSummary from '../src/ErrorSummary.svelte'
 import ErrorSummaryHost from './fixtures/ErrorSummaryHost.svelte'
 
 const ITEMS = [
