@@ -842,14 +842,22 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
         {t['platform.tenantDetail.enabledLabel']()}
       </Checkbox>
       {#if grantTarget?.kind === 'quota'}
-        <Field label={t['platform.tenantDetail.limitLabel']()}>
-          {#snippet children({ id })}
-            <Input {id} type="text" bind:value={grantLimit} placeholder={t['platform.tenantDetail.limitPlaceholder']()} />
+        <!-- The error passes through Field, not a detached Alert: it must
+             associate with the input (aria-describedby + aria-invalid) and
+             announce once, not float unassociated above it (TASK-027). -->
+        <Field
+          label={t['platform.tenantDetail.limitLabel']()}
+          error={grantLimitInvalid ? t['platform.tenantDetail.limitInvalid']() : undefined}
+        >
+          {#snippet children(controlProps)}
+            <Input
+              {...controlProps}
+              type="text"
+              bind:value={grantLimit}
+              placeholder={t['platform.tenantDetail.limitPlaceholder']()}
+            />
           {/snippet}
         </Field>
-        {#if grantLimitInvalid}
-          <Alert variant="error">{t['platform.tenantDetail.limitInvalid']()}</Alert>
-        {/if}
       {/if}
       <Field label={t['platform.tenantDetail.expiresAtLabel']()}>
         {#snippet children({ id })}

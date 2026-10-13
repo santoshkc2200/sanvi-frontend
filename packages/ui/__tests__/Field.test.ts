@@ -38,3 +38,18 @@ describe('Field + Input', () => {
     expect(await axe(container)).toHaveNoViolations()
   })
 })
+
+describe('Field required-ness (TASK-027)', () => {
+  it('conveys required-ness programmatically, not only via the visible asterisk', () => {
+    render(FieldWithInput, { props: { label: 'Organization name', required: true } })
+    const input = screen.getByLabelText(/Organization name/)
+    expect(input).toBeRequired()
+    // The asterisk is decorative only.
+    expect(input.closest('.sanvi-field')?.textContent).toContain('*')
+  })
+
+  it('marks no control required when the Field is not', () => {
+    render(FieldWithInput, { props: { label: 'Nickname' } })
+    expect(screen.getByLabelText(/Nickname/)).not.toBeRequired()
+  })
+})

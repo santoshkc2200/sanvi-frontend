@@ -371,7 +371,11 @@ function budgetMinimum(): number | undefined {
 }
 </script>
 
-<form class="sanvi-capability-form {className}" onsubmit={handleSubmit}>
+<!-- novalidate: the form presents its own localized errors (summary +
+     field alerts); native constraint UI would intercept the submit before
+     this handler runs and speak the browser's language, not the UI's. The
+     required attributes keep their programmatic semantics. -->
+<form class="sanvi-capability-form {className}" novalidate onsubmit={handleSubmit}>
   <ErrorSummary items={summaryItems} title={display.errorSummaryTitle} bind:this={summary} />
 
   {#if formLevelMessages.length > 0}
@@ -401,6 +405,7 @@ function budgetMinimum(): number | undefined {
           }}
           invalid={control.invalid}
           describedBy={control.describedBy}
+          required={control.required}
         />
       {/snippet}
     </Field>
@@ -425,6 +430,7 @@ function budgetMinimum(): number | undefined {
           }}
           invalid={control.invalid}
           describedBy={control.describedBy}
+          required={control.required}
         />
       {/snippet}
     </Field>
@@ -451,6 +457,7 @@ function budgetMinimum(): number | undefined {
         }}
         invalid={control.invalid}
         describedBy={control.describedBy}
+        required={control.required}
       />
     {/snippet}
   </Field>
@@ -475,6 +482,7 @@ function budgetMinimum(): number | undefined {
         }}
         invalid={control.invalid}
         describedBy={control.describedBy}
+        required={control.required}
       />
     {/snippet}
   </Field>

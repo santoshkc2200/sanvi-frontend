@@ -102,9 +102,19 @@ describe('Theme Publish and Rollback Route Component', () => {
           return Promise.resolve(
             jsonResponse(
               {
+                type: 'https://sanvi.app/problems/theme/contrast',
                 title: 'Contrast failure',
                 detail: 'Contrast ratio 2.1:1 below 4.5:1',
                 status: 400,
+                // Field-addressed rejections (TASK-027): each failing pair,
+                // in the backend's order.
+                fields: [
+                  {
+                    field: 'color.text.secondary',
+                    message:
+                      'color.text.secondary on color.background.primary is 2.1:1, below the 4.5:1 minimum.',
+                  },
+                ],
               },
               400,
             ),
@@ -121,6 +131,9 @@ describe('Theme Publish and Rollback Route Component', () => {
     expect(
       await screen.findByText(/Cannot publish: color contrast requirements not met/i),
     ).toBeInTheDocument()
+    // The failing pairs travel the field-addressed `fields` member and are
+    // rendered so the operator knows what to fix (TASK-027 step 6).
+    expect(await screen.findByText(/2\.1:1, below the 4\.5:1 minimum/)).toBeInTheDocument()
   })
 
   it('surfaces 409 rollback failure when no prior revision exists', async () => {

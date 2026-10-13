@@ -5,6 +5,12 @@ export interface FieldControlProps {
   id: string
   describedBy: string | undefined
   invalid: boolean
+  /**
+   * Mirrors the Field's `required` so controls can spread it onto the
+   * native element — required-ness is conveyed programmatically, never by
+   * the visual asterisk alone (TASK-027).
+   */
+  required: boolean
 }
 
 interface Props {
@@ -37,7 +43,7 @@ const describedBy = $derived([hintId, errorId].filter(Boolean).join(' ') || unde
   <label class="sanvi-field__label" for={controlId}>
     {label}{#if required}<span aria-hidden="true"> *</span>{/if}
   </label>
-  {@render children({ id: controlId, describedBy, invalid: Boolean(error) })}
+  {@render children({ id: controlId, describedBy, invalid: Boolean(error), required })}
   {#if hint && !error}
     <p id={hintId} class="sanvi-field__hint">{hint}</p>
   {/if}

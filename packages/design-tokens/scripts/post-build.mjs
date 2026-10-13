@@ -40,6 +40,18 @@ export async function postBuild() {
     console.warn('⚠️ No src/theme.css found — skipping tailwind-theme copy.')
   }
 
+  // ─── Contrast engine (TASK-027) ────────────
+  // Hand-written source riding the same build: copied into dist/ts before
+  // tsc, so `@sanvi/design-tokens` ships the one contrast engine the draft
+  // checker, the publish gate, and `check:contrast` all import.
+  const contrastSrc = path.join(ROOT, 'src', 'contrast.ts')
+  if (exists(contrastSrc)) {
+    write(path.join(TS_DIR, 'contrast.ts'), read(contrastSrc))
+    console.log('✓ dist/ts/contrast.ts staged')
+  } else {
+    console.warn('⚠️ No src/contrast.ts found — skipping contrast engine copy.')
+  }
+
   // ─── Locale layer (phase 06) ────────────
 
   const localeSrc = path.join(ROOT, 'src/locale.css')
@@ -94,6 +106,12 @@ export async function postBuild() {
   const indexContent = [
     '/** Auto-generated. Do not edit. */',
     '',
+    ...(exists(path.join(TS_DIR, 'contrast.ts'))
+      ? [
+          `export { checkContrast, contrastRatio, parseHexColor, relativeLuminance, CONTRAST_PAIRS } from './contrast.js';`,
+          `export type { ContrastViolation, ContrastPairConfig } from './contrast.js';`,
+        ]
+      : []),
     ...modules.flatMap((name) => {
       const pascal = name.charAt(0).toUpperCase() + name.slice(1)
       return [

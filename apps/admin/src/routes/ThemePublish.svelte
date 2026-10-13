@@ -25,6 +25,7 @@ let loading = $state(true)
 let error = $state<string | undefined>(undefined)
 
 let publishing = $state(false)
+let contrastIssues = $state<{ field: string; message: string }[]>([])
 let rollingBack = $state(false)
 let showRollbackConfirm = $state(false)
 
@@ -62,6 +63,7 @@ const hasChanges = $derived(
 async function handlePublish(): Promise<void> {
   publishing = true
   error = undefined
+  contrastIssues = []
 
   try {
     const updated = await publishTenantTheme(apiClient)
@@ -77,6 +79,9 @@ async function handlePublish(): Promise<void> {
     })
   } catch (err: unknown) {
     if (err instanceof ApiError && err.status === 400) {
+      // The rejection names the failing pairs (field-addressed `fields` on
+      // the problem) — render them so "what do I fix" needs no guessing.
+      contrastIssues = [...err.fieldIssues]
       error = t['admin.theme.publish.publishContrastError']()
     } else {
       error = err instanceof Error ? err.message : t['admin.theme.gallery.error']()
@@ -127,7 +132,16 @@ async function handleRollback(): Promise<void> {
       <p class="sanvi-publish-desc">{t['admin.theme.publish.description']()}</p>
 
       {#if error}
-        <Alert variant="error">{error}</Alert>
+        <Alert variant="error">
+          {error}
+          {#if contrastIssues.length > 0}
+            <ul class="sanvi-publish-contrast-issues">
+              {#each contrastIssues as issue (issue.field + issue.message)}
+                <li>{issue.message}</li>
+              {/each}
+            </ul>
+          {/if}
+        </Alert>
       {/if}
 
       {#if loading}
@@ -255,5 +269,10 @@ async function handleRollback(): Promise<void> {
     margin: 0;
     padding-left: var(--sanvi-spacing-6);
     color: var(--sanvi-color-text-primary);
+  }
+
+  .sanvi-publish-contrast-issues {
+    margin: var(--sanvi-spacing-2) 0 0;
+    padding-inline-start: var(--sanvi-spacing-5);
   }
 </style>

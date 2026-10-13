@@ -24,6 +24,55 @@ const SERIES = [
   { key: 'revenue', label: 'Revenue', values: [0, 350, 150] },
 ]
 
+describe('chart accessible alternatives (TASK-027 step 5)', () => {
+  // The screen-reader contract every dashboard chart carries: the SVG is a
+  // labelled image whose name is the trend summary, and a disclosed data
+  // table built from the same props is the full alternative. If a chart
+  // loses either half, this fails — no colour or visual inspection involved.
+  const CHARTS = [
+    ['LineChart', LineChart],
+    ['BarChart', BarChart],
+    ['OverlayChart', OverlayChart],
+    ['StackedBarChart', StackedBarChart],
+  ] as const
+
+  it.each(CHARTS)('%s exposes a text summary and a data-table alternative', async (_name, Chart) => {
+    // OverlayChart takes one bar base plus line overlays; the rest take a
+    // series list — same accessibility contract, different data shape.
+    const props =
+      Chart === OverlayChart
+        ? {
+            categories: CATEGORIES,
+            barSeries: SERIES[0],
+            lineSeries: [SERIES[1]!],
+            labels: frameLabels,
+          }
+        : { categories: CATEGORIES, series: SERIES, labels: frameLabels }
+    const { container } = render(Chart, { props })
+    const svg = container.querySelector('svg[role="img"]')
+    expect(svg).not.toBeNull()
+    expect(svg).toHaveAccessibleName(frameLabels.summary!)
+
+    const disclosure = container.querySelector('details > summary')
+    expect(disclosure).toHaveTextContent('View as data table')
+    const table = container.querySelector('details table')
+    expect(table).not.toBeNull()
+    expect(table?.querySelector('caption')).toHaveTextContent('Spend by day')
+    // Headers carry scope so the table reads as a grid, not a text dump.
+    for (const th of table?.querySelectorAll('th[scope]') ?? []) {
+      expect(th.getAttribute('scope')).toBeTruthy()
+    }
+  })
+
+  it('the data-table alternative itself has no axe violations', async () => {
+    const { container } = render(LineChart, {
+      props: { categories: CATEGORIES, series: SERIES, labels: frameLabels },
+    })
+    container.querySelector('details')?.setAttribute('open', '')
+    expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
 describe('LineChart', () => {
   it('renders legend entries and thinned axis labels from the data', () => {
     render(LineChart, { props: { categories: CATEGORIES, series: SERIES, labels: frameLabels } })

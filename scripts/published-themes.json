@@ -1,0 +1,26 @@
+{
+  "_readme": "The published tenant-theme population (TASK-027 step 6). Contrast is gated against the themes real tenants run, never just the default token set: testing defaults proves nothing about the population that matters. Each theme is an override layer over the tenant-token vocabulary below — the same defaults the admin theme editor seeds and the backend resolves against. Mirrored from the storefront mock's served themes and the visual-matrix theme set; a theme added to the platform must be added here, because `pnpm check:contrast --themes=published` is only as real as this list.",
+  "defaultTokens": {
+    "color.brand.primary": "#2563eb",
+    "color.brand.hover": "#1d4ed8",
+    "color.brand.contrast": "#ffffff",
+    "color.text.primary": "#1a1d23",
+    "color.text.secondary": "#4a505c",
+    "color.text.inverse": "#ffffff",
+    "color.background.primary": "#ffffff",
+    "color.background.inverse": "#1a1d23",
+    "color.focus.ring": "#1d4ed8"
+  },
+  "themes": [
+    {
+      "key": "dawn",
+      "note": "The storefront mock's served live theme.",
+      "overrides": { "color.brand.primary": "#0066cc" }
+    },
+    {
+      "key": "aurora",
+      "note": "The visual-matrix theme set's second published theme.",
+      "overrides": { "color.brand.primary": "#7c3aed" }
+    }
+  ]
+}
