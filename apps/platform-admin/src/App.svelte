@@ -52,6 +52,14 @@ const routes: RouteDefinition[] = [
     load: () => import('./routes/TenantDetail.svelte'),
   },
   {
+    // TASK-028: the offboarding console — start, monitor, the verified
+    // export's evidence, and the purge step gated behind a typed confirmation
+    // naming the tenant.
+    path: 'tenants/:id/offboarding',
+    guard: (params) => requireAal2(router)(params),
+    load: () => import('./routes/tenants/offboarding/TenantOffboarding.svelte'),
+  },
+  {
     path: 'features',
     guard: (params) => requireAal2(router)(params),
     load: () => import('./routes/Features.svelte'),

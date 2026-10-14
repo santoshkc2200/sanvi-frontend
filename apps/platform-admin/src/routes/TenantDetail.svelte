@@ -783,6 +783,20 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
               <Button variant="danger" onclick={openArchive}>{t['platform.tenantDetail.archive']()}</Button>
             </Stack>
           {/if}
+          <!-- TASK-028: the exit door. Offboarding starts from the documented
+               exit state (suspended or archived); the console explains the
+               gate itself, so the link stays reachable from every state. -->
+          <Stack gap="2">
+            <h3>{t['platform.offboarding.title']()}</h3>
+            <p>{t['platform.tenantDetail.offboardingIntro']()}</p>
+            <a
+              class="sanvi-tenant-detail__offboarding-link"
+              href="/tenants/{id}/offboarding"
+              onclick={(event) => handleLinkClick(event, `/tenants/${id}/offboarding`)}
+            >
+              {t['platform.offboarding.openCta']()}
+            </a>
+          </Stack>
         </Stack>
       {/if}
       {/if}
@@ -959,6 +973,13 @@ async function handleRevokeSubscriptionOverride(): Promise<void> {
 </Dialog>
 
 <style>
+  .sanvi-tenant-detail__offboarding-link {
+    color: var(--sanvi-color-text-primary);
+    font-weight: var(--sanvi-font-weight-medium);
+    text-decoration: underline;
+    text-underline-offset: var(--sanvi-spacing-1);
+  }
+
   .sanvi-tenant-detail__sub-card {
     padding: var(--sanvi-spacing-6);
     border-radius: var(--sanvi-radius-lg);
