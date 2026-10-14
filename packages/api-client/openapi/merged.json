@@ -4779,6 +4779,73 @@
         "enum": ["authority", "consumer", "tenant"],
         "type": "string"
       },
+      "OffboardingExportEvidence": {
+        "properties": {
+          "checksum": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": ["path", "checksum"],
+        "type": "object"
+      },
+      "OffboardingSnapshot": {
+        "description": "The operator-facing snapshot of one offboarding request (TASK-028,\nFR-1131). Mirrors the tenancy record without leaking the tenancy\ndomain into this context; the composition adapter maps between them.",
+        "properties": {
+          "completed_at": {
+            "format": "date-time",
+            "type": ["string", "null"]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "error": {
+            "type": ["string", "null"]
+          },
+          "export": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OffboardingExportEvidence",
+                "description": "Present once the export verified: the artifact path and\nwhole-archive checksum the purge step required."
+              }
+            ]
+          },
+          "id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "purge_report": {
+            "description": "The purge report: removed per context, lawfully retained with\nreason and retention end date."
+          },
+          "status": {
+            "description": "pending | exporting | exported | purging | purged | failed.",
+            "type": "string"
+          },
+          "tenant_id": {
+            "examples": ["873698342314721281"],
+            "format": "snowflake-id",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": ["id", "tenant_id", "idempotency_key", "status", "created_at", "updated_at"],
+        "type": "object"
+      },
       "OrderView": {
         "properties": {
           "auto_renew": {
@@ -6341,6 +6408,17 @@
           }
         },
         "required": ["name", "content_type"],
+        "type": "object"
+      },
+      "RequestOffboardingBody": {
+        "description": "The request body for starting an offboarding (TASK-028, FR-1131).",
+        "properties": {
+          "idempotency_key": {
+            "description": "Idempotency key: the same `(tenant, key)` returns the existing\nrequest instead of forking the record.",
+            "type": "string"
+          }
+        },
+        "required": ["idempotency_key"],
         "type": "object"
       },
       "RequestOperatorView": {
@@ -9088,7 +9166,7 @@
             "description": "Permission denied"
           }
         },
-        "summary": "`GET /api/v1/platform/admin/tenants` — operator tenant search.",
+        "summary": "`GET /api/v1/platform/admin/tenants` — operator tenant search.\nOrdered by created_at DESC, id DESC.",
         "tags": ["platform_admin"]
       }
     },
@@ -9246,7 +9324,7 @@
             "description": "Statement timeout — the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/platform/approvals` — pending four-eyes requests.",
+        "summary": "`GET /api/v1/platform/approvals` — pending four-eyes requests.\nOrdered by id ASC.",
         "tags": ["platform_admin"]
       }
     },
@@ -9378,7 +9456,7 @@
     },
     "/api/v1/platform/audit": {
       "get": {
-        "description": "Supports filters (`tenant_id`, `actor_id`, `action`, `since`, `until`)\nand cursor pagination (`after` = the `seq` of the last entry of the\nprevious page).",
+        "description": "Supports filters (`tenant_id`, `actor_id`, `action`, `since`, `until`)\nand cursor pagination (`after` = the `seq` of the last entry of the\nprevious page).\nOrdered by seq DESC.",
         "operationId": "list_audit",
         "parameters": [
           {
@@ -9489,6 +9567,16 @@
             },
             "description": "Missing platform.audit.read"
           },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The requested window overlaps archived storage (reason: archived-range); restore it first"
+          },
           "504": {
             "content": {
               "application/problem+json": {
@@ -9576,7 +9664,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/platform/domains`.",
+        "summary": "`GET /api/v1/platform/domains`.\nOrdered by id DESC.",
         "tags": ["domains"]
       }
     },
@@ -9925,7 +10013,7 @@
             "description": "Statement timeout — the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/platform/impersonations` — active grants.",
+        "summary": "`GET /api/v1/platform/impersonations` — active grants.\nOrdered by id DESC.",
         "tags": ["platform_admin"]
       },
       "post": {
@@ -10497,7 +10585,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/appeals` — open appeals.",
+        "summary": "`GET /api/v1/platform/privacy/appeals` — open appeals.\nOrdered by id ASC.",
         "tags": ["privacy"]
       }
     },
@@ -10627,7 +10715,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/assessments` — risk assessments (DPIA +\nUS state data-protection assessments).",
+        "summary": "`GET /api/v1/platform/privacy/assessments` — risk assessments (DPIA +\nUS state data-protection assessments).\nOrdered by id DESC.",
         "tags": ["privacy"]
       },
       "post": {
@@ -10731,7 +10819,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/holds` — legal holds.",
+        "summary": "`GET /api/v1/platform/privacy/holds` — legal holds.\nOrdered by id DESC.",
         "tags": ["privacy"]
       },
       "post": {
@@ -10861,7 +10949,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/incidents` — breach incidents.",
+        "summary": "`GET /api/v1/platform/privacy/incidents` — breach incidents.\nOrdered by id DESC.",
         "tags": ["privacy"]
       },
       "post": {
@@ -11013,7 +11101,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/incidents/{id}/obligations` — computed\nobligations.",
+        "summary": "`GET /api/v1/platform/privacy/incidents/{id}/obligations` — computed\nobligations.\nOrdered by id DESC.",
         "tags": ["privacy"]
       }
     },
@@ -11141,7 +11229,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/platform/privacy/requests` — operator view.",
+        "summary": "`GET /api/v1/platform/privacy/requests` — operator view.\nOrdered by id DESC.",
         "tags": ["privacy"]
       }
     },
@@ -11433,7 +11521,7 @@
             "description": "Statement timeout — the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/platform/tenants` — list tenants (cursor pagination).",
+        "summary": "`GET /api/v1/platform/tenants` — list tenants (cursor pagination).\nOrdered by created_at DESC, id DESC.",
         "tags": ["tenancy"]
       },
       "post": {
@@ -11963,6 +12051,131 @@
         "tags": ["platform_admin"]
       }
     },
+    "/api/v1/platform/tenants/{id}/offboarding": {
+      "get": {
+        "operationId": "get_offboarding",
+        "parameters": [
+          {
+            "description": "Tenant id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "examples": ["873698342314721281"],
+              "format": "snowflake-id",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OffboardingSnapshot"
+                }
+              }
+            },
+            "description": "The tenant's latest offboarding record"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Tenant not found or no offboarding recorded"
+          }
+        },
+        "summary": "`GET /api/v1/platform/tenants/{id}/offboarding` — the tenant's\noffboarding status: the record, the export evidence once verified,\nand the purge report once purged (TASK-028, FR-1131).",
+        "tags": ["platform_admin"]
+      },
+      "post": {
+        "description": "This creates the durable offboarding record; the export and the\npurge are executed by the operator through the CLI `offboard`\ncommand, which advances this record through a verified-export gate\nand a typed confirmation naming the tenant — the replacement for the\ntwo-person confirmation. Idempotent by `(tenant, idempotency_key)`:\na replay answers the existing request.",
+        "operationId": "request_offboarding",
+        "parameters": [
+          {
+            "description": "Tenant id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "examples": ["873698342314721281"],
+              "format": "snowflake-id",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestOffboardingBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OffboardingSnapshot"
+                }
+              }
+            },
+            "description": "The offboarding record (created now, or the existing one for a repeated key)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Permission denied or fresh MFA missing"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Tenant not found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Tenant is not suspended or archived (offboarding starts from the documented exit state)"
+          }
+        },
+        "summary": "`POST /api/v1/platform/tenants/{id}/offboarding` — record the\nexport-then-purge request (TASK-028, FR-1131).",
+        "tags": ["platform_admin"]
+      }
+    },
     "/api/v1/platform/tenants/{id}/resume": {
       "post": {
         "operationId": "resume_tenant",
@@ -12360,7 +12573,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/platform/themes/{key}/versions`.",
+        "summary": "`GET /api/v1/platform/themes/{key}/versions`.\nOrdered by published_at DESC, id DESC.",
         "tags": ["theming"]
       }
     },
@@ -13378,6 +13591,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
+        "summary": "Ordered by id DESC.",
         "tags": ["advertising"]
       },
       "post": {
@@ -13568,6 +13782,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
+        "summary": "Ordered by id DESC.",
         "tags": ["advertising"]
       }
     },
@@ -13690,6 +13905,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
+        "summary": "Ordered by id DESC.",
         "tags": ["advertising"]
       },
       "put": {
@@ -13820,6 +14036,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
+        "summary": "Ordered by created_at DESC, id DESC.",
         "tags": ["advertising"]
       },
       "post": {
@@ -14775,6 +14992,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
+        "summary": "Ordered by id DESC.",
         "tags": ["advertising"]
       }
     },
@@ -15640,6 +15858,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
+        "summary": "Ordered by id DESC.",
         "tags": ["advertising"]
       }
     },
@@ -15827,6 +16046,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
+        "summary": "Ordered by id DESC.",
         "tags": ["advertising"]
       },
       "post": {
@@ -16473,7 +16693,7 @@
         "operationId": "get_tracking_site_key",
         "parameters": [
           {
-            "description": "Storefront origin to mint the site key for (must match the `Origin`\nheader the pixel will later post with, e.g.\n`https://shop.example.com`).",
+            "description": "Storefront origin to mint the site key for (must match the `Origin`\nheader the pixel will later post with, e.g.\n`https://shop.example.com`). Parsed inside the handler (not via\n`web::Query`): extraction failures race the async authorization\nextractors and can answer 400 for a caller who was never\nauthorized to learn anything (idor sweep finding).",
             "in": "query",
             "name": "origin",
             "required": true,
@@ -16689,7 +16909,7 @@
             "description": "Statement timeout — the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/tenant/billing/invoices` — the tenant's invoices.",
+        "summary": "`GET /api/v1/tenant/billing/invoices` — the tenant's invoices.\nOrdered by id DESC.",
         "tags": ["billing"]
       }
     },
@@ -17073,7 +17293,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/tenant/domains`.",
+        "summary": "`GET /api/v1/tenant/domains`.\nOrdered by id DESC.",
         "tags": ["domains"]
       },
       "post": {
@@ -17197,7 +17417,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/tenant/domains/orders`.",
+        "summary": "`GET /api/v1/tenant/domains/orders`.\nOrdered by id DESC.",
         "tags": ["domains"]
       },
       "post": {
@@ -17647,7 +17867,7 @@
             "description": "Statement timeout — the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/tenant/invitations` — pending and accepted invitations.",
+        "summary": "`GET /api/v1/tenant/invitations` — pending and accepted invitations.\nOrdered by id DESC.",
         "tags": ["identity"]
       },
       "post": {
@@ -18378,7 +18598,7 @@
             "description": "Statement timeout — the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/tenant/members` — the tenant's members.",
+        "summary": "`GET /api/v1/tenant/members` — the tenant's members.\nOrdered by created_at ASC, user_id ASC.",
         "tags": ["identity"]
       },
       "post": {
@@ -18672,7 +18892,7 @@
             "description": "Statement timeout — the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/tenant/payments` — every documented filter combinable,\ncursor-paginated, tenant-scoped by RLS and indexed for the filter set.",
+        "summary": "`GET /api/v1/tenant/payments` — every documented filter combinable,\ncursor-paginated, tenant-scoped by RLS and indexed for the filter set.\nOrdered by created_at DESC, id DESC.",
         "tags": ["payments"]
       }
     },
@@ -19131,7 +19351,7 @@
             "description": "Statement timeout — the request exceeded its budget"
           }
         },
-        "summary": "`GET /api/v1/tenant/payments/disputes` — disputes for this tenant,\ncursor-paginated.",
+        "summary": "`GET /api/v1/tenant/payments/disputes` — disputes for this tenant,\ncursor-paginated.\nOrdered by created_at DESC, id DESC.",
         "tags": ["payments"]
       }
     },
@@ -19631,6 +19851,7 @@
             "description": "Statement timeout - the request exceeded its budget"
           }
         },
+        "summary": "Ordered by id DESC.",
         "tags": ["privacy"]
       },
       "post": {

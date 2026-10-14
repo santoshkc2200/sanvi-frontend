@@ -12,6 +12,13 @@ export {
   updateRole,
 } from './access'
 export { approveRequest, listPendingApprovals, rejectRequest } from './approvals'
+export {
+  ARCHIVED_RANGE_REASON,
+  isArchivedRange,
+  rangedRead,
+  type ArchivedRangeInfo,
+  type RangedResult,
+} from './archived-range'
 export { listAudit } from './audit'
 export {
   createAdConnection,
@@ -265,6 +272,21 @@ export {
   searchTenantAdminViews,
   suspendTenant,
 } from './platform-admin'
+export { getOffboarding, purgeReportOf, requestOffboarding } from './offboarding'
+export type {
+  OffboardingExportEvidence,
+  OffboardingStatus,
+  PurgeReport,
+  PurgeReportRetainedClass,
+} from './offboarding'
+export {
+  getRetentionReport,
+  parseRetentionReport,
+  RETENTION_REPORT_PATH,
+  type RetentionClassReport,
+  type RetentionLastRun,
+  type RetentionReport,
+} from './retention'
 export {
   ApiError,
   apiErrorFromResponse,

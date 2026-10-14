@@ -129,7 +129,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/platform/admin/tenants` — operator tenant search. */
+    /**
+     * `GET /api/v1/platform/admin/tenants` — operator tenant search.
+     *     Ordered by created_at DESC, id DESC.
+     */
     get: operations['search_tenant_admin_views']
     put?: never
     post?: never
@@ -179,7 +182,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/platform/approvals` — pending four-eyes requests. */
+    /**
+     * `GET /api/v1/platform/approvals` — pending four-eyes requests.
+     *     Ordered by id ASC.
+     */
     get: operations['list_pending_approvals']
     put?: never
     post?: never
@@ -238,6 +244,7 @@ export interface paths {
      * @description Supports filters (`tenant_id`, `actor_id`, `action`, `since`, `until`)
      *     and cursor pagination (`after` = the `seq` of the last entry of the
      *     previous page).
+     *     Ordered by seq DESC.
      */
     get: operations['list_audit']
     put?: never
@@ -255,7 +262,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/platform/domains`. */
+    /**
+     * `GET /api/v1/platform/domains`.
+     *     Ordered by id DESC.
+     */
     get: operations['list_platform_domains']
     put?: never
     post?: never
@@ -328,7 +338,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/platform/impersonations` — active grants. */
+    /**
+     * `GET /api/v1/platform/impersonations` — active grants.
+     *     Ordered by id DESC.
+     */
     get: operations['list_impersonations']
     put?: never
     /**
@@ -485,7 +498,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/platform/privacy/appeals` — open appeals. */
+    /**
+     * `GET /api/v1/platform/privacy/appeals` — open appeals.
+     *     Ordered by id ASC.
+     */
     get: operations['list_appeals']
     put?: never
     post?: never
@@ -525,6 +541,7 @@ export interface paths {
     /**
      * `GET /api/v1/platform/privacy/assessments` — risk assessments (DPIA +
      *     US state data-protection assessments).
+     *     Ordered by id DESC.
      */
     get: operations['list_assessments']
     put?: never
@@ -543,7 +560,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/platform/privacy/holds` — legal holds. */
+    /**
+     * `GET /api/v1/platform/privacy/holds` — legal holds.
+     *     Ordered by id DESC.
+     */
     get: operations['list_holds']
     put?: never
     /**
@@ -581,7 +601,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/platform/privacy/incidents` — breach incidents. */
+    /**
+     * `GET /api/v1/platform/privacy/incidents` — breach incidents.
+     *     Ordered by id DESC.
+     */
     get: operations['list_incidents']
     put?: never
     /**
@@ -625,6 +648,7 @@ export interface paths {
     /**
      * `GET /api/v1/platform/privacy/incidents/{id}/obligations` — computed
      *     obligations.
+     *     Ordered by id DESC.
      */
     get: operations['list_obligations']
     put?: never
@@ -663,7 +687,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/platform/privacy/requests` — operator view. */
+    /**
+     * `GET /api/v1/platform/privacy/requests` — operator view.
+     *     Ordered by id DESC.
+     */
     get: operations['list_dsrs']
     put?: never
     post?: never
@@ -799,7 +826,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/platform/tenants` — list tenants (cursor pagination). */
+    /**
+     * `GET /api/v1/platform/tenants` — list tenants (cursor pagination).
+     *     Ordered by created_at DESC, id DESC.
+     */
     get: operations['list_tenants']
     put?: never
     /** `POST /api/v1/platform/tenants` — provision a new tenant. */
@@ -937,6 +967,37 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/v1/platform/tenants/{id}/offboarding': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * `GET /api/v1/platform/tenants/{id}/offboarding` — the tenant's
+     *     offboarding status: the record, the export evidence once verified,
+     *     and the purge report once purged (TASK-028, FR-1131).
+     */
+    get: operations['get_offboarding']
+    put?: never
+    /**
+     * `POST /api/v1/platform/tenants/{id}/offboarding` — record the
+     *     export-then-purge request (TASK-028, FR-1131).
+     * @description This creates the durable offboarding record; the export and the
+     *     purge are executed by the operator through the CLI `offboard`
+     *     command, which advances this record through a verified-export gate
+     *     and a typed confirmation naming the tenant — the replacement for the
+     *     two-person confirmation. Idempotent by `(tenant, idempotency_key)`:
+     *     a replay answers the existing request.
+     */
+    post: operations['request_offboarding']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/v1/platform/tenants/{id}/resume': {
     parameters: {
       query?: never
@@ -1021,7 +1082,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/platform/themes/{key}/versions`. */
+    /**
+     * `GET /api/v1/platform/themes/{key}/versions`.
+     *     Ordered by published_at DESC, id DESC.
+     */
     get: operations['list_platform_theme_versions']
     put?: never
     post?: never
@@ -1614,6 +1678,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** Ordered by id DESC. */
     get: operations['list_audiences']
     put?: never
     post: operations['create_audience']
@@ -1646,6 +1711,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** Ordered by id DESC. */
     get: operations['get_budget_alerts']
     put?: never
     post?: never
@@ -1678,6 +1744,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** Ordered by id DESC. */
     get: operations['get_budget_caps']
     put: operations['put_budget_cap']
     post?: never
@@ -1694,6 +1761,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** Ordered by created_at DESC, id DESC. */
     get: operations['list_campaigns']
     put?: never
     post: operations['create_campaign']
@@ -1806,6 +1874,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** Ordered by id DESC. */
     get: operations['list_campaign_changes']
     put?: never
     post?: never
@@ -1991,6 +2060,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** Ordered by id DESC. */
     get: operations['list_conversions']
     put?: never
     post?: never
@@ -2039,6 +2109,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** Ordered by id DESC. */
     get: operations['list_creatives']
     put?: never
     post: operations['create_creative']
@@ -2264,7 +2335,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/tenant/billing/invoices` — the tenant's invoices. */
+    /**
+     * `GET /api/v1/tenant/billing/invoices` — the tenant's invoices.
+     *     Ordered by id DESC.
+     */
     get: operations['list_invoices']
     put?: never
     post?: never
@@ -2404,7 +2478,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/tenant/domains`. */
+    /**
+     * `GET /api/v1/tenant/domains`.
+     *     Ordered by id DESC.
+     */
     get: operations['list_custom_domains']
     put?: never
     /** `POST /api/v1/tenant/domains`. */
@@ -2422,7 +2499,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/tenant/domains/orders`. */
+    /**
+     * `GET /api/v1/tenant/domains/orders`.
+     *     Ordered by id DESC.
+     */
     get: operations['list_domain_orders']
     put?: never
     /** `POST /api/v1/tenant/domains/orders`. */
@@ -2562,7 +2642,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/tenant/invitations` — pending and accepted invitations. */
+    /**
+     * `GET /api/v1/tenant/invitations` — pending and accepted invitations.
+     *     Ordered by id DESC.
+     */
     get: operations['list_invitations']
     put?: never
     /** `POST /api/v1/tenant/invitations` — invite a member by email. */
@@ -2747,7 +2830,10 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** `GET /api/v1/tenant/members` — the tenant's members. */
+    /**
+     * `GET /api/v1/tenant/members` — the tenant's members.
+     *     Ordered by created_at ASC, user_id ASC.
+     */
     get: operations['list_members']
     put?: never
     /** `POST /api/v1/tenant/members` — grant a membership. */
@@ -2802,6 +2888,7 @@ export interface paths {
     /**
      * `GET /api/v1/tenant/payments` — every documented filter combinable,
      *     cursor-paginated, tenant-scoped by RLS and indexed for the filter set.
+     *     Ordered by created_at DESC, id DESC.
      */
     get: operations['list_tenant_payments']
     put?: never
@@ -2927,6 +3014,7 @@ export interface paths {
     /**
      * `GET /api/v1/tenant/payments/disputes` — disputes for this tenant,
      *     cursor-paginated.
+     *     Ordered by created_at DESC, id DESC.
      */
     get: operations['list_tenant_disputes']
     put?: never
@@ -3095,6 +3183,7 @@ export interface paths {
       path?: never
       cookie?: never
     }
+    /** Ordered by id DESC. */
     get: operations['list_tenant_dsrs']
     put?: never
     /**
@@ -5624,6 +5713,43 @@ export interface components {
     Objective: string
     /** @enum {string} */
     ObligationAudience: 'authority' | 'consumer' | 'tenant'
+    OffboardingExportEvidence: {
+      checksum: string
+      path: string
+    }
+    /**
+     * @description The operator-facing snapshot of one offboarding request (TASK-028,
+     *     FR-1131). Mirrors the tenancy record without leaking the tenancy
+     *     domain into this context; the composition adapter maps between them.
+     */
+    OffboardingSnapshot: {
+      /** Format: date-time */
+      completed_at?: string | null
+      /** Format: date-time */
+      created_at: string
+      error?: string | null
+      export?: null | components['schemas']['OffboardingExportEvidence']
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      id: string
+      idempotency_key: string
+      /**
+       * @description The purge report: removed per context, lawfully retained with
+       *     reason and retention end date.
+       */
+      purge_report?: unknown
+      /** @description pending | exporting | exported | purging | purged | failed. */
+      status: string
+      /**
+       * Format: snowflake-id
+       * @example 873698342314721281
+       */
+      tenant_id: string
+      /** Format: date-time */
+      updated_at: string
+    }
     OrderView: {
       auto_renew: boolean
       /** Format: date-time */
@@ -6397,6 +6523,14 @@ export interface components {
       url?: string | null
       /** Format: int64 */
       width?: number | null
+    }
+    /** @description The request body for starting an offboarding (TASK-028, FR-1131). */
+    RequestOffboardingBody: {
+      /**
+       * @description Idempotency key: the same `(tenant, key)` returns the existing
+       *     request instead of forking the record.
+       */
+      idempotency_key: string
     }
     RequestOperatorView: {
       /** Format: date-time */
@@ -8015,6 +8149,15 @@ export interface operations {
       }
       /** @description Missing platform.audit.read */
       403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description The requested window overlaps archived storage (reason: archived-range); restore it first */
+      409: {
         headers: {
           [name: string]: unknown
         }
@@ -9901,6 +10044,101 @@ export interface operations {
       }
       /** @description Permission denied or fresh MFA missing */
       403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  get_offboarding: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Tenant id */
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description The tenant's latest offboarding record */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OffboardingSnapshot']
+        }
+      }
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Tenant not found or no offboarding recorded */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetail']
+        }
+      }
+    }
+  }
+  request_offboarding: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Tenant id */
+        id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RequestOffboardingBody']
+      }
+    }
+    responses: {
+      /** @description The offboarding record (created now, or the existing one for a repeated key) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['OffboardingSnapshot']
+        }
+      }
+      /** @description Permission denied or fresh MFA missing */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Tenant not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetail']
+        }
+      }
+      /** @description Tenant is not suspended or archived (offboarding starts from the documented exit state) */
+      409: {
         headers: {
           [name: string]: unknown
         }
@@ -13367,7 +13605,10 @@ export interface operations {
         /**
          * @description Storefront origin to mint the site key for (must match the `Origin`
          *     header the pixel will later post with, e.g.
-         *     `https://shop.example.com`).
+         *     `https://shop.example.com`). Parsed inside the handler (not via
+         *     `web::Query`): extraction failures race the async authorization
+         *     extractors and can answer 400 for a caller who was never
+         *     authorized to learn anything (idor sweep finding).
          */
         origin: string
       }
