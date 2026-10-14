@@ -163,7 +163,10 @@ let {
   }
 
   .sanvi-detail-shell__tab--disabled {
-    color: var(--sanvi-color-text-disabled);
+    /* `text-disabled` clears ~2.8:1 on light — fine for genuinely inert
+       glyphs, but this label is readable content that carries the disabled
+       reason in its title, so it meets the same bar as body text. */
+    color: var(--sanvi-color-text-secondary);
     cursor: not-allowed;
   }
 

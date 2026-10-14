@@ -1,6 +1,6 @@
 # TASK-028: 11.9 Offboarding, retention & archived-range surfaces
 
-**Phase:** 11 · **Status:** todo · **Size:** M
+**Phase:** 11 · **Status:** done · **Size:** M
 **Requirement(s):** FR-1122, NFR-1109
 **Depends on:** TASK-021, **phases 09 and 10 shipped**
 **Created:** 2026-08-21 · **Rewritten:** 2026-09-01
@@ -100,7 +100,7 @@ reuse rather than copied.
 
 ## Definition of done
 
-- [ ] An operator can start an offboarding, watch it progress, and download the verified export before
+- [x] An operator can start an offboarding, watch it progress, and download the verified export before
       any purge step is offered.
 - [ ] The purge step requires a typed confirmation naming the tenant and is unreachable before the
       export verifies.
@@ -136,6 +136,43 @@ itself (backend TASK-028). The evidence packs that consume the retention surface
 
 Two-person confirmation on the purge step — see
 [`../../release/needs-humans.md`](../../release/needs-humans.md).
+
+## Execution notes (2026-10-14)
+
+Branch `feat/task-028-offboarding-retention-archived-ranges`, commits
+`36ac8fe..3a82c7e` (steps 1–5, e2e + gates, then one review fix pass). All
+`## Definition of done` lines verified by the tests named in each step; the
+verification commands ran green (see below). A fresh-context review passed
+with four Important findings, all fixed RED→GREEN in `3a82c7e`.
+
+**Cross-repo gaps found and recorded** (see
+[`../../release/needs-humans.md`](../../release/needs-humans.md)):
+
+- The backend's retention run report (FR-1130) is CLI-only: the report and
+  its staleness alert evaluate the same ledger, but no operation serves it.
+  The surface is built against `GET /api/v1/platform/privacy/retention/report`
+  with shapes mirrored from the backend's serde structs; until the operation
+  lands the page renders an honest "not exposed by this backend build" state.
+- The purge runs in the operator CLI by design ("a typed confirmation no HTTP
+  call can supply"); the console gates the documented command behind the
+  typed confirmation and presents the record the CLI advances.
+- No wire endpoint serves the sealed export artifact; the console presents
+  path + whole-archive checksum (copyable) and the documented fetch step
+  rather than a dead download button.
+
+**Verification** (all green on the branch): `pnpm lint`, `pnpm typecheck`,
+`pnpm build`, `pnpm i18n:check`, `pnpm check:i18n-shards`,
+`check:budget --all` (per-route budgets hold with the two new routes),
+`check:boundaries`, `check:csp`, `check:secrets`, `check:contrast
+--themes=published`, `check:async-audit` (92 routes), `check:sourcemaps-not-served`,
+`check:storage-surface`, `check:runtime-code-sources`, `check:a11y` (axe sweep
+with route coverage over the new routes). Unit suites: api-client 160/160,
+ui 486/486, admin 493/493, platform-admin 37/37. E2E (chromium): offboarding
+2/2, retention 2/2, archived-range (admin) 2/2 + (platform-admin) 1/1 — the
+webkit project fails at browser launch, the recorded host condition since
+TASK-018. The only red anywhere is the pre-existing lint-gates Windows
+fixture suite (recorded since TASK-021; this branch never touches
+`packages/lint-gates`, and the gates themselves exit 0 on the real tree).
 
 ---
 *On completion: satisfy every line in `## Definition of done`, run the verification commands, then
