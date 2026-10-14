@@ -56,6 +56,10 @@ interface Props {
   stalledBannerTitle?: string
   stalledBannerBody?: string
   caption?: string
+  /** The rule's day-count suffix — "d" in English, "日" in Japanese. */
+  ruleDaysSuffix?: string
+  /** The last-run rows label — composed as `{count} {label}`. */
+  lastRunRowsLabel?: string
   class?: string
 }
 
@@ -74,6 +78,8 @@ let {
   stalledBannerTitle,
   stalledBannerBody,
   caption = 'Retention status per data class',
+  ruleDaysSuffix = 'd',
+  lastRunRowsLabel = 'rows',
   class: className = '',
 }: Props = $props()
 
@@ -81,14 +87,14 @@ const stalledClasses = $derived(classes.filter((entry) => entry.stalled === true
 
 function ruleText(entry: RetentionClassRow): string {
   const basis = entry.basis ? ` (${entry.basis})` : ''
-  return `${entry.periodDays}d ${entry.action}${basis}`
+  return `${entry.periodDays}${ruleDaysSuffix} ${entry.action}${basis}`
 }
 
 function lastRunText(entry: RetentionClassRow): string {
   if (!entry.lastRun) return noRunLabel
   const at = new Date(entry.lastRun.runAt)
   const when = Number.isNaN(at.getTime()) ? entry.lastRun.runAt : at.toLocaleString()
-  return `${when} — ${entry.lastRun.rowsAffected.toLocaleString()} rows (${entry.lastRun.executor})`
+  return `${when} — ${entry.lastRun.rowsAffected.toLocaleString()} ${lastRunRowsLabel} (${entry.lastRun.executor})`
 }
 
 function oldestText(entry: RetentionClassRow): string {

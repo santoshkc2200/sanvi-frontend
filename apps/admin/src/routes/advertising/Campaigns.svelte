@@ -251,8 +251,10 @@ async function load(): Promise<void> {
           )
     } catch {
       // Metrics are supplementary to this list — a failure renders em
-      // dashes rather than failing the whole screen.
+      // dashes rather than failing the whole screen. The failure is not an
+      // archival refusal: the archived claim must not survive it.
       if (seq !== loadSeq) return
+      metricsArchived = false
       metrics = {}
     }
   }

@@ -130,6 +130,8 @@ const stalenessLabel = $derived(
         })}
         stalledBannerBody={t['platform.retention.stalledBannerBody']()}
         caption={t['platform.retention.tableCaption']()}
+        ruleDaysSuffix={t['platform.retention.ruleDaysSuffix']()}
+        lastRunRowsLabel={t['platform.retention.lastRunRowsLabel']()}
       />
     {/if}
   {/if}

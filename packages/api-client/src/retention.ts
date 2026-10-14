@@ -174,6 +174,14 @@ export function parseRetentionReport(raw: unknown): RetentionReport | undefined 
     ? wire.stalled_classes.filter(nonEmptyString)
     : []
 
+  // The per-class member and the list are the same ledger's two views. The
+  // safe direction is to flag: a class the report names as stalled must never
+  // render clean because its row disagreed.
+  const listed = new Set(stalledClasses)
+  for (const entry of classes) {
+    if (listed.has(entry.dataClass) && entry.stalled !== true) entry.stalled = true
+  }
+
   return {
     generatedAt: wire.generated_at,
     stalenessWindowHours,

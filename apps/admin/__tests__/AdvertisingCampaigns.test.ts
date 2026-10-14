@@ -520,4 +520,18 @@ describe('campaign spend columns over an archived range (TASK-028)', () => {
     expect(await screen.findByText(/cover the last 30 days/)).toBeInTheDocument()
     expect(screen.queryByText(/archived storage/)).not.toBeInTheDocument()
   })
+
+  it('a failed metrics load never claims the range is archived', async () => {
+    setEntitlements([{ feature: 'advertising.dashboard', enabled: true }])
+    setupFetch({ metricsStatus: 500 })
+    render(Campaigns)
+
+    // A 500 is retryable — the client backs off before settling into the
+    // supplementary-failure path, so the list renders late.
+    await screen.findByText('Summer sale', {}, { timeout: 10_000 })
+    // The truth is "the call failed" — dashes are fine, an archival claim is not.
+    await waitFor(() => expect(screen.queryByText(/archived storage/)).not.toBeInTheDocument(), {
+      timeout: 3000,
+    })
+  })
 })

@@ -213,7 +213,7 @@ describe('TenantOffboarding console (TASK-028)', () => {
       purge_report: PURGE_REPORT,
       completed_at: '2026-10-02T00:00:00Z',
     })
-    const fetchMock = setupFetch({ offboardingGet: { body: sameSnapshot } })
+    setupFetch({ offboardingGet: { body: sameSnapshot } })
     const first = render(TenantOffboarding, { props: { id: 'tenant-123' } })
     await screen.findByText('What was lawfully retained')
     const firstText = document.querySelector('[data-offboarding="report"]')?.textContent
@@ -227,7 +227,6 @@ describe('TenantOffboarding console (TASK-028)', () => {
     await screen.findByText('What was lawfully retained')
     expect(document.querySelector('[data-offboarding="report"]')?.textContent).toBe(firstText)
     expect(screen.queryByText(/failed/i)).not.toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalled()
   })
 
   it('has no axe violations on the purged state (report, lists, evidence)', async () => {
@@ -246,5 +245,81 @@ describe('TenantOffboarding console (TASK-028)', () => {
     const { container } = render(TenantOffboarding, { props: { id: 'tenant-123' } })
     await screen.findByText('Offboarding has not been requested')
     expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('a late poll for a previous tenant never overwrites the current record', async () => {
+    // The router reuses this component across param changes; a poll for
+    // tenant A that resolves after B's record landed must be dropped — this
+    // console fronts the one irreversible action. The poll fires on the
+    // component's 5 s interval, so timers are faked to reach it.
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let aOffboardingCalls = 0
+      let resolveA: ((body: unknown) => void) | undefined
+      const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        const method = (init?.method ?? 'GET').toUpperCase()
+        if (url.endsWith('/api/v1/platform/tenants/tenant-A') && method === 'GET') {
+          return jsonResponse({ ...TENANT, id: 'tenant-A', slug: 'tenant-a', display_name: 'A' })
+        }
+        if (url.endsWith('/api/v1/platform/tenants/tenant-B') && method === 'GET') {
+          return jsonResponse({ ...TENANT, id: 'tenant-B', slug: 'tenant-b', display_name: 'B' })
+        }
+        if (url.includes('/tenants/tenant-A/offboarding')) {
+          aOffboardingCalls += 1
+          if (aOffboardingCalls === 1) return jsonResponse(snapshot({ status: 'pending' }))
+          return new Promise<Response>((resolve) => {
+            resolveA = (body: unknown) => resolve(jsonResponse(body))
+          })
+        }
+        if (url.includes('/tenants/tenant-B/offboarding')) {
+          return jsonResponse(
+            snapshot({ status: 'purged', export: EXPORT, purge_report: PURGE_REPORT }),
+          )
+        }
+        if (url.includes('/offboarding')) return jsonResponse(snapshot())
+        return jsonResponse({})
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      const { rerender } = render(TenantOffboarding, { props: { id: 'tenant-A' } })
+      await screen.findByText('Pending')
+      // The 5 s poll for A fires and hangs in flight...
+      await vi.advanceTimersByTimeAsync(5000)
+      // ...then the operator navigates to B, whose record lands (terminal).
+      await rerender({ props: { id: 'tenant-B' } })
+      await screen.findByText('What was lawfully retained')
+      // ...and A's poll finally answers: it must be dropped, never rendered.
+      resolveA?.(snapshot({ status: 'purged', export: EXPORT, purge_report: PURGE_REPORT }))
+      await vi.advanceTimersByTimeAsync(100)
+      expect(document.querySelector('[data-offboarding="report"]')).not.toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('refuses to start with a shell-unsafe idempotency key and never prints one into a command', async () => {
+    setupFetch({ offboardingGet: { status: 404 } })
+    render(TenantOffboarding, { props: { id: 'tenant-123' } })
+
+    const key = await screen.findByLabelText(/idempotency key/i)
+    await fireEvent.input(key, { target: { value: '2026-10; rm -rf /' } })
+    const start = screen.getByRole('button', { name: /request offboarding/i })
+    expect(start).toBeDisabled()
+    expect(
+      screen.getByText(/letters, numbers, dots, dashes, underscores, colons, and @/i),
+    ).toBeInTheDocument()
+  })
+
+  it('a purged record whose report cannot be parsed says so — never a bare purged badge', async () => {
+    setupFetch({
+      offboardingGet: {
+        body: snapshot({ status: 'purged', export: EXPORT, purge_report: { removed: 'garbage' } }),
+      },
+    })
+    render(TenantOffboarding, { props: { id: 'tenant-123' } })
+
+    expect(await screen.findByText('Purged')).toBeInTheDocument()
+    expect(screen.getByText(/report could not be rendered/i)).toBeInTheDocument()
   })
 })

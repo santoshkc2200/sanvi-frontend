@@ -128,4 +128,20 @@ describe('RetentionReportView (TASK-028)', () => {
     })
     expect(await axe(container)).toHaveNoViolations()
   })
+
+  it('composes the rule and last-run fragments from injected labels — no hardcoded English', () => {
+    render(RetentionReportView, {
+      props: {
+        ruleDaysSuffix: '日',
+        lastRunRowsLabel: '行',
+        classes: [LIVE],
+      },
+    })
+    const table = screen.getByRole('table')
+    expect(table.textContent).toContain('1095日')
+    expect(table.textContent).toContain('delete')
+    expect(table.textContent).toContain('12 行')
+    expect(table.textContent).not.toContain('1095d')
+    expect(table.textContent).not.toContain('12 rows')
+  })
 })

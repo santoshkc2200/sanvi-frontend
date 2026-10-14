@@ -167,8 +167,9 @@ const PLATFORM_ROUTES = [
   ['**/api/v1/access/permissions', () => ({ json: [] })],
   // TASK-028 surfaces (the sweep probes `:id` as `probe`). The retention
   // report deliberately includes a stalled class so the sweep exercises the
-  // flagged state; the offboarding console sweeps its exported state, where
-  // the purge panel and the typed confirmation are in the DOM.
+  // flagged state; the offboarding console sweeps its terminal purged state —
+  // status, verified-export evidence, and both report lists in the DOM, and
+  // a terminal status means the console's monitor polling stops.
   [
     '**/api/v1/platform/privacy/retention/report',
     () => ({
@@ -235,11 +236,30 @@ const PLATFORM_ROUTES = [
         id: 'off-probe',
         tenant_id: 'probe',
         idempotency_key: 'sweep-probe-key',
-        status: 'exported',
+        status: 'purged',
         export: {
           path: '/var/lib/sanvi/exports/offboarding/probe.zip.sealed',
           checksum: 'sha256:sweep-probe',
         },
+        purge_report: {
+          tenant: 'probe',
+          tenant_id: 'probe',
+          request_id: 'off-probe',
+          removed: { 'advertising.metrics_daily': 400 },
+          lawfully_retained: [
+            {
+              data_class: 'invoice',
+              table: 'billing.invoices',
+              rows_retained: 5,
+              legal_basis: 'statutory retention window',
+              retention_end: '2027-10-11T00:00:00+00:00',
+            },
+          ],
+          archives_purged: 1,
+          cache_keys_deleted: 3,
+          residual_scan: 'clean',
+        },
+        completed_at: '2026-10-02T00:00:00Z',
         created_at: '2026-10-01T00:00:00Z',
         updated_at: '2026-10-01T00:01:00Z',
       },

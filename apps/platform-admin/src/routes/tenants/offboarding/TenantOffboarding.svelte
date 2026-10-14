@@ -55,6 +55,7 @@ let purgeConfirmOpen = $state(false)
 let purgeRevealed = $state(false)
 
 let loadSeq = 0
+let pollSeq = 0
 
 const TERMINAL_STATUSES = new Set(['purged', 'failed'])
 const POLL_INTERVAL_MS = 5000
@@ -128,8 +129,14 @@ $effect(() => {
 })
 
 async function refreshSnapshot(): Promise<void> {
+  const seq = ++pollSeq
+  const requestedFor = id
   try {
-    snapshot = await getOffboarding(apiClient, id)
+    const next = await getOffboarding(apiClient, requestedFor)
+    // The router reuses this component across param changes; a poll for a
+    // previous tenant — or an out-of-order overlap — must never land.
+    if (seq !== pollSeq || id !== requestedFor) return
+    snapshot = next
   } catch {
     // A missed poll keeps the last known state; the next tick retries. The
     // status footer states when it was last updated, so staleness is named.
@@ -156,7 +163,23 @@ async function start(): Promise<void> {
   }
 }
 
+// The key is operator-typed and lands verbatim in the copyable CLI command —
+// constrain it to shell-safe characters so the displayed command can never
+// carry an injection when pasted.
+const SAFE_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._@:-]*$/
+const keyValid = $derived(SAFE_TOKEN.test(idempotencyKey.trim()))
+function commandToken(value: string | undefined): string {
+  const token = value ?? ''
+  return SAFE_TOKEN.test(token) ? token : `'${token.replaceAll(`'`, `'''`)}'`
+}
+
 const report = $derived(purgeReportOf(snapshot?.purge_report))
+const reportMissing = $derived(
+  snapshot != null &&
+    snapshot.status !== undefined &&
+    (snapshot.purge_report != null || snapshot.status === 'purged') &&
+    report === undefined,
+)
 const exportEvidence = $derived(snapshot?.export ?? undefined)
 // The purge step is offered only once the export has verified: the record
 // must carry its evidence, and the purge must not already be under way or
@@ -168,10 +191,10 @@ const lifecycleGated = $derived(
   tenant != null && tenant.status !== 'suspended' && tenant.status !== 'archived',
 )
 const exportCommand = $derived(
-  `just offboard -- --tenant ${tenant?.slug ?? '<slug>'} --key ${idempotencyKey} --stage export`,
+  `just offboard -- --tenant ${commandToken(tenant?.slug)} --key ${commandToken(idempotencyKey.trim())} --stage export`,
 )
 const purgeCommand = $derived(
-  `just offboard -- --tenant ${tenant?.slug ?? '<slug>'} --key ${idempotencyKey} --stage purge --confirm "offboard ${tenant?.slug ?? '<slug>'}" --neighbour <other-tenant-slug>`,
+  `just offboard -- --tenant ${commandToken(tenant?.slug)} --key ${commandToken(idempotencyKey.trim())} --stage purge --confirm "offboard ${commandToken(tenant?.slug)}" --neighbour <other-tenant-slug>`,
 )
 
 const statusVariant = $derived.by((): 'success' | 'info' | 'warning' | 'error' => {
@@ -252,11 +275,14 @@ const completed = $derived(snapshot?.completed_at ? new Date(snapshot.completed_
               <Button
                 variant="primary"
                 loading={startSubmitting}
-                disabled={lifecycleGated || idempotencyKey.trim().length === 0}
+                disabled={lifecycleGated || !keyValid}
                 onclick={() => void start()}
               >
                 {t['platform.offboarding.startCta']()}
               </Button>
+              {#if idempotencyKey.trim().length > 0 && !keyValid}
+                <Alert variant="warning">{t['platform.offboarding.keyInvalid']()}</Alert>
+              {/if}
             </div>
           </Stack>
           </div>
@@ -417,6 +443,10 @@ const completed = $derived(snapshot?.completed_at ? new Date(snapshot.completed_
               </Stack>
             </Stack>
             </div>
+          {:else if reportMissing}
+            <Alert variant="warning" title={t['platform.offboarding.reportMissingTitle']()}>
+              {t['platform.offboarding.reportMissingBody']()}
+            </Alert>
           {/if}
         {/if}
       </Stack>

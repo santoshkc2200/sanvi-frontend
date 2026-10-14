@@ -157,3 +157,31 @@ describe('getRetentionReport', () => {
     expect(report?.classes).toHaveLength(3)
   })
 })
+
+it('a class named in stalled_classes renders stalled even when its member disagrees', () => {
+  // The per-class member and the list are the same ledger's two views; the
+  // safe direction is to flag — a stalled class must never render clean.
+  const report = parseRetentionReport({
+    generated_at: '2026-10-14T00:00:00Z',
+    staleness_window_hours: 48,
+    classes: [
+      {
+        data_class: 'invoice',
+        sensitivity: 'confidential',
+        period_days: 3650,
+        action: 'archive',
+        enforcement: 'executor:platform.archival_sweep',
+        last_run: {
+          run_at: '2026-10-13T00:00:00Z',
+          action: 'archive',
+          rows_affected: 1,
+          executor: 'platform.archival_sweep',
+        },
+        stalled: false,
+      },
+    ],
+    stalled_classes: ['invoice'],
+  })
+  expect(report?.classes[0]?.stalled).toBe(true)
+  expect(report?.stalledClasses).toEqual(['invoice'])
+})
