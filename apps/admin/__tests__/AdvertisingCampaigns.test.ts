@@ -76,6 +76,9 @@ function setupFetch(
     connections?: unknown[]
     campaigns?: unknown[]
     mutate?: (url: string, body: unknown) => Response | undefined
+    /** TASK-028: the ranged metrics read can refuse with archived-range. */
+    metricsStatus?: number
+    metricsReason?: string
   } = {},
 ): ReturnType<typeof vi.fn> {
   const connections = options.connections ?? [connection()]
@@ -92,6 +95,17 @@ function setupFetch(
     }
     if (url.endsWith('/ads/connections')) return jsonResponse({ connections })
     if (url.endsWith('/ads/campaigns')) return jsonResponse({ campaigns })
+    if (url.includes('/ads/metrics') && options.metricsStatus !== undefined) {
+      return new Response(
+        JSON.stringify({
+          type: 'about:blank',
+          title: 'Conflict',
+          status: options.metricsStatus,
+          ...(options.metricsReason ? { reason: options.metricsReason } : {}),
+        }),
+        { status: options.metricsStatus, headers: { 'content-type': 'application/problem+json' } },
+      )
+    }
     if (url.includes('/pause') || url.includes('/resume')) {
       return options.mutate?.(url, init?.body) ?? jsonResponse(campaigns[0])
     }
@@ -474,5 +488,36 @@ describe('AdvertisingCampaigns list (phase 10, TASK-012)', () => {
     const { container } = render(Campaigns)
     await screen.findByText('Summer sale')
     expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
+// TASK-028: the campaign list's spend columns read a 30-day range. When that
+// range is archived the columns show em dashes — an absence, never a zero —
+// and the list says why instead of letting the dashes read as "no spend".
+describe('campaign spend columns over an archived range (TASK-028)', () => {
+  it('names the archived range instead of letting em dashes read as no spend', async () => {
+    setEntitlements([{ feature: 'advertising.dashboard', enabled: true }])
+    setupFetch({ metricsStatus: 409, metricsReason: 'archived-range' })
+    render(Campaigns)
+
+    await screen.findByText('Summer sale')
+    expect(await screen.findByText(/archived storage/)).toBeInTheDocument()
+    // The spend cells are em dashes — never zeros.
+    const spendCells = document.querySelectorAll('td')
+    const dashCells = [...spendCells].filter((cell) => cell.textContent?.trim() === '—')
+    expect(dashCells.length).toBeGreaterThan(0)
+    expect([...spendCells].some((cell) => /^[¥$]0(\.00)?$/.test(cell.textContent ?? ''))).toBe(
+      false,
+    )
+  })
+
+  it('keeps the regular metrics note when the range is live', async () => {
+    setEntitlements([{ feature: 'advertising.dashboard', enabled: true }])
+    setupFetch()
+    render(Campaigns)
+
+    await screen.findByText('Summer sale')
+    expect(await screen.findByText(/cover the last 30 days/)).toBeInTheDocument()
+    expect(screen.queryByText(/archived storage/)).not.toBeInTheDocument()
   })
 })

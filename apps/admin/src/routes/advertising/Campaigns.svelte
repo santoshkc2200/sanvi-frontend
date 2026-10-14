@@ -7,6 +7,7 @@ import {
   listAdConnections,
   listAdPlatforms,
   pauseAdCampaign,
+  rangedRead,
   resumeAdCampaign,
 } from '@sanvi/api-client'
 import type {
@@ -89,6 +90,9 @@ let freshness = $state<ConnectionFreshnessView[]>([])
 // call fails — the cells fall back to an em dash, never a zero.
 let metricsEnabled = $state(true)
 let metrics = $state<Record<string, CampaignMetricRow>>({})
+// TASK-028: the spend columns' 30-day read can refuse with archived-range —
+// the note says so instead of letting the em dashes read as "no spend".
+let metricsArchived = $state(false)
 let explainerOpen = $state(false)
 
 let selectedIds = $state<string[]>([])
@@ -231,15 +235,20 @@ async function load(): Promise<void> {
   if (metricsEnabled) {
     const range = rangeForPreset('30d')
     try {
-      const result = await getAdMetrics(apiClient, {
-        from: range.from,
-        to: range.to,
-        groupBy: 'campaign',
-      })
-      if (seq !== loadSeq) return
-      metrics = Object.fromEntries(
-        campaignRows(result?.rows ?? []).map((row) => [row.campaignId, row]),
+      const ranged = await rangedRead(() =>
+        getAdMetrics(apiClient, {
+          from: range.from,
+          to: range.to,
+          groupBy: 'campaign',
+        }),
       )
+      if (seq !== loadSeq) return
+      metricsArchived = ranged.archived
+      metrics = ranged.archived
+        ? {}
+        : Object.fromEntries(
+            campaignRows(ranged.data.rows ?? []).map((row) => [row.campaignId, row]),
+          )
     } catch {
       // Metrics are supplementary to this list — a failure renders em
       // dashes rather than failing the whole screen.
@@ -634,9 +643,15 @@ $effect(() => {
     {:else}
       <Cluster justify="space-between" align="center" gap="4">
         {#if metricsEnabled}
-          <p class="sanvi-ad-campaigns__metrics-note">
-            {t['admin.advertising.campaigns.metricsNote']()}
-          </p>
+          {#if metricsArchived}
+            <p class="sanvi-ad-campaigns__metrics-note" role="note">
+              {t['admin.advertising.campaigns.metricsArchivedNote']()}
+            </p>
+          {:else}
+            <p class="sanvi-ad-campaigns__metrics-note">
+              {t['admin.advertising.campaigns.metricsNote']()}
+            </p>
+          {/if}
         {/if}
         <div class="sanvi-ad-campaigns__filter">
           <Field label={t['admin.advertising.campaigns.statusColumn']()}>

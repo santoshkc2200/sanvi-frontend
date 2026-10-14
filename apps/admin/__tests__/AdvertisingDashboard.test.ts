@@ -111,13 +111,32 @@ function setupFetch(handlers: {
   metricsProblem?: { status: number; detail?: string }
   /** TASK-023: metrics answered from a degraded fallback carry the header. */
   metricsDegraded?: boolean
+  /** TASK-028: per-endpoint problems, so one half of the metrics pair can refuse with archived-range. */
+  summaryProblem?: { status: number; reason?: string }
+  rowsProblem?: { status: number; reason?: string }
 }): ReturnType<typeof vi.fn> {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
     const degradedHeaders = handlers.metricsDegraded
       ? { 'x-sanvi-degraded': 'advertising-metrics' }
       : {}
+    const problemResponse = (problem: {
+      status: number
+      detail?: string
+      reason?: string
+    }): Response =>
+      new Response(
+        JSON.stringify({
+          type: 'about:blank',
+          title: 'Conflict',
+          status: problem.status,
+          ...(problem.detail ? { detail: problem.detail } : {}),
+          ...(problem.reason ? { reason: problem.reason } : {}),
+        }),
+        { status: problem.status, headers: { 'content-type': 'application/problem+json' } },
+      )
     if (url.includes('/ads/metrics/summary')) {
+      if (handlers.summaryProblem) return problemResponse(handlers.summaryProblem)
       if (handlers.metricsProblem) {
         return new Response(
           JSON.stringify({
@@ -135,8 +154,10 @@ function setupFetch(handlers: {
       return jsonResponse({ current: handlers.summary ?? [], compared: [] }, 200, degradedHeaders)
     }
     if (url.includes('/ads/metrics/freshness')) return jsonResponse(handlers.freshness ?? {})
-    if (url.includes('/ads/metrics'))
+    if (url.includes('/ads/metrics')) {
+      if (handlers.rowsProblem) return problemResponse(handlers.rowsProblem)
       return jsonResponse({ rows: handlers.metricsRows ?? [] }, 200, degradedHeaders)
+    }
     if (url.includes('/ads/platforms')) {
       return jsonResponse({
         platforms: [
@@ -345,5 +366,57 @@ describe('degraded metrics (TASK-023 — x-sanvi-degraded is surfaced, never ren
     expect(
       screen.queryByText('Some advertising metrics may be out of date'),
     ).not.toBeInTheDocument()
+  })
+})
+
+// TASK-028: a read over an archived range refuses with 409 + reason
+// `archived-range`. The dashboard must say so — an absence is never rendered
+// as a zero, an empty chart, or a spinner.
+describe('archived-range metrics (TASK-028)', () => {
+  it('a fully archived range renders the archived state naming the restore path', async () => {
+    setupFetch({
+      summaryProblem: { status: 409, reason: 'archived-range' },
+      rowsProblem: { status: 409, reason: 'archived-range' },
+    })
+    render(Dashboard)
+
+    const archived = await screen.findByText('This window is archived')
+    expect(archived).toBeInTheDocument()
+    // The restore path is named — the e2e contract marker is on the same state.
+    expect(document.querySelector('[data-archived="range"]')).not.toBeNull()
+    expect(screen.getByText(/restore/i)).toBeInTheDocument()
+    // Never an empty chart, a zero, or a spinner.
+    expect(screen.queryByText('No data in this range yet')).not.toBeInTheDocument()
+    expect(screen.queryByText('¥60,000')).not.toBeInTheDocument()
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  })
+
+  it('a partially archived range renders the live half and names the archived part', async () => {
+    setupFetch({
+      summary: [summaryRow()],
+      rowsProblem: { status: 409, reason: 'archived-range' },
+    })
+    render(Dashboard)
+
+    // The live half renders — the summary KPI tiles come from the live read.
+    expect(await screen.findByText('¥60,000')).toBeInTheDocument()
+    // The archived half is named, with the restore path — not silently dropped.
+    expect(await screen.findByText('Part of this view is archived')).toBeInTheDocument()
+    expect(screen.getByText(/restore/i)).toBeInTheDocument()
+    // No chart or breakdown renders for the archived half.
+    expect(screen.queryByText('No data in this range yet')).not.toBeInTheDocument()
+  })
+
+  it('a non-archived 409 keeps the generic error path — the guard does not over-match', async () => {
+    setupFetch({
+      summaryProblem: { status: 409 },
+      rowsProblem: { status: 409 },
+    })
+    render(Dashboard)
+
+    expect(
+      await screen.findByText('Could not load performance data. Try again in a moment.'),
+    ).toBeInTheDocument()
+    expect(document.querySelector('[data-archived="range"]')).toBeNull()
   })
 })

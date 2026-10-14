@@ -1,5 +1,5 @@
 <script lang="ts">
-import { listAudit } from '@sanvi/api-client'
+import { listAudit, rangedRead } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import { t } from '@sanvi/i18n'
 import {
@@ -11,6 +11,7 @@ import {
   createListQueryState,
   csvDocument,
   downloadCsv,
+  EmptyState,
   FilterBar,
 } from '@sanvi/ui'
 import { apiClient } from '../lib/api'
@@ -31,6 +32,11 @@ let entries = $state<components['schemas']['AuditEntry'][]>([])
 let nextCursor = $state<number | null | undefined>(undefined)
 let loading = $state(true)
 let error = $state<string | undefined>(undefined)
+// TASK-028: an audit read whose window overlaps archived storage refuses with
+// 409 `archived-range` — an unfiltered read refuses whenever any range of the
+// chain is archived. The page says so, names the restore path, and never
+// renders the refusal as "no matching audit entries".
+let archivedRange = $state(false)
 
 // Sequencing token: every filter keystroke re-runs the load effect, and a
 // slow response for an earlier query must never overwrite a later one.
@@ -40,19 +46,23 @@ async function load(): Promise<void> {
   const seq = ++loadSeq
   loading = true
   error = undefined
+  archivedRange = false
   try {
-    const page = await listAudit(apiClient, {
-      tenant_id: listState.filters.tenant_id,
-      actor_id: listState.filters.actor_id,
-      action: listState.filters.action,
-      // TASK-026: the spec takes the cursor back as a string — pass the
-      // filter's cursor text through verbatim, never parse it.
-      after: listState.cursor || undefined,
-      limit: 50,
-    })
+    const result = await rangedRead(() =>
+      listAudit(apiClient, {
+        tenant_id: listState.filters.tenant_id,
+        actor_id: listState.filters.actor_id,
+        action: listState.filters.action,
+        // TASK-026: the spec takes the cursor back as a string — pass the
+        // filter's cursor text through verbatim, never parse it.
+        after: listState.cursor || undefined,
+        limit: 50,
+      }),
+    )
     if (seq !== loadSeq) return
-    entries = page.entries
-    nextCursor = page.next_cursor
+    archivedRange = result.archived
+    entries = result.archived ? [] : result.data.entries
+    nextCursor = result.archived ? undefined : result.data.next_cursor
   } catch {
     if (seq !== loadSeq) return
     error = t['platform.audit.errorMessage']()
@@ -147,6 +157,14 @@ function exportCsv(): void {
   <Alert variant="error" title={error}>
     <Button variant="secondary" onclick={() => void load()}>{t['common.retry']()}</Button>
   </Alert>
+{:else if archivedRange}
+  <!-- TASK-028: the chain's archived ranges overlap this window. The refusal
+       is the restore path's cue, not an empty ledger. -->
+  <EmptyState
+    variant="archived"
+    title={t['platform.audit.archivedTitle']()}
+    description={t['platform.audit.archivedDescription']()}
+  />
 {:else}
   <AuditTrail entries={rows} {loading} loadingLabel={t['common.loading']()} emptyMessage={t['platform.audit.emptyMessage']()} />
 {/if}

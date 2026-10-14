@@ -218,6 +218,8 @@
   "platform.audit.previous": "Previous",
   "platform.audit.next": "Next",
   "platform.audit.emptyMessage": "No matching audit entries.",
+  "platform.audit.archivedTitle": "This window is archived",
+  "platform.audit.archivedDescription": "Audit entries for the requested window are in archived storage — they are not missing. Restore the range with the archive-restore CLI (see the archival runbook) to query it here; entries outside archived ranges still appear.",
   "platform.audit.errorMessage": "Could not load the audit log.",
   "platform.impersonation.title": "Impersonation",
   "platform.impersonation.description": "Time-boxed, audited support access into a tenant.",

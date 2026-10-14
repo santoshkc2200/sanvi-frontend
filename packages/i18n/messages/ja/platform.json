@@ -218,6 +218,8 @@
   "platform.audit.previous": "前へ",
   "platform.audit.next": "次へ",
   "platform.audit.emptyMessage": "一致する監査エントリはありません。",
+  "platform.audit.archivedTitle": "この期間はアーカイブされています",
+  "platform.audit.archivedDescription": "要求された期間の監査エントリはアーカイブStorageに保存されています（失われたわけではありません）。archive-restore CLI（アーカイブ運用手順書を参照）で範囲を復元するとここで照会できます。アーカイブ範囲外のエントリはこれまでどおり表示されます。",
   "platform.audit.errorMessage": "監査ログを読み込めませんでした。",
   "platform.impersonation.title": "なりすまし",
   "platform.impersonation.description": "テナントへの時間制限付きの監査済みサポートアクセス。",

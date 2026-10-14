@@ -13,9 +13,11 @@ import {
   getAdMetricsFreshness,
   getAdMetricsSummary,
   getAdSpendStatus,
+  isArchivedRange,
   listAdCampaigns,
   listAdConnections,
   listAdPlatforms,
+  rangedRead,
   streamAdMetricsExport,
 } from '@sanvi/api-client'
 import { can } from '@sanvi/auth'
@@ -121,6 +123,11 @@ let summaryCurrent = $state<MetricsSummaryRow[]>([])
 let summaryCompared = $state<MetricsSummaryRow[] | undefined>(undefined)
 let metricRows = $state<MetricPoint[]>([])
 let hasMetrics = $state(false)
+// TASK-028: a ranged read whose window overlaps archived storage refuses with
+// 409 `archived-range`. The half that refused is rendered as archived — never
+// as zeros, an empty chart, or a spinner — and the restore path is named.
+let summaryArchived = $state(false)
+let rowsArchived = $state(false)
 // TASK-023 (FR-1111): the backend answered metrics from a degraded fallback
 // (`x-sanvi-degraded`) — the banner above the charts names it; the figures
 // still render, labelled.
@@ -233,6 +240,8 @@ async function load(): Promise<void> {
 /** Metrics only — applying a new range refetches these, not the connections. */
 async function loadMetrics(seq: number): Promise<void> {
   rangeError = undefined
+  summaryArchived = false
+  rowsArchived = false
   // A clean response clears the flag; any degraded scope in a settled
   // response sets it — per-call callbacks, so the attribution is exact.
   metricsDegraded = false
@@ -240,22 +249,29 @@ async function loadMetrics(seq: number): Promise<void> {
     if (meta.degradedScopes.length > 0) metricsDegraded = true
   }
   const compareFrom = previousRange(activeRange)
+  // Each read is ranged: an archived-range refusal folds into its result
+  // instead of the throw path, so the archived half can render as archived
+  // while the live half keeps its data.
   const [summaryResult, rowsResult] = await Promise.allSettled([
-    getAdMetricsSummary(
-      apiClient,
-      {
-        from: activeRange.from,
-        to: activeRange.to,
-        compareTo: compareFrom.from,
-      },
-      undefined,
-      onMetricsMeta,
+    rangedRead(() =>
+      getAdMetricsSummary(
+        apiClient,
+        {
+          from: activeRange.from,
+          to: activeRange.to,
+          compareTo: compareFrom.from,
+        },
+        undefined,
+        onMetricsMeta,
+      ),
     ),
-    getAdMetrics(
-      apiClient,
-      { from: activeRange.from, to: activeRange.to, groupBy: 'campaign' },
-      undefined,
-      onMetricsMeta,
+    rangedRead(() =>
+      getAdMetrics(
+        apiClient,
+        { from: activeRange.from, to: activeRange.to, groupBy: 'campaign' },
+        undefined,
+        onMetricsMeta,
+      ),
     ),
   ])
   if (seq !== loadSeq) return
@@ -280,10 +296,14 @@ async function loadMetrics(seq: number): Promise<void> {
     return
   }
 
-  summaryCurrent = summaryResult.value?.current ?? []
-  summaryCompared = summaryResult.value?.compared ?? undefined
-  metricRows = rowsResult.value?.rows ?? []
-  hasMetrics = true
+  summaryArchived = summaryResult.value.archived
+  rowsArchived = rowsResult.value.archived
+  summaryCurrent = summaryResult.value.archived ? [] : (summaryResult.value.data.current ?? [])
+  summaryCompared = summaryResult.value.archived
+    ? undefined
+    : (summaryResult.value.data.compared ?? undefined)
+  metricRows = rowsResult.value.archived ? [] : (rowsResult.value.data.rows ?? [])
+  hasMetrics = !summaryResult.value.archived && !rowsResult.value.archived
 }
 
 function applyPreset(value: string): void {
@@ -402,8 +422,12 @@ async function exportCsv(): Promise<void> {
     // stream itself fails, and `abort()` on an errored WritableStream
     // rejects — and must never be the error that escapes an un-awaited
     // `exportCsv()` caller.
-    exportError =
-      err instanceof ApiError && err.status === 403
+    exportError = isArchivedRange(err)
+      ? t['admin.advertising.dashboard.archived.exportBlocked']({
+          from: fmt.date(`${range.from}T00:00:00`, 'short'),
+          to: fmt.date(`${range.to}T00:00:00`, 'short'),
+        })
+      : err instanceof ApiError && err.status === 403
         ? t['admin.advertising.dashboard.errors.forbidden']()
         : t['admin.advertising.dashboard.export.error']()
     await writable?.abort?.()?.catch(() => {})
@@ -438,6 +462,11 @@ const breakdown = $derived(campaignRows(metricRows))
 const freshnessView = $derived(freshnessState(freshness))
 const timezones = $derived(distinctTimezones(connections))
 const canExport = $derived(can('advertising.metrics.read', getActiveTenantId()))
+// TASK-028: both halves archived is the whole metrics area's archived state;
+// exactly one archived is the honest partial — the live half renders, the
+// archived half is named with the restore path.
+const metricsArchived = $derived(summaryArchived && rowsArchived)
+const partiallyArchived = $derived(summaryArchived !== rowsArchived)
 
 const timezoneStatement = $derived.by(() => {
   if (timezones.length === 0) return undefined
@@ -845,13 +874,38 @@ function capPeriodLabel(item: SpendStatusItem): string {
         </Alert>
       {/if}
 
-      {#if !anySpend && hasMetrics && breakdown.length === 0}
+      {#if metricsArchived}
+        <!-- TASK-028: the whole window is archived. This absence is never a
+             zero: the state names what happened and the restore path, and no
+             chart, KPI, or breakdown renders alongside it. -->
         <EmptyState
-          title={t['admin.advertising.dashboard.noSpend.title']()}
-          description={t['admin.advertising.dashboard.noSpend.description']()}
+          variant="archived"
+          title={t['admin.advertising.dashboard.archived.title']()}
+          description={t['admin.advertising.dashboard.archived.description']({
+            from: fmt.date(`${activeRange.from}T00:00:00`, 'short'),
+            to: fmt.date(`${activeRange.to}T00:00:00`, 'short'),
+          })}
         />
       {:else}
-        {#if canExport}
+        {#if partiallyArchived}
+          <!-- TASK-028: exactly one half of the metrics pair is archived —
+               the live half renders; the archived half is named, never
+               silently truncated. -->
+          <Alert variant="warning" title={t['admin.advertising.dashboard.archived.partialTitle']()}>
+            {t['admin.advertising.dashboard.archived.partialBody']({
+              from: fmt.date(`${activeRange.from}T00:00:00`, 'short'),
+              to: fmt.date(`${activeRange.to}T00:00:00`, 'short'),
+            })}
+          </Alert>
+        {/if}
+
+        {#if !anySpend && hasMetrics && breakdown.length === 0}
+          <EmptyState
+            title={t['admin.advertising.dashboard.noSpend.title']()}
+            description={t['admin.advertising.dashboard.noSpend.description']()}
+          />
+        {:else}
+        {#if canExport && !rowsArchived}
           <Cluster justify="end">
             <Button variant="secondary" loading={exporting} onclick={() => void exportCsv()}>
               {t['admin.advertising.dashboard.export.cta']()}
@@ -863,6 +917,7 @@ function capPeriodLabel(item: SpendStatusItem): string {
         {/if}
 
         <!-- KPI strips: one per currency, never summed across currencies. -->
+        {#if !summaryArchived}
         {#each kpi as group (group.currency)}
           <section>
             <h2 class="sanvi-ad-dashboard__currency-heading">
@@ -954,6 +1009,7 @@ function capPeriodLabel(item: SpendStatusItem): string {
             </div>
           </section>
         {/each}
+        {/if}
 
         <!-- Budget caps (TASK-017): progress indicators alongside the KPIs.
              The state is carried by words and the percentage — never colour
@@ -1003,7 +1059,10 @@ function capPeriodLabel(item: SpendStatusItem): string {
           </section>
         {/if}
 
-        <!-- Charts: one spend-vs-revenue overlay + one platform stack per currency. -->
+        <!-- Charts and breakdown render from the ranged rows read only: when
+             that half is archived they render nothing — never an empty chart
+             frame. -->
+        {#if !rowsArchived}
         {#each charts as chart (chart.currency)}
           {@const major = majorFormatter(chart.currency)}
           {@const dateLabels = chart.dates.map((date) => fmt.date(`${date}T00:00:00`, 'short'))}
@@ -1198,6 +1257,8 @@ function capPeriodLabel(item: SpendStatusItem): string {
             />
           {/each}
         </section>
+        {/if}
+      {/if}
       {/if}
     {/if}
   </Stack>
