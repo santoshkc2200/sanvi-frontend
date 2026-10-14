@@ -75,6 +75,13 @@ const routes: RouteDefinition[] = [
     load: () => import('./routes/Audit.svelte'),
   },
   {
+    // TASK-028: the per-class retention report — the surface TASK-029's
+    // evidence packs reuse.
+    path: 'retention',
+    guard: (params) => requireAal2(router)(params),
+    load: () => import('./routes/Retention.svelte'),
+  },
+  {
     path: 'impersonations',
     guard: (params) => requireAal2(router)(params),
     load: () => import('./routes/Impersonation.svelte'),
@@ -177,6 +184,7 @@ const NAV = $derived<{ href: string; label: string }[]>([
   { href: '/features', label: t['platform.nav.features']() },
   { href: '/roles', label: t['platform.nav.roles']() },
   { href: '/audit', label: t['platform.nav.audit']() },
+  { href: '/retention', label: t['platform.nav.retention']() },
   { href: '/impersonations', label: t['platform.nav.impersonation']() },
   { href: '/approvals', label: t['platform.nav.approvals']() },
   { href: '/privacy', label: t['platform.nav.privacy']() },

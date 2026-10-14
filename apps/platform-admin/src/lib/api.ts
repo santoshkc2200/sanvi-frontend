@@ -17,16 +17,16 @@ import { getAppEnv } from './env'
  * reserved slot), so every call carries `Accept-Language` and backend-emitted
  * strings arrive in the UI's language.
  */
-export const apiClient = createTypedApiClient(
-  createApiClient({
-    baseUrl: getAppEnv().apiOrigin,
-    // Overridable per environment (the outage e2e shortens it); unset in
-    // production, where the client's 10 s default is the decision.
-    timeoutMs: getAppEnv().apiTimeoutMs,
-    credentials: 'include',
-    locale: () => currentLocale(),
-    onUnauthorized: () => setSession(null),
-  }),
-)
+export const rawApiClient = createApiClient({
+  baseUrl: getAppEnv().apiOrigin,
+  // Overridable per environment (the outage e2e shortens it); unset in
+  // production, where the client's 10 s default is the decision.
+  timeoutMs: getAppEnv().apiTimeoutMs,
+  credentials: 'include',
+  locale: () => currentLocale(),
+  onUnauthorized: () => setSession(null),
+})
+
+export const apiClient = createTypedApiClient(rawApiClient)
 
 export const kratosClient = createKratosClient(getAppEnv().kratosOrigin)
