@@ -115,6 +115,10 @@ offline renders the offline banner (`common.offline.*`).
 ### `/verification`
 - L ✓ (flow load) · E n/a · X ✓ (load throws → `+error.svelte`; submit catch → Alert) · S ✓ · T ✓
 
+
+### `/accessibility`
+- Statement page (TASK-027), static: no fetch in any app. L n/a · E n/a · X n/a · S ✓ · T n/a
+
 ---
 
 ## marketing
@@ -136,6 +140,10 @@ every page normally. `/pricing` falls back to `DEFAULT_PLANS` at build time.
 ### `/status`
 - L ✓ (build-time SSR → prerendered last-known states) · E ✓ (empty incident history → labelled-empty) · X ✓ (build-time API failure → `readiness: null` fallback, never a build error; runtime poll failure → `unknown` state with last-known checks, never a crash) · S ✓ · T ✓ (30 s client poll; no timeout spinner — the page always shows *something*)
 - degraded-ok: with the API down the page renders `unknown` with the hosting-limitation notice; live readiness refreshes it to `operational`/`degraded` without a reload.
+
+
+### `/accessibility`
+- Statement page (TASK-027), static: no fetch in any app. L n/a · E n/a · X n/a · S ✓ · T n/a
 
 ---
 
@@ -293,6 +301,10 @@ via toasts. Timeout: api-client 10 s; the loading flag always clears.
 ### `/health`
 - Static build stamp; no fetch. Trivially ✓ · T n/a
 
+
+### `/accessibility`
+- Statement page (TASK-027), static: no fetch in any app. L n/a · E n/a · X n/a · S ✓ · T n/a
+
 ---
 
 ## platform-admin
@@ -336,6 +348,12 @@ as an empty list; Impersonation gained a Spinner and an Alert-with-retry.
 ### `/translations`
 - L ✓ · E ✓ · X ✓ (error Alert + retry Button) · S ✓ · T ✓
 
+### `/retention`
+- TASK-028. L ✓ (Spinner) · E n/a — a zero-class report renders as the warning it is, never an empty table; a missing endpoint renders the honest cross-repo-gap state · X ✓ (error Alert **with retry** + trace id) · S ✓ (per-class table) · T ✓ (client timeout → error)
+
+### `/tenants/:id/offboarding`
+- TASK-028. L ✓ (Spinner) · E ✓ (404 → the not-requested start panel) · X ✓ (load error with retry + trace id; start failures Alert) · S ✓ (status + evidence + report; the record polls every 5 s until it settles) · T ✓ (client timeout → error)
+
 ### `/login`
 - L ✓ · E n/a · X ✓ (restart + `$effect` catch → Alert) · S ✓ · T ✓
 
@@ -344,3 +362,6 @@ as an empty list; Impersonation gained a Spinner and an Alert-with-retry.
 
 ### `/health`
 - Static build stamp; no fetch. Trivially ✓ · T n/a
+
+### `/accessibility`
+- Statement page (TASK-027), static: no fetch in any app. L n/a · E n/a · X n/a · S ✓ · T n/a

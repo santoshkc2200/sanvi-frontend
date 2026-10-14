@@ -65,6 +65,12 @@ unsatisfiable as written.
 | Onboarding path verified by a new engineer following it unaided | TASK-030, FR-1126 | A new engineer. The guide is still written and its commands are still executed end to end, but "someone followed it" and "it reads fine" are different claims and only the weaker one is available. |
 | Manual accessibility passes with a *named runner* per app | TASK-027, FR-1119 | A second person. The passes are still run and recorded; the runner is the same person every time. |
 
+## Cross-repo follow-ups (backend)
+
+| Item | Was | Unblocked by |
+| --- | --- | --- |
+| The retention run report served over HTTP. The backend generates the per-class report (rule, last run, rows affected, oldest surviving row) and evaluates its staleness alert from the same ledger, but only the CLI reads it — no operation serves it. The frontend surface (`/retention` in the operator console, TASK-028) is built against `GET /api/v1/platform/privacy/retention/report` with the shape mirrored from the backend's serde structs; until the operation lands, that page renders an honest "not exposed by this backend build" state rather than a table. | TASK-028, FR-1130 | A small backend change: expose the existing report builder over the platform-admin permission (`platform.tenant.offboard` or a dedicated read). The client wrapper moves to the generated path type with no call-site change. |
+
 ## What this costs
 
 **Performance confidence.** Lab numbers on pinned profiles catch regressions

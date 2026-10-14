@@ -2,6 +2,7 @@
 import { getOffboarding, getTenant, purgeReportOf, requestOffboarding } from '@sanvi/api-client'
 import type { components } from '@sanvi/api-client'
 import { t } from '@sanvi/i18n'
+import { handleLinkClick } from '@sanvi/spa-router'
 import {
   Alert,
   Badge,
@@ -223,9 +224,9 @@ const completed = $derived(snapshot?.completed_at ? new Date(snapshot.completed_
   <DetailShell
     title={t['platform.offboarding.title']()}
     subtitle={tenant.display_name}
-    backHref="/tenants/{id}"
+    backHref={`/tenants/${id}`}
     backLabel={t['platform.offboarding.backToTenant']()}
-    onNavigateBack={(event) => event.preventDefault()}
+    onNavigateBack={(event) => handleLinkClick(event, `/tenants/${id}`)}
   >
     {#snippet children()}
       <Stack gap="4">

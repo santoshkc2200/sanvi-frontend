@@ -1,5 +1,5 @@
 {
-  "_readme": "The routes the axe sweep covers, per app (TASK-031). Coverage is asserted against the routes enumerated live from each app's route definitions (see scripts/check-a11y.mjs): a route defined but absent here is reported as uncovered, so adding a route means adding it to this list \u2014 the same conscious act as budgeting it. Seeded with every route that existed at TASK-031 (regenerated after the nested-directory enumeration fix); TASK-027 added the per-app /accessibility statement route.",
+  "_readme": "The routes the axe sweep covers, per app (TASK-031). Coverage is asserted against the routes enumerated live from each app's route definitions (see scripts/check-a11y.mjs): a route defined but absent here is reported as uncovered, so adding a route means adding it to this list — the same conscious act as budgeting it. Seeded with every route that existed at TASK-031 (regenerated after the nested-directory enumeration fix); TASK-027 added the per-app /accessibility statement route.",
   "apps": {
     "storefront": {
       "type": "sveltekit",
@@ -98,10 +98,12 @@
         "/impersonations",
         "/login",
         "/privacy",
+        "/retention",
         "/roles",
         "/settings/security",
         "/step-up",
         "/tenants/:id",
+        "/tenants/:id/offboarding",
         "/translations"
       ]
     }

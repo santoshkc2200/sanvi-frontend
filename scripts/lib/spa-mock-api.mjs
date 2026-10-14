@@ -165,6 +165,86 @@ const PLATFORM_ROUTES = [
   ['**/api/v1/platform/approvals', () => ({ json: [] })],
   ['**/api/v1/platform/audit**', () => ({ json: { entries: [], next_cursor: null } })],
   ['**/api/v1/access/permissions', () => ({ json: [] })],
+  // TASK-028 surfaces (the sweep probes `:id` as `probe`). The retention
+  // report deliberately includes a stalled class so the sweep exercises the
+  // flagged state; the offboarding console sweeps its exported state, where
+  // the purge panel and the typed confirmation are in the DOM.
+  [
+    '**/api/v1/platform/privacy/retention/report',
+    () => ({
+      json: {
+        generated_at: '2026-10-14T00:00:00Z',
+        staleness_window_hours: 48,
+        classes: [
+          {
+            data_class: 'consent_record',
+            sensitivity: 'sensitive',
+            basis: 'consent',
+            period_days: 1095,
+            action: 'delete',
+            enforcement: 'executor:privacy.retention_sweep',
+            executor: 'privacy.retention_sweep',
+            last_run: {
+              run_at: '2026-10-13T22:00:00Z',
+              action: 'delete',
+              rows_affected: 12,
+              executor: 'privacy.retention_sweep',
+            },
+            oldest_surviving_row: '2026-01-01T00:00:00Z',
+            stalled: false,
+          },
+          {
+            data_class: 'invoice',
+            sensitivity: 'confidential',
+            period_days: 3650,
+            action: 'archive',
+            enforcement: 'executor:platform.archival_sweep',
+            last_run: {
+              run_at: '2026-10-01T00:00:00Z',
+              action: 'archive',
+              rows_affected: 3,
+              executor: 'platform.archival_sweep',
+            },
+            oldest_surviving_row: '2016-10-14T00:00:00Z',
+            stalled: true,
+          },
+        ],
+        stalled_classes: ['invoice'],
+      },
+    }),
+  ],
+  [
+    '**/api/v1/platform/tenants/probe',
+    () => ({
+      json: {
+        id: 'probe',
+        slug: 'probe',
+        display_name: 'Probe tenant',
+        region: 'us',
+        default_locale: 'en',
+        status: 'suspended',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-10-01T00:00:00Z',
+      },
+    }),
+  ],
+  [
+    '**/api/v1/platform/tenants/probe/offboarding**',
+    () => ({
+      json: {
+        id: 'off-probe',
+        tenant_id: 'probe',
+        idempotency_key: 'sweep-probe-key',
+        status: 'exported',
+        export: {
+          path: '/var/lib/sanvi/exports/offboarding/probe.zip.sealed',
+          checksum: 'sha256:sweep-probe',
+        },
+        created_at: '2026-10-01T00:00:00Z',
+        updated_at: '2026-10-01T00:01:00Z',
+      },
+    }),
+  ],
 ]
 
 const ROUTES_BY_APP = { admin: ADMIN_ROUTES, 'platform-admin': PLATFORM_ROUTES }
